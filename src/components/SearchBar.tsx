@@ -16,22 +16,42 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!query.trim()) return;
 
     setIsLoading(true);
+    console.log('Sending request to Gemini...');
     try {
-      const response = await fetch('/functions/v1/gemini-chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: query }),
-      });
+      // Direct call to Gemini API (temporary solution)
+      const response = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyDek37lbDSUGZsEOnkzNl8hy9V3Kw1B-Uo',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{ 
+              parts: [{ text: query }] 
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 1024,
+            },
+          }),
+        }
+      );
+
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get response');
+        const responseText = await response.text();
+        console.log('Error response text:', responseText);
+        throw new Error(`HTTP ${response.status}: ${responseText}`);
       }
       
       const data = await response.json();
-      onSearch?.(data.response);
+      console.log('Parsed response data:', data);
+      const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No response generated';
+      onSearch?.(aiResponse);
       setQuery(''); // Clear the input after successful search
     } catch (error) {
       console.error('Search error:', error);
