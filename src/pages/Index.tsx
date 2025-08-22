@@ -1,10 +1,11 @@
 const Index = () => {
   return (
-    <div className="min-h-screen w-full bg-background flex items-center justify-center relative overflow-hidden">
-      {/* Blue gradient effects */}
-      <div className="absolute inset-0 bg-gradient-blue-intense opacity-70" />
-      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-gradient-blue opacity-60 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-gradient-blue opacity-50 rounded-full blur-3xl" />
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
+      {/* Red gradient background */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)` }}
+      />
       
       {/* Main content */}
       <div className="relative z-10 text-center">
