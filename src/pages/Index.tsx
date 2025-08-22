@@ -7,7 +7,7 @@ const Index = () => {
       
       {/* Main content */}
       <div className="relative z-10 text-center">
-        <h1 className="text-4xl lg:text-7xl tracking-wider text-foreground font-extrabold md:text-lg">Gaurav Darwesh</h1>
+        <h1 className="text-4xl lg:text-7xl tracking-wider text-foreground font-extrabold text-center md:text-lg">Gaurav Darwesh</h1>
       </div>
     </div>;
 };
