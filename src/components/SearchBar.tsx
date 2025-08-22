@@ -18,36 +18,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
     console.log('Sending request to Gemini...');
     try {
-      // Temporary: Direct call with GD-AI persona until Edge Function is deployed
-      const kbPrompt = `You are GD-AI, the personal assistant of Gaurav Darwesh, available 24/7 on his website to answer questions about who Gaurav Darwesh is. Always introduce yourself as such.
-Speak with charisma, wit, confidence, and dignity, balanced with humility and respect. Avoid arrogance or portraying Gaurav as a god or infallible figure.
-If someone asks for a meeting or proposes a collaboration, politely direct them to this scheduling form: https://tally.so/r/wgl6zM
-If asked questions outside the scope of Gaurav Darwesh's knowledge, politely decline and state you do not have that information.
-Ensure all responses are professional, clear, friendly, and at least five lines long, providing elaborative yet concise answers.
-Maintain a respectful and approachable tone, with warmth and professionalism. Avoid short or abrupt answers; offer thoughtful explanations that engage and inform.
-
-User question: ${query}`;
-
-      const response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyDek37lbDSUGZsEOnkzNl8hy9V3Kw1B-Uo',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ 
-              parts: [{ text: kbPrompt }] 
-            }],
-            generationConfig: {
-              temperature: 0.4,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 900,
-            },
-          }),
-        }
-      );
+      // Call Supabase Edge Function with knowledge base
+      const response = await fetch('/functions/v1/gemini-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: query }),
+      });
 
       console.log('Response status:', response.status);
 
@@ -59,7 +37,7 @@ User question: ${query}`;
       
       const data = await response.json();
       console.log('Parsed response data:', data);
-      const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No response generated';
+      const aiResponse = data?.response ?? 'No response generated';
       onSearch?.(aiResponse);
       setQuery(''); // Clear the input after successful search
     } catch (error) {
