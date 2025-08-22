@@ -55,7 +55,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             type="submit" 
             variant="ghost" 
             size="sm" 
-            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full"
+            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
             disabled={isLoading || !query.trim()}
           >
             <ArrowRight className="h-4 w-4" />
