@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Mic, Plus, Globe, Sparkles, Type } from 'lucide-react';
+import { Send } from 'lucide-react';
 
 interface SearchBarProps {
   onSearch?: (query: string) => void;
@@ -37,50 +37,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-2xl px-4 z-50">
-      <div className="bg-card/80 backdrop-blur-lg border border-border/50 rounded-2xl p-4 shadow-2xl">
-        <form onSubmit={handleSubmit} className="flex items-center gap-3">
-          {/* Left icons */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent/20">
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent/20">
-              <Globe className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent/20">
-              <Sparkles className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent/20">
-              <Type className="h-4 w-4" />
-            </Button>
-          </div>
-
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4 z-50">
+      <div className="bg-card/40 backdrop-blur-xl border border-border/30 rounded-full p-2 shadow-lg">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
           {/* Search input */}
           <Input
             type="text"
             placeholder="Ask anything"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground px-4"
             disabled={isLoading}
           />
 
-          {/* Right icons */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent/20">
-              <Mic className="h-4 w-4" />
-            </Button>
-            <Button 
-              type="submit" 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 w-8 p-0 hover:bg-accent/20"
-              disabled={isLoading || !query.trim()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Send button */}
+          <Button 
+            type="submit" 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full"
+            disabled={isLoading || !query.trim()}
+          >
+            <Send className="h-4 w-4" />
+          </Button>
         </form>
       </div>
     </div>
