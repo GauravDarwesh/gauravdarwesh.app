@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface SearchBarProps {
   onSearch?: (query: string) => void;
@@ -58,7 +58,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full"
             disabled={isLoading || !query.trim()}
           >
-            <Send className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4" />
           </Button>
         </form>
       </div>
