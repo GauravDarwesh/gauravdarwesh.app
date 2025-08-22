@@ -20,7 +20,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     console.log('Sending request to Gemini...');
     try {
       // Invoke Supabase Edge Function with knowledge base
-      const { data, error } = await supabase.functions.invoke('gemini-chat', {
+      const { data, error } = await supabase.functions.invoke('super-handler', {
         body: { message: query },
       });
 
