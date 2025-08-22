@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SearchBarProps {
   onSearch?: (query: string) => void;
@@ -18,27 +19,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
     console.log('Sending request to Gemini...');
     try {
-      // Call Supabase Edge Function with knowledge base
-      const response = await fetch('/functions/v1/gemini-chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: query }),
+      // Invoke Supabase Edge Function with knowledge base
+      const { data, error } = await supabase.functions.invoke('gemini-chat', {
+        body: { message: query },
       });
 
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        const responseText = await response.text();
-        console.log('Error response text:', responseText);
-        throw new Error(`HTTP ${response.status}: ${responseText}`);
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message ?? 'Edge function error');
       }
-      
-      const data = await response.json();
-      console.log('Parsed response data:', data);
-      const aiResponse = data?.response ?? 'No response generated';
+
+      console.log('Function response data:', data);
+      const aiResponse = (data as any)?.response ?? 'No response generated';
       onSearch?.(aiResponse);
+
       setQuery(''); // Clear the input after successful search
     } catch (error) {
       console.error('Search error:', error);
