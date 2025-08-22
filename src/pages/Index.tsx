@@ -1,9 +1,12 @@
 import SearchBar from '@/components/SearchBar';
+import { useState } from 'react';
+
 const Index = () => {
+  const [response, setResponse] = useState<string>('');
+  
   const handleSearch = (response: string) => {
     console.log('Gemini response:', response);
-    // You can display the response in the UI here
-    // For now, it will show in the console
+    setResponse(response);
   };
   return <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
       {/* Red gradient background */}
@@ -12,8 +15,22 @@ const Index = () => {
     }} />
       
       {/* Main content */}
-      <div className="relative z-10 text-center">
+      <div className="relative z-10 text-center max-w-2xl mx-auto px-6">
+        {/* Response Display */}
+        {response && (
+          <div className="mb-8 p-6 bg-card/80 backdrop-blur-lg border border-border/30 rounded-lg shadow-lg">
+            <div className="text-foreground text-left whitespace-pre-wrap">
+              {response}
+            </div>
+          </div>
+        )}
         
+        {!response && (
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-foreground mb-4">Ask me anything</h1>
+            <p className="text-muted-foreground">Powered by Gemini AI</p>
+          </div>
+        )}
       </div>
 
       {/* Search Bar */}
