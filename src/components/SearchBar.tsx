@@ -18,27 +18,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
     console.log('Sending request to Gemini...');
     try {
-      // Direct call to Gemini API (temporary solution)
-      const response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyDek37lbDSUGZsEOnkzNl8hy9V3Kw1B-Uo',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ 
-              parts: [{ text: query }] 
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 1024,
-            },
-          }),
-        }
-      );
+      // Call Supabase Edge Function
+      const response = await fetch('/functions/v1/gemini-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: query }),
+      });
 
       console.log('Response status:', response.status);
 
@@ -50,7 +37,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       
       const data = await response.json();
       console.log('Parsed response data:', data);
-      const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No response generated';
+      const aiResponse = data?.response ?? 'No response generated';
       onSearch?.(aiResponse);
       setQuery(''); // Clear the input after successful search
     } catch (error) {
