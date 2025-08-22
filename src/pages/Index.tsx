@@ -2,7 +2,8 @@ import SearchBar from '@/components/SearchBar';
 const Index = () => {
   const handleSearch = (response: string) => {
     console.log('Gemini response:', response);
-    // Handle the AI response here
+    // You can display the response in the UI here
+    // For now, it will show in the console
   };
   return <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
       {/* Red gradient background */}

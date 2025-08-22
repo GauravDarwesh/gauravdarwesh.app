@@ -17,7 +17,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('/api/gemini-chat', {
+      const response = await fetch('/functions/v1/gemini-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -25,12 +25,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         body: JSON.stringify({ message: query }),
       });
 
-      if (!response.ok) throw new Error('Failed to get response');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get response');
+      }
       
       const data = await response.json();
       onSearch?.(data.response);
+      setQuery(''); // Clear the input after successful search
     } catch (error) {
       console.error('Search error:', error);
+      onSearch?.(`Error: ${error instanceof Error ? error.message : 'Something went wrong'}`);
     } finally {
       setIsLoading(false);
     }
