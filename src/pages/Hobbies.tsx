@@ -31,8 +31,8 @@ const Portfolio = () => {
         <p className="text-lg leading-relaxed">
           I am a Cambridge University graduate in Strategic Business and Management, 
           with a Bachelor of Engineering in Computer Science (AIML) from the University of Mumbai. 
-          Currently working at Nasdaq, with prior experience at Jio, CodersCave, and Fanatisch Digital Marketing. 
-          Proficient in Jira, Salesforce, Planhat, Power BI, and Excel, I specialize in developing 
+          Currently working at Nasdaq, with prior experience at notable MNC like Jio. 
+          Proficient in Jira, Salesforce, ServiceNow, CS tool like Planhat, Power BI, and Excel, I specialize in developing 
           innovative solutions that drive business growth and operational efficiency.
         </p>
 
