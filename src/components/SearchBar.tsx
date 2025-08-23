@@ -25,7 +25,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   // ⌥ Option + Space toggles thread visibility (search bar stays)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Prevent conflicting native shortcuts
       if ((e.code === 'Space' || e.key === ' ') && e.altKey) {
         e.preventDefault();
         setIsThreadOpen((v) => !v);
@@ -47,10 +46,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const text = query.trim();
     if (!text) return;
 
-    // Push user message
     setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setQuery('');
-    setIsThreadOpen(true); // ensure thread is visible when sending
+    setIsThreadOpen(true);
     setIsLoading(true);
 
     try {
@@ -78,9 +76,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
 
-  // Expand to full width when thread is open and there are messages
-  const targetWidth = hasMessages && isThreadOpen ? '700px' : `${dynamicWidth}px`;
-  const targetRadius = hasMessages && isThreadOpen ? '16px' : `${dynamicRadius}px`;
+  const targetWidth =
+    hasMessages && isThreadOpen ? '700px' : `${dynamicWidth}px`;
+  const targetRadius =
+    hasMessages && isThreadOpen ? '16px' : `${dynamicRadius}px`;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
@@ -107,32 +106,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 : 'opacity-0 mb-0'
             }`}
             style={{
-              // Smooth accordion style open/close
-              maxHeight: hasMessages && isThreadOpen ? '384px' : '0px', // ~ max-h-96
+              maxHeight: hasMessages && isThreadOpen ? '384px' : '0px',
               transitionDelay: hasMessages && isThreadOpen ? '300ms' : '0ms',
             }}
           >
             <div
               ref={containerRef}
-              className="text-foreground text-base leading-relaxed px-4 space-y-3 overflow-y-auto glass-scrollbar"
+              className="text-foreground text-sm leading-relaxed px-4 space-y-2 overflow-y-auto glass-scrollbar"
               style={{
                 maxHeight: '360px',
-                paddingRight: '0.25rem',
+                paddingRight: '1.5rem', // extra space for scrollbar
               }}
             >
               {messages.map((m, i) => (
                 <div
                   key={i}
                   className={
-                    'max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-relaxed ' +
+                    'inline-block rounded-2xl px-3 py-1.5 text-sm leading-relaxed ' +
                     (m.role === 'user'
                       ? 'ml-auto bg-white/40 backdrop-blur-md ring-1 ring-white/20'
                       : 'mr-auto bg-white/25 backdrop-blur-sm ring-1 ring-white/15')
                   }
                   style={{
-                    // Subtle fade/slide with pure CSS
+                    maxWidth: '75%',
                     animation:
-                      'fadeSlideIn 500ms cubic-bezier(0.25,1,0.3,1) both',
+                      'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
                     whiteSpace: 'pre-wrap',
                   }}
                 >
@@ -171,24 +169,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* Scoped styles for animations + glass scrollbar */}
+      {/* Styles */}
       <style>
         {`
           @keyframes fadeSlideIn {
-            from { opacity: 0; transform: translateY(6px); }
+            from { opacity: 0; transform: translateY(4px); }
             to   { opacity: 1; transform: translateY(0); }
           }
 
-          /* Translucent glass scrollbar */
+          /* Glassy scrollbar */
           .glass-scrollbar {
             scrollbar-width: thin;
-            scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+            scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
           }
           .glass-scrollbar::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
           }
           .glass-scrollbar::-webkit-scrollbar-track {
             background: transparent;
+            margin: 6px 0; /* remove arrows */
           }
           .glass-scrollbar::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.35);
@@ -196,7 +195,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             border: 2px solid rgba(255, 255, 255, 0.15);
           }
           .glass-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.55);
           }
         `}
       </style>
