@@ -26,10 +26,10 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                flex-1 text-center px-4 py-2 rounded-xl transition-colors duration-200
+                flex-1 text-center px-4 py-2 rounded-xl tracking-normal
                 bg-transparent hover:bg-transparent
-                ${active 
-                  ? "bg-white/20 text-white font-semibold backdrop-blur-sm" 
+                ${active
+                  ? "bg-white/20 text-white font-semibold backdrop-blur-sm"
                   : "text-gray-300"}
               `}
             >
