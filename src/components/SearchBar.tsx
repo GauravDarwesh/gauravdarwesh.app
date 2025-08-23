@@ -10,8 +10,8 @@ interface SearchBarProps {
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState('');
-  const [response, setResponse] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [response, setResponse] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,15 +19,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null); // clear previous
+    setResponse(null); // clear old response
+    setQuery('');      // ✅ clear input after submit
+
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? '';
       setResponse(String(assistant));
       onSearch?.(String(assistant));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : 'Something went wrong';
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
       setResponse(msg);
       onSearch?.(msg);
     } finally {
@@ -35,10 +36,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  // Dynamic width/radius
+  // Dynamic width/radius (keeps the search bar "expanding" effect)
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
-
   const targetWidth = response ? '700px' : `${dynamicWidth}px`;
   const targetRadius = response ? '16px' : `${dynamicRadius}px`;
 
@@ -49,9 +49,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         style={{
           width: targetWidth,
           maxWidth: '90vw',
-          transformOrigin: 'center bottom',
           borderRadius: targetRadius,
-          transition: 'all 1.2s cubic-bezier(0.25, 1, 0.3, 1)',
+          transition: 'all 1.2s cubic-bezier(0.25,1,0.3,1)',
         }}
       >
         <div
@@ -59,29 +58,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             response ? 'p-5 pt-6' : 'p-2'
           }`}
         >
-          {/* Response Section */}
-          <div
-            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? 'opacity-100 mb-5' : 'opacity-0 mb-0'
-            }`}
-            style={{
-              maxHeight: response ? '384px' : '0px',
-              transitionDelay: response ? '300ms' : '0ms',
-            }}
-          >
-            {response && (
-              <div
-                className="text-foreground text-sm leading-relaxed px-4"
-                style={{
-                  borderRadius: targetRadius,
-                  animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {response}
-              </div>
-            )}
-          </div>
+          {/* Response */}
+          {response && (
+            <div
+              className="text-foreground text-sm leading-relaxed px-4 mb-4"
+              style={{
+                borderRadius: targetRadius,
+                animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {response}
+            </div>
+          )}
 
           {/* Input */}
           <form onSubmit={handleSubmit} className="flex items-center gap-3">
