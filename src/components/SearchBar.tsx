@@ -112,7 +112,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             <div
               ref={containerRef}
-              className="text-foreground text-sm leading-relaxed px-4 space-y-3 overflow-y-auto glass-scrollbar"
+              className="text-foreground text-sm leading-relaxed px-4 space-y-4 overflow-y-auto glass-scrollbar"
               style={{
                 maxHeight: '360px',
                 paddingRight: '1.5rem', // space for scrollbar
