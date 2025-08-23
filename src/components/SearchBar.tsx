@@ -112,7 +112,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             <div
               ref={containerRef}
-              className="text-foreground text-sm leading-relaxed px-4 space-y-4 overflow-y-auto glass-scrollbar"
+              className="text-foreground text-sm leading-relaxed px-4 space-y-4 overflow-y-auto"
               style={{
                 maxHeight: '360px',
                 paddingRight: '1.5rem', // space for scrollbar
@@ -169,35 +169,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       {/* Styles */}
-      <style>
-        {`
-          @keyframes fadeSlideIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-
-          /* Glassy scrollbar */
-          .glass-scrollbar {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
-          }
-          .glass-scrollbar::-webkit-scrollbar {
-            width: 12px;
-          }
-          .glass-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-            margin: 6px 0; /* removes arrows */
-          }
-          .glass-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.35);
-            border-radius: 9999px;
-            border: 2px solid rgba(255, 255, 255, 0.15);
-          }
-          .glass-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.55);
-          }
-        `}
-      </style>
+      
     </div>
   );
 };
