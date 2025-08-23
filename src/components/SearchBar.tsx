@@ -1,13 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 import { sendChatMessage } from '@/lib/api';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 interface SearchBarProps {
   onSearch?: (response: string) => void;
@@ -15,57 +10,25 @@ interface SearchBarProps {
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState('');
+  const [response, setResponse] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isThreadOpen, setIsThreadOpen] = useState(true);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hasMessages = messages.length > 0;
-
-  // ⌥ Option + Space toggles thread visibility
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.code === 'Space' || e.key === ' ') && e.altKey) {
-        e.preventDefault();
-        setIsThreadOpen((v) => !v);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages, isThreadOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = query.trim();
     if (!text) return;
 
-    setMessages((prev) => [...prev, { role: 'user', content: text }]);
-    setQuery('');
-    setIsThreadOpen(true);
     setIsLoading(true);
-
+    setResponse(null); // clear previous
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? '';
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: String(assistant) },
-      ]);
+      setResponse(String(assistant));
       onSearch?.(String(assistant));
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : 'Something went wrong';
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: msg },
-      ]);
+      setResponse(msg);
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -76,10 +39,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
 
-  const targetWidth =
-    hasMessages && isThreadOpen ? '700px' : `${dynamicWidth}px`;
-  const targetRadius =
-    hasMessages && isThreadOpen ? '16px' : `${dynamicRadius}px`;
+  const targetWidth = response ? '700px' : `${dynamicWidth}px`;
+  const targetRadius = response ? '16px' : `${dynamicRadius}px`;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
@@ -95,50 +56,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       >
         <div
           className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-            hasMessages && isThreadOpen ? 'p-5 pt-6' : 'p-2'
+            response ? 'p-5 pt-6' : 'p-2'
           }`}
         >
-          {/* Thread / Messages */}
+          {/* Response Section */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              hasMessages && isThreadOpen
-                ? 'opacity-100 mb-5'
-                : 'opacity-0 mb-0'
+              response ? 'opacity-100 mb-5' : 'opacity-0 mb-0'
             }`}
             style={{
-              maxHeight: hasMessages && isThreadOpen ? '384px' : '0px',
-              transitionDelay: hasMessages && isThreadOpen ? '300ms' : '0ms',
+              maxHeight: response ? '384px' : '0px',
+              transitionDelay: response ? '300ms' : '0ms',
             }}
           >
-            <div
-              ref={containerRef}
-              className="text-foreground text-sm leading-relaxed px-4 space-y-4 overflow-y-scroll no-scrollbar"
-              style={{
-                maxHeight: '360px',
-                paddingRight: '1.5rem',
-              }}
-            >
-             {messages.map((m, i) => (
-  <div
-    key={i}
-    className={
-      'w-fit max-w-[75%] px-4 py-2 text-sm leading-relaxed break-words ' +
-      (m.role === 'user'
-        ? 'ml-auto bg-white/40 backdrop-blur-md ring-1 ring-white/20'
-        : 'mr-auto bg-white/25 backdrop-blur-sm ring-1 ring-white/15')
-    }
-    style={{
-      borderRadius: targetRadius, // 👈 same as expanded search box
-      animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
-      whiteSpace: 'pre-wrap',
-    }}
-  >
-    {m.content}
-  </div>
-))}
-
-
-            </div>
+            {response && (
+              <div
+                className="text-foreground text-sm leading-relaxed px-4"
+                style={{
+                  borderRadius: targetRadius,
+                  animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {response}
+              </div>
+            )}
           </div>
 
           {/* Input */}
@@ -176,15 +118,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateY(4px); }
             to   { opacity: 1; transform: translateY(0); }
-          }
-
-          /* Hide all scrollbars but keep scroll functionality */
-          .no-scrollbar {
-            -ms-overflow-style: none; /* IE/Edge */
-            scrollbar-width: none;    /* Firefox */
-          }
-          .no-scrollbar::-webkit-scrollbar {
-            display: none; /* Chrome/Safari */
           }
         `}
       </style>
