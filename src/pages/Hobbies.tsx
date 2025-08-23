@@ -137,34 +137,42 @@ const Portfolio = () => {
         {/* Recommendations */}
 <section>
   <h2 className="text-2xl font-semibold mb-4">Recommendations</h2>
-  <ul className="list-disc pl-5 space-y-2">
-    <li>
-      <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq  
-      <br />
-      <span className="text-sm text-white">
-        Mentor during internship. Praised Gaurav’s motivation, curiosity, and strong
-        engagement, calling him a standout contributor with a bright future.
-      </span>
-    </li>
-    <li>
-      <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge  
-      <br />
-      <span className="text-sm text-white">
-        Teacher during the Finance & Accounting unit. Commended Gaurav’s ability to
-        master complex finance topics, apply them to real-world problems, and deliver
-        insightful analysis with strong project and time management skills.
-      </span>
-    </li>
-    <li>
-      <strong>Sourav Raj</strong> — Data Scientist, Jio  
-      <br />
-      <span className="text-sm text-white">
-        Mentor during internship. Highlighted Gaurav’s flexibility, rapid learning,
-        proactive problem-solving, and consistent delivery of high-quality work.
-      </span>
-    </li>
-  </ul>
+  <div className="space-y-6">
+    <div>
+      <p>
+        <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq  
+      </p>
+      <p className="text-sm text-gray-700 mt-1">
+        Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s
+        motivation, curiosity, and strong engagement, describing him as a standout
+        contributor who brought fresh energy and showed great potential for the future.
+      </p>
+    </div>
+    <div>
+      <p>
+        <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge  
+      </p>
+      <p className="text-sm text-gray-700 mt-1">
+        Doug taught Gaurav in the Finance & Accounting unit at Cambridge. He highlighted
+        his ability to grasp complex finance topics, apply them to practical challenges,
+        and deliver insightful analysis. Doug also commended Gaurav’s strong time and
+        project management skills, confident he will add substantial value in any role.
+      </p>
+    </div>
+    <div>
+      <p>
+        <strong>Sourav Raj</strong> — Data Scientist, Jio  
+      </p>
+      <p className="text-sm text-gray-700 mt-1">
+        Sourav mentored Gaurav during an internship at Jio. He emphasized his flexibility,
+        rapid learning, and proactive approach to problem-solving. Gaurav consistently
+        delivered high-quality work on time, and Sourav noted he would be a valuable
+        asset in any future position.
+      </p>
+    </div>
+  </div>
 </section>
+
 
 
         {/* Skills */}
