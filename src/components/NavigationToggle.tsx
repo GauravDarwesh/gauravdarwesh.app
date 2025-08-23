@@ -24,9 +24,9 @@ const NavigationToggle = () => {
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
       <div className="relative flex justify-between items-center px-2 py-2 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-lg w-[360px] overflow-hidden">
-        {/* Flowing droplet highlight */}
+        {/* Smooth sliding highlight */}
         <div
-          className="absolute top-2 bottom-2 w-1/3 rounded-xl bg-white/20 backdrop-blur-md shadow-sm animate-droplet"
+          className="absolute top-2 bottom-2 w-1/3 rounded-xl bg-white/20 backdrop-blur-md shadow-sm transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]"
           style={{
             transform: `translateX(${activeIndex * 100}%)`,
           }}
@@ -41,11 +41,11 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                relative flex-1 text-center px-4 py-2 rounded-lg transition-colors duration-300
+                relative flex-1 text-center px-4 py-2 rounded-lg transition-none
                 bg-transparent hover:bg-transparent
                 ${active
                   ? "text-white font-semibold"
-                  : "text-gray-300 hover:text-white"}
+                  : "text-gray-300"}
               `}
             >
               {option.name}
