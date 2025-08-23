@@ -72,7 +72,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  // Dynamic width/radius like your original
+  // Dynamic width/radius
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
 
@@ -112,10 +112,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             <div
               ref={containerRef}
-              className="text-foreground text-sm leading-relaxed px-4 space-y-4 overflow-y-scroll glass-scrollbar"
+              className="text-foreground text-sm leading-relaxed px-4 space-y-4 overflow-y-scroll no-scrollbar"
               style={{
                 maxHeight: '360px',
-                paddingRight: '1.5rem', // keeps space for scrollbar
+                paddingRight: '1.5rem',
               }}
             >
               {messages.map((m, i) => (
@@ -176,25 +176,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             to   { opacity: 1; transform: translateY(0); }
           }
 
-          /* Glassy scrollbar */
-          .glass-scrollbar {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+          /* Hide all scrollbars but keep scroll functionality */
+          .no-scrollbar {
+            -ms-overflow-style: none; /* IE/Edge */
+            scrollbar-width: none;    /* Firefox */
           }
-          .glass-scrollbar::-webkit-scrollbar {
-            width: 12px;
-          }
-          .glass-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-            margin: 6px 0;
-          }
-          .glass-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.35);
-            border-radius: 9999px;
-            border: 2px solid rgba(255, 255, 255, 0.15);
-          }
-          .glass-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.55);
+          .no-scrollbar::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
           }
         `}
       </style>
