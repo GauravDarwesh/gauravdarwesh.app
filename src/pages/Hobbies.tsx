@@ -32,7 +32,7 @@ const Portfolio = () => {
           I am a Cambridge University graduate in Strategic Business and Management, 
           with a Bachelor of Engineering in Computer Science (AIML) from the University of Mumbai. 
           Currently working at Nasdaq, with prior experience at notable MNC like Jio. 
-          Proficient in Jira, Salesforce, ServiceNow, CS tool like Planhat, Power BI, and Excel, I specialize in developing 
+          Proficient in Jira, Salesforce, ServiceNow, Planhat, Power BI, and Excel, I specialize in developing 
           innovative solutions that drive business growth and operational efficiency.
         </p>
 
@@ -63,8 +63,15 @@ const Portfolio = () => {
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li>Monitoring and analyzing global regulatory updates across NAM and LATAM regions.</li>
               <li>Managing JIRA tickets for regulatory changes, requirements, and enhancements.</li>
-              <li>Collaborating with cross-functional teams on compliance frameworks like Basel, EMIR, SFTR.</li>
-              <li>Supporting weekly newsletters and pre-sales client alignment.</li>
+              <li>Collaborating with cross-functional teams to interpret regulations and translate them into product requirements.</li>
+              <li>Supporting weekly regulatory newsletters for internal and external stakeholders.</li>
+              <li>Assisting pre-sales and sales teams by aligning client regulatory needs with solutions.</li>
+              <li>Contributing to product enhancement initiatives to improve responsiveness to regulatory change.</li>
+              <li>Building expertise in compliance frameworks such as Basel, EMIR, and SFTR.</li>
+              <li>Ensuring accuracy in regulatory documentation and maintaining data integrity.</li>
+              <li>Identifying and escalating potential regulatory risks to ensure proactive compliance.</li>
+              <li>Enhancing workflows by supporting business analysis and automating regulatory tracking.</li>
+
             </ul>
           </div>
 
@@ -74,9 +81,18 @@ const Portfolio = () => {
               Client Success Operations Intern <span className="float-right">Jan 2025 – Jun 2025</span>
             </p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Led Whitespace Project for upsell opportunities across multiple products.</li>
-              <li>Deployed NPS campaigns via Qualtrics, leveraging Planhat + Power BI.</li>
-              <li>Streamlined client success workflows and built weekly visualizations.</li>
+              <li>Led the Whitespace Project to identify upsell/cross-sell opportunities across Calypso, AxiomSL, and NTS product lines.</li>
+              <li>Deployed organization-level NPS campaigns via Qualtrics for Calypso, AxiomSL (ControllerView), NTS, CapCloud, and RegCloud product lines to capture client feedback and inform strategy.</li>
+              <li>Assisted with capturing global control times to provide smooth and relevant information flow.</li>
+              <li>Contributed to Nasdaq Trade Surveillance (Phase-1) by vetting SUBS through JIRA, automating procedures and building visualizations weekly for global account review meetings.</li>
+              <li>Utilized Planhat for customer success analytics and management.</li>
+              <li>Leveraged Power BI/Salesforce for strategic data visualization and reporting.</li>
+              <li>Partnered with global teams to streamline customer success operations.</li>
+              <li>Analyzed client trends to optimize retention strategies.</li>
+              <li>Assisted in automating workflows to enhance operational efficiency.</li>
+              <li>Strengthened global stakeholder engagement for success execution.</li>
+
+
             </ul>
           </div>
 
@@ -86,23 +102,19 @@ const Portfolio = () => {
               Data Science Intern <span className="float-right">Dec 2023 – Jan 2024</span>
             </p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Developed AI-based system to improve indoor wireless coverage.</li>
-              <li>Built ray tracing simulations with Pylayers.</li>
-              <li>Applied OpenCV for wall/structure detection in 5G planning.</li>
+              <li>Led the development of an AI-based system to improve indoor wireless network coverage, focusing on better planning and signal accuracy.</li>
+              <li>Built a ray tracing simulation using the open-source Pylayers library to model how signals travel inside buildings.</li>
+              <li>Created detailed visibility and interaction maps to represent indoor layouts and help place network access points more effectively.</li>
+              <li>Used computer vision with OpenCV to detect walls and structures, measuring distances to improve coverage planning.</li>
+              <li>Ran coverage simulations and visualized signal patterns to provide insights for enhancing 5G network design.</li>
+              <li>Showed how ray tracing can be applied to real-world 5G network challenges through a working proof-of-concept.</li>
+              <li>Worked closely with teams to share findings and support decision-making on Jio’s network improvement plans.</li>
+
+
             </ul>
           </div>
 
-          <div className="mb-6">
-            <h3 className="font-semibold">CodersCave, Mumbai, India</h3>
-            <p className="italic">
-              Business Analytics Intern <span className="float-right">Sept 2023 – Oct 2023</span>
-            </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Preprocessed Amazon dataset using Pandas/NumPy/SciPy.</li>
-              <li>Analyzed Tata dataset with Scikit-learn + Google Sheets.</li>
-              <li>Built and deployed KPI dashboard for real-time tracking.</li>
-            </ul>
-          </div>
+          
 
           <div className="mb-6">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
@@ -110,9 +122,14 @@ const Portfolio = () => {
               Marketing Intern <span className="float-right">May 2023 – July 2023</span>
             </p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Curated content ideas for food brands like @oddiyana, @pots56, @blissobowl.</li>
-              <li>Ran “Feast from the East” campaign for Mumbai-based food enthusiasts.</li>
-              <li>Boosted engagement by 40% and follower count by 25%.</li>
+              <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
+              <li>Led a comprehensive campaign titled "Feast from the east" for a month, targeting food enthusiasts in Mumbai.</li>
+              <li>Utilized Instagram and Google Ads to segment audiences based on culinary interests and online behavior.</li>
+              <li>Developed a content calendar featuring daily recipes, cooking tips, and user-generated content to maintain engagement.</li>
+              <li>Implemented A/B testing for ad creatives and landing pages to optimize performance.</li>
+              <li>Increased followers by 25% across all Instagram handles.</li>
+              <li>Achieved a 40% boost in engagement rates through targeted ads and interactive content.</li>
+
             </ul>
           </div>
         </section>
