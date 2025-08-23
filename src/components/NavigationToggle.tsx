@@ -8,7 +8,7 @@ const NavigationToggle = () => {
 
   const options = [
     { name: "GDx", path: "/" },
-    { name: "Classic Website", path: "/hobbies" },
+    { name: "Classic", path: "/hobbies" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
