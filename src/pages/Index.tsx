@@ -22,7 +22,7 @@ const TypewriterText = () => {
   return (
     <h1
       className="text-6xl tracking-wider text-white drop-shadow-lg"
-      style={{ fontFamily: "'Orbitron', sans-serif" }}
+      style={{ fontFamily: "'Orbitron', sans-serif", transform: "scaleY(1.5)", }}
     >
       {text.slice(0, -1)}
       {text.endsWith("*") && (
