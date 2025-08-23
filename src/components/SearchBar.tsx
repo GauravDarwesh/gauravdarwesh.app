@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search } from 'lucide-react';
 import { sendChatMessage } from '@/lib/api';
 
 interface SearchBarProps {
@@ -17,8 +19,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null);
-    setQuery('');
+    setResponse(null); // clear previous
+    setQuery('');      // clear input
 
     try {
       const result = await sendChatMessage(text);
@@ -34,19 +36,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  const dynamicWidth = Math.min(300 + query.length * 8, 700);
+  // Dynamic width/radius
+  const dynamicWidth = Math.min(300 + query.length * 6, 500);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
 
   const targetWidth = response ? '700px' : `${dynamicWidth}px`;
   const targetRadius = response ? '16px' : `${dynamicRadius}px`;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex justify-center">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
       <div
-        className="shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
+        className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
           width: targetWidth,
           maxWidth: '90vw',
+          transformOrigin: 'center bottom',
           borderRadius: targetRadius,
           transition: 'all 1.2s cubic-bezier(0.25, 1, 0.3, 1)',
         }}
@@ -68,7 +72,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             {response && (
               <div
-                className="text-foreground text-sm leading-relaxed px-4 text-center"
+                className="text-foreground text-sm leading-relaxed px-4"
                 style={{
                   animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
                   whiteSpace: 'pre-wrap',
@@ -80,19 +84,30 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="w-full">
+          <form onSubmit={handleSubmit} className="flex items-center gap-3">
             <Input
               type="text"
               placeholder={isLoading ? 'Searching…' : 'Ask anything…'}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-transparent border-0 focus-visible:ring-0 
-                         focus-visible:ring-offset-0 text-foreground 
-                         placeholder:text-muted-foreground text-base h-10 
-                         text-center"
+              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+                         text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
               disabled={isLoading}
               aria-label="Ask anything"
             />
+
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full 
+                         transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] 
+                         hover:scale-110 active:scale-95 shrink-0"
+              disabled={isLoading || !query.trim()}
+              aria-label="Send"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
           </form>
         </div>
       </div>
