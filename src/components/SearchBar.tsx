@@ -182,7 +182,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
           }
           .glass-scrollbar::-webkit-scrollbar {
-            width: 12px;
+            width: 14px;
           }
           .glass-scrollbar::-webkit-scrollbar-track {
             background: transparent;
