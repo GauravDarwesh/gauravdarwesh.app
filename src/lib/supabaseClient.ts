@@ -1,5 +1,7 @@
-// Re-export the generated Supabase client to ensure a single source of truth
-// and avoid using VITE_* env variables which are not supported in this environment.
-import { supabase } from "@/integrations/supabase/client";
+import { createClient } from "@supabase/supabase-js";
 
-export { supabase };
+// Must use VITE_ prefix so Vite exposes them to client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
