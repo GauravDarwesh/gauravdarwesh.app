@@ -63,7 +63,10 @@ const About = () => {
             <strong>Fanatisch Digital</strong> — Marketing Intern (2023)
           </p>
         </div>
-
+      </div>
+    </div>
+  );
+};
 
 const ExperiencePage = () => {
   return (
@@ -205,7 +208,7 @@ const ExperiencePage = () => {
       </div>
 
       {/* Invisible scrollbar styling */}
-      <style jsx global>{`
+      <style>{`
         .no-scrollbar::-webkit-scrollbar {
           display: none;
         }
@@ -219,11 +222,3 @@ const ExperiencePage = () => {
 };
 
 export default ExperiencePage;
-
-  
-      </div>
-    </div>
-  );
-};
-
-export default About;
