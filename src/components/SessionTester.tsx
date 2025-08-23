@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { sendChatMessage } from '@/lib/api';
 import { getSessionId } from '@/lib/session';
+import ResponseRenderer from '@/components/ResponseRenderer';
 
 const SessionTester: React.FC = () => {
   const [responses, setResponses] = useState<Array<{message: string, response: string, timestamp: string}>>([]);
@@ -130,8 +131,8 @@ const SessionTester: React.FC = () => {
                         <Badge variant="outline">You: {item.message}</Badge>
                         <span className="text-xs text-muted-foreground">{item.timestamp}</span>
                       </div>
-                      <div className="text-sm bg-muted/30 p-2 rounded whitespace-pre-wrap">
-                        {item.response}
+                      <div className="text-sm bg-muted/30 p-2 rounded">
+                        <ResponseRenderer response={item.response} />
                       </div>
                     </div>
                   </Card>

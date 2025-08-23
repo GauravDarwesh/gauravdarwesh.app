@@ -1,4 +1,5 @@
 import SearchBar from '@/components/SearchBar';
+import ResponseRenderer from '@/components/ResponseRenderer';
 import { useState } from 'react';
 
 const Index = () => {
@@ -19,9 +20,10 @@ const Index = () => {
         {/* Response Display */}
         {response && (
           <div className="mb-8 p-6 bg-card/80 backdrop-blur-lg border border-border/30 rounded-lg shadow-lg">
-            <div className="text-foreground text-left whitespace-pre-wrap">
-              {response}
-            </div>
+            <ResponseRenderer 
+              response={response} 
+              className="text-foreground text-left"
+            />
           </div>
         )}
         
