@@ -1,12 +1,5 @@
-import { supabase } from "@/lib/supabaseClient";
 import { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const TypewriterText = () => {
   const [text, setText] = useState("");
@@ -20,7 +13,7 @@ const TypewriterText = () => {
       if (i === fullText.length) {
         clearInterval(interval);
       }
-    }, 150);
+    }, 150); // typing speed
     return () => clearInterval(interval);
   }, []);
 
@@ -38,43 +31,13 @@ const TypewriterText = () => {
 };
 
 const Index = () => {
-  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchImages = async () => {
-      // Fetch all images inside your bucket
-      const { data, error } = await supabase.storage
-        .from("Personal Website Background Images")
-        .list();
-
-      if (error) {
-        console.error("Error fetching images:", error.message);
-        return;
-      }
-
-      if (data && data.length > 0) {
-        // Pick one image randomly
-        const randomImage = data[Math.floor(Math.random() * data.length)].name;
-        const { data: publicUrlData } = supabase.storage
-          .from("Personal Website Background Images")
-          .getPublicUrl(randomImage);
-
-        setBackgroundUrl(publicUrlData.publicUrl);
-      }
-    };
-
-    fetchImages();
-  }, []);
-
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
         style={{
-          backgroundImage: backgroundUrl
-            ? `url(${backgroundUrl})`
-            : `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)`,
+          backgroundImage: `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)`,
         }}
       />
 
