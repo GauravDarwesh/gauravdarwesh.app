@@ -13,6 +13,7 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
   const hasResponse = response && response.trim().length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,7 +27,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
       setQuery('');
     } catch (error) {
       console.error('Search error:', error);
-      onSearch?.(`Error: ${error instanceof Error ? error.message : 'Something went wrong'}`);
+      onSearch?.(
+        `Error: ${error instanceof Error ? error.message : 'Something went wrong'}`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -54,23 +57,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
         }}
       >
         <div
-          className={`
-            transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)]
-            ${hasResponse ? 'p-5 pt-6' : 'p-2'}
-          `}
+          className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            hasResponse ? 'p-5 pt-6' : 'p-2'
+          }`}
         >
           {/* Response Section */}
-          <div 
-            className={`
-              overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)]
-              ${hasResponse ? 'max-h-96 opacity-100 mb-5' : 'max-h-0 opacity-0 mb-0'}
-            `}
+          <div
+            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              hasResponse ? 'max-h-96 opacity-100 mb-5' : 'max-h-0 opacity-0 mb-0'
+            }`}
             style={{ transitionDelay: hasResponse ? '500ms' : '0ms' }}
           >
             <div className="text-foreground text-base leading-relaxed px-4">
               {/* ✅ aligned & same size as input */}
-              <ResponseRenderer 
-                response={response || ''} 
+              <ResponseRenderer
+                response={response || ''}
                 className="text-base leading-relaxed"
               />
             </div>
@@ -87,11 +88,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
                          text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
               disabled={isLoading}
             />
-
-            <Button 
-              type="submit" 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
               className="h-8 w-8 p-0 hover:bg-white/20 rounded-full 
                          transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] 
                          hover:scale-110 active:scale-95 shrink-0"
