@@ -7,7 +7,7 @@ const Portfolio = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow opacity-20"
         style={{
-          backgroundImage: `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)`,
+          backgroundImage: `url(/lovable-uploads/fccdfc84-57b5-40c6-b11f-d8d83f7fe551.png)`,
         }}
       />
 
