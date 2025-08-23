@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { sendChatMessage } from '@/lib/api';
 
 interface SearchBarProps {
   onSearch?: (query: string) => void;
@@ -17,22 +17,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!query.trim()) return;
 
     setIsLoading(true);
-    console.log('Sending request to Gemini...');
     try {
-      // Invoke Supabase Edge Function with knowledge base
-      const { data, error } = await supabase.functions.invoke('bright-action', {
-        body: { message: query },
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message ?? 'Edge function error');
-      }
-
-      console.log('Function response data:', data);
-      const aiResponse = (data as any)?.response ?? 'No response generated';
-      onSearch?.(aiResponse);
-
+      const result = await sendChatMessage(query);
+      onSearch?.(result.response);
       setQuery(''); // Clear the input after successful search
     } catch (error) {
       console.error('Search error:', error);
