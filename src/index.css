@@ -80,3 +80,28 @@ All colors MUST be HSL.
   animation: fadeInSlow 3s ease-in-out forwards;
 }
 
+@keyframes droplet-flow {
+  0% {
+    transform: scaleX(1);
+  }
+  40% {
+    transform: scaleX(1.3); /* stretch while moving */
+  }
+  70% {
+    transform: scaleX(0.9); /* compress before settling */
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+.animate-droplet {
+  transition: transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
+}
+
+.animate-droplet:active,
+.animate-droplet[style] {
+  animation: droplet-flow 0.8s cubic-bezier(0.25, 1, 0.3, 1);
+}
+
+

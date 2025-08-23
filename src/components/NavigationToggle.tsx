@@ -15,25 +15,20 @@ const NavigationToggle = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [prevIndex, setPrevIndex] = useState(0);
 
   useEffect(() => {
     const index = options.findIndex((opt) => isActive(opt.path));
-    setPrevIndex(activeIndex);
     setActiveIndex(index === -1 ? 0 : index);
   }, [location.pathname]);
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
       <div className="relative flex justify-between items-center px-2 py-2 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-lg w-[360px] overflow-hidden">
-        {/* Droplet highlight */}
+        {/* Flowing droplet highlight */}
         <div
-          key={activeIndex} // force reflow to trigger animation
-          className={`absolute top-2 bottom-2 w-1/3 rounded-xl bg-white/20 backdrop-blur-md shadow-sm transition-transform duration-800 ease-in-out`}
+          className="absolute top-2 bottom-2 w-1/3 rounded-xl bg-white/20 backdrop-blur-md shadow-sm animate-droplet"
           style={{
-            transform: `translateX(${activeIndex * 100}%) scaleX(${
-              activeIndex > prevIndex ? 1.1 : activeIndex < prevIndex ? 0.9 : 1
-            })`,
+            transform: `translateX(${activeIndex * 100}%)`,
           }}
         />
 
