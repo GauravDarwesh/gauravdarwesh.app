@@ -118,24 +118,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 paddingRight: '1.5rem',
               }}
             >
-              {messages.map((m, i) => (
+             {messages.map((m, i) => (
   <div
     key={i}
     className={
-      'w-fit max-w-[75%] rounded-[16px] px-4 py-2 text-sm leading-relaxed break-words ' +
+      'w-fit max-w-[75%] px-4 py-2 text-sm leading-relaxed break-words ' +
       (m.role === 'user'
         ? 'ml-auto bg-white/40 backdrop-blur-md ring-1 ring-white/20'
         : 'mr-auto bg-white/25 backdrop-blur-sm ring-1 ring-white/15')
     }
     style={{
-      animation:
-        'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
+      borderRadius: targetRadius, // 👈 same as expanded search box
+      animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
       whiteSpace: 'pre-wrap',
     }}
   >
     {m.content}
   </div>
 ))}
+
 
             </div>
           </div>
