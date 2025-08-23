@@ -20,7 +20,7 @@ const Portfolio = () => {
         <div>
           <h1 className="text-5xl font-bold">Gaurav Darwesh</h1>
           <div className="flex flex-wrap gap-4 text-white mt-2">
-            <a href="mailto:gauravdarwesh155@gmail.com">email/</a>
+            <a href="mailto:contact@gauravdarwesh.com">email/</a>
             <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
             <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter/</a>
             <a href="https://instagram.com/allaboutgaurav" target="_blank">instagram/</a>
@@ -145,7 +145,7 @@ const Portfolio = () => {
       <p className="text-sm text-white mt-1">
         Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s
         motivation, curiosity, and strong engagement, describing him as a standout
-        contributor who brought fresh energy and showed great potential for the future.
+        contributor who brought fresh energy and shows great potential for the future.
       </p>
     </div>
     <div>
