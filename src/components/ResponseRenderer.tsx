@@ -8,38 +8,44 @@ interface ResponseRendererProps {
 
 const ResponseRenderer = ({ response, className = "" }: ResponseRendererProps) => {
   const parsed = parseResponseLinks(response);
-
+  
   const getShortenedLinkText = (text: string, url: string) => {
-    // If the text is already short and natural, keep it
-    if (text.length <= 20 && !text.startsWith('http')) {
+    // If the text is a natural description (not a URL) and reasonably short, keep it
+    if (!text.startsWith('http') && text.length <= 50) {
       return text;
     }
     
-    // For social media platforms, return platform name
-    if (url.includes('instagram.com')) {
-      return 'Instagram';
-    }
-    if (url.includes('twitter.com') || url.includes('x.com')) {
-      return 'Twitter';
-    }
-    if (url.includes('linkedin.com')) {
-      return 'LinkedIn';
-    }
-    if (url.includes('facebook.com')) {
-      return 'Facebook';
-    }
-    if (url.includes('youtube.com')) {
-      return 'YouTube';
+    // Only shorten if it's actually a long URL or very long text
+    if (text.startsWith('http') || text.length > 50) {
+      // For social media platforms, return platform name
+      if (url.includes('instagram.com')) {
+        return 'Instagram';
+      }
+      if (url.includes('twitter.com') || url.includes('x.com')) {
+        return 'Twitter';
+      }
+      if (url.includes('linkedin.com')) {
+        return 'LinkedIn';
+      }
+      if (url.includes('facebook.com')) {
+        return 'Facebook';
+      }
+      if (url.includes('youtube.com')) {
+        return 'YouTube';
+      }
+      
+      // For other URLs, try to extract domain or use first few words
+      try {
+        const domain = new URL(url).hostname.replace('www.', '');
+        return domain.split('.')[0];
+      } catch {
+        // Fallback: truncate text
+        return text.length > 15 ? text.substring(0, 15) + '...' : text;
+      }
     }
     
-    // For other URLs, try to extract domain or use first few words
-    try {
-      const domain = new URL(url).hostname.replace('www.', '');
-      return domain.split('.')[0];
-    } catch {
-      // Fallback: truncate text
-      return text.length > 15 ? text.substring(0, 15) + '...' : text;
-    }
+    // Default: keep original text
+    return text;
   };
 
   return (
@@ -52,10 +58,11 @@ const ResponseRenderer = ({ response, className = "" }: ResponseRendererProps) =
             </span>
           );
         }
-
+        
         if (part.type === 'link' && part.linkData) {
           const { text, url } = part.linkData;
           const shortenedText = getShortenedLinkText(text, url);
+          
           return (
             <a
               key={index}
@@ -68,7 +75,7 @@ const ResponseRenderer = ({ response, className = "" }: ResponseRendererProps) =
             </a>
           );
         }
-
+        
         return null;
       })}
     </div>
