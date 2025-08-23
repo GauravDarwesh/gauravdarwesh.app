@@ -3,8 +3,7 @@ import SearchBar from "@/components/SearchBar";
 
 const TypewriterText = () => {
   const [text, setText] = useState("");
-  const fullText = "//GDx";
-  const [done, setDone] = useState(false);
+  const fullText = "GDx";
 
   useEffect(() => {
     let i = 0;
@@ -13,7 +12,6 @@ const TypewriterText = () => {
       i++;
       if (i === fullText.length) {
         clearInterval(interval);
-        setDone(true);
       }
     }, 150); // typing speed
     return () => clearInterval(interval);
@@ -22,14 +20,12 @@ const TypewriterText = () => {
   return (
     <h1
       className="text-6xl tracking-wider text-white drop-shadow-lg"
-      style={{ fontFamily: "'Boldonse', sans-serif",  transform: "scaleY(2.3)",}}
+      style={{
+        fontFamily: "'Boldonse', sans-serif", // your chosen font
+        transform: "scaleY(2.3)", // stretch height only
+      }}
     >
-      {text.slice(0, -1)}
-      {text.endsWith("*") && (
-        <span className={`inline-block ${done ? "animate-spin-slow" : ""}`}>
-          *
-        </span>
-      )}
+      {text}
     </h1>
   );
 };
