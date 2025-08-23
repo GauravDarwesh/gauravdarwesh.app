@@ -20,10 +20,10 @@ const About = () => {
   <div>
     <h1 className="text-5xl font-bold">Gaurav Darwesh</h1>
     <div className="flex flex-wrap gap-4 text-white mt-2">
-      <a href="mailto:contact@gauravdarwesh.com" className="hover:underline">email/</a>
-      <a href="https://linkedin.com/in/gauravdarwesh" target="_blank" className="hover:underline">in/</a>
-      <a href="https://twitter.com/gaurav11darwesh" target="_blank" className="hover:underline">twitter/</a>
-      <a href="https://instagram.com/allaboutgaurav" target="_blank" className="hover:underline">instagram/</a>
+      <a href="mailto:contact@gauravdarwesh.com">email/</a>
+      <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
+      <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter/</a>
+      <a href="https://instagram.com/allaboutgaurav" target="_blank">instagram/</a>
     </div>
   </div>
 
