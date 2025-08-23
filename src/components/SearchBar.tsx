@@ -33,20 +33,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 px-4 z-50 transition-all duration-500 ease-out">
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 px-4 z-50">
       <div 
         className={`
           bg-card/40 backdrop-blur-xl border border-border/30 shadow-lg
-          transition-all duration-500 ease-out
+          will-change-transform
+          transition-all duration-700 cubic-bezier(0.25, 0.1, 0.25, 1)
           ${hasResponse 
-            ? 'rounded-2xl p-4 w-[90vw] max-w-2xl max-h-[70vh] overflow-y-auto' 
+            ? 'rounded-2xl p-6 w-[88vw] max-w-2xl max-h-[75vh] overflow-y-auto' 
             : 'rounded-full p-2 w-full max-w-md'
           }
         `}
+        style={{
+          transformOrigin: 'bottom center'
+        }}
       >
         {/* Response Display */}
         {hasResponse && (
-          <div className="mb-4 animate-fade-in">
+          <div 
+            className={`
+              mb-6 transition-all duration-300 ease-out
+              ${hasResponse ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
+            `}
+            style={{ 
+              transitionDelay: hasResponse ? '350ms' : '0ms'
+            }}
+          >
             <ResponseRenderer 
               response={response} 
               className="text-foreground text-left prose prose-sm max-w-none"
@@ -55,13 +67,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
         )}
 
         {/* Input Form */}
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <form onSubmit={handleSubmit} className="flex items-center gap-3">
           <Input
             type="text"
             placeholder="Ask anything"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground px-4"
+            className={`
+              flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+              text-foreground placeholder:text-muted-foreground 
+              transition-all duration-300 ease-out
+              ${hasResponse ? 'px-4 py-2' : 'px-4'}
+            `}
             disabled={isLoading}
           />
 
@@ -69,7 +86,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
             type="submit" 
             variant="ghost" 
             size="sm" 
-            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 shrink-0"
+            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full transition-all duration-300 cubic-bezier(0.25, 0.1, 0.25, 1) hover:scale-110 active:scale-95 shrink-0"
             disabled={isLoading || !query.trim()}
           >
             <ArrowRight className="h-4 w-4" />
