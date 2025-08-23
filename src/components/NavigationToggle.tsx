@@ -21,7 +21,7 @@ const NavigationToggle = () => {
     const activeEl = document.getElementById(`nav-${activeIndex}`);
     if (activeEl) {
       setBlobStyle({
-        left: activeEl.offsetLeft - 6, // little margin on sides
+        left: activeEl.offsetLeft - 6, // margin around text
         width: activeEl.offsetWidth + 12, // hug text + padding
       });
     }
@@ -50,6 +50,7 @@ const NavigationToggle = () => {
               size="sm"
               className={`
                 relative z-10 px-4 py-2 rounded-lg transition-colors duration-300
+                bg-transparent hover:bg-transparent
                 ${active
                   ? "text-white font-semibold"
                   : "text-gray-300 hover:text-white"}
