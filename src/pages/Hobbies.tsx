@@ -15,7 +15,7 @@ const About = () => {
       <NavigationToggle />
 
       {/* Main Content */}
-<div className="relative z-10 max-w-3xl w-full text-left space-y-6 pt-24">
+<div className="relative z-10 max-w-3xl w-full text-left space-y-6 pt-28">
   {/* Header */}
   <div>
     <h1 className="text-3xl font-bold">Gaurav Darwesh</h1>
