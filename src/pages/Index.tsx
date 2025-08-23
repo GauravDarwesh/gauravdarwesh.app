@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 
 /** ⬇️ Paste your Supabase public image URLs here */
-const IMAGE_URLS = [
-  // "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Personal%20Website%20Background%20Images/adamantiums204.jpg",
+const IMAGE_URLS = [,
   // "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Personal%20Website%20Background%20Images/magicpattern-87PP9Zd7MNo-unsplash.jpg",
   // "https://"https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Personal%20Website%20Background%20Images/magicpattern-8h_tctpq4h0-unsplash.jpg",
 ];
