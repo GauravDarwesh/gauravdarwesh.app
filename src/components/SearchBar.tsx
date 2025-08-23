@@ -34,7 +34,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  const dynamicWidth = Math.min(300 + query.length * 2, 100);
+  const dynamicWidth = Math.min(300 + query.length * 4, 300);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
 
   const targetWidth = response ? '700px' : `${dynamicWidth}px`;
