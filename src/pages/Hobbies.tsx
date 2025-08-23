@@ -19,7 +19,7 @@ const About = () => {
   {/* Header */}
   <div>
     <h1 className="text-5xl font-bold">Gaurav Darwesh</h1>
-    <div className="flex flex-wrap gap-4 text-white-600 mt-2">
+    <div className="flex flex-wrap gap-4 text-white mt-2">
       <a href="mailto:contact@gauravdarwesh.com" className="hover:underline">email/</a>
       <a href="https://linkedin.com/in/gauravdarwesh" target="_blank" className="hover:underline">in/</a>
       <a href="https://twitter.com/gaurav11darwesh" target="_blank" className="hover:underline">twitter/</a>
