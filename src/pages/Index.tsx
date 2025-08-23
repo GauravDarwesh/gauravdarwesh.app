@@ -1,35 +1,48 @@
 import { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 
-const TypewriterText = () => {
-  const [text, setText] = useState("");
-  const fullText = "//GD-AI*";
-  const [done, setDone] = useState(false);
+const translations = [
+  "GD-AI", // English
+  "جي دي-إيه آي", // Arabic
+  "जीडी-एआई", // Hindi
+  "GD-人工知能", // Japanese
+  "GD-인공지능", // Korean
+  "GD-Искусственный интеллект", // Russian
+  "GD-IA", // French (Intelligence Artificielle)
+  "GD-KI", // German (Künstliche Intelligenz)
+  "GD-IA", // Spanish (Inteligencia Artificial)
+  "GD-IA", // Portuguese
+  "GD-IA", // Italian
+  "GD-ΚΝ", // Greek (Τεχνητή Νοημοσύνη)
+  "GD-YZ", // Turkish (Yapay Zeka)
+  "GD-כָּתוּב", // Hebrew
+  "GD-ปัญญาประดิษฐ์", // Thai
+  "GD-Trí tuệ nhân tạo", // Vietnamese
+  "GD-Kecerdasan Buatan", // Indonesian
+  "GD-Интелигенција", // Serbian
+  "GD-人工智能", // Simplified Chinese
+  "GD-人工智慧", // Traditional Chinese
+];
+
+const RotatingText = () => {
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    let i = 0;
     const interval = setInterval(() => {
-      setText(fullText.slice(0, i + 1));
-      i++;
-      if (i === fullText.length) {
-        clearInterval(interval);
-        setDone(true);
-      }
-    }, 150); // typing speed
+      setIndex((prev) => (prev + 1) % translations.length);
+    }, 2500); // change every 2.5s
     return () => clearInterval(interval);
   }, []);
 
   return (
     <h1
-      className="text-6xl tracking-wider text-white drop-shadow-lg"
-      style={{ fontFamily: "'Doto', sans-serif", transform: "scaleY(1)", }}
+      key={index}
+      className="text-6xl text-white drop-shadow-lg transition-opacity duration-1000 ease-in-out"
+      style={{
+        fontFamily: "'Orbitron', sans-serif",
+      }}
     >
-      {text.slice(0, -1)}
-      {text.endsWith("*") && (
-        <span className={`inline-block ${done ? "animate-spin-slow" : ""}`}>
-          *
-        </span>
-      )}
+      {translations[index]}
     </h1>
   );
 };
@@ -45,9 +58,9 @@ const Index = () => {
         }}
       />
 
-      {/* Animated Text */}
-      <div className="relative -mt-32"> {/* pushes text higher than center */}
-        <TypewriterText />
+      {/* Rotating Text */}
+      <div className="relative -mt-32">
+        <RotatingText />
       </div>
 
       {/* Search Bar */}
