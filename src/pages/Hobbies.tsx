@@ -134,6 +134,39 @@ const Portfolio = () => {
           </div>
         </section>
 
+        {/* Recommendations */}
+<section>
+  <h2 className="text-2xl font-semibold mb-4">Recommendations</h2>
+  <ul className="list-disc pl-5 space-y-2">
+    <li>
+      <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq  
+      <br />
+      <span className="text-sm text-gray-700">
+        Mentor during internship. Praised Gaurav’s motivation, curiosity, and strong
+        engagement, calling him a standout contributor with a bright future.
+      </span>
+    </li>
+    <li>
+      <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge  
+      <br />
+      <span className="text-sm text-gray-700">
+        Teacher during the Finance & Accounting unit. Commended Gaurav’s ability to
+        master complex finance topics, apply them to real-world problems, and deliver
+        insightful analysis with strong project and time management skills.
+      </span>
+    </li>
+    <li>
+      <strong>Sourav Raj</strong> — Data Scientist, Jio  
+      <br />
+      <span className="text-sm text-gray-700">
+        Mentor during internship. Highlighted Gaurav’s flexibility, rapid learning,
+        proactive problem-solving, and consistent delivery of high-quality work.
+      </span>
+    </li>
+  </ul>
+</section>
+
+
         {/* Skills */}
         <section>
           <h2 className="text-2xl font-semibold mb-4">Languages / Skills / Awards / Extracurriculars</h2>
