@@ -14,7 +14,7 @@ const NavigationToggle = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Track blob position + width for CSS-only animation
+  // Track highlight position + width
   const [blobStyle, setBlobStyle] = useState({ left: 0, width: 0 });
 
   useEffect(() => {
@@ -30,10 +30,10 @@ const NavigationToggle = () => {
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4">
-      <div className="relative flex gap-2 px-2 py-2 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-lg">
-        {/* Gooey glass blob */}
+      <div className="relative flex justify-center items-center px-2 py-2 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-lg min-w-[320px]">
+        {/* Blue glass highlight */}
         <div
-          className="absolute top-2 bottom-2 rounded-xl bg-white/30 backdrop-blur-md shadow-md transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]"
+          className="absolute top-2 bottom-2 rounded-xl bg-blue-500/40 backdrop-blur-md shadow-md transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]"
           style={{
             left: blobStyle.left,
             width: blobStyle.width,
@@ -50,10 +50,10 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                relative px-6 py-2 rounded-xl transition-all duration-300
+                relative flex-1 text-center px-6 py-2 rounded-xl transition-all duration-300
                 ${active
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground"}
+                  ? "text-white font-medium"
+                  : "text-gray-300 hover:text-white"}
               `}
             >
               {option.name}
