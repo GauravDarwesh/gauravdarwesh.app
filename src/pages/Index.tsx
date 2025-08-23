@@ -21,8 +21,8 @@ const TypewriterText = () => {
     <h1
       className="text-6xl tracking-wider text-white drop-shadow-lg"
       style={{
-        fontFamily: "'Boldonse', sans-serif", // your chosen font
-        transform: "scaleY(1.5) scaleX(1.5)", // stretch height only
+        fontFamily: "'Boldonse', sans-serif",
+        transform: "scaleY(1.5) scaleX(1.5)", // stretched look
       }}
     >
       {text}
@@ -35,14 +35,14 @@ const Index = () => {
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
         style={{
           backgroundImage: `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)`,
         }}
       />
 
       {/* Animated Text */}
-      <div className="absolute top-1/4"> {/* pushes text higher than center */}
+      <div className="absolute top-1/4">
         <TypewriterText />
       </div>
 
