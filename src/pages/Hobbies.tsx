@@ -18,13 +18,12 @@ const About = () => {
 <div className="relative z-10 max-w-3xl w-full text-left space-y-6 pt-28">
   {/* Header */}
   <div>
-    <h1 className="text-3xl font-bold">Gaurav Darwesh</h1>
-    <div className="flex flex-wrap gap-4 text-blue-600 mt-2">
-      <a href="mailto:contact@gauravdarwesh.com">email</a>
-      <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">linkedin</a>
-      <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter</a>
-      <a href="https://instagram.com/allaboutgaurav" target="_blank">instagram</a>
-      <a href="https://tally.so/r/wgl6zM" target="_blank">book a meeting</a>
+    <h1 className="text-5xl font-bold">Gaurav Darwesh</h1>
+    <div className="flex flex-wrap gap-4 text-white-600 mt-2">
+      <a href="mailto:contact@gauravdarwesh.com">email/</a>
+      <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
+      <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter/</a>
+      <a href="https://instagram.com/allaboutgaurav" target="_blank">instagram/</a>
     </div>
   </div>
 
