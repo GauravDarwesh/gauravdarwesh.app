@@ -145,7 +145,7 @@ const Portfolio = () => {
       <p className="text-sm text-white mt-1">
         Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s
         motivation, curiosity, and strong engagement, describing him as a standout
-        contributor who brought fresh energy and showed great potential for the future.
+        contributor who brought fresh energy and shows great potential for the future.
       </p>
     </div>
     <div>
