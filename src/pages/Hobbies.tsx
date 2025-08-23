@@ -18,7 +18,7 @@ const About = () => {
 <div className="relative z-10 max-w-3xl w-full text-left space-y-6 pt-28">
   {/* Header */}
   <div>
-    <h1 className="text-6xl font-bold">Gaurav Darwesh</h1>
+    <h1 className="text-8xl font-bold">Gaurav Darwesh</h1>
     <div className="flex flex-wrap gap-4 text-blue-600 mt-2">
       <a href="mailto:contact@gauravdarwesh.com">email</a>
       <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">linkedin</a>
