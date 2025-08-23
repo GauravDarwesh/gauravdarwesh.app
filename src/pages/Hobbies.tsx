@@ -136,7 +136,7 @@ const Portfolio = () => {
 
         {/* Skills */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">Languages / Skills / Awards/ Extracurriculars</h2>
+          <h2 className="text-2xl font-semibold mb-4">Languages / Skills / Awards / Extracurriculars</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
             <div>
               <h3 className="font-semibold mb-2">Languages</h3>
