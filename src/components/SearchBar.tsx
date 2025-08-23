@@ -23,7 +23,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
     try {
       const result = await sendChatMessage(query);
       onSearch?.(result.response);
-      setQuery(''); // Clear the input after successful search
+      setQuery('');
     } catch (error) {
       console.error('Search error:', error);
       onSearch?.(`Error: ${error instanceof Error ? error.message : 'Something went wrong'}`);
@@ -39,13 +39,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
           mx-auto shadow-lg border border-white/20
           bg-white/10 backdrop-blur-xl
           transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]
-          ${hasResponse 
-            ? 'rounded-2xl max-w-2xl' 
-            : 'rounded-full max-w-md'
-          }
+          ${hasResponse ? 'max-w-2xl' : 'max-w-md'}
         `}
         style={{
           transformOrigin: 'center bottom',
+          borderRadius: hasResponse ? '1rem' : '9999px', // smooth radius transition
+          transition: 'all 0.7s cubic-bezier(0.16,1,0.3,1)', // radius + size together
         }}
       >
         <div
