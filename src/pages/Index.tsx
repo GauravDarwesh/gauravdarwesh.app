@@ -3,7 +3,7 @@ import SearchBar from "@/components/SearchBar";
 
 const TypewriterText = () => {
   const [text, setText] = useState("");
-  const fullText = "GDx";
+  const fullText = "<//GDx>";
 
   useEffect(() => {
     let i = 0;
@@ -22,7 +22,7 @@ const TypewriterText = () => {
       className="text-6xl tracking-wider text-white drop-shadow-lg"
       style={{
         fontFamily: "'Boldonse', sans-serif", // your chosen font
-        transform: "scaleY(2) scaleX(1)", // stretch height only
+        transform: "scaleY(2) scaleX(3)", // stretch height only
       }}
     >
       {text}
