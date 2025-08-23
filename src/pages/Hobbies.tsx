@@ -1,7 +1,7 @@
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
-const Index = () => {
+const Hobbies = () => {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background */}
@@ -23,4 +23,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Hobbies;
