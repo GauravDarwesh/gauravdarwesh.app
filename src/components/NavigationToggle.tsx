@@ -15,7 +15,7 @@ const NavigationToggle = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
       <div className="flex justify-center items-center gap-2 px-3 py-2 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-lg">
         {options.map((option) => {
           const active = isActive(option.path);
