@@ -19,7 +19,7 @@ const Portfolio = () => {
         {/* Header */}
         <div>
           <h1 className="text-5xl font-bold">Gaurav Darwesh</h1>
-          <div className="flex flex-wrap gap-4 text-blue-600 mt-2">
+          <div className="flex flex-wrap gap-4 text-white mt-2">
             <a href="mailto:contact@gauravdarwesh.com">email/</a>
             <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
             <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter/</a>
