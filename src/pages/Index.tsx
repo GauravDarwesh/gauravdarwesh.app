@@ -18,15 +18,25 @@ const TypewriterText = () => {
   }, []);
 
   return (
-    <h1
-      className="text-6xl tracking-wider text-white drop-shadow-lg"
-      style={{
-        fontFamily: "'Boldonse', sans-serif",
-        transform: "scaleY(1.5) scaleX(1.5)", // stretched look
-      }}
-    >
-      {text}
-    </h1>
+    <div className="flex flex-col items-center">
+      <h1
+        className="text-6xl tracking-wider text-white drop-shadow-lg"
+        style={{
+          fontFamily: "'Boldonse', sans-serif",
+          transform: "scaleY(1.5) scaleX(1.5)", // stretched look
+        }}
+      >
+        {text}
+      </h1>
+
+      {/* Subtitle */}
+      <p
+        className="mt-4 text-lg text-gray-300 tracking-wide"
+        style={{ fontFamily: "'Orbitron', sans-serif" }}
+      >
+        Gaurav Darwesh; All Info; AI Generated
+      </p>
+    </div>
   );
 };
 
@@ -41,7 +51,7 @@ const Index = () => {
         }}
       />
 
-      {/* Animated Text */}
+      {/* Animated Text + Subtitle */}
       <div className="absolute top-1/4">
         <TypewriterText />
       </div>
