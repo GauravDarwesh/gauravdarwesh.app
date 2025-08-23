@@ -3,14 +3,17 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { sendChatMessage } from '@/lib/api';
+import ResponseRenderer from '@/components/ResponseRenderer';
 
 interface SearchBarProps {
   onSearch?: (query: string) => void;
+  response?: string;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const hasResponse = response && response.trim().length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,10 +33,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4 z-50">
-      <div className="bg-card/40 backdrop-blur-xl border border-border/30 rounded-full p-2 shadow-lg">
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 px-4 z-50 transition-all duration-500 ease-out">
+      <div 
+        className={`
+          bg-card/40 backdrop-blur-xl border border-border/30 shadow-lg
+          transition-all duration-500 ease-out
+          ${hasResponse 
+            ? 'rounded-2xl p-4 w-[90vw] max-w-2xl max-h-[70vh] overflow-y-auto' 
+            : 'rounded-full p-2 w-full max-w-md'
+          }
+        `}
+      >
+        {/* Response Display */}
+        {hasResponse && (
+          <div className="mb-4 animate-fade-in">
+            <ResponseRenderer 
+              response={response} 
+              className="text-foreground text-left prose prose-sm max-w-none"
+            />
+          </div>
+        )}
+
+        {/* Input Form */}
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          {/* Search input */}
           <Input
             type="text"
             placeholder="Ask anything"
@@ -43,12 +65,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             disabled={isLoading}
           />
 
-          {/* Send button */}
           <Button 
             type="submit" 
             variant="ghost" 
             size="sm" 
-            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 shrink-0"
             disabled={isLoading || !query.trim()}
           >
             <ArrowRight className="h-4 w-4" />
