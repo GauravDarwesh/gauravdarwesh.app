@@ -3,7 +3,7 @@ import SearchBar from "@/components/SearchBar";
 
 const TypewriterText = () => {
   const [text, setText] = useState("");
-  const fullText = "//GD-AI*";
+  const fullText = "//GDx";
   const [done, setDone] = useState(false);
 
   useEffect(() => {
