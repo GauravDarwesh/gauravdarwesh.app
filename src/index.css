@@ -64,3 +64,19 @@ All colors MUST be HSL.
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
 }
+
+@keyframes fadeInSlow {
+  0% {
+    opacity: 0;
+    transform: scale(1.05); /* start slightly zoomed */
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1); /* settle to normal */
+  }
+}
+
+.animate-fadeInSlow {
+  animation: fadeInSlow 3s ease-in-out forwards;
+}
+
