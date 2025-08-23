@@ -32,34 +32,40 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
     }
   };
 
+  // 🔥 Dynamic width based on query length
+  const dynamicWidth = Math.min(
+    300 + query.length * 8, // grows with typing
+    700 // max width
+  );
+
+  // 🔥 Dynamic border radius (more text → less round)
+  const dynamicRadius = Math.max(24, 999 - query.length * 2);
+
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
       <div
-        className={`
-          mx-auto shadow-lg border border-white/20
-          bg-white/10 backdrop-blur-xl
-          transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]
-          ${hasResponse ? 'max-w-2xl' : 'max-w-md'}
-        `}
+        className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
+          width: hasResponse ? '700px' : `${dynamicWidth}px`,
+          maxWidth: '90vw',
           transformOrigin: 'center bottom',
-          borderRadius: hasResponse ? '1rem' : '9999px', // smooth radius transition
-          transition: 'all 0.7s cubic-bezier(0.16,1,0.3,1)', // radius + size together
+          borderRadius: hasResponse ? '16px' : `${dynamicRadius}px`,
+          transition: 'all 1.2s cubic-bezier(0.25, 1, 0.3, 1)',
         }}
       >
         <div
           className={`
-            transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]
+            transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)]
             ${hasResponse ? 'p-5 pt-6' : 'p-2'}
           `}
         >
           {/* Response Section */}
           <div 
             className={`
-              overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]
+              overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)]
               ${hasResponse ? 'max-h-96 opacity-100 mb-5' : 'max-h-0 opacity-0 mb-0'}
             `}
-            style={{ transitionDelay: hasResponse ? '400ms' : '0ms' }}
+            style={{ transitionDelay: hasResponse ? '500ms' : '0ms' }}
           >
             <div className="text-foreground leading-relaxed">
               <ResponseRenderer 
@@ -86,7 +92,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
               variant="ghost" 
               size="sm" 
               className="h-8 w-8 p-0 hover:bg-white/20 rounded-full 
-                         transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] 
+                         transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] 
                          hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
             >
