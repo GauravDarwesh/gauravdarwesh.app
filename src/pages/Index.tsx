@@ -27,13 +27,7 @@ const Index = () => {
           </div>
         )}
         
-        {!response && (
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-4">Ask me anything</h1>
-            <p className="text-muted-foreground">Powered by Gemini AI</p>
-          </div>
-        )}
-      </div>
+        
 
       {/* Search Bar */}
       <SearchBar onSearch={handleSearch} />
