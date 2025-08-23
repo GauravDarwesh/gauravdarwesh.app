@@ -222,7 +222,7 @@ const Portfolio = () => {
       </div>
 
       {/* Invisible scrollbar styling */}
-      <style jsx global>{`
+      <style>{`
         .no-scrollbar::-webkit-scrollbar {
           display: none;
         }
