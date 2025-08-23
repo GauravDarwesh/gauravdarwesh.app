@@ -14,29 +14,22 @@ const NavigationToggle = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Track highlight position + width
-  const [blobStyle, setBlobStyle] = useState({ left: 0, width: 0 });
+  // Track active index for blob movement
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    const activeIndex = options.findIndex((opt) => isActive(opt.path));
-    const activeEl = document.getElementById(`nav-${activeIndex}`);
-    if (activeEl) {
-      setBlobStyle({
-        left: activeEl.offsetLeft,
-        width: activeEl.offsetWidth,
-      });
-    }
+    const index = options.findIndex((opt) => isActive(opt.path));
+    setActiveIndex(index === -1 ? 0 : index);
   }, [location.pathname]);
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4">
-      <div className="relative flex justify-center items-center px-2 py-2 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-lg min-w-[320px]">
+      <div className="relative flex justify-between items-center px-2 py-2 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-lg w-[360px]">
         {/* Blue glass highlight */}
         <div
-          className="absolute top-2 bottom-2 rounded-xl bg-blue-500/40 backdrop-blur-md shadow-md transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]"
+          className="absolute top-2 bottom-2 w-1/3 rounded-xl bg-blue-500/30 backdrop-blur-md shadow-md transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
-            left: blobStyle.left,
-            width: blobStyle.width,
+            transform: `translateX(${activeIndex * 100}%)`,
           }}
         />
 
@@ -45,12 +38,11 @@ const NavigationToggle = () => {
           return (
             <Button
               key={option.name}
-              id={`nav-${index}`}
               onClick={() => navigate(option.path)}
               variant="ghost"
               size="sm"
               className={`
-                relative flex-1 text-center px-6 py-2 rounded-xl transition-all duration-300
+                relative flex-1 text-center px-6 py-2 rounded-xl transition-colors duration-300
                 ${active
                   ? "text-white font-medium"
                   : "text-gray-300 hover:text-white"}
