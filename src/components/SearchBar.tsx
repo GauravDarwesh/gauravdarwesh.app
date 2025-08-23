@@ -36,7 +36,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  // Dynamic width/radius like before
+  // Dynamic width/radius
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
 
@@ -87,7 +87,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           <form onSubmit={handleSubmit} className="flex items-center gap-3">
             <Input
               type="text"
-              placeholder="Ask anything…"
+              placeholder={isLoading ? 'Searching…' : 'Ask anything…'}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
