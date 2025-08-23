@@ -42,7 +42,7 @@ const Index = () => {
       />
 
       {/* Animated Text */}
-      <div className="relative -mt-32"> {/* pushes text higher than center */}
+      <div className="relative -mt-40 ml-20"> {/* pushes text higher than center */}
         <TypewriterText />
       </div>
 
