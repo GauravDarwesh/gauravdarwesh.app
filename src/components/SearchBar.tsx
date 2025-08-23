@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { Search } from 'lucide-react'; // ✅ replaced ArrowRight
 import { sendChatMessage } from '@/lib/api';
 import ResponseRenderer from '@/components/ResponseRenderer';
 
@@ -67,7 +67,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
             `}
             style={{ transitionDelay: hasResponse ? '500ms' : '0ms' }}
           >
-            <div className="text-foreground leading-relaxed">
+            <div className="text-foreground text-base leading-relaxed px-4">
+              {/* ✅ aligned & same size as input */}
               <ResponseRenderer 
                 response={response || ''} 
                 className="text-base leading-relaxed"
@@ -96,7 +97,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
                          hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
             >
-              <ArrowRight className="h-4 w-4" />
+              {/* ✅ replaced icon */}
+              <Search className="h-4 w-4" />
             </Button>
           </form>
         </div>
