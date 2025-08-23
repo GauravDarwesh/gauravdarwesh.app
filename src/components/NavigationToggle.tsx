@@ -14,7 +14,7 @@ const NavigationToggle = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Track active index for blob movement
+  // Track active index for highlight movement
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -23,11 +23,11 @@ const NavigationToggle = () => {
   }, [location.pathname]);
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4">
-      <div className="relative flex justify-between items-center px-2 py-2 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-lg w-[360px]">
-        {/* Blue glass highlight */}
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
+      <div className="relative flex justify-between items-center px-2 py-2 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-lg w-[360px]">
+        {/* Blue highlight */}
         <div
-          className="absolute top-2 bottom-2 w-1/3 rounded-xl bg-blue-500/30 backdrop-blur-md shadow-md transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          className="absolute top-2 bottom-2 w-1/3 rounded-xl bg-blue-600 transition-transform duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
             transform: `translateX(${activeIndex * 100}%)`,
           }}
@@ -44,8 +44,8 @@ const NavigationToggle = () => {
               className={`
                 relative flex-1 text-center px-6 py-2 rounded-xl transition-colors duration-300
                 ${active
-                  ? "text-white font-medium"
-                  : "text-gray-300 hover:text-white"}
+                  ? "text-white font-semibold"
+                  : "text-gray-200 hover:text-white"}
               `}
             >
               {option.name}
