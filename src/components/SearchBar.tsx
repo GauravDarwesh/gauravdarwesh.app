@@ -115,20 +115,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               className="text-foreground text-sm leading-relaxed px-4 space-y-2 overflow-y-auto glass-scrollbar"
               style={{
                 maxHeight: '360px',
-                paddingRight: '1.5rem', // extra space for scrollbar
+                paddingRight: '1.5rem', // space for scrollbar
               }}
             >
               {messages.map((m, i) => (
                 <div
                   key={i}
                   className={
-                    'inline-block rounded-2xl px-3 py-1.5 text-sm leading-relaxed ' +
+                    'w-fit max-w-[75%] rounded-2xl px-3 py-1.5 text-sm leading-relaxed break-words ' +
                     (m.role === 'user'
                       ? 'ml-auto bg-white/40 backdrop-blur-md ring-1 ring-white/20'
                       : 'mr-auto bg-white/25 backdrop-blur-sm ring-1 ring-white/15')
                   }
                   style={{
-                    maxWidth: '75%',
                     animation:
                       'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
                     whiteSpace: 'pre-wrap',
@@ -187,7 +186,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
           .glass-scrollbar::-webkit-scrollbar-track {
             background: transparent;
-            margin: 6px 0; /* remove arrows */
+            margin: 6px 0; /* removes arrows */
           }
           .glass-scrollbar::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.35);
