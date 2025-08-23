@@ -14,7 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      gd_ai_sessions: {
+        Row: {
+          introduced: boolean | null
+          last_updated: string | null
+          session_id: string
+        }
+        Insert: {
+          introduced?: boolean | null
+          last_updated?: string | null
+          session_id: string
+        }
+        Update: {
+          introduced?: boolean | null
+          last_updated?: string | null
+          session_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
