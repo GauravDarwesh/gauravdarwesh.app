@@ -19,8 +19,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null); // clear old response
-    setQuery('');      // ✅ clear input box immediately
+    setResponse(null); // clear previous
+    setQuery('');      // clear input
 
     try {
       const result = await sendChatMessage(text);
@@ -36,7 +36,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  // Dynamic width/radius (same as before)
+  // Dynamic width/radius like before
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
 
@@ -60,7 +60,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             response ? 'p-5 pt-6' : 'p-2'
           }`}
         >
-          {/* Response box */}
+          {/* Response */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? 'opacity-100 mb-5' : 'opacity-0 mb-0'
@@ -72,9 +72,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             {response && (
               <div
-                className="text-foreground text-sm leading-relaxed px-4 py-2 mr-auto bg-white/25 backdrop-blur-sm ring-1 ring-white/15 w-fit max-w-[75%] break-words"
+                className="text-foreground text-sm leading-relaxed px-4"
                 style={{
-                  borderRadius: targetRadius,
                   animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
                   whiteSpace: 'pre-wrap',
                 }}
@@ -119,14 +118,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateY(4px); }
             to   { opacity: 1; transform: translateY(0); }
-          }
-
-          .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-          .no-scrollbar::-webkit-scrollbar {
-            display: none;
           }
         `}
       </style>
