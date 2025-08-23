@@ -37,61 +37,65 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, response }) => {
       <div 
         className={`
           bg-card/40 backdrop-blur-xl border border-border/30 shadow-lg
-          will-change-transform
-          transition-all duration-700 cubic-bezier(0.25, 0.1, 0.25, 1)
+          transition-all duration-800 cubic-bezier(0.23, 1, 0.32, 1)
+          origin-bottom
           ${hasResponse 
-            ? 'rounded-2xl p-6 w-[88vw] max-w-2xl max-h-[75vh] overflow-y-auto' 
-            : 'rounded-full p-2 w-full max-w-md'
+            ? 'rounded-2xl w-[85vw] max-w-2xl' 
+            : 'rounded-full w-full max-w-md'
           }
         `}
         style={{
-          transformOrigin: 'bottom center'
+          transformOrigin: 'center bottom',
+          minHeight: hasResponse ? 'auto' : '52px'
         }}
       >
-        {/* Response Display */}
-        {hasResponse && (
-          <div 
-            className={`
-              mb-6 transition-all duration-300 ease-out
-              ${hasResponse ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
-            `}
-            style={{ 
-              transitionDelay: hasResponse ? '350ms' : '0ms'
-            }}
-          >
-            <ResponseRenderer 
-              response={response} 
-              className="text-foreground text-left prose prose-sm max-w-none"
+        <div className={`
+          transition-all duration-800 cubic-bezier(0.23, 1, 0.32, 1)
+          ${hasResponse ? 'p-5' : 'p-2'}
+        `}>
+          
+          {/* Response Display */}
+          {hasResponse && (
+            <div 
+              className={`
+                mb-4 transition-all duration-500 ease-out
+                ${hasResponse ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+              `}
+              style={{ 
+                transitionDelay: '400ms'
+              }}
+            >
+              <div className="text-foreground leading-relaxed">
+                <ResponseRenderer 
+                  response={response} 
+                  className="text-base leading-relaxed"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Input Form */}
+          <form onSubmit={handleSubmit} className="flex items-center gap-3">
+            <Input
+              type="text"
+              placeholder="Ask anything"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
+              disabled={isLoading}
             />
-          </div>
-        )}
 
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="flex items-center gap-3">
-          <Input
-            type="text"
-            placeholder="Ask anything"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className={`
-              flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-              text-foreground placeholder:text-muted-foreground 
-              transition-all duration-300 ease-out
-              ${hasResponse ? 'px-4 py-2' : 'px-4'}
-            `}
-            disabled={isLoading}
-          />
-
-          <Button 
-            type="submit" 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full transition-all duration-300 cubic-bezier(0.25, 0.1, 0.25, 1) hover:scale-110 active:scale-95 shrink-0"
-            disabled={isLoading || !query.trim()}
-          >
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </form>
+            <Button 
+              type="submit" 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 hover:bg-accent/20 rounded-full transition-all duration-300 cubic-bezier(0.23, 1, 0.32, 1) hover:scale-110 active:scale-95 shrink-0"
+              disabled={isLoading || !query.trim()}
+            >
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );
