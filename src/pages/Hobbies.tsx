@@ -141,7 +141,7 @@ const Portfolio = () => {
     <li>
       <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq  
       <br />
-      <span className="text-sm text-gray-700">
+      <span className="text-sm text-white">
         Mentor during internship. Praised Gaurav’s motivation, curiosity, and strong
         engagement, calling him a standout contributor with a bright future.
       </span>
@@ -149,7 +149,7 @@ const Portfolio = () => {
     <li>
       <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge  
       <br />
-      <span className="text-sm text-gray-700">
+      <span className="text-sm text-white">
         Teacher during the Finance & Accounting unit. Commended Gaurav’s ability to
         master complex finance topics, apply them to real-world problems, and deliver
         insightful analysis with strong project and time management skills.
@@ -158,7 +158,7 @@ const Portfolio = () => {
     <li>
       <strong>Sourav Raj</strong> — Data Scientist, Jio  
       <br />
-      <span className="text-sm text-gray-700">
+      <span className="text-sm text-white">
         Mentor during internship. Highlighted Gaurav’s flexibility, rapid learning,
         proactive problem-solving, and consistent delivery of high-quality work.
       </span>
