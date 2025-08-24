@@ -18,7 +18,7 @@ const Portfolio = () => {
       <div className="relative z-10 max-w-4xl w-full text-left space-y-10 overflow-y-scroll no-scrollbar pt-28">
         {/* Header */}
         <div>
-          <h1 className="text-5xl font-bold">Gaurav Darwesh</h1>
+          <h1 className="text-6xl font-bold">Gaurav Darwesh</h1>
           <div className="flex flex-wrap gap-4 text-white mt-2">
             <a href="mailto:gauravdarwesh155@gmail.com">mail/</a>
             <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
