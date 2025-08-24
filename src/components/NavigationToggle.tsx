@@ -16,10 +16,14 @@ const NavigationToggle = () => {
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
       <div
-        className="flex justify-center items-center gap-2 px-3 py-2 border border-white/10 bg-white/5 backdrop-blur-xl shadow-lg"
+        className="
+          flex justify-center items-center gap-2 
+          px-3 py-2 shadow-lg
+          border border-white/10 bg-white/5 backdrop-blur-xl
+        "
         style={{
-          width: "700px",      // 👈 static width
-          borderRadius: "16px" // 👈 static radius
+          width: "300px",        // same as search bar base width
+          borderRadius: "24px",  // same as search bar base radius
         }}
       >
         {options.map((option) => {
