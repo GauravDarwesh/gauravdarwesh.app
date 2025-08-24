@@ -23,23 +23,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null);
-    if (!customQuery) setQuery("");
+    if (!customQuery) setQuery(""); // clear only when user submits manually
 
     try {
       const result = await sendChatMessage(text);
+
       const assistant = (result as any)?.response ?? "";
       const suggs = Array.isArray((result as any)?.suggestions)
         ? (result as any).suggestions
         : [];
 
-      setResponse(String(assistant));
-      setSuggestions(suggs);
-      onSearch?.(String(assistant));
+      setResponse(assistant || "");
+      setSuggestions(suggs || []);
+      onSearch?.(assistant || "");
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
+      setSuggestions([]);
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -52,9 +53,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   };
 
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const dynamicRadius = Math.max(24, 999 - query.length * 2);
   const targetWidth = response ? "700px" : `${dynamicWidth}px`;
-  const targetRadius = response ? "16px" : `${dynamicRadius}px`;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
@@ -63,20 +62,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         style={{
           width: targetWidth,
           maxWidth: "90vw",
-          borderRadius: targetRadius,
-          transition: "all 1.2s cubic-bezier(0.25, 1, 0.3, 1)",
+          borderRadius: response ? "16px" : "999px",
+          transition: "all 1s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${response ? "p-5 pt-6" : "p-2"}`}>
-          
-          {/* Suggestions above chat box */}
+
+          {/* ✅ Suggestions always visible if any */}
           {suggestions.length > 0 && (
-            <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{
-                animation: "fadeIn 0.4s ease forwards",
-              }}
-            >
+            <div className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn">
               {suggestions.map((s, i) => (
                 <button
                   key={i}
@@ -93,12 +87,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* AI Response */}
           <div
-            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            className={`overflow-hidden transition-all duration-700 ease-in-out ${
               response ? "opacity-100 mb-5" : "opacity-0 mb-0"
             }`}
             style={{
               maxHeight: response ? "384px" : "0px",
-              transitionDelay: response ? "300ms" : "0ms",
             }}
           >
             {response && (
@@ -125,17 +118,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                          text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
               disabled={isLoading}
-              aria-label="Ask anything"
             />
             <Button
               type="submit"
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0 hover:bg-white/20 rounded-full 
-                         transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] 
-                         hover:scale-110 active:scale-95 shrink-0"
+                         transition-all duration-300 hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
-              aria-label="Send"
             >
               <Search className="h-4 w-4" />
             </Button>
