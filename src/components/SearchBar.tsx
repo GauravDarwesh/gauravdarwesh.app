@@ -1,43 +1,55 @@
-import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
-import { sendChatMessage } from '@/lib/api';
+"use client";
+
+import React, { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
+import { sendChatMessage } from "@/lib/api";
 
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([
-    'Summarize this',
-    'Explain like I’m 5',
-    'Give related examples',
+    "Summarize this",
+    "Explain like I’m 5",
+    "Give related examples",
   ]);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  // 🔥 Submit handler
+  const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
     e?.preventDefault();
-    const text = query.trim();
+
+    const text = (customQuery ?? query).trim();
     if (!text) return;
 
     setIsLoading(true);
     setResponse(null);
-    setQuery('');
+    if (!customQuery) setQuery(""); // only clear if user typed manually
 
     try {
       const result = await sendChatMessage(text);
-      const assistant = (result as any)?.response ?? '';
-      const suggs =
-        (result as any)?.suggestions ?? suggestions; // fallback
+      const assistant = (result as any)?.response ?? "";
+      let suggs: string[] = [];
+
+      try {
+        suggs = Array.isArray((result as any)?.suggestions)
+          ? (result as any).suggestions
+          : suggestions;
+      } catch {
+        suggs = suggestions; // fallback
+      }
 
       setResponse(String(assistant));
       setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      const msg =
+        err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       onSearch?.(msg);
     } finally {
@@ -45,21 +57,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
+  // 🔥 Suggestion click (calls API directly with that suggestion)
   const handleSuggestionClick = (s: string) => {
     setQuery(s);
-    handleSubmit(); // auto-submit on click
+    handleSubmit(undefined, s);
   };
 
-  // Dynamic width/radius
+  // Dynamic UI transitions
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
-
-  const targetWidth = response ? '700px' : `${dynamicWidth}px`;
-  const targetRadius = response ? '16px' : `${dynamicRadius}px`;
+  const targetWidth = response ? "700px" : `${dynamicWidth}px`;
+  const targetRadius = response ? "16px" : `${dynamicRadius}px`;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* 🔥 Suggestion Pills OUTSIDE box */}
+      {/* 💡 Suggestion Pills */}
       {suggestions.length > 0 && (
         <div className="flex gap-2 flex-wrap justify-center">
           {suggestions.map((s, i) => (
@@ -68,6 +80,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               onClick={() => handleSuggestionClick(s)}
               className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
                          hover:bg-white/30 transition cursor-pointer"
+              disabled={isLoading}
             >
               {s}
             </button>
@@ -75,38 +88,39 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       )}
 
-      {/* Main Box */}
+      {/* 💬 Main Box */}
       <div
         className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
           width: targetWidth,
-          maxWidth: '90vw',
-          transformOrigin: 'center bottom',
+          maxWidth: "90vw",
+          transformOrigin: "center bottom",
           borderRadius: targetRadius,
-          transition: 'all 1.2s cubic-bezier(0.25, 1, 0.3, 1)',
+          transition: "all 1.2s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div
           className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-            response ? 'p-5 pt-6' : 'p-2'
+            response ? "p-5 pt-6" : "p-2"
           }`}
         >
-          {/* AI Response */}
+          {/* 🔥 AI Response Section */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? 'opacity-100 mb-5' : 'opacity-0 mb-0'
+              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: response ? '384px' : '0px',
-              transitionDelay: response ? '300ms' : '0ms',
+              maxHeight: response ? "384px" : "0px",
+              transitionDelay: response ? "300ms" : "0ms",
             }}
           >
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4"
                 style={{
-                  animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
-                  whiteSpace: 'pre-wrap',
+                  animation:
+                    "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
+                  whiteSpace: "pre-wrap",
                 }}
               >
                 {response}
@@ -114,11 +128,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             )}
           </div>
 
-          {/* Input */}
-          <form onSubmit={handleSubmit} className="flex items-center gap-3">
+          {/* ✍️ Input Section */}
+          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3">
             <Input
               type="text"
-              placeholder={isLoading ? 'Searching…' : 'Ask anything…'}
+              placeholder={isLoading ? "Thinking…" : "Ask anything…"}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
@@ -143,7 +157,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* Styles */}
+      {/* 🎨 Animations */}
       <style>
         {`
           @keyframes fadeSlideIn {
