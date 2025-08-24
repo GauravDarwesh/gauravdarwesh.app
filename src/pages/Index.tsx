@@ -1,4 +1,4 @@
-mport SearchBar from "@/components/SearchBar";
+import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const Index = () => {
@@ -8,7 +8,7 @@ const Index = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
         style={{
-          backgroundImage: url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png),
+          backgroundImage: `url(/lovable-uploads/f2e3c899-de23-49a1-9420-23d4fe3520df.png)`,
         }}
       />
 
@@ -22,3 +22,5 @@ const Index = () => {
     </div>
   );
 };
+
+export default Index;
