@@ -1,13 +1,20 @@
-import { getSessionId } from "./session";
+// src/lib/session.ts
 
-export async function sendChatMessage(message: string) {
-  const sessionId = getSessionId();
+/**
+ * Retrieves or creates a unique session ID for the current user.
+ * Stored in localStorage so the session persists across page reloads.
+ */
+export function getSessionId(): string {
+  const STORAGE_KEY = "gd_ai_session_id";
 
-  const res = await fetch("/api/bright-action", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, sessionId })
-  });
+  // Try to read an existing session ID from localStorage
+  let sessionId = localStorage.getItem(STORAGE_KEY);
 
-  return res.json();
+  // If none exists, create a new one
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem(STORAGE_KEY, sessionId);
+  }
+
+  return sessionId;
 }
