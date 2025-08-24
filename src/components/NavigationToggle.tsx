@@ -24,7 +24,7 @@ const NavigationToggle = () => {
             variant="ghost"
             size="sm"
             className={`
-              w-28 text-center tracking-normal rounded-xl 
+              w-28 text-center tracking-normal rounded-full 
               bg-transparent hover:bg-transparent
               ${active
                 ? "bg-white/10 text-white font-semibold backdrop-blur-sm" // softer highlight
