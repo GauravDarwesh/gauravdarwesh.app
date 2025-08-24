@@ -73,26 +73,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
         >
           {/* 💡 Suggestions ABOVE Response */}
-          {suggestions.length > 0 && (
-            <div
-              className="flex gap-2 flex-wrap justify-center mb-3 opacity-0 animate-fadeIn"
-              style={{
-                animation: "fadeIn 0.5s ease forwards",
-              }}
-            >
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
-                             hover:bg-white/30 transition cursor-pointer"
-                  disabled={isLoading}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
+{response && suggestions.length > 0 && (
+  <div
+    className="flex gap-2 flex-wrap justify-center mb-4 opacity-0 animate-fadeSlideIn"
+    style={{
+      animation: "fadeSlideIn 0.4s ease forwards",
+      animationDelay: "150ms",
+    }}
+  >
+    {suggestions.map((s, i) => (
+      <button
+        key={i}
+        onClick={() => handleSuggestionClick(s)}
+        className="px-3 py-1.5 bg-white/15 text-xs sm:text-sm rounded-full 
+                   hover:bg-white/25 transition-all cursor-pointer 
+                   backdrop-blur-sm border border-white/10"
+        disabled={isLoading}
+      >
+        {s}
+      </button>
+    ))}
+  </div>
+)}
 
           {/* 💬 AI Response */}
           <div
