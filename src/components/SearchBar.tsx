@@ -12,7 +12,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]); // 🔥 NEW
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,14 +20,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null);      // clear previous
-    setSuggestions([]);     // clear previous pills
-    setQuery('');           // clear input
+    setResponse(null);
+    setSuggestions([]);
+    setQuery('');
 
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? '';
-      const suggs = (result as any)?.suggestions ?? []; // 🔥 suggestions from backend
+      const suggs = (result as any)?.suggestions ?? [];
 
       setResponse(String(assistant));
       setSuggestions(suggs);
@@ -66,7 +66,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             response ? 'p-5 pt-6' : 'p-2'
           }`}
         >
-          {/* Response */}
+          {/* Suggestions + Response */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? 'opacity-100 mb-5' : 'opacity-0 mb-0'
@@ -78,14 +78,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             {response && (
               <div>
-                {/* 🔥 Suggestion Pills */}
+                {/* 🔥 Suggestion Pills ABOVE the answer */}
                 {suggestions.length > 0 && (
-                  <div className="flex gap-2 flex-wrap mb-4 px-4">
+                  <div className="flex gap-2 flex-wrap mb-4 px-2">
                     {suggestions.map((s, i) => (
                       <button
                         key={i}
-                        onClick={() => setQuery(s)} // 👉 fills input (or auto-submit if you want)
-                        className="px-3 py-1 bg-white/20 text-sm rounded-full 
+                        onClick={() => setQuery(s)}
+                        className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
                                    hover:bg-white/30 transition cursor-pointer"
                       >
                         {s}
