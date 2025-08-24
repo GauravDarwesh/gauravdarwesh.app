@@ -18,12 +18,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
     e?.preventDefault();
-
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null);
     if (!customQuery) setQuery("");
 
     try {
@@ -40,6 +38,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const msg =
         err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
+      setSuggestions([]);
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -51,10 +50,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     handleSubmit(undefined, s);
   };
 
+  // Dynamic resizing logic
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
-  const targetWidth = response ? "700px" : `${dynamicWidth}px`;
-  const targetRadius = response ? "16px" : `${dynamicRadius}px`;
+  const targetWidth = response || suggestions.length > 0 ? "700px" : `${dynamicWidth}px`;
+  const targetRadius = response || suggestions.length > 0 ? "16px" : `${dynamicRadius}px`;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
@@ -67,22 +67,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transition: "all 1.2s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
-        <div className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${response ? "p-5 pt-6" : "p-2"}`}>
-          
-          {/* Suggestions above chat box */}
+        <div
+          className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            response || suggestions.length > 0 ? "p-5 pt-6" : "p-2"
+          }`}
+        >
+          {/* Suggestion Bubble */}
           {suggestions.length > 0 && (
             <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{
-                animation: "fadeIn 0.4s ease forwards",
-              }}
+              className="flex gap-2 flex-wrap justify-center mb-3 opacity-0 animate-fadeIn"
+              style={{ animation: "fadeIn 0.4s ease forwards" }}
             >
               {suggestions.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
-                             hover:bg-white/30 transition cursor-pointer"
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 
+                             transition cursor-pointer"
                   disabled={isLoading}
                 >
                   {s}
@@ -115,7 +116,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             )}
           </div>
 
-          {/* Input */}
+          {/* Input Section */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3">
             <Input
               type="text"
@@ -131,9 +132,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               type="submit"
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full 
-                         transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] 
-                         hover:scale-110 active:scale-95 shrink-0"
+              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
@@ -142,6 +142,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </form>
         </div>
       </div>
+
+      {/* Animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease forwards; }
+      `}</style>
     </div>
   );
 };
