@@ -27,10 +27,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? "";
-      const suggs = (result as any)?.suggestions || []; // take suggestions as is
+      const suggs = Array.isArray((result as any)?.suggestions)
+        ? (result as any).suggestions
+        : [];
 
       setResponse(String(assistant));
-      setSuggestions(suggs); // this will directly show backend suggestions
+      setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
       const msg =
@@ -48,13 +50,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     handleSubmit(undefined, s);
   };
 
-  // Smooth width & radius transitions
+  // Dynamic resizing logic
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
-  const targetWidth =
-    response || suggestions.length > 0 ? "700px" : `${dynamicWidth}px`;
-  const targetRadius =
-    response || suggestions.length > 0 ? "16px" : `${dynamicRadius}px`;
+  const targetWidth = response || suggestions.length > 0 ? "700px" : `${dynamicWidth}px`;
+  const targetRadius = response || suggestions.length > 0 ? "16px" : `${dynamicRadius}px`;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
@@ -72,17 +72,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             response || suggestions.length > 0 ? "p-5 pt-6" : "p-2"
           }`}
         >
-          {/* Suggestions */}
+          {/* Suggestion Bubble */}
           {suggestions.length > 0 && (
             <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
+              className="flex gap-2 flex-wrap justify-center mb-3 opacity-0 animate-fadeIn"
               style={{ animation: "fadeIn 0.4s ease forwards" }}
             >
               {suggestions.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 
+                             transition cursor-pointer"
                   disabled={isLoading}
                 >
                   {s}
@@ -115,7 +116,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             )}
           </div>
 
-          {/* Input */}
+          {/* Input Section */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3">
             <Input
               type="text"
@@ -145,28 +146,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {/* Animations */}
       <style jsx>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         @keyframes fadeSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease forwards;
-        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease forwards; }
       `}</style>
     </div>
   );
