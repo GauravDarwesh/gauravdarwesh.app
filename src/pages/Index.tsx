@@ -3,8 +3,11 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Index = () => {
   return (
-    <div className="absolute inset-0 bg-grainy-gradient animate-fadeInSlow" />
-      {/* Background */}
+    <div className="absolute inset-0">
+      {/* Grainy Gradient Background */}
+      <div className="absolute inset-0 bg-grainy-gradient animate-fadeInSlow" />
+      
+      {/* Background Image */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
         style={{
