@@ -12,7 +12,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([
+    'Summarize this',
+    'Explain like I’m 5',
+    'Give related examples',
+  ]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -21,18 +25,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsLoading(true);
     setResponse(null);
-    setSuggestions([]);
     setQuery('');
 
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? '';
       const suggs =
-        (result as any)?.suggestions ?? [
-          'Summarize this',
-          'Explain like I’m 5',
-          'Give related examples',
-        ];
+        (result as any)?.suggestions ?? suggestions; // fallback
 
       setResponse(String(assistant));
       setSuggestions(suggs);
@@ -40,7 +39,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
       setResponse(msg);
-      setSuggestions([]);
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -60,7 +58,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const targetRadius = response ? '16px' : `${dynamicRadius}px`;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
+      {/* 🔥 Suggestion Pills OUTSIDE box */}
+      {suggestions.length > 0 && (
+        <div className="flex gap-2 flex-wrap justify-center">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => handleSuggestionClick(s)}
+              className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
+                         hover:bg-white/30 transition cursor-pointer"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main Box */}
       <div
         className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
@@ -76,22 +91,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             response ? 'p-5 pt-6' : 'p-2'
           }`}
         >
-          {/* 🔥 Suggestion Pills (always shown if available) */}
-          {suggestions.length > 0 && (
-            <div className="flex gap-2 flex-wrap mb-4 px-2">
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
-                             hover:bg-white/30 transition cursor-pointer"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* AI Response */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
