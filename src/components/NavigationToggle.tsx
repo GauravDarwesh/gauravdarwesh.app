@@ -27,7 +27,7 @@ const NavigationToggle = () => {
               w-28 text-center tracking-normal rounded-full 
               bg-transparent hover:bg-transparent
               ${active
-                ? "bg-white/10 text-white font-semibold backdrop-blur-sm" // softer highlight
+                ? "bg-white/10 border-white/20 text-white font-semibold backdrop-blur-sm" // softer highlight
                 : "text-gray-300"}
             `}
           >
