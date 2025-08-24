@@ -34,7 +34,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         : [];
 
       setResponse(String(assistant));
-      setSuggestions(suggs); // ✅ Update new suggestions
+      setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
       const msg =
@@ -67,34 +67,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transition: "all 1.2s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
-        <div
-          className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-            response ? "p-5 pt-6" : "p-2"
-          }`}
-        >
-          {/* 💡 Suggestions ABOVE Response */}
-{response && suggestions.length > 0 && (
-  <div
-  className="flex gap-2 flex-wrap justify-center mb-4 opacity-0 animate-fadeSlideIn"
-  style={{ animation: "fadeSlideIn 0.4s ease forwards", animationDelay: "150ms" }}
->
-  {suggestions.map((s, i) => (
-    <button
-      key={i}
-      onClick={() => handleSuggestionClick(s)}
-      className="px-3 py-1.5 bg-white/15 text-xs sm:text-sm rounded-full 
-                 hover:bg-white/25 transition-all cursor-pointer 
-                 backdrop-blur-sm border border-white/10"
-      disabled={isLoading}
-    >
-      {s}
-    </button>
-  ))}
-</div>
+        <div className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${response ? "p-5 pt-6" : "p-2"}`}>
+          
+          {/* Suggestions above chat box */}
+          {suggestions.length > 0 && (
+            <div
+              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
+              style={{
+                animation: "fadeIn 0.4s ease forwards",
+              }}
+            >
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(s)}
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
+                             hover:bg-white/30 transition cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
 
-)}
-
-          {/* 💬 AI Response */}
+          {/* AI Response */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? "opacity-100 mb-5" : "opacity-0 mb-0"
@@ -118,7 +115,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             )}
           </div>
 
-          {/* ✍️ Input */}
+          {/* Input */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3">
             <Input
               type="text"
@@ -145,19 +142,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </form>
         </div>
       </div>
-
-      {/* 🎨 Animations */}
-      <style>
-        {`
-          @keyframes fadeSlideIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes fadeIn {
-            to { opacity: 1; }
-          }
-        `}
-      </style>
     </div>
   );
 };
