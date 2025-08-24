@@ -24,7 +24,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsLoading(true);
     setResponse(null);
-    setSuggestions([]); // clear previous until new ones arrive
     if (!customQuery) setQuery("");
 
     try {
@@ -35,10 +34,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         : [];
 
       setResponse(String(assistant));
-      setSuggestions(suggs);
+      setSuggestions(suggs); // ✅ Update new suggestions
       onSearch?.(String(assistant));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
+      const msg =
+        err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       onSearch?.(msg);
     } finally {
@@ -58,23 +58,46 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* Main Box */}
       <div
         className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
           width: targetWidth,
           maxWidth: "90vw",
-          transformOrigin: "center bottom",
           borderRadius: targetRadius,
           transition: "all 1.2s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
-        <div className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${response ? "p-5 pt-6" : "p-2"}`}>
-          
-          {/* AI Response */}
+        <div
+          className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            response ? "p-5 pt-6" : "p-2"
+          }`}
+        >
+          {/* 💡 Suggestions ABOVE Response */}
+          {suggestions.length > 0 && (
+            <div
+              className="flex gap-2 flex-wrap justify-center mb-3 opacity-0 animate-fadeIn"
+              style={{
+                animation: "fadeIn 0.5s ease forwards",
+              }}
+            >
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(s)}
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
+                             hover:bg-white/30 transition cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 💬 AI Response */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? "opacity-100 mb-3" : "opacity-0 mb-0"
+              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
             }`}
             style={{
               maxHeight: response ? "384px" : "0px",
@@ -95,28 +118,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             )}
           </div>
 
-          {/* Suggestion Pills - NOW inside the box below the response */}
-          {suggestions.length > 0 && (
-            <div
-              className="flex gap-2 flex-wrap justify-center mt-2 transition-all duration-700"
-              style={{ animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both" }}
-            >
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
-                             hover:bg-white/30 transition cursor-pointer"
-                  disabled={isLoading}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Input */}
-          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 mt-3">
+          {/* ✍️ Input */}
+          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3">
             <Input
               type="text"
               placeholder={isLoading ? "Thinking…" : "Ask anything…"}
@@ -127,7 +130,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               disabled={isLoading}
               aria-label="Ask anything"
             />
-
             <Button
               type="submit"
               variant="ghost"
@@ -144,12 +146,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* Animations */}
+      {/* 🎨 Animations */}
       <style>
         {`
           @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateY(4px); }
             to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes fadeIn {
+            to { opacity: 1; }
           }
         `}
       </style>
