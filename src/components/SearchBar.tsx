@@ -14,11 +14,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([
-    "Summarize this",
-    "Explain like I’m 5",
-    "Give related examples",
-  ]);
+  const [suggestions, setSuggestions] = useState<string[]>([]); // start empty
 
   // 🔥 Submit handler
   const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
@@ -34,15 +30,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? "";
-      let suggs: string[] = [];
-
-      try {
-        suggs = Array.isArray((result as any)?.suggestions)
-          ? (result as any).suggestions
-          : suggestions;
-      } catch {
-        suggs = suggestions; // fallback
-      }
+      const suggs = Array.isArray((result as any)?.suggestions)
+        ? (result as any).suggestions
+        : []; // only set suggestions if Gemini returns them
 
       setResponse(String(assistant));
       setSuggestions(suggs);
@@ -71,7 +61,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* 💡 Suggestion Pills */}
+      {/* 💡 Suggestion Pills: Show ONLY if suggestions exist */}
       {suggestions.length > 0 && (
         <div className="flex gap-2 flex-wrap justify-center">
           {suggestions.map((s, i) => (
@@ -115,18 +105,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }}
           >
             {response && (
-  <div
-    className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
-    style={{
-      animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
-      whiteSpace: "pre-wrap",
-      maxHeight: "300px", // you can adjust
-    }}
-  >
-    {response}
-  </div>
-)}
-
+              <div
+                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
+                style={{
+                  animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: "300px",
+                }}
+              >
+                {response}
+              </div>
+            )}
           </div>
 
           {/* ✍️ Input Section */}
