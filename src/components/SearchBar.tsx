@@ -12,6 +12,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]); // 🔥 NEW
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,17 +20,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null); // clear previous
-    setQuery('');      // clear input
+    setResponse(null);      // clear previous
+    setSuggestions([]);     // clear previous pills
+    setQuery('');           // clear input
 
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? '';
+      const suggs = (result as any)?.suggestions ?? []; // 🔥 suggestions from backend
+
       setResponse(String(assistant));
+      setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
       setResponse(msg);
+      setSuggestions([]);
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -71,14 +77,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }}
           >
             {response && (
-              <div
-                className="text-foreground text-sm leading-relaxed px-4"
-                style={{
-                  animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {response}
+              <div>
+                {/* 🔥 Suggestion Pills */}
+                {suggestions.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mb-4 px-4">
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setQuery(s)} // 👉 fills input (or auto-submit if you want)
+                        className="px-3 py-1 bg-white/20 text-sm rounded-full 
+                                   hover:bg-white/30 transition cursor-pointer"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* AI Response */}
+                <div
+                  className="text-foreground text-sm leading-relaxed px-4"
+                  style={{
+                    animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {response}
+                </div>
               </div>
             )}
           </div>
