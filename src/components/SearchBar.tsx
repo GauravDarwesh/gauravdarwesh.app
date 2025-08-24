@@ -14,9 +14,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]); // start empty
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  // 🔥 Submit handler
   const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
     e?.preventDefault();
 
@@ -25,21 +24,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsLoading(true);
     setResponse(null);
-    if (!customQuery) setQuery(""); // only clear if user typed manually
+    setSuggestions([]); // clear previous until new ones arrive
+    if (!customQuery) setQuery("");
 
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? "";
       const suggs = Array.isArray((result as any)?.suggestions)
         ? (result as any).suggestions
-        : []; // only set suggestions if Gemini returns them
+        : [];
 
       setResponse(String(assistant));
       setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Something went wrong. Try again.";
+      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       onSearch?.(msg);
     } finally {
@@ -47,13 +46,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  // 🔥 Suggestion click (calls API directly with that suggestion)
   const handleSuggestionClick = (s: string) => {
     setQuery(s);
     handleSubmit(undefined, s);
   };
 
-  // Dynamic UI transitions
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const dynamicRadius = Math.max(24, 999 - query.length * 2);
   const targetWidth = response ? "700px" : `${dynamicWidth}px`;
@@ -61,24 +58,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* 💡 Suggestion Pills: Show ONLY if suggestions exist */}
-      {suggestions.length > 0 && (
-        <div className="flex gap-2 flex-wrap justify-center">
-          {suggestions.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => handleSuggestionClick(s)}
-              className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
-                         hover:bg-white/30 transition cursor-pointer"
-              disabled={isLoading}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* 💬 Main Box */}
+      {/* Main Box */}
       <div
         className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
@@ -89,15 +69,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transition: "all 1.2s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
-        <div
-          className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-            response ? "p-5 pt-6" : "p-2"
-          }`}
-        >
-          {/* 🔥 AI Response Section */}
+        <div className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${response ? "p-5 pt-6" : "p-2"}`}>
+          
+          {/* AI Response */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
+              response ? "opacity-100 mb-3" : "opacity-0 mb-0"
             }`}
             style={{
               maxHeight: response ? "384px" : "0px",
@@ -118,8 +95,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             )}
           </div>
 
-          {/* ✍️ Input Section */}
-          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3">
+          {/* Suggestion Pills - NOW inside the box below the response */}
+          {suggestions.length > 0 && (
+            <div
+              className="flex gap-2 flex-wrap justify-center mt-2 transition-all duration-700"
+              style={{ animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both" }}
+            >
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(s)}
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
+                             hover:bg-white/30 transition cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 mt-3">
             <Input
               type="text"
               placeholder={isLoading ? "Thinking…" : "Ask anything…"}
@@ -147,7 +144,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* 🎨 Animations */}
+      {/* Animations */}
       <style>
         {`
           @keyframes fadeSlideIn {
