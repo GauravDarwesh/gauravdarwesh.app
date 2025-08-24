@@ -50,7 +50,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const targetRadius = response ? '16px' : `${dynamicRadius}px`;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center">
+      
+      {/* 🔥 Suggestion Pills ABOVE the box */}
+      {suggestions.length > 0 && (
+        <div className="flex gap-2 flex-wrap mb-3 max-w-[700px] w-full justify-center">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => setQuery(s)}
+              className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
+                         hover:bg-white/30 transition cursor-pointer"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main box */}
       <div
         className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
@@ -66,7 +84,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             response ? 'p-5 pt-6' : 'p-2'
           }`}
         >
-          {/* Suggestions + Response */}
+          {/* Response */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? 'opacity-100 mb-5' : 'opacity-0 mb-0'
@@ -77,33 +95,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }}
           >
             {response && (
-              <div>
-                {/* 🔥 Suggestion Pills ABOVE the answer */}
-                {suggestions.length > 0 && (
-                  <div className="flex gap-2 flex-wrap mb-4 px-2">
-                    {suggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setQuery(s)}
-                        className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full 
-                                   hover:bg-white/30 transition cursor-pointer"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* AI Response */}
-                <div
-                  className="text-foreground text-sm leading-relaxed px-4"
-                  style={{
-                    animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  {response}
-                </div>
+              <div
+                className="text-foreground text-sm leading-relaxed px-4"
+                style={{
+                  animation: 'fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {response}
               </div>
             )}
           </div>
