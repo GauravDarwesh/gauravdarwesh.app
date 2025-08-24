@@ -3,17 +3,9 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Index = () => {
   return (
-    <div className="absolute inset-0">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       {/* Grainy Gradient Background */}
       <div className="absolute inset-0 bg-grainy-gradient animate-fadeInSlow" />
-      
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
-        style={{
-          backgroundImage: `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)`,
-        }}
-      />
 
       {/* Navigation Toggle */}
       <NavigationToggle />
