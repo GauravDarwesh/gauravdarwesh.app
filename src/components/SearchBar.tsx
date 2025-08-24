@@ -115,17 +115,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }}
           >
             {response && (
-              <div
-                className="text-foreground text-sm leading-relaxed px-4"
-                style={{
-                  animation:
-                    "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {response}
-              </div>
-            )}
+  <div
+    className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
+    style={{
+      animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
+      whiteSpace: "pre-wrap",
+      maxHeight: "300px", // you can adjust
+    }}
+  >
+    {response}
+  </div>
+)}
+
           </div>
 
           {/* ✍️ Input Section */}
