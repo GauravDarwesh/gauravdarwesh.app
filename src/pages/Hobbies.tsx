@@ -2,7 +2,7 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Portfolio = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden px-6 py-12">
+    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
       {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
