@@ -8,7 +8,7 @@ const Index = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
         style={{
-          backgroundImage: `url(https://unsplash.com/photos/cosmic-nebula-with-glowing-red-and-white-gases-G-5JCERzbE8)`,
+          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}
       />
 
