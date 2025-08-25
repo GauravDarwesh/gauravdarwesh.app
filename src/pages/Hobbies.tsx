@@ -5,7 +5,7 @@ const Portfolio = () => {
     <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden px-6 py-12">
       {/* Background */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow opacity-20"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}
