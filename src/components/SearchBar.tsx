@@ -3,15 +3,56 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, ExternalLink } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-// Convert markdown to clean HTML
+// Function to get shortened link text based on domain
+const getShortenedLinkText = (url: string): string => {
+  try {
+    const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace('www.', '');
+    
+    // Map common domains to readable names
+    const domainMap: { [key: string]: string } = {
+      'linkedin.com': 'LinkedIn',
+      'twitter.com': 'Twitter',
+      'x.com': 'Twitter',
+      'facebook.com': 'Facebook',
+      'instagram.com': 'Instagram',
+      'youtube.com': 'YouTube',
+      'github.com': 'GitHub',
+      'google.com': 'Google',
+      'microsoft.com': 'Microsoft',
+      'apple.com': 'Apple',
+      'amazon.com': 'Amazon',
+      'netflix.com': 'Netflix'
+    };
+    
+    if (domainMap[domain]) {
+      return domainMap[domain];
+    }
+    
+    // For other domains, use the first part of the domain name
+    const parts = domain.split('.');
+    return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  } catch {
+    return 'Link';
+  }
+};
+
+// Convert markdown to clean HTML with clickable links
 const convertMarkdownToHtml = (text: string): string => {
   let html = text;
   
   // Convert **bold** to <b>bold</b>
   html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+  
+  // Convert URLs to clickable links with shortened text and arrow
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
+  html = html.replace(urlRegex, (match) => {
+    const url = match.startsWith('http') ? match : `https://${match}`;
+    const linkText = getShortenedLinkText(match);
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+  });
   
   // Convert bullet points (* item) to <ul><li>item</li></ul>
   const lines = html.split('\n');
@@ -24,10 +65,10 @@ const convertMarkdownToHtml = (text: string): string => {
     
     if (bulletMatch) {
       if (!inList) {
-        processedLines.push('<ul>');
+        processedLines.push('<ul class="list-none space-y-1 my-2">');
         inList = true;
       }
-      processedLines.push(`<li>${bulletMatch[1]}</li>`);
+      processedLines.push(`<li class="flex items-start gap-2"><span class="text-blue-400 mt-1">•</span><span>${bulletMatch[1]}</span></li>`);
     } else {
       if (inList) {
         processedLines.push('</ul>');
