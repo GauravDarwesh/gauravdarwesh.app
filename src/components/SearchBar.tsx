@@ -6,6 +6,45 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
+// Convert markdown to clean HTML
+const convertMarkdownToHtml = (text: string): string => {
+  let html = text;
+  
+  // Convert **bold** to <b>bold</b>
+  html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+  
+  // Convert bullet points (* item) to <ul><li>item</li></ul>
+  const lines = html.split('\n');
+  let inList = false;
+  const processedLines: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const bulletMatch = line.match(/^\s*\*\s+(.+)$/);
+    
+    if (bulletMatch) {
+      if (!inList) {
+        processedLines.push('<ul>');
+        inList = true;
+      }
+      processedLines.push(`<li>${bulletMatch[1]}</li>`);
+    } else {
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      processedLines.push(line);
+    }
+  }
+  
+  // Close any open list
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+  
+  return processedLines.join('\n');
+};
+
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
@@ -105,12 +144,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
-                  whiteSpace: "pre-wrap",
                   maxHeight: "300px",
                 }}
-              >
-                {response}
-              </div>
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+              />
             )}
           </div>
 
