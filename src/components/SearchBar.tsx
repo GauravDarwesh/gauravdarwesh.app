@@ -6,14 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Search, ExternalLink } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-// Interface for parsed content segments
-interface ContentSegment {
-  type: 'text' | 'link' | 'bold' | 'bullet-list';
-  content: string;
-  url?: string;
-  items?: string[];
-}
-
 // Function to get shortened link text based on domain
 const getShortenedLinkText = (url: string): string => {
   try {
@@ -47,206 +39,51 @@ const getShortenedLinkText = (url: string): string => {
   }
 };
 
-// Parse response text into structured content segments
-const parseResponseContent = (text: string): ContentSegment[] => {
-  const segments: ContentSegment[] = [];
-  const lines = text.split('\n');
-  let i = 0;
+// Convert markdown to clean HTML with clickable links
+const convertMarkdownToHtml = (text: string): string => {
+  let html = text;
   
-  while (i < lines.length) {
-    const line = lines[i];
-    
-    // Check for bullet points
-    const bulletMatch = line.match(/^\s*\*\s+(.+)$/);
-    if (bulletMatch) {
-      const bulletItems: string[] = [bulletMatch[1]];
-      i++;
-      
-      // Collect consecutive bullet points
-      while (i < lines.length) {
-        const nextBulletMatch = lines[i].match(/^\s*\*\s+(.+)$/);
-        if (nextBulletMatch) {
-          bulletItems.push(nextBulletMatch[1]);
-          i++;
-        } else {
-          break;
-        }
-      }
-      
-      segments.push({
-        type: 'bullet-list',
-        content: '',
-        items: bulletItems
-      });
-      continue;
-    }
-    
-    // Process regular text line for bold text and links
-    if (line.trim()) {
-      const processedSegments = parseLineContent(line);
-      segments.push(...processedSegments);
-    } else {
-      // Empty line - add as text to preserve spacing
-      segments.push({
-        type: 'text',
-        content: '\n'
-      });
-    }
-    
-    i++;
-  }
+  // Convert **bold** to <b>bold</b>
+  html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   
-  return segments;
-};
-
-// Parse a single line for bold text and links
-const parseLineContent = (line: string): ContentSegment[] => {
-  const segments: ContentSegment[] = [];
-  let currentText = line;
-  
-  // First handle URLs
+  // Convert URLs to clickable links with shortened text and arrow
   const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
-  const urlMatches = [...currentText.matchAll(urlRegex)];
+  html = html.replace(urlRegex, (match) => {
+    const url = match.startsWith('http') ? match : `https://${match}`;
+    const linkText = getShortenedLinkText(match);
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+  });
   
-  if (urlMatches.length === 0) {
-    // No URLs, just process for bold text
-    const boldSegments = parseBoldText(currentText);
-    segments.push(...boldSegments);
-  } else {
-    // Process text with URLs
-    let lastIndex = 0;
+  // Convert bullet points (* item) to <ul><li>item</li></ul>
+  const lines = html.split('\n');
+  let inList = false;
+  const processedLines: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const bulletMatch = line.match(/^\s*\*\s+(.+)$/);
     
-    for (const match of urlMatches) {
-      const matchIndex = match.index!;
-      
-      // Add text before URL
-      if (matchIndex > lastIndex) {
-        const textBefore = currentText.slice(lastIndex, matchIndex);
-        const boldSegments = parseBoldText(textBefore);
-        segments.push(...boldSegments);
+    if (bulletMatch) {
+      if (!inList) {
+        processedLines.push('<ul class="list-none space-y-1 my-2">');
+        inList = true;
       }
-      
-      // Add URL
-      const url = match[0].startsWith('http') ? match[0] : `https://${match[0]}`;
-      segments.push({
-        type: 'link',
-        content: getShortenedLinkText(match[0]),
-        url: url
-      });
-      
-      lastIndex = matchIndex + match[0].length;
-    }
-    
-    // Add remaining text after last URL
-    if (lastIndex < currentText.length) {
-      const textAfter = currentText.slice(lastIndex);
-      const boldSegments = parseBoldText(textAfter);
-      segments.push(...boldSegments);
+      processedLines.push(`<li class="flex items-start gap-2"><span class="text-blue-400 mt-1">•</span><span>${bulletMatch[1]}</span></li>`);
+    } else {
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      processedLines.push(line);
     }
   }
   
-  return segments;
-};
-
-// Parse bold text from a string
-const parseBoldText = (text: string): ContentSegment[] => {
-  const segments: ContentSegment[] = [];
-  const boldRegex = /\*\*(.*?)\*\*/g;
-  const boldMatches = [...text.matchAll(boldRegex)];
-  
-  if (boldMatches.length === 0) {
-    // No bold text
-    if (text.trim()) {
-      segments.push({
-        type: 'text',
-        content: text
-      });
-    }
-  } else {
-    let lastIndex = 0;
-    
-    for (const match of boldMatches) {
-      const matchIndex = match.index!;
-      
-      // Add text before bold
-      if (matchIndex > lastIndex) {
-        const textBefore = text.slice(lastIndex, matchIndex);
-        if (textBefore.trim()) {
-          segments.push({
-            type: 'text',
-            content: textBefore
-          });
-        }
-      }
-      
-      // Add bold text
-      segments.push({
-        type: 'bold',
-        content: match[1]
-      });
-      
-      lastIndex = matchIndex + match[0].length;
-    }
-    
-    // Add remaining text after last bold
-    if (lastIndex < text.length) {
-      const textAfter = text.slice(lastIndex);
-      if (textAfter.trim()) {
-        segments.push({
-          type: 'text',
-          content: textAfter
-        });
-      }
-    }
+  // Close any open list
+  if (inList) {
+    processedLines.push('</ul>');
   }
   
-  return segments;
-};
-
-// Component to render parsed content segments
-const ResponseRenderer: React.FC<{ segments: ContentSegment[] }> = ({ segments }) => {
-  return (
-    <>
-      {segments.map((segment, index) => {
-        switch (segment.type) {
-          case 'text':
-            return <span key={index}>{segment.content}</span>;
-          
-          case 'bold':
-            return <strong key={index} className="font-semibold">{segment.content}</strong>;
-          
-          case 'link':
-            return (
-              <a
-                key={index}
-                href={segment.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors"
-              >
-                {segment.content}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            );
-          
-          case 'bullet-list':
-            return (
-              <ul key={index} className="list-none space-y-1 my-2">
-                {segment.items?.map((item, itemIndex) => (
-                  <li key={itemIndex} className="flex items-start gap-2">
-                    <span className="text-blue-400 mt-1">•</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            );
-          
-          default:
-            return null;
-        }
-      })}
-    </>
-  );
+  return processedLines.join('\n');
 };
 
 interface SearchBarProps {
@@ -297,9 +134,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
-
-  // Parse response content into segments
-  const responseSegments = response ? parseResponseContent(response) : [];
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
@@ -353,9 +187,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
-              >
-                <ResponseRenderer segments={responseSegments} />
-              </div>
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+              />
             )}
           </div>
 
