@@ -62,12 +62,12 @@ const Portfolio = () => {
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
-          <div className="mb-6">
+          <div className="mb-8">
             <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
-            <p className="italic">
+            <p className="italic mb-3">
               Product Manager Analyst <span className="float-right text-s">July 2025 – Present</span>
             </p>
-            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Monitoring and analyzing global regulatory updates across NAM and LATAM regions.</li>
               <li>Managing JIRA tickets for regulatory changes, requirements, and enhancements.</li>
               <li>Collaborating with cross-functional teams to interpret regulations and translate them into product requirements.</li>
