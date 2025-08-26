@@ -221,14 +221,30 @@ const Portfolio = () => {
         </section>
       </div>
 
-      {/* Invisible scrollbar styling */}
+      {/* Animations */}
       <style>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+        @keyframes fadeSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease forwards;
         }
       `}</style>
     </div>
