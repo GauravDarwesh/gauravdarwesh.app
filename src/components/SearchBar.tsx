@@ -65,10 +65,10 @@ const convertMarkdownToHtml = (text: string): string => {
     
     if (bulletMatch) {
       if (!inList) {
-        processedLines.push('<ul class="list-none space-y-1 my-2">');
+        processedLines.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      processedLines.push(`<li class="flex items-start gap-2"><span class="text-blue-400 mt-1">•</span><span>${bulletMatch[1]}</span></li>`);
+      processedLines.push(`<li class="list-disc list-inside">${bulletMatch[1]}</li>`);
     } else {
       if (inList) {
         processedLines.push('</ul>');
