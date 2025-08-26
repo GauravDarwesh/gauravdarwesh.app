@@ -49,13 +49,15 @@ const Portfolio = () => {
   </div>
 
   <div className="mb-4">
+  <div className="flex justify-between items-start">
     <h3 className="font-semibold">University of Mumbai</h3>
-    <p className="text-sm italic flex justify-between">
-      B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
-      <span className="text-s">Dec 2021 – Jun 2025</span>
-    </p>
+    <span className="text-sm whitespace-nowrap">Dec 2021 – Jun 2025</span>
   </div>
-</section>
+  <p className="text-sm italic">
+    B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
+  </p>
+</div>
+
 
 
         {/* Experience */}
