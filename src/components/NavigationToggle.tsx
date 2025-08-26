@@ -30,7 +30,7 @@ const NavigationToggle = () => {
           style={{
             width: scrolled ? "14rem" : "7rem",
             transform: `translateX(${
-              scrolled ? 0 : isActive("/") ? "0" : "8rem"
+              scrolled ? 0 : isActive("/") ? "0" : "15rem"
             })`,
           }}
         />
