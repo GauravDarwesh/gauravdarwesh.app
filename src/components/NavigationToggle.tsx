@@ -16,7 +16,7 @@ const NavigationToggle = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50); // trigger after 50px scroll
+      setIsScrolled(window.scrollY > 50); // trigger after 50px
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -25,10 +25,9 @@ const NavigationToggle = () => {
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2">
-      {options.map((option) => {
+      {options.map((option, index) => {
         const active = isActive(option.path);
 
-        // Check if Classic is active + scrolled
         const isClassicActiveAndScrolled =
           option.name === "Classic" && active && isScrolled;
 
@@ -47,7 +46,7 @@ const NavigationToggle = () => {
               ${active
                 ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" 
                 : "text-gray-300 hover:text-white"}
-              ${isClassicActiveAndScrolled ? "w-[15rem] h-12" : ""}
+              ${isClassicActiveAndScrolled ? "w-[20rem] -ml-28 h-12" : ""}
             `}
           >
             {option.name}
