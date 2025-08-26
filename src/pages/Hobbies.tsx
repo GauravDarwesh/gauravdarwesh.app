@@ -41,13 +41,16 @@ const Portfolio = () => {
   <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
   <div className="mb-4">
+  <div className="flex justify-between items-start">
     <h3 className="font-semibold">University of Cambridge</h3>
-    <p className="text-sm italic flex justify-between">
-      Undergraduate Certificate in Strategic Business & Management
-      <span className="text-s">Oct 2023 – Jul 2024</span>
-    </p>
+    <span className="text-sm whitespace-nowrap">Oct 2023 – Jul 2024</span>
   </div>
-
+  <p className="text-sm italic">
+    Undergraduate Certificate in Strategic Business & Management
+  </p>
+</div>
+</section>
+  
   <div className="mb-4">
   <div className="flex justify-between items-start">
     <h3 className="font-semibold">University of Mumbai</h3>
