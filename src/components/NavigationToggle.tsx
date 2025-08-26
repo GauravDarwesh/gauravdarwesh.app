@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
 
 const NavigationToggle = () => {
   const navigate = useNavigate();
@@ -9,11 +8,8 @@ const NavigationToggle = () => {
 
   const [scrolled, setScrolled] = useState(false);
 
-  // Detect scroll
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20); // expand once user scrolls
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -28,19 +24,14 @@ const NavigationToggle = () => {
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
       <div className="relative flex gap-2 px-2">
-        {/* Animated Bubble Background */}
-        <motion.div
-          className="absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20"
-          initial={{ width: "7rem", x: 0, opacity: 0 }}
-          animate={{
-            width: scrolled ? "15.5rem" : "7rem", // expand to cover both buttons
-            x: scrolled ? 0 : isActive("/") ? 0 : "8rem", // position under active
-            opacity: 1,
-          }}
-          transition={{
-            type: "spring",
-            stiffness: 200,
-            damping: 25,
+        {/* Animated bubble without framer-motion */}
+        <div
+          className={`absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out`}
+          style={{
+            width: scrolled ? "15.5rem" : "7rem",
+            transform: `translateX(${
+              scrolled ? 0 : isActive("/") ? "0" : "8rem"
+            })`,
           }}
         />
 
