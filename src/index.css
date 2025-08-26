@@ -153,3 +153,7 @@ All colors MUST be HSL.
   0% { background-position: 0 0; }
   100% { background-position: 1000px 0; }
 }
+
+html {
+  scrollbar-gutter: stable;
+}
