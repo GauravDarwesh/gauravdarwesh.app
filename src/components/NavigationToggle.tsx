@@ -24,11 +24,13 @@ const NavigationToggle = () => {
             variant="ghost"
             size="sm"
             className={`
-              w-28 text-center tracking-normal rounded-full 
+              w-28 h-9 text-center tracking-normal rounded-full 
               bg-transparent hover:bg-transparent
+              transition-all duration-200 ease-in-out
+              border border-transparent
               ${active
-                ? "bg-white/10 border-white/20 text-white font-semibold backdrop-blur-sm" // softer highlight
-                : "text-gray-300"}
+                ? "bg-white/10 border-white/20 text-white font-semibold backdrop-blur-sm" 
+                : "text-gray-300 hover:text-white"}
             `}
           >
             {option.name}
