@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
 
 const NavigationToggle = () => {
   const navigate = useNavigate();
@@ -9,85 +8,51 @@ const NavigationToggle = () => {
 
   const [scrolled, setScrolled] = useState(false);
 
-  const gdxRef = useRef<HTMLButtonElement>(null);
-  const classicRef = useRef<HTMLButtonElement>(null);
-
-  // detect scroll
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 30);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const options = [
+    { name: "GDx", path: "/" },
+    { name: "Classic", path: "/hobbies" },
+  ];
+
   const isActive = (path: string) => location.pathname === path;
-
-  // compute bubble position + size
-  const [bubble, setBubble] = useState({ width: 0, x: 0 });
-
-  useEffect(() => {
-  const container = gdxRef.current?.parentElement;
-  if (!container) return;
-
-  const containerRect = container.getBoundingClientRect();
-
-  if (location.pathname === "/hobbies" && scrolled) {
-    if (gdxRef.current && classicRef.current) {
-      const gdxRect = gdxRef.current.getBoundingClientRect();
-      const classicRect = classicRef.current.getBoundingClientRect();
-
-      const left = gdxRect.left - containerRect.left;
-      const right = classicRect.right - containerRect.left;
-
-      setBubble({ width: right - left, x: left });
-    }
-  } else {
-    const activeRef = isActive("/") ? gdxRef : classicRef;
-    if (activeRef.current) {
-      const rect = activeRef.current.getBoundingClientRect();
-      setBubble({
-        width: rect.width,
-        x: rect.left - containerRect.left,
-      });
-    }
-  }
-}, [scrolled, location.pathname]);
-
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
       <div className="relative flex gap-2 px-2">
-        {/* Bubble */}
-        <motion.div
-          layout
-          animate={{ width: bubble.width, x: bubble.x }}
-          transition={{ duration: 0.7, ease: "easeInOut" }}
-          className="absolute top-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20"
+        {/* Animated bubble without framer-motion */}
+        <div
+          className={`absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out`}
+          style={{
+            width: scrolled ? "15.5rem" : "7rem",
+            transform: `translateX(${
+              scrolled ? 0 : isActive("/") ? "0" : "8rem"
+            })`,
+          }}
         />
 
-        {/* Buttons */}
-        <Button
-          ref={gdxRef}
-          onClick={() => navigate("/")}
-          variant="ghost"
-          size="sm"
-          className={`relative z-10 w-28 h-9 rounded-full ${
-            isActive("/") ? "text-white font-medium" : "text-gray-300 hover:text-white"
-          }`}
-        >
-          GDx
-        </Button>
-
-        <Button
-          ref={classicRef}
-          onClick={() => navigate("/hobbies")}
-          variant="ghost"
-          size="sm"
-          className={`relative z-10 w-28 h-9 rounded-full ${
-            isActive("/hobbies") ? "text-white font-medium" : "text-gray-300 hover:text-white"
-          }`}
-        >
-          Classic
-        </Button>
+        {options.map((option) => {
+          const active = isActive(option.path);
+          return (
+            <Button
+              key={option.name}
+              onClick={() => navigate(option.path)}
+              variant="ghost"
+              size="sm"
+              className={`
+                relative z-10 w-28 h-9 text-center tracking-normal rounded-full 
+                bg-transparent hover:bg-transparent transition-all duration-200 ease-in-out
+                ${active ? "text-white font-medium" : "text-gray-300 hover:text-white"}
+              `}
+            >
+              {option.name}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
