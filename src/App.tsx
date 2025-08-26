@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Hobbies from "./pages/Hobbies";
 import Others from "./pages/Others";
 import SessionTest from "./pages/SessionTest";
+import ArrowLoop from "./pages/ArrowLoop";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/hobbies" element={<Hobbies />} />
           <Route path="/others" element={<Others />} />
           <Route path="/session-test" element={<SessionTest />} />
+          <Route path="/arrow-loop" element={<ArrowLoop />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
