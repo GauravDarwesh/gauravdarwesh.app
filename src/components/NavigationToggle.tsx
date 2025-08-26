@@ -30,8 +30,7 @@ const NavigationToggle = () => {
           style={{
             width: scrolled ? "15.5rem" : "7rem",
             transform: `translateX(${
-              scrolled ? 0 : isActive("/") ? "-0.25" : "8rem",
-              transform: "translateX(0)",
+              scrolled ? 0 : isActive("/") ? "0rem" : "8rem"
             })`,
           }}
         />
@@ -45,9 +44,10 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                relative z-10 w-28 h-9 text-center tracking-normal rounded-full 
+                relative z-10 w-28 h-9 tracking-normal rounded-full 
                 bg-transparent hover:bg-transparent transition-all duration-200 ease-in-out
                 ${active ? "text-white font-medium" : "text-gray-300 hover:text-white"}
+                ${option.name === "GDx" ? "text-left pl-6" : "text-center"}
               `}
             >
               {option.name}
