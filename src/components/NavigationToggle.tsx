@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -7,13 +7,12 @@ const NavigationToggle = () => {
   const location = useLocation();
 
   const [scrolled, setScrolled] = useState(false);
-  const [bubbleStyle, setBubbleStyle] = useState<{ width: number; x: number }>({
-    width: 0,
-    x: 0,
-  });
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const options = [
     { name: "GDx", path: "/" },
@@ -22,60 +21,24 @@ const NavigationToggle = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Handle scroll (expand bubble)
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Position bubble correctly
-  useEffect(() => {
-    if (!containerRef.current || !buttonRefs.current.length) return;
-
-    if (scrolled) {
-      // Cover both buttons
-      const first = buttonRefs.current[0]?.getBoundingClientRect();
-      const last = buttonRefs.current[buttonRefs.current.length - 1]?.getBoundingClientRect();
-      const container = containerRef.current.getBoundingClientRect();
-
-      if (first && last) {
-        const x = first.left - container.left;
-        const width = last.right - first.left;
-        setBubbleStyle({ x, width });
-      }
-    } else {
-      // Only cover active button
-      const activeIndex = options.findIndex((o) => isActive(o.path));
-      const activeBtn = buttonRefs.current[activeIndex];
-      const container = containerRef.current.getBoundingClientRect();
-
-      if (activeBtn && container) {
-        const rect = activeBtn.getBoundingClientRect();
-        const x = rect.left - container.left;
-        const width = rect.width;
-        setBubbleStyle({ x, width });
-      }
-    }
-  }, [location.pathname, scrolled]);
-
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-      <div ref={containerRef} className="relative flex gap-2 px-2">
-        {/* Bubble */}
+      <div className="relative flex gap-2 px-2">
+        {/* Animated bubble without framer-motion */}
         <div
-          className="absolute top-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out"
+          className={`absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out`}
           style={{
-            width: `${bubbleStyle.width}px`,
-            transform: `translateX(${bubbleStyle.x}px)`,
+            width: scrolled ? "15.5rem" : "7rem",
+            transform: `translateX(${
+              scrolled ? 0 : isActive("/") ? "0" : "8rem"
+            })`,
           }}
         />
 
-        {options.map((option, i) => {
+        {options.map((option) => {
           const active = isActive(option.path);
           return (
             <Button
-              ref={(el) => (buttonRefs.current[i] = el)}
               key={option.name}
               onClick={() => navigate(option.path)}
               variant="ghost"
