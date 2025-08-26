@@ -1,16 +1,16 @@
 import React from "react";
 
 interface ArrowLoopProps {
-  x: number; // starting x
-  y: number; // starting y
+  x?: number; // starting x
+  y?: number; // starting y
   loops?: number; // number of loops (2-3)
   size?: number; // size of loop
   direction?: "left" | "right"; // spiral direction
 }
 
 const ArrowLoop: React.FC<ArrowLoopProps> = ({
-  x,
-  y,
+  x = 100,
+  y = 100,
   loops = 2,
   size = 60,
   direction = "right",
