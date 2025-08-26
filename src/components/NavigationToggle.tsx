@@ -25,24 +25,33 @@ const NavigationToggle = () => {
   const [bubble, setBubble] = useState({ width: 0, x: 0 });
 
   useEffect(() => {
-    if (location.pathname === "/hobbies" && scrolled) {
-      // On Classic + scrolled → bubble stretches from GDx to Classic
-      if (gdxRef.current && classicRef.current) {
-        const left = gdxRef.current.offsetLeft;
-        const right = classicRef.current.offsetLeft + classicRef.current.offsetWidth;
-        setBubble({ width: right - left, x: left });
-      }
-    } else {
-      // Otherwise → bubble only around active tab
-      const activeRef = isActive("/") ? gdxRef : classicRef;
-      if (activeRef.current) {
-        setBubble({
-          width: activeRef.current.offsetWidth,
-          x: activeRef.current.offsetLeft,
-        });
-      }
+  const container = gdxRef.current?.parentElement;
+  if (!container) return;
+
+  const containerRect = container.getBoundingClientRect();
+
+  if (location.pathname === "/hobbies" && scrolled) {
+    if (gdxRef.current && classicRef.current) {
+      const gdxRect = gdxRef.current.getBoundingClientRect();
+      const classicRect = classicRef.current.getBoundingClientRect();
+
+      const left = gdxRect.left - containerRect.left;
+      const right = classicRect.right - containerRect.left;
+
+      setBubble({ width: right - left, x: left });
     }
-  }, [scrolled, location.pathname]);
+  } else {
+    const activeRef = isActive("/") ? gdxRef : classicRef;
+    if (activeRef.current) {
+      const rect = activeRef.current.getBoundingClientRect();
+      setBubble({
+        width: rect.width,
+        x: rect.left - containerRect.left,
+      });
+    }
+  }
+}, [scrolled, location.pathname]);
+
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
