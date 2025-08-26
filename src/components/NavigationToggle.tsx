@@ -1,18 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const NavigationToggle = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const options = [
     { name: "GDx", path: "/" },
@@ -23,19 +15,13 @@ const NavigationToggle = () => {
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-      <div className="relative flex px-2">
-        {/* Animated bubble */}
+      <div className="relative flex gap-2 px-2">
+        {/* Bubble always elongated */}
         <div
           className="absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out"
           style={{
-            width: scrolled ? "15rem" : "7rem", // same bubble width for both
-            transform: `translateX(${
-              scrolled
-                ? 0
-                : isActive("/") // if GDx is active, bubble at left
-                ? "0"
-                : "7.5rem" // move bubble to Classic
-            })`,
+            width: "15.5rem", // always elongated
+            transform: `translateX(${isActive("/") ? "0" : "8rem"})`, // slide between GDx & Classic
           }}
         />
 
@@ -48,11 +34,10 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                relative z-10 w-28 h-9 
-                text-center tracking-normal rounded-full
-                bg-transparent hover:bg-transparent 
-                transition-all duration-200 ease-in-out
+                relative z-10 w-28 h-9 text-center tracking-normal rounded-full 
+                bg-transparent hover:bg-transparent transition-all duration-200 ease-in-out
                 ${active ? "text-white font-medium" : "text-gray-300 hover:text-white"}
+                ${idx === 0 ? "-translate-x-2" : ""}  // 👈 nudges GDx slightly left
               `}
             >
               {option.name}
