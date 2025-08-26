@@ -17,7 +17,7 @@ const NavigationToggle = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 30) {
+      if (window.scrollY > 10) {
         setShowScrollTop(true);
       } else {
         setShowScrollTop(false);
