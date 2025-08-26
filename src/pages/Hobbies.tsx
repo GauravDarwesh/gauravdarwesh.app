@@ -57,8 +57,7 @@ const Portfolio = () => {
     B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
   </p>
 </div>
-
-
+</section>
 
         {/* Experience */}
         <section>
