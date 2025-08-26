@@ -7,83 +7,78 @@ const NavigationToggle = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [scrolled, setScrolled] = useState(false);
+
   const gdxRef = useRef<HTMLButtonElement>(null);
   const classicRef = useRef<HTMLButtonElement>(null);
 
-  const [scrolled, setScrolled] = useState(false);
-  const [bubble, setBubble] = useState({ width: 0, x: 0 });
-
-  const isActive = (path: string) => location.pathname === path;
-
+  // detect scroll
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => setScrolled(window.scrollY > 30);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const isActive = (path: string) => location.pathname === path;
+
+  // compute bubble position + size
+  const [bubble, setBubble] = useState({ width: 0, x: 0 });
+
   useEffect(() => {
-    // measure buttons after render
-    const gdx = gdxRef.current;
-    const classic = classicRef.current;
-    if (!gdx || !classic) return;
-
     if (location.pathname === "/hobbies" && scrolled) {
-      // Expand bubble symmetrically from Classic to GDx
-      const left = Math.min(gdx.offsetLeft, classic.offsetLeft);
-      const right = Math.max(
-        gdx.offsetLeft + gdx.offsetWidth,
-        classic.offsetLeft + classic.offsetWidth
-      );
-      setBubble({
-        width: right - left,
-        x: left,
-      });
+      // On Classic + scrolled → bubble stretches from GDx to Classic
+      if (gdxRef.current && classicRef.current) {
+        const left = gdxRef.current.offsetLeft;
+        const right = classicRef.current.offsetLeft + classicRef.current.offsetWidth;
+        setBubble({ width: right - left, x: left });
+      }
     } else {
-      // Only cover active button
-      const active = isActive("/") ? gdx : classic;
-      setBubble({
-        width: active.offsetWidth,
-        x: active.offsetLeft,
-      });
+      // Otherwise → bubble only around active tab
+      const activeRef = isActive("/") ? gdxRef : classicRef;
+      if (activeRef.current) {
+        setBubble({
+          width: activeRef.current.offsetWidth,
+          x: activeRef.current.offsetLeft,
+        });
+      }
     }
-  }, [location.pathname, scrolled]);
-
-  const options = [
-    { name: "GDx", path: "/", ref: gdxRef },
-    { name: "Classic", path: "/hobbies", ref: classicRef },
-  ];
+  }, [scrolled, location.pathname]);
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
       <div className="relative flex gap-2 px-2">
-        {/* Animated bubble */}
+        {/* Bubble */}
         <motion.div
-          className="absolute top-0 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20"
+          layout
           animate={{ width: bubble.width, x: bubble.x }}
-          transition={{ type: "spring", stiffness: 100, damping: 20 }}
+          transition={{ duration: 0.7, ease: "easeInOut" }}
+          className="absolute top-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20"
         />
 
-        {options.map((option) => {
-          const active = isActive(option.path);
-          return (
-            <Button
-              key={option.name}
-              ref={option.ref}
-              onClick={() => navigate(option.path)}
-              variant="ghost"
-              size="sm"
-              className={`relative z-10 w-28 h-9 text-center rounded-full 
-                bg-transparent hover:bg-transparent transition-colors duration-300
-                ${
-                  active
-                    ? "text-white font-semibold"
-                    : "text-gray-300 hover:text-white"
-                }`}
-            >
-              {option.name}
-            </Button>
-          );
-        })}
+        {/* Buttons */}
+        <Button
+          ref={gdxRef}
+          onClick={() => navigate("/")}
+          variant="ghost"
+          size="sm"
+          className={`relative z-10 w-28 h-9 rounded-full ${
+            isActive("/") ? "text-white font-medium" : "text-gray-300 hover:text-white"
+          }`}
+        >
+          GDx
+        </Button>
+
+        <Button
+          ref={classicRef}
+          onClick={() => navigate("/hobbies")}
+          variant="ghost"
+          size="sm"
+          className={`relative z-10 w-28 h-9 rounded-full ${
+            isActive("/hobbies") ? "text-white font-medium" : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Classic
+        </Button>
       </div>
     </div>
   );
