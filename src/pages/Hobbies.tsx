@@ -82,12 +82,12 @@ const Portfolio = () => {
             </ul>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-8">
             <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
-            <p className="italic">
+            <p className="italic mb-3">
               Client Success Operations Intern <span className="float-right text-s">Jan 2025 – Jun 2025</span>
             </p>
-            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Led the Whitespace Project to identify upsell/cross-sell opportunities across Calypso, AxiomSL, and NTS product lines.</li>
               <li>Deployed organization-level NPS campaigns via Qualtrics for Calypso, AxiomSL (ControllerView), NTS, CapCloud, and RegCloud product lines to capture client feedback and inform strategy.</li>
               <li>Assisted with capturing global control times to provide smooth and relevant information flow.</li>
@@ -103,12 +103,12 @@ const Portfolio = () => {
             </ul>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-8">
             <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
-            <p className="italic">
+            <p className="italic mb-3">
               Data Science Intern <span className="float-right text-s">Dec 2023 – Jan 2024</span>
             </p>
-            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Led the development of an AI-based system to improve indoor wireless network coverage, focusing on better planning and signal accuracy.</li>
               <li>Built a ray tracing simulation using the open-source Pylayers library to model how signals travel inside buildings.</li>
               <li>Created detailed visibility and interaction maps to represent indoor layouts and help place network access points more effectively.</li>
@@ -123,12 +123,12 @@ const Portfolio = () => {
 
           
 
-          <div className="mb-6">
+          <div className="mb-8">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
-            <p className="italic">
+            <p className="italic mb-3">
               Marketing Intern <span className="float-right text-s">May 2023 – July 2023</span>
             </p>
-            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
               <li>Led a comprehensive campaign titled "Feast from the east" for a month, targeting food enthusiasts in Mumbai.</li>
               <li>Utilized Instagram and Google Ads to segment audiences based on culinary interests and online behavior.</li>
