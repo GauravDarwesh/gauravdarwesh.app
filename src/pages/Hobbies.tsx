@@ -44,7 +44,7 @@ const Portfolio = () => {
     <h3 className="font-semibold">University of Cambridge</h3>
     <p className="text-sm italic flex justify-between">
       Undergraduate Certificate in Strategic Business & Management
-      <span className="text-xs">Oct 2023 – Jul 2024</span>
+      <span className="text-s">Oct 2023 – Jul 2024</span>
     </p>
   </div>
 
@@ -52,7 +52,7 @@ const Portfolio = () => {
     <h3 className="font-semibold">University of Mumbai</h3>
     <p className="text-sm italic flex justify-between">
       B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
-      <span className="text-xs">Dec 2021 – Jun 2025</span>
+      <span className="text-s">Dec 2021 – Jun 2025</span>
     </p>
   </div>
 </section>
