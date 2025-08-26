@@ -23,14 +23,14 @@ const NavigationToggle = () => {
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-      <div className="relative flex gap-4 px-2">
+      <div className="relative flex gap-2 px-2">
         {/* Animated bubble without framer-motion */}
         <div
           className={`absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out`}
           style={{
-            width: scrolled ? "16rem" : "7rem",
+            width: scrolled ? "15.5rem" : "7rem",
             transform: `translateX(${
-              scrolled ? "0.5rem" : isActive("/") ? "0.5rem" : "9rem"
+              scrolled ? 0 : isActive("/") ? "0" : "8rem"
             })`,
           }}
         />
@@ -44,9 +44,10 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                relative z-10 w-28 h-9 text-center tracking-normal rounded-full flex items-center justify-center
+                relative z-10 w-28 h-9 text-center tracking-normal rounded-full 
                 bg-transparent hover:bg-transparent transition-all duration-200 ease-in-out
                 ${active ? "text-white font-medium" : "text-gray-300 hover:text-white"}
+                ${idx === 1 ? "translate-x-2" : ""}
               `}
             >
               {option.name}
