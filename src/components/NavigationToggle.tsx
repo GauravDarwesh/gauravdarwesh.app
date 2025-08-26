@@ -28,10 +28,10 @@ const NavigationToggle = () => {
         <div
           className={`absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out`}
           style={{
-            width: scrolled ? "15rem" : "7rem", // one button or both
+            width: scrolled ? "15.5rem" : "8rem", // ✅ make GDx = Classic size
             transform: `translateX(${
-              scrolled ? 0 : isActive("/") ? "0rem" : "7.5rem"
-            })`, // keep equal shift
+              scrolled ? 0 : isActive("/") ? "0" : "8rem"
+            })`,
           }}
         />
 
