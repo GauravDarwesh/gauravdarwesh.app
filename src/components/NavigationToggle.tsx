@@ -35,7 +35,7 @@ const NavigationToggle = () => {
           }}
         />
 
-        {options.map((option) => {
+        {options.map((option, idx) => {
           const active = isActive(option.path);
           return (
             <Button
