@@ -29,7 +29,7 @@ const NavigationToggle = () => {
               transition-all duration-200 ease-in-out
               border border-transparent
               ${active
-                ? "bg-white/10 border-white/20 text-white font-semibold backdrop-blur-sm" 
+                ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" 
                 : "text-gray-300 hover:text-white"}
             `}
           >
