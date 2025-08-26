@@ -28,7 +28,7 @@ const NavigationToggle = () => {
         <div
           className={`absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out`}
           style={{
-            width: scrolled ? "14.5rem" : "8rem",
+            width: scrolled ? "14.5rem" : "7rem",
             transform: `translateX(${
               scrolled ? 0 : isActive("/") ? "0" : "14.5rem"
             })`,
