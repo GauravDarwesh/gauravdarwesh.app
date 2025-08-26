@@ -1,10 +1,22 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const NavigationToggle = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [scrolled, setScrolled] = useState(false);
+
+  // Detect scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20); // expand once user scrolls
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const options = [
     { name: "GDx", path: "/" },
@@ -14,29 +26,43 @@ const NavigationToggle = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2">
-      {options.map((option) => {
-        const active = isActive(option.path);
-        return (
-          <Button
-            key={option.name}
-            onClick={() => navigate(option.path)}
-            variant="ghost"
-            size="sm"
-            className={`
-              w-28 h-9 text-center tracking-normal rounded-full 
-              bg-transparent hover:bg-transparent
-              transition-all duration-200 ease-in-out
-              border border-transparent
-              ${active
-                ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" 
-                : "text-gray-300 hover:text-white"}
-            `}
-          >
-            {option.name}
-          </Button>
-        );
-      })}
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
+      <div className="relative flex gap-2 px-2">
+        {/* Animated Bubble Background */}
+        <motion.div
+          className="absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20"
+          initial={{ width: "7rem", x: 0, opacity: 0 }}
+          animate={{
+            width: scrolled ? "15.5rem" : "7rem", // expand to cover both buttons
+            x: scrolled ? 0 : isActive("/") ? 0 : "8rem", // position under active
+            opacity: 1,
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 200,
+            damping: 25,
+          }}
+        />
+
+        {options.map((option) => {
+          const active = isActive(option.path);
+          return (
+            <Button
+              key={option.name}
+              onClick={() => navigate(option.path)}
+              variant="ghost"
+              size="sm"
+              className={`
+                relative z-10 w-28 h-9 text-center tracking-normal rounded-full 
+                bg-transparent hover:bg-transparent transition-all duration-200 ease-in-out
+                ${active ? "text-white font-medium" : "text-gray-300 hover:text-white"}
+              `}
+            >
+              {option.name}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 };
