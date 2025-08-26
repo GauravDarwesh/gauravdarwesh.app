@@ -24,14 +24,14 @@ const NavigationToggle = () => {
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
       <div className="relative flex gap-2 px-2">
-        {/* Animated bubble without framer-motion */}
+        {/* Animated bubble */}
         <div
           className={`absolute top-0 left-0 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 transition-all duration-500 ease-in-out`}
           style={{
-            width: scrolled ? "15.5rem" : "7rem",
+            width: scrolled ? "15rem" : "7rem", // one button or both
             transform: `translateX(${
-              scrolled ? 0 : isActive("/") ? "0" : "8rem"
-            })`,
+              scrolled ? 0 : isActive("/") ? "0rem" : "7.5rem"
+            })`, // keep equal shift
           }}
         />
 
