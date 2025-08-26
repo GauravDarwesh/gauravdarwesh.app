@@ -1,12 +1,12 @@
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
-import ArrowLoop from "@/components/ArrowLoop";
+import ArrowLoop from "@/pages/ArrowLoop";
 
 const Index = () => {
   // Random arrow positions (could be more dynamic later)
   const arrows = [
-    { x: 100, y: 300, loops: 2, direction: "right" },
-    { x: 400, y: 500, loops: 3, direction: "left" },
+    { x: 100, y: 300, loops: 2, direction: "right" as const },
+    { x: 400, y: 500, loops: 3, direction: "left" as const },
   ];
 
   return (
