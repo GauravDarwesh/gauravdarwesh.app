@@ -15,10 +15,10 @@ const Portfolio = () => {
       <NavigationToggle />
 
       {/* Main Content with invisible scroll */}
-      <div className="relative z-10 max-w-4xl w-full text-left space-y-10 overflow-y-scroll no-scrollbar pt-28">
+      <div className="relative z-10 max-w-3xl w-full text-left space-y-10 overflow-y-scroll no-scrollbar pt-28">
         {/* Header */}
         <div>
-          <h1 className="text-6xl font-bold">Gaurav Darwesh</h1>
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold">Gaurav Darwesh</h1>
           <div className="flex flex-wrap gap-4 text-white mt-2">
             <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
             <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
@@ -38,8 +38,8 @@ const Portfolio = () => {
 
         {/* Education */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">Education</h2>
-          <ul className="list-disc pl-5 space-y-1">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
+          <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
             <li>
               <strong>University of Cambridge</strong> — Undergraduate Certificate in 
               Strategic Business & Management (Oct 2023 – July 2024)
@@ -53,14 +53,14 @@ const Portfolio = () => {
 
         {/* Experience */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">Experience</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
           <div className="mb-6">
             <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
             <p className="italic">
               Product Manager Analyst <span className="float-right">July 2025 – Present</span>
             </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
               <li>Monitoring and analyzing global regulatory updates across NAM and LATAM regions.</li>
               <li>Managing JIRA tickets for regulatory changes, requirements, and enhancements.</li>
               <li>Collaborating with cross-functional teams to interpret regulations and translate them into product requirements.</li>
@@ -80,7 +80,7 @@ const Portfolio = () => {
             <p className="italic">
               Client Success Operations Intern <span className="float-right">Jan 2025 – Jun 2025</span>
             </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
               <li>Led the Whitespace Project to identify upsell/cross-sell opportunities across Calypso, AxiomSL, and NTS product lines.</li>
               <li>Deployed organization-level NPS campaigns via Qualtrics for Calypso, AxiomSL (ControllerView), NTS, CapCloud, and RegCloud product lines to capture client feedback and inform strategy.</li>
               <li>Assisted with capturing global control times to provide smooth and relevant information flow.</li>
@@ -101,7 +101,7 @@ const Portfolio = () => {
             <p className="italic">
               Data Science Intern <span className="float-right">Dec 2023 – Jan 2024</span>
             </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
               <li>Led the development of an AI-based system to improve indoor wireless network coverage, focusing on better planning and signal accuracy.</li>
               <li>Built a ray tracing simulation using the open-source Pylayers library to model how signals travel inside buildings.</li>
               <li>Created detailed visibility and interaction maps to represent indoor layouts and help place network access points more effectively.</li>
@@ -121,7 +121,7 @@ const Portfolio = () => {
             <p className="italic">
               Marketing Intern <span className="float-right">May 2023 – July 2023</span>
             </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
               <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
               <li>Led a comprehensive campaign titled "Feast from the east" for a month, targeting food enthusiasts in Mumbai.</li>
               <li>Utilized Instagram and Google Ads to segment audiences based on culinary interests and online behavior.</li>
@@ -136,7 +136,7 @@ const Portfolio = () => {
 
         {/* Recommendations */}
 <section>
-  <h2 className="text-2xl font-semibold mb-4">Recommendations</h2>
+  <h2 className="text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
   <div className="space-y-6">
     <div>
       <p>
@@ -177,8 +177,8 @@ const Portfolio = () => {
 
         {/* Skills */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">Languages / Skills / Awards / Extracurriculars</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Languages / Skills / Awards / Extracurriculars</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
             <div>
               <h3 className="font-semibold mb-2">Languages</h3>
               <ul className="list-disc pl-5 space-y-1">
