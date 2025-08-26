@@ -15,10 +15,9 @@ const NavigationToggle = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Handle scroll listener
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 100) {
+      if (window.scrollY > 30) {
         setShowScrollTop(true);
       } else {
         setShowScrollTop(false);
@@ -29,18 +28,17 @@ const NavigationToggle = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Smooth scroll to top
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <>
-      {/* Navigation buttons (disappear on scroll) */}
+      {/* Navigation buttons (smooth fade out) */}
       <div
         className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 
-          transition-opacity duration-500 ease-in-out
-          ${showScrollTop ? "opacity-0 pointer-events-none" : "opacity-100"}
+          transition-all duration-1000 ease-in-out
+          ${showScrollTop ? "opacity-0 -translate-y-2 pointer-events-none" : "opacity-100 translate-y-0"}
         `}
       >
         {options.map((option) => {
@@ -76,7 +74,7 @@ const NavigationToggle = () => {
           w-12 h-12 rounded-full backdrop-blur-md
           bg-white/10 border border-white/20
           text-white shadow-lg
-          transition-all duration-700 ease-in-out
+          transition-all duration-1000 ease-in-out
           hover:bg-white/20
           ${showScrollTop ? "opacity-100 scale-100" : "opacity-0 scale-0"}
         `}
