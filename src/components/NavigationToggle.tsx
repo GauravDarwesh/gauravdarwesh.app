@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 const NavigationToggle = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [scrolled, setScrolled] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const options = [
     { name: "GDx", path: "/" },
@@ -16,7 +16,7 @@ const NavigationToggle = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 30); // trigger after 30px scroll
+      setIsScrolled(window.scrollY > 50); // trigger after 50px scroll
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -24,19 +24,14 @@ const NavigationToggle = () => {
   }, []);
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 relative">
-      {/* Expanding bubble background */}
-      {isActive("/hobbies") && (
-        <span
-          className={`absolute left-0 h-9 rounded-full backdrop-blur-sm transition-all duration-700 ease-in-out 
-            ${scrolled ? "w-[15rem] bg-white/10 border border-white/20" : "w-28 bg-white/10 border border-white/20"}
-          `}
-          style={{ zIndex: -1 }} // keep behind buttons
-        />
-      )}
-
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2">
       {options.map((option) => {
         const active = isActive(option.path);
+
+        // Check if Classic is active + scrolled
+        const isClassicActiveAndScrolled =
+          option.name === "Classic" && active && isScrolled;
+
         return (
           <Button
             key={option.name}
@@ -44,13 +39,15 @@ const NavigationToggle = () => {
             variant="ghost"
             size="sm"
             className={`
-              relative w-28 h-9 text-center tracking-normal rounded-full
+              relative overflow-hidden
+              w-28 h-9 text-center tracking-normal rounded-full 
               bg-transparent hover:bg-transparent
-              transition-all duration-200 ease-in-out
+              transition-all duration-700 ease-in-out
               border border-transparent
               ${active
-                ? "text-white"
+                ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" 
                 : "text-gray-300 hover:text-white"}
+              ${isClassicActiveAndScrolled ? "w-[15rem] h-12" : ""}
             `}
           >
             {option.name}
