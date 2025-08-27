@@ -176,7 +176,7 @@ html {
 
 /* Tailwind-safe helper class name */
 .animate-slowFadeIn {
-  animation: slowFadeIn 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 
