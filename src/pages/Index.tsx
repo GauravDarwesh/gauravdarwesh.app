@@ -6,13 +6,12 @@ const Index = () => {
   const [animate, setAnimate] = useState(false);
 
   useEffect(() => {
-    // Only trigger animation if not already visited in this session
-    if (!sessionStorage.getItem("visited")) {
-      setAnimate(true);
-      sessionStorage.setItem("visited", "true");
+    const hasVisited = localStorage.getItem("hasVisited");
 
-      // Remove animation class after it finishes
-      setTimeout(() => setAnimate(false), 3000); // match animation duration
+    if (!hasVisited) {
+      // First visit → play animation
+      setAnimate(true);
+      localStorage.setItem("hasVisited", "true");
     }
   }, []);
 
