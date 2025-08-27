@@ -67,7 +67,7 @@ const Portfolio = () => {
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
           <div className="mb-8">
-            <h3 className="font-semibold">Nasdaq, Mumbai, India <span className="float-right text-sm whitespace-nowrap">July 2025 – Present</span></h3>
+            <h3 className="font-semibold">Nasdaq, Mumbai, India <span className="float-right text-sm whitespace-nowrap italic">July 2025 – Present</span></h3>
             <p className="italic mb-3">
               Product Manager Analyst 
             </p>
