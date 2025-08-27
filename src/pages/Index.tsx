@@ -16,7 +16,7 @@ const Index = () => {
       <NavigationToggle />
 
       {/* Search Bar */}
-      <div className="relative z-10">
+      <div className="fixed relative z-10">
         <SearchBar />
       </div>
     </div>
