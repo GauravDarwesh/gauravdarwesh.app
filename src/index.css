@@ -170,7 +170,7 @@ html {
 }
 
 .animate-slowFadeIn {
-  animation: slowFadeIn 2.5s ease-in-out forwards;
+  animation: slowFadeIn 2s ease-in-out forwards;
 }
 
 
