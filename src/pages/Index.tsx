@@ -9,9 +9,6 @@ const Index = () => {
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
-          minHeight: '100dvh',
-          minWidth: '100vw'
-          backgroundAttachment: 'scroll',
         }}
       />
 
