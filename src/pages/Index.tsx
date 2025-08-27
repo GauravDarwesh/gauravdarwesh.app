@@ -1,12 +1,27 @@
+import { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const Index = () => {
+  const [animate, setAnimate] = useState(false);
+
+  useEffect(() => {
+    const hasVisited = localStorage.getItem("hasVisited");
+
+    if (!hasVisited) {
+      // First visit → play animation
+      setAnimate(true);
+      localStorage.setItem("hasVisited", "true");
+    }
+  }, []);
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat animate-slowFadeIn"
+        className={`fixed inset-0 bg-cover bg-center bg-no-repeat ${
+          animate ? "animate-slowFadeIn" : ""
+        }`}
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}
