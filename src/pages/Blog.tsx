@@ -19,8 +19,8 @@ const Blog = () => {
         {/* Header Section */}
         <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-12">
           <div className="text-center">
-            <p className="text-lg sm:text-xl text-white/90 max-w-4xl mx-auto leading-relaxed">
-              Thoughts, insights, and stories from my journey in technology & business.
+            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
+              Thoughts, insights, and stories from my journey in technology, business and beyond.
             </p>
           </div>
         </div>

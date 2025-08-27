@@ -136,7 +136,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const targetRadius = isExpanded ? "16px" : "999px";
 
   return (
-    <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 px-3 sm:px-4 z-50 w-full flex flex-col items-center gap-3">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
       <div
         className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
@@ -161,7 +161,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <button
                   key={i}
                   onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-2 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer touch-manipulation"
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
                   disabled={isLoading}
                 >
                   {s}
@@ -200,7 +200,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                         text-foreground placeholder:text-muted-foreground text-sm sm:text-base px-3 sm:px-4 h-10 sm:h-12"
+                         text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
               disabled={isLoading}
               aria-label="Ask anything"
             />
@@ -208,8 +208,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               type="submit"
               variant="ghost"
               size="sm"
-              className="h-9 w-9 sm:h-10 sm:w-10 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0 touch-manipulation"
+              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >

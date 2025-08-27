@@ -56,7 +56,7 @@ const NavigationToggle = () => {
     <>
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
-        className={`fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 flex gap-1 sm:gap-2 px-4
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 
           transition-all duration-1000 ease-in-out
           ${
             enabledOnThisPath && showScrollTop
@@ -74,7 +74,7 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                w-20 sm:w-24 md:w-28 h-8 sm:h-9 text-xs sm:text-sm text-center tracking-normal rounded-full 
+                w-28 h-9 text-center tracking-normal rounded-full 
                 bg-transparent hover:bg-transparent
                 transition-all duration-200 ease-in-out
                 border border-transparent
