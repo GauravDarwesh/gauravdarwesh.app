@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 const Landing = () => {
@@ -7,17 +6,19 @@ const Landing = () => {
   const [fade, setFade] = useState("opacity-0");
 
   useEffect(() => {
-    setTimeout(() => setFade("opacity-100"), 50);
-  }, []);
+    // Smooth fade in
+    setTimeout(() => setFade("opacity-100"), 100);
 
-  const handleContinue = () => {
-    setFade("opacity-0");
-    setTimeout(() => navigate("/home"), 500); // matches fade-out duration
-  };
+    // After 3 seconds, fade out and navigate
+    setTimeout(() => {
+      setFade("opacity-0");
+      setTimeout(() => navigate("/home"), 2000); // matches fade-out duration
+    }, 3000);
+  }, [navigate]);
 
   return (
     <div
-      className={`min-h-screen w-full flex flex-col items-center justify-between relative overflow-hidden transition-opacity duration-500 ${fade}`}
+      className={`min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden transition-opacity duration-2000 ${fade}`}
     >
       {/* Background */}
       <div
@@ -28,26 +29,18 @@ const Landing = () => {
       />
 
       {/* Translucent overlay */}
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
 
       {/* Centered Title */}
-      <div className="relative z-10 flex flex-col items-center justify-center flex-grow text-center">
-        <h1 className="text-5xl md:text-7xl font-bold text-white">
-          Gaurav Darwesh<span className="align-super text-xl">™</span>
+      <div className="relative z-10 flex flex-col items-center text-center px-4">
+        <h1 className="text-5xl md:text-7xl font-extrabold text-white/70 drop-shadow-lg tracking-wide">
+          Gaurav Darwesh<span className="align-super text-xl text-white/50">™</span>
         </h1>
-        <p className="mt-4 text-lg md:text-xl text-white/80 max-w-xl">
-          Clarity in Complexity — Simplifying insights, one step at a time.
-        </p>
-      </div>
 
-      {/* Bottom Button */}
-      <div className="relative z-10 mb-16">
-        <Button
-          onClick={handleContinue}
-          className="bg-white text-black hover:bg-white/90 px-10 py-4 text-lg font-medium rounded-full transition-all duration-300 hover:scale-105 shadow-lg"
-        >
-          Continue
-        </Button>
+        <p className="mt-6 text-lg md:text-2xl text-white/60 max-w-2xl leading-relaxed">
+          Meet <span className="font-semibold text-white/80">GDx</span> — 
+          your AI-powered virtual PA, answering on behalf of Gaurav.  
+        </p>
       </div>
     </div>
   );
