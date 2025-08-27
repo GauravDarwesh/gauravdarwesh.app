@@ -67,7 +67,8 @@ const Portfolio = () => {
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
           <div className="mb-8">
-            <h3 className="font-semibold">Nasdaq, Mumbai, India <span className="float-right text-sm whitespace-nowrap italic">July 2025 – Present</span></h3>
+            <h3 className="font-semibold">Nasdaq, Mumbai, India </h3>
+            <span className="float-right text-sm whitespace-nowrap italic">July 2025 – Present</span>
             <p className="italic mb-3">
               Product Manager Analyst 
             </p>
@@ -88,8 +89,9 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
+            <span className="float-right text-sm whitespace-nowrap">Jan 2025 – Jun 2025</span>
             <p className="italic mb-3">
-              Client Success Operations Intern <span className="float-right text-sm whitespace-nowrap">Jan 2025 – Jun 2025</span>
+              Client Success Operations Intern 
             </p>
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Led the Whitespace Project to identify upsell/cross-sell opportunities across Calypso, AxiomSL, and NTS product lines.</li>
@@ -109,8 +111,9 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
+            <span className="float-right text-sm whitespace-nowrap">Dec 2023 – Jan 2024
             <p className="italic mb-3">
-              Data Science Intern <span className="float-right text-sm whitespace-nowrap">Dec 2023 – Jan 2024</span>
+              Data Science Intern </span>
             </p>
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Led the development of an AI-based system to improve indoor wireless network coverage, focusing on better planning and signal accuracy.</li>
@@ -129,8 +132,9 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
+            <span className="float-right text-sm whitespace-nowrap">May 2023 – July 2023</span>
             <p className="italic mb-3">
-              Marketing Intern <span className="float-right text-sm whitespace-nowrap">May 2023 – July 2023</span>
+              Marketing Intern 
             </p>
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
