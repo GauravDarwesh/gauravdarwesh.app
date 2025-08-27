@@ -42,8 +42,7 @@ const Portfolio = () => {
   
           <div className="mb-8">
             <div className="flex justify-between items-start">
-              <h3 className="font-semibold">University of Mumbai</h3>
-              <span className="text-sm whitespace-nowrap italic">Dec 2021 – Jun 2025</span>
+              <h3 className="font-semibold">University of Mumbai<span className="text-sm whitespace-nowrap italic">Dec 2021 – Jun 2025</span></h3>
             </div>
             <p className="text-sm">
               B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
@@ -52,8 +51,7 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <div className="flex justify-between items-start">
-              <h3 className="font-semibold">University of Cambridge</h3>
-              <span className="text-sm whitespace-nowrap italic">Oct 2023 – Jul 2024</span>
+              <h3 className="font-semibold">University of Cambridge<span className="text-sm whitespace-nowrap italic">Oct 2023 – Jul 2024</span></h3>
             </div>
             <p className="text-sm">
               Undergraduate Certificate in Strategic Business & Management
