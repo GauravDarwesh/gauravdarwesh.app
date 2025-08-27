@@ -6,19 +6,17 @@ const Index = () => {
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSoft"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat animate-slowFadeIn"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}
       />
 
-      {/* Navigation Toggle (staggered) */}
-      <div className="animate-fadeInSoft-300 z-10">
-        <NavigationToggle />
-      </div>
+      {/* Navigation Toggle */}
+      <NavigationToggle />
 
-      {/* Search Bar (staggered a bit more) */}
-      <div className="fixed z-10 animate-fadeInSoft-600">
+      {/* Search Bar */}
+      <div className="fixed relative z-10">
         <SearchBar />
       </div>
     </div>
