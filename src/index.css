@@ -149,19 +149,10 @@ All colors MUST be HSL.
 }
 
 /* Subtle wavy horizontal shift */
-@keyframes wave-shift {
-  0% { background-position: 0 0; }
-  100% { background-position: 1000px 0; }
-}
-
-html {
-  scrollbar-gutter: stable;
-}
-
 @keyframes slowFadeIn {
   0% {
     opacity: 0;
-    filter: blur(10px);
+    filter: blur(12px);
   }
   100% {
     opacity: 1;
@@ -170,7 +161,7 @@ html {
 }
 
 .animate-slowFadeIn {
-  animation: slowFadeIn 2.5s ease-in-out forwards;
+  animation: slowFadeIn 3s ease-in-out forwards;
 }
 
 
