@@ -161,7 +161,7 @@ html {
 @keyframes slowFadeIn {
   0% {
     opacity: 0;
-    filter: blur(12px);
+    filter: blur(8px);
   }
   60% {
     filter: blur(6px);
@@ -174,7 +174,7 @@ html {
 
 /* Tailwind-safe helper class name */
 .animate-slowFadeIn {
-  animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slowFadeIn 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 
