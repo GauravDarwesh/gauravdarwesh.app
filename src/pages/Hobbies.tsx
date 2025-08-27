@@ -68,7 +68,7 @@ const Portfolio = () => {
           <div className="mb-8">
             <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
             <p className="italic mb-3">
-              Product Manager Analyst <span className="float-right text-s">July 2025 – Present</span>
+              Product Manager Analyst <span className="float-right text-sm whitespace-nowrap">July 2025 – Present</span>
             </p>
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Monitoring and analyzing global regulatory updates across NAM and LATAM regions.</li>
@@ -88,7 +88,7 @@ const Portfolio = () => {
           <div className="mb-8">
             <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
             <p className="italic mb-3">
-              Client Success Operations Intern <span className="float-right text-s">Jan 2025 – Jun 2025</span>
+              Client Success Operations Intern <span className="float-right text-sm whitespace-nowrap">Jan 2025 – Jun 2025</span>
             </p>
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Led the Whitespace Project to identify upsell/cross-sell opportunities across Calypso, AxiomSL, and NTS product lines.</li>
@@ -109,7 +109,7 @@ const Portfolio = () => {
           <div className="mb-8">
             <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
             <p className="italic mb-3">
-              Data Science Intern <span className="float-right text-s">Dec 2023 – Jan 2024</span>
+              Data Science Intern <span className="float-right text-sm whitespace-nowrap">Dec 2023 – Jan 2024</span>
             </p>
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Led the development of an AI-based system to improve indoor wireless network coverage, focusing on better planning and signal accuracy.</li>
@@ -129,7 +129,7 @@ const Portfolio = () => {
           <div className="mb-8">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
             <p className="italic mb-3">
-              Marketing Intern <span className="float-right text-s">May 2023 – July 2023</span>
+              Marketing Intern <span className="float-right text-sm whitespace-nowrap">May 2023 – July 2023</span>
             </p>
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
