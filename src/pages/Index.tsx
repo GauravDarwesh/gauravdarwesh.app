@@ -6,7 +6,7 @@ const Index = () => {
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat animate-fadeIn"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat animate-slowFadeIn"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}
