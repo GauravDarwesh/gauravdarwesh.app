@@ -40,7 +40,7 @@ const Portfolio = () => {
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
-          <div className="mb-4">
+          <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Cambridge</h3>
               <span className="text-sm whitespace-nowrap">Oct 2023 – Jul 2024</span>
@@ -50,7 +50,7 @@ const Portfolio = () => {
             </p>
           </div>
   
-          <div className="mb-4">
+          <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
               <span className="text-sm whitespace-nowrap">Dec 2021 – Jun 2025</span>
