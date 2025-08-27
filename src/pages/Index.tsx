@@ -9,21 +9,19 @@ const Index = () => {
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
-          minHeight: '100dvh',
-          minWidth: '100vw'
-          backgroundAttachment: 'scroll',
+          minHeight: '100dvh', // Dynamic viewport height
+          minWidth: '100vw',
+          backgroundAttachment: 'scroll', // Better mobile performance
         }}
       />
-
+      
       {/* Navigation Toggle */}
       <NavigationToggle />
-
-      {/* Search Bar */}
-      <div className="relative z-10">
+      
+      {/* Search Bar - Fixed Position */}
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
         <SearchBar />
       </div>
     </div>
   );
 };
-
-export default Index;
