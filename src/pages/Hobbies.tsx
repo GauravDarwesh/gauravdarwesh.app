@@ -39,26 +39,27 @@ const Portfolio = () => {
         {/* Education */}
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
-
-          <div className="mb-8">
-            <div className="flex justify-between items-start">
-              <h3 className="font-semibold">University of Cambridge</h3>
-              <span className="text-sm whitespace-nowrap">Oct 2023 – Jul 2024</span>
-            </div>
-            <p className="text-sm italic">
-              Undergraduate Certificate in Strategic Business & Management
-            </p>
-          </div>
   
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
-              <span className="text-sm whitespace-nowrap">Dec 2021 – Jun 2025</span>
+              <span className="text-sm whitespace-nowrap italic">Dec 2021 – Jun 2025</span>
             </div>
-            <p className="text-sm italic">
+            <p className="text-sm">
               B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
             </p>
           </div>
+
+          <div className="mb-8">
+            <div className="flex justify-between items-start">
+              <h3 className="font-semibold">University of Cambridge</h3>
+              <span className="text-sm whitespace-nowrap italic">Oct 2023 – Jul 2024</span>
+            </div>
+            <p className="text-sm">
+              Undergraduate Certificate in Strategic Business & Management
+            </p>
+          </div>
+          
         </section>
 
         {/* Experience */}
