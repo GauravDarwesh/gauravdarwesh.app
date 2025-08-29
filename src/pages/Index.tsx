@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
-const ANIM_MS = 3000; // same duration for all
+const ANIM_MS = 3000;
 
 const Index = () => {
   const [animate, setAnimate] = useState(false);
@@ -22,7 +22,7 @@ const Index = () => {
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
-      {/* Dynamic Orange Waves Background */}
+      {/* Animated Orange & Black Waves */}
       <div className="wave wave1" />
       <div className="wave wave2" />
 
