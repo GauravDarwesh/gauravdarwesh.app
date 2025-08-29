@@ -110,6 +110,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsLoading(true);
     setResponse(null);
+
+    // Clear query only if it's user-typed, not a suggestion
     if (!customQuery) setQuery("");
 
     try {
@@ -131,7 +133,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   };
 
   const handleSuggestionClick = (s: string) => {
-    setQuery(s);
+    // When clicking bubble or suggestion → run query but keep box empty
+    setQuery("");
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
   };
@@ -146,10 +149,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {/* Intro Bubble (first 3 visits only, delayed) */}
       {showIntroBubble && (
         <div
-          onClick={() => handleSuggestionClick("What are these sections on the website?")}
+          onClick={() => handleSuggestionClick("✨ What are these sections on the website?")}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
-          What are these sections on the website?
+          ✨ What are these sections on the website?
         </div>
       )}
 
