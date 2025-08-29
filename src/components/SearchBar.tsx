@@ -6,7 +6,79 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-// ... keep your getShortenedLinkText and convertMarkdownToHtml functions
+// Function to get shortened link text based on domain
+const getShortenedLinkText = (url: string): string => {
+  try {
+    const domain = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace("www.", "");
+
+    const domainMap: { [key: string]: string } = {
+      "linkedin.com": "LinkedIn",
+      "twitter.com": "Twitter",
+      "x.com": "Twitter",
+      "facebook.com": "Facebook",
+      "instagram.com": "Instagram",
+      "youtube.com": "YouTube",
+      "github.com": "GitHub",
+      "google.com": "Google",
+      "microsoft.com": "Microsoft",
+      "apple.com": "Apple",
+      "amazon.com": "Amazon",
+      "netflix.com": "Netflix",
+    };
+
+    if (domainMap[domain]) {
+      return domainMap[domain];
+    }
+
+    const parts = domain.split(".");
+    return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  } catch {
+    return "Link";
+  }
+};
+
+// Convert markdown to clean HTML with clickable links
+const convertMarkdownToHtml = (text: string): string => {
+  let html = text;
+
+  html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
+  html = html.replace(urlRegex, (match) => {
+    const url = match.startsWith("http") ? match : `https://${match}`;
+    const linkText = getShortenedLinkText(match);
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+  });
+
+  const lines = html.split("\n");
+  let inList = false;
+  const processedLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const bulletMatch = line.match(/^\s*\*\s+(.+)$/);
+
+    if (bulletMatch) {
+      if (!inList) {
+        processedLines.push('<ul class="list-disc pl-5 space-y-1 my-2">');
+        inList = true;
+      }
+      processedLines.push(`<li class="list-disc list-inside">${bulletMatch[1]}</li>`);
+    } else {
+      if (inList) {
+        processedLines.push("</ul>");
+        inList = false;
+      }
+      processedLines.push(line);
+    }
+  }
+
+  if (inList) {
+    processedLines.push("</ul>");
+  }
+
+  return processedLines.join("\n");
+};
 
 interface SearchBarProps {
   onSearch?: (response: string) => void;
@@ -17,8 +89,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-
-  // 👇 New: first-time bubble state
   const [showIntroBubble, setShowIntroBubble] = useState(false);
 
   useEffect(() => {
@@ -47,8 +117,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Something went wrong. Try again.";
+      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
       onSearch?.(msg);
@@ -60,10 +129,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const handleSuggestionClick = (s: string) => {
     setQuery(s);
     handleSubmit(undefined, s);
-    setShowIntroBubble(false); // hide once clicked
+    setShowIntroBubble(false);
   };
 
-  // Width & radius: expands when suggestions or response are present
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
@@ -71,12 +139,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* 👇 Intro Bubble (first-time only) */}
+      {/* Intro Bubble */}
       {showIntroBubble && (
         <div
           onClick={() => handleSuggestionClick("What are these sections on the website?")}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full 
-                     shadow-md transition-opacity duration-700 animate-fadeInOut"
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md transition-opacity duration-700 animate-fadeIn"
         >
           What are these sections on the website?
         </div>
@@ -138,12 +205,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </div>
 
           {/* Input */}
-          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3">
+          <form
+            onSubmit={(e) => handleSubmit(e)}
+            className="flex items-center gap-3"
+            onFocus={() => setShowIntroBubble(false)} // Hide bubble if search bar is pressed
+          >
             <Input
               type="text"
               placeholder={isLoading ? "Thinking…" : "Ask anything…"}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (showIntroBubble) setShowIntroBubble(false); // Hide bubble when typing
+              }}
               className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                          text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
               disabled={isLoading}
@@ -164,7 +238,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* Animations */}
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
@@ -174,14 +247,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translateY(10px); }
-          20% { opacity: 1; transform: translateY(0); }
-          80% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(-10px); }
-        }
-        .animate-fadeIn { animation: fadeIn 0.3s ease forwards; }
-        .animate-fadeInOut { animation: fadeInOut 4s ease forwards; }
+        .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
       `}</style>
     </div>
   );
