@@ -92,10 +92,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [showIntroBubble, setShowIntroBubble] = useState(false);
 
   useEffect(() => {
-    const seen = localStorage.getItem("seenIntroBubble");
-    if (!seen) {
+    // Track visits with localStorage
+    const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
+    if (visitCount < 3) {
       setShowIntroBubble(true);
-      localStorage.setItem("seenIntroBubble", "true");
+      localStorage.setItem("introBubbleVisits", String(visitCount + 1));
     }
   }, []);
 
@@ -139,7 +140,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* Intro Bubble */}
+      {/* Intro Bubble (first 3 visits only) */}
       {showIntroBubble && (
         <div
           onClick={() => handleSuggestionClick("What are these sections on the website?")}
@@ -208,7 +209,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           <form
             onSubmit={(e) => handleSubmit(e)}
             className="flex items-center gap-3"
-            onFocus={() => setShowIntroBubble(false)} // Hide bubble if search bar is pressed
+            onFocus={() => setShowIntroBubble(false)} // Hide bubble if search bar clicked
           >
             <Input
               type="text"
