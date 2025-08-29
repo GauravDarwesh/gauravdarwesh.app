@@ -22,8 +22,9 @@ const Index = () => {
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
-      {/* Live Animated Wave Background */}
-      <div className="absolute inset-0 animate-waves" />
+      {/* Dynamic Orange Waves Background */}
+      <div className="wave wave1" />
+      <div className="wave wave2" />
 
       {/* Navigation Toggle */}
       <div className="relative z-20">
