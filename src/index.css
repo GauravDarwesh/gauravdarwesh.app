@@ -174,7 +174,6 @@ html {
   animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Abstract animated waves */
 @keyframes waveMove {
   0% {
     background-position: 0% 50%;
@@ -192,5 +191,6 @@ html {
   background-size: 300% 300%;
   animation: waveMove 15s ease-in-out infinite;
 }
+
 
 
