@@ -174,5 +174,23 @@ html {
   animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Abstract animated waves */
+@keyframes waveMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-waves {
+  background: linear-gradient(120deg, #00b4db, #ffffff, #0083b0, #00b4db);
+  background-size: 300% 300%;
+  animation: waveMove 15s ease-in-out infinite;
+}
 
 

@@ -22,13 +22,8 @@ const Index = () => {
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
-      {/* Background */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `linear-gradient(135deg, #00b4db, #ffffff, #0083b0)`,
-        }}
-      />
+      {/* Live Animated Wave Background */}
+      <div className="absolute inset-0 animate-waves" />
 
       {/* Navigation Toggle */}
       <div className="relative z-20">
