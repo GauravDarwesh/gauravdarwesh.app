@@ -24,9 +24,9 @@ const Index = () => {
     >
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+          backgroundImage: `linear-gradient(to bottom, #3b82f6, #ffffff)`,
         }}
       />
 
