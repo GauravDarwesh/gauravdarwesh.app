@@ -26,7 +26,7 @@ const Index = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `linear-gradient(to bottom, #3b82f6, #3bffff)`,
+          backgroundImage: `linear-gradient(to bottom, #1e3c72, #2a5298, #ffffff)`,
         }}
       />
 
