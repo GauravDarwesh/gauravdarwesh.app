@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
@@ -91,32 +91,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showIntroBubble, setShowIntroBubble] = useState(false);
 
-  const idleTimer = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
     // Track visits with localStorage
     const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
     if (visitCount < 3) {
+      const timer = setTimeout(() => {
+        setShowIntroBubble(true);
+      }, 3000); // delay 3s before showing
       localStorage.setItem("introBubbleVisits", String(visitCount + 1));
-
-      const resetTimer = () => {
-        if (idleTimer.current) clearTimeout(idleTimer.current);
-        idleTimer.current = setTimeout(() => {
-          setShowIntroBubble(true);
-        }, 3500); // 3.5s of inactivity
-      };
-
-      // Start tracking user activity
-      const events = ["mousemove", "keydown", "scroll", "click"];
-      events.forEach((ev) => window.addEventListener(ev, resetTimer));
-
-      // Run first reset
-      resetTimer();
-
-      return () => {
-        events.forEach((ev) => window.removeEventListener(ev, resetTimer));
-        if (idleTimer.current) clearTimeout(idleTimer.current);
-      };
+      return () => clearTimeout(timer);
     }
   }, []);
 
@@ -160,11 +143,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* Intro Bubble (first 3 visits only, after inactivity) */}
+      {/* Intro Bubble (first 3 visits only, delayed) */}
       {showIntroBubble && (
         <div
           onClick={() => handleSuggestionClick("What are these sections on the website?")}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-fadeIn"
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
           What are these sections on the website?
         </div>
@@ -262,13 +245,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); opacity: 1; }
+          to { opacity: 1; transform: translateY(0); }
         }
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fadeIn { animation: fadeIn 0.6s ease forwards; }
+        @keyframes delayedFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
+        .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
       `}</style>
     </div>
   );
