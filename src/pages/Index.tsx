@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
-const ANIM_MS = 3000;
+const ANIM_MS = 3000; // same duration for all
 
 const Index = () => {
   const [animate, setAnimate] = useState(false);
@@ -22,9 +22,13 @@ const Index = () => {
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
-      {/* Animated Orange & Black Waves */}
-      <div className="wave wave1" />
-      <div className="wave wave2" />
+      {/* Background */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+        }}
+      />
 
       {/* Navigation Toggle */}
       <div className="relative z-20">
