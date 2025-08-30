@@ -14,21 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      gd_ai_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: number
+          role: string
+          session_id: string
+          source: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: number
+          role: string
+          session_id: string
+          source?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: number
+          role?: string
+          session_id?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
       gd_ai_sessions: {
         Row: {
           introduced: boolean | null
           last_updated: string | null
           session_id: string
+          total_messages: number | null
+          user_name: string | null
         }
         Insert: {
           introduced?: boolean | null
           last_updated?: string | null
           session_id: string
+          total_messages?: number | null
+          user_name?: string | null
         }
         Update: {
           introduced?: boolean | null
           last_updated?: string | null
           session_id?: string
+          total_messages?: number | null
+          user_name?: string | null
         }
         Relationships: []
       }
@@ -37,7 +70,111 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
+      }
+      match_user_messages: {
+        Args: {
+          p_match_count?: number
+          p_query_embedding: string
+          p_session_id: string
+        }
+        Returns: {
+          content: string
+          created_at: string
+          id: number
+          similarity: number
+        }[]
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
