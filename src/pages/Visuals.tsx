@@ -198,7 +198,7 @@ export default function Visuals() {
         <div className="w-full max-w-6xl relative flex flex-col items-center">
           {/* small translucent title above tile (left aligned to tile) */}
           <div className="mb-4 self-start">
-            <h2 className="text-sm font-medium text-white/70 drop-shadow-md">
+            <h2 className="text-sm font-medium text-white drop-shadow-md">
               {collectionTitle}
             </h2>
           </div>
