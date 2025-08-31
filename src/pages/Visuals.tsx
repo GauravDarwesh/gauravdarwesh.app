@@ -17,54 +17,42 @@ const Visuals = () => {
       <NavigationToggle />
 
       {/* Main Content */}
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Header Section - same as blog structure */}
-        <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-12">
-          <div className="text-center">
-            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
-              Photo Collections and Cinematography
-            </p>
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-5xl">
+          {/* Collection Title above tile */}
+          <div className="mb-3 ml-1">
+            <h2 className="text-2xl font-semibold text-white drop-shadow-lg">
+              Japan 2024 Collection
+            </h2>
           </div>
-        </div>
 
-        {/* Tile Container */}
-        <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-12">
-          <div className="w-full max-w-5xl">
-            {/* Collection Title above tile */}
-            <div className="mb-3 ml-1">
-              <h2 className="text-2xl font-semibold text-white drop-shadow-lg">
-                Japan 2024 Collection
-              </h2>
-            </div>
-
-            {/* Glassmorphism Tile */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[600px] overflow-hidden">
-              <Carousel className="w-full h-full rounded-2xl overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center">
-                  <img
-                    src="https://picsum.photos/1000/600?random=1"
-                    alt="Visual 1"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="w-full h-full flex items-center justify-center">
-                  <video
-                    src="https://www.w3schools.com/html/mov_bbb.mp4"
-                    autoPlay
-                    loop
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="w-full h-full flex items-center justify-center">
-                  <img
-                    src="https://picsum.photos/1000/600?random=2"
-                    alt="Visual 2"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </Carousel>
-            </div>
+          {/* Glassmorphism Tile */}
+          <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[600px] overflow-hidden">
+            <Carousel className="w-full h-full rounded-2xl overflow-hidden">
+              <div className="w-full h-full flex items-center justify-center">
+                <img
+                  src="https://picsum.photos/1000/600?random=1"
+                  alt="Visual 1"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="w-full h-full flex items-center justify-center">
+                <video
+                  src="https://www.w3schools.com/html/mov_bbb.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="w-full h-full flex items-center justify-center">
+                <img
+                  src="https://picsum.photos/1000/600?random=2"
+                  alt="Visual 2"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </Carousel>
           </div>
         </div>
       </div>
