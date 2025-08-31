@@ -18,7 +18,7 @@ const Index = () => {
 
   return (
     <div
-  className={`min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden ${
+  className={`h-[100dvh] w-full flex flex-col items-center justify-center relative ${
     animate ? "animate-slowFadeIn" : ""
   }`}
 >
@@ -41,6 +41,7 @@ const Index = () => {
     <SearchBar />
   </div>
 </div>
+
 
   );
 };
