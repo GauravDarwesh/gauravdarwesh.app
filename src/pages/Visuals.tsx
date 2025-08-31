@@ -215,7 +215,7 @@ export default function Visuals() {
             </button>
 
             {/* Glass tile — responsive height */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[420px] sm:h-[520px] md:h-[600px] lg:h-[650px] p-4 flex items-center justify-center overflow-hidden relative">
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[420px] sm:h-[520px] md:h-[650px] lg:h-[650px] p-4 flex items-center justify-center overflow-hidden relative">
               {/* Layer A */}
               <div
                 ref={layerARef}
