@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const SLIDE_INTERVAL = 2000; // ms for switching speed
@@ -35,7 +36,7 @@ const Visuals = () => {
   const [fade, setFade] = useState(true);
   const timerRef = useRef(null);
 
-  // Preload all images for smooth switching
+  // Preload all images
   useEffect(() => {
     items.forEach((src) => {
       const img = new Image();
@@ -43,14 +44,14 @@ const Visuals = () => {
     });
   }, [items]);
 
-  // Automatic switching with fade effect
+  // Auto image switching
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setFade(false);
       setTimeout(() => {
         setCurrentImage((prev) => (prev + 1) % items.length);
         setFade(true);
-      }, FADE_MS); // switch image after fade out
+      }, FADE_MS);
     }, SLIDE_INTERVAL);
 
     return () => clearInterval(timerRef.current);
@@ -81,10 +82,13 @@ const Visuals = () => {
         }}
       />
 
-      {/* Main Content (centered) */}
+      {/* Navigation Toggle is back */}
+      <NavigationToggle />
+
+      {/* Main Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl relative flex flex-col items-center">
-          {/* Small translucent title */}
+          {/* Title above tile */}
           <div className="mb-4 self-start">
             <h2 className="text-lg font-medium text-white/70">{title}</h2>
           </div>
