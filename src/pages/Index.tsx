@@ -18,7 +18,7 @@ const Index = () => {
 
   return (
     <div
-  className={`h-[100dvh] w-full flex flex-col items-center justify-center relative ${
+  className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
     animate ? "animate-slowFadeIn" : ""
   }`}
 >
