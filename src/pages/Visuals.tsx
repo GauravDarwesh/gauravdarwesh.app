@@ -215,11 +215,11 @@ export default function Visuals() {
             </button>
 
             {/* Glass tile — responsive height */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[420px] sm:h-[520px] md:h-[650px] lg:h-[650px] p-4 flex items-center justify-center overflow-hidden relative">
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[420px] sm:h-[520px] md:h-[600px] lg:h-[650px] p-4 flex items-center justify-center overflow-hidden relative">
               {/* Layer A */}
               <div
                 ref={layerARef}
-                className="absolute inset-0 m-auto w-[94%] h-[94%] rounded-xl shadow-md bg-center bg-cover"
+                className="absolute inset-0 m-auto w-[90%] h-[90%] rounded-xl shadow-md bg-center bg-cover"
                 style={{
                   opacity: 1,
                   transition: `opacity ${FADE_MS}ms linear`,
@@ -231,7 +231,7 @@ export default function Visuals() {
               {/* Layer B */}
               <div
                 ref={layerBRef}
-                className="absolute inset-0 m-auto w-[94%] h-[94%] rounded-xl shadow-md bg-center bg-cover"
+                className="absolute inset-0 m-auto w-[90%] h-[90%] rounded-xl shadow-md bg-center bg-cover"
                 style={{
                   opacity: 0,
                   transition: `opacity ${FADE_MS}ms linear`,
