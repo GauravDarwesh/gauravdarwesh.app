@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-// Collections data
 const collections = [
   {
     title: "Japan 2024 Collection",
@@ -36,17 +35,15 @@ const Visuals = () => {
   // Auto-slide images with fade transition
   useEffect(() => {
     const timer = setInterval(() => {
-      setFade(false); // start fade-out
+      setFade(false);
       setTimeout(() => {
         setCurrentImage((prev) => (prev + 1) % items.length);
-        setFade(true); // fade back in
-      }, 300); // fade-out duration
-    }, 2000); // Change this for speed
-
+        setFade(true);
+      }, 300);
+    }, 2000); // Change speed here
     return () => clearInterval(timer);
   }, [items]);
 
-  // Arrow navigation changes collections only
   const nextCollection = () => {
     setCurrentCollection((prev) => (prev + 1) % collections.length);
     setCurrentImage(0);
@@ -74,10 +71,10 @@ const Visuals = () => {
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-5xl relative flex flex-col items-center">
+        <div className="w-full max-w-6xl relative flex flex-col items-center">
           {/* Title above tile */}
           <div className="mb-4 self-start">
-            <h2 className="text-2xl font-semibold text-white drop-shadow-lg">
+            <h2 className="text-lg font-medium text-white/70 drop-shadow-md">
               {title}
             </h2>
           </div>
@@ -93,11 +90,11 @@ const Visuals = () => {
             </button>
 
             {/* Tile */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[600px] p-4 flex items-center justify-center overflow-hidden">
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[750px] p-4 flex items-center justify-center overflow-hidden">
               <img
                 src={items[currentImage]}
                 alt={`Slide ${currentImage}`}
-                className={`w-[95%] h-[95%] object-cover rounded-xl shadow-md transition-opacity duration-700 ease-in-out ${
+                className={`w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-700 ease-in-out ${
                   fade ? "opacity-100" : "opacity-0"
                 }`}
               />
