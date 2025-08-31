@@ -223,3 +223,35 @@ export default function Visuals() {
                 style={{
                   opacity: 1,
                   transition: `opacity ${FADE_MS}ms linear`,
+                  willChange: "opacity",
+                }}
+                aria-hidden="true"
+              />
+
+              {/* Layer B */}
+              <div
+                ref={layerBRef}
+                className="absolute inset-0 m-auto w-[94%] h-[94%] rounded-xl shadow-md bg-center bg-cover"
+                style={{
+                  opacity: 0,
+                  transition: `opacity ${FADE_MS}ms linear`,
+                  willChange: "opacity",
+                }}
+                aria-hidden="true"
+              />
+            </div>
+
+            {/* Right Arrow (collection next) */}
+            <button
+              onClick={nextCollection}
+              className="absolute right-[-66px] top-1/2 transform -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              aria-label="Next collection"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
