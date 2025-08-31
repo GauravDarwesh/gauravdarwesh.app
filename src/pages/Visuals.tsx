@@ -40,7 +40,7 @@ const Visuals = () => {
         setCurrentImage((prev) => (prev + 1) % items.length);
         setFade(true);
       }, 300);
-    }, 2000); // Change speed here
+    }, 2000); // Change this for speed
     return () => clearInterval(timer);
   }, [items]);
 
@@ -71,7 +71,7 @@ const Visuals = () => {
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-6xl relative flex flex-col items-center">
+        <div className="w-full max-w-5xl relative flex flex-col items-center">
           {/* Title above tile */}
           <div className="mb-4 self-start">
             <h2 className="text-lg font-medium text-white/70 drop-shadow-md">
@@ -90,7 +90,7 @@ const Visuals = () => {
             </button>
 
             {/* Tile */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[750px] p-4 flex items-center justify-center overflow-hidden">
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[650px] p-4 flex items-center justify-center overflow-hidden">
               <img
                 src={items[currentImage]}
                 alt={`Slide ${currentImage}`}
