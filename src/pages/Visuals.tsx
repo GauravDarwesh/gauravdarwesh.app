@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const SLIDE_INTERVAL = 2000; // ms for switching speed
-const FADE_MS = 120;         // ms for fast fade
+const SLIDE_INTERVAL = 2000; // ms between slides
+const FADE_MS = 400;         // smooth fade speed
 
 const collections = [
   {
@@ -33,7 +33,8 @@ const Visuals = () => {
   const { title, items } = collections[currentCollection];
 
   const [currentImage, setCurrentImage] = useState(0);
-  const [fade, setFade] = useState(true);
+  const [nextImage, setNextImage] = useState(1);
+  const [fade, setFade] = useState(false);
   const timerRef = useRef(null);
 
   // Preload all images
@@ -44,23 +45,25 @@ const Visuals = () => {
     });
   }, [items]);
 
-  // Auto image switching
+  // Auto switch images
   useEffect(() => {
     timerRef.current = setInterval(() => {
-      setFade(false);
+      setFade(true); // start fade
       setTimeout(() => {
-        setCurrentImage((prev) => (prev + 1) % items.length);
-        setFade(true);
+        setCurrentImage(nextImage);
+        setNextImage((nextImage + 1) % items.length);
+        setFade(false); // reset fade
       }, FADE_MS);
     }, SLIDE_INTERVAL);
 
     return () => clearInterval(timerRef.current);
-  }, [items]);
+  }, [nextImage, items.length]);
 
   const nextCollection = () => {
     clearInterval(timerRef.current);
     setCurrentCollection((prev) => (prev + 1) % collections.length);
     setCurrentImage(0);
+    setNextImage(1);
   };
 
   const prevCollection = () => {
@@ -69,6 +72,7 @@ const Visuals = () => {
       prev === 0 ? collections.length - 1 : prev - 1
     );
     setCurrentImage(0);
+    setNextImage(1);
   };
 
   return (
@@ -82,13 +86,12 @@ const Visuals = () => {
         }}
       />
 
-      {/* Navigation Toggle is back */}
       <NavigationToggle />
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl relative flex flex-col items-center">
-          {/* Title above tile */}
+          {/* Title */}
           <div className="mb-4 self-start">
             <h2 className="text-lg font-medium text-white/70">{title}</h2>
           </div>
@@ -103,13 +106,22 @@ const Visuals = () => {
               <ChevronLeft size={28} />
             </button>
 
-            {/* Tile */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[550px] p-4 flex items-center justify-center overflow-hidden">
+            {/* Tile with responsive height */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[450px] sm:h-[500px] lg:h-[550px] p-4 flex items-center justify-center overflow-hidden relative">
+              {/* Current Image */}
               <img
-                key={currentImage}
                 src={items[currentImage]}
-                alt="slide"
-                className={`w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-${FADE_MS} ${
+                alt="current"
+                className={`absolute w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-${FADE_MS} ${
+                  fade ? "opacity-0" : "opacity-100"
+                }`}
+              />
+
+              {/* Next Image */}
+              <img
+                src={items[nextImage]}
+                alt="next"
+                className={`absolute w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-${FADE_MS} ${
                   fade ? "opacity-100" : "opacity-0"
                 }`}
               />
