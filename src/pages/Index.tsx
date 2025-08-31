@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
-const ANIM_MS = 3000;
+const ANIM_MS = 3000; // same duration for all
 
 const Index = () => {
   const [animate, setAnimate] = useState(false);
@@ -39,18 +39,6 @@ const Index = () => {
       {/* Search Bar */}
       <div className="fixed top-6 inset-x-0 flex justify-center z-10">
         <SearchBar />
-      </div>
-
-      {/* Side Names */}
-      <div className="fixed top-1/2 left-1/6 transform -translate-y-1/2 z-20">
-        <span className="text-white/70 text-base font-semibold tracking-wide select-none">
-          Gaurav
-        </span>
-      </div>
-      <div className="fixed top-1/2 right-1/6 transform -translate-y-1/2 z-20">
-        <span className="text-white/70 text-base font-semibold tracking-wide select-none">
-          Darwesh
-        </span>
       </div>
     </div>
   );
