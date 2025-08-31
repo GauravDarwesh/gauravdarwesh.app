@@ -42,12 +42,12 @@ const Index = () => {
       </div>
 
       {/* Side Names */}
-      <div className="fixed top-[20%] left-6 z-20">
+      <div className="fixed top-1/2 left-1/6 transform -translate-y-1/2 z-20">
         <span className="text-white/70 text-base font-semibold tracking-wide select-none">
           Gaurav
         </span>
       </div>
-      <div className="fixed top-[20%] right-6 z-20">
+      <div className="fixed top-1/2 right-1/6 transform -translate-y-1/2 z-20">
         <span className="text-white/70 text-base font-semibold tracking-wide select-none">
           Darwesh
         </span>
