@@ -3,20 +3,11 @@ import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const ANIM_MS = 3000; // same duration for all
-const BG_URL =
-  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg";
 
 const Index = () => {
   const [animate, setAnimate] = useState(false);
-  const [bgLoaded, setBgLoaded] = useState(false);
 
   useEffect(() => {
-    // Preload background image
-    const img = new Image();
-    img.src = BG_URL;
-    img.onload = () => setBgLoaded(true);
-
-    // Animation trigger only first time
     if (!(window as any).__indexAnimationPlayed) {
       setAnimate(true);
       (window as any).__indexAnimationPlayed = true;
@@ -33,13 +24,11 @@ const Index = () => {
     >
       {/* Background */}
       <div className="fixed inset-0 z-0">
-        {bgLoaded && (
-          <img
-            src={BG_URL}
-            alt="background"
-            className="w-full h-full object-cover"
-          />
-        )}
+        <img
+          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
+          alt="background"
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {/* Navigation Toggle */}
