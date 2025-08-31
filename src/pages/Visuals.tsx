@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const SLIDE_INTERVAL = 2500; // ms between slides
+const SLIDE_INTERVAL = 3000; // ms between slides
 const FADE_RATIO = 0.25;     // fade = 25% of total time
 const FADE_MS = SLIDE_INTERVAL * FADE_RATIO; // dynamic fade duration
 
