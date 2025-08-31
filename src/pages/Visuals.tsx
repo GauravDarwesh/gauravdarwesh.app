@@ -51,23 +51,24 @@ export default function Visuals() {
   const FADE_MS = Math.max(80, Math.min(500, Math.round(SLIDE_INTERVAL * 0.2)));
 
   // Preload helper (returns promise that resolves when loaded or on timeout)
-  const preload = (src, timeout = 3000) =>
-    new Promise((resolve) => {
-      if (!src) return resolve();
-      if (cacheRef.current.has(src)) return resolve();
-      const img = new Image();
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        cacheRef.current.add(src);
-        resolve();
-      };
-      img.onload = finish;
-      img.onerror = finish;
-      img.src = src;
-      setTimeout(finish, timeout);
-    });
+  const preload = (src: string, timeout = 3000): Promise<void> =>
+  new Promise<void>((resolve) => {
+    if (!src) return resolve();
+    if (cacheRef.current.has(src)) return resolve();
+    const img = new Image();
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      cacheRef.current.add(src);
+      resolve();
+    };
+    img.onload = finish;
+    img.onerror = finish;
+    img.src = src;
+    setTimeout(finish, timeout);
+  });
+
 
   // Preload all images in background (non-blocking)
   const preloadAll = (list) => {
@@ -104,7 +105,7 @@ export default function Visuals() {
 
     // preload first two (so swap is immediate) then start the timer;
     // also continue preloading the rest in the background
-    Promise.all([preload(first, 3000), preload(second, 3000)]).finally(() => {
+    Promise.all<void>([preload(first, 3000), preload(second, 3000)]).finally(() => {
       // ensure any previous timer cleared
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -143,7 +144,8 @@ export default function Visuals() {
 
     // ensure next image is preloaded (but fallback after short wait so we never stall)
     const preloadPromise = preload(nextSrc, 2000);
-    await Promise.race([preloadPromise, new Promise((res) => setTimeout(res, 350))]);
+    await Promise.race<void>([preload(nextSrc, 2000), new Promise<void>((res) => setTimeout(res, 350))]);
+
 
     // set background on inactive
     inactiveNode.style.backgroundImage = `url("${nextSrc}")`;
