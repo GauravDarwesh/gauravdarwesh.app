@@ -2,67 +2,62 @@ import React, { useState, useEffect } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const PhotoCollections = () => {
-  const collections = [
-    {
-      title: "Japan 2024",
-      images: [
-        "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
-        "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
-        "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1833.jpg",
-        "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1899.jpg",
-        "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2068.jpg",
-        "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2138.jpg",
-        "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2301.jpg",
-      ],
-    },
-    {
-      title: "Switzerland 2016",
-      images: [
-        "https://via.placeholder.com/800x600?text=Switzerland+1",
-        "https://via.placeholder.com/800x600?text=Switzerland+2",
-      ],
-    },
-  ];
+// Collections data
+const collections = [
+  {
+    title: "Japan 2024 Collection",
+    items: [
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1833.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1899.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2068.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2138.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2301.jpg",
+    ],
+  },
+  {
+    title: "Switzerland 2016 Collection",
+    items: [
+      "https://picsum.photos/1000/600?random=10",
+      "https://picsum.photos/1000/600?random=11",
+      "https://picsum.photos/1000/600?random=12",
+    ],
+  },
+];
 
+const Visuals = () => {
   const [currentCollection, setCurrentCollection] = useState(0);
   const [currentImage, setCurrentImage] = useState(0);
-  const [loadedImages, setLoadedImages] = useState({});
-  const speed = 2000; // <-- Change this to control speed in ms
+  const [fade, setFade] = useState(true);
 
-  // Preload images for smooth transitions
-  useEffect(() => {
-    const imgs = collections[currentCollection].images;
-    const cache = {};
-    imgs.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-      cache[src] = true;
-    });
-    setLoadedImages(cache);
-  }, [currentCollection]);
+  const { title, items } = collections[currentCollection];
 
-  // Auto-slide images
+  // Auto-slide images with fade transition
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentImage((prev) => (prev + 1) % collections[currentCollection].images.length);
-    }, speed);
+      setFade(false); // start fade-out
+      setTimeout(() => {
+        setCurrentImage((prev) => (prev + 1) % items.length);
+        setFade(true); // fade back in
+      }, 300); // fade-out duration
+    }, 2000); // Change this for speed
+
     return () => clearInterval(timer);
-  }, [currentCollection]);
+  }, [items]);
 
-  const handlePrevCollection = () => {
-    setCurrentCollection((prev) => (prev - 1 + collections.length) % collections.length);
-    setCurrentImage(0);
-  };
-
-  const handleNextCollection = () => {
+  // Arrow navigation changes collections only
+  const nextCollection = () => {
     setCurrentCollection((prev) => (prev + 1) % collections.length);
     setCurrentImage(0);
   };
 
-  const images = collections[currentCollection].images;
-  const currentSrc = images[currentImage];
-  const title = collections[currentCollection].title;
+  const prevCollection = () => {
+    setCurrentCollection((prev) =>
+      prev === 0 ? collections.length - 1 : prev - 1
+    );
+    setCurrentImage(0);
+  };
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -74,57 +69,52 @@ const PhotoCollections = () => {
         }}
       />
 
-      {/* Navigation Toggle */}
+      {/* Navigation */}
       <NavigationToggle />
 
       {/* Main Content */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4">
-        {/* Title outside tile */}
-        <div className="mb-4 text-left w-full max-w-3xl">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">{title}</h2>
-        </div>
-
-        {/* Tile with Image */}
-        <div className="relative w-full max-w-3xl">
-          {/* Left Arrow */}
-          <button
-            onClick={handlePrevCollection}
-            className="absolute left-[-60px] top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-md transition"
-          >
-            <ChevronLeft className="text-white w-6 h-6" />
-          </button>
-
-          {/* Main Tile */}
-          <div className="w-full aspect-[4/3] bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 flex items-center justify-center relative overflow-hidden">
-            {images.map((src, idx) => (
-              <img
-                key={idx}
-                src={src}
-                alt={`Slide ${idx}`}
-                className={`absolute w-[90%] h-[90%] object-contain transition-opacity duration-700 ${
-                  idx === currentImage ? "opacity-100" : "opacity-0"
-                }`}
-                style={{ pointerEvents: "none" }}
-              />
-            ))}
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-5xl relative flex flex-col items-center">
+          {/* Title above tile */}
+          <div className="mb-4 self-start">
+            <h2 className="text-2xl font-semibold text-white drop-shadow-lg">
+              {title}
+            </h2>
           </div>
 
-          {/* Right Arrow */}
-          <button
-            onClick={handleNextCollection}
-            className="absolute right-[-60px] top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-md transition"
-          >
-            <ChevronRight className="text-white w-6 h-6" />
-          </button>
-        </div>
+          {/* Tile + Arrows */}
+          <div className="relative w-full flex items-center justify-center">
+            {/* Left Arrow */}
+            <button
+              onClick={prevCollection}
+              className="absolute left-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+            >
+              <ChevronLeft size={28} />
+            </button>
 
-        {/* Subtitle */}
-        <p className="mt-6 text-lg sm:text-xl text-white/90 text-center">
-          Photo collections and cinematography
-        </p>
+            {/* Tile */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[600px] p-4 flex items-center justify-center overflow-hidden">
+              <img
+                src={items[currentImage]}
+                alt={`Slide ${currentImage}`}
+                className={`w-[95%] h-[95%] object-cover rounded-xl shadow-md transition-opacity duration-700 ease-in-out ${
+                  fade ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              onClick={nextCollection}
+              className="absolute right-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+            >
+              <ChevronRight size={28} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default PhotoCollections;
+export default Visuals;
