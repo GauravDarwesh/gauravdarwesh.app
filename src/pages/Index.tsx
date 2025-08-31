@@ -18,28 +18,30 @@ const Index = () => {
 
   return (
     <div
-      className={`min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden ${
-        animate ? "animate-slowFadeIn" : ""
-      }`}
-    >
-      {/* Background */}
-      <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
-        }}
-      />
+  className={`min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden ${
+    animate ? "animate-slowFadeIn" : ""
+  }`}
+>
+  {/* Background */}
+  <div className="fixed inset-0 z-0">
+    <img
+      src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
+      alt="background"
+      className="w-full h-full object-cover"
+    />
+  </div>
 
-      {/* Navigation Toggle */}
-      <div className="relative z-20">
-        <NavigationToggle />
-      </div>
+  {/* Navigation Toggle */}
+  <div className="relative z-20">
+    <NavigationToggle />
+  </div>
 
-      {/* Search Bar */}
-      <div className="fixed z-10">
-        <SearchBar />
-      </div>
-    </div>
+  {/* Search Bar */}
+  <div className="fixed top-6 inset-x-0 flex justify-center z-10">
+    <SearchBar />
+  </div>
+</div>
+
   );
 };
 
