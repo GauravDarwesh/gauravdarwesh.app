@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const SLIDE_INTERVAL = 2000; // time between slides in ms
+const SLIDE_INTERVAL = 2000; // ms between slides
+const FADE_MS = 400;         // smooth fade speed
 
 const collections = [
   {
@@ -27,14 +28,16 @@ const collections = [
   },
 ];
 
-export default function Visuals() {
+const Visuals = () => {
   const [currentCollection, setCurrentCollection] = useState(0);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const { title, items } = collections[currentCollection];
 
-  const items = collections[currentCollection].items;
-  const title = collections[currentCollection].title;
+  const [currentImage, setCurrentImage] = useState(0);
+  const [nextImage, setNextImage] = useState(1);
+  const [fade, setFade] = useState(false);
+  const timerRef = useRef(null);
 
-  // preload all images once so no flicker
+  // Preload all images
   useEffect(() => {
     items.forEach((src) => {
       const img = new Image();
@@ -42,24 +45,34 @@ export default function Visuals() {
     });
   }, [items]);
 
-  // timer for switching
+  // Auto switch images
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentIndex((i) => (i + 1) % items.length);
+    timerRef.current = setInterval(() => {
+      setFade(true); // start fade
+      setTimeout(() => {
+        setCurrentImage(nextImage);
+        setNextImage((nextImage + 1) % items.length);
+        setFade(false); // reset fade
+      }, FADE_MS);
     }, SLIDE_INTERVAL);
-    return () => clearInterval(timer);
-  }, [items]);
+
+    return () => clearInterval(timerRef.current);
+  }, [nextImage, items.length]);
 
   const nextCollection = () => {
-    setCurrentCollection((c) => (c + 1) % collections.length);
-    setCurrentIndex(0);
+    clearInterval(timerRef.current);
+    setCurrentCollection((prev) => (prev + 1) % collections.length);
+    setCurrentImage(0);
+    setNextImage(1);
   };
 
   const prevCollection = () => {
-    setCurrentCollection((c) =>
-      c === 0 ? collections.length - 1 : c - 1
+    clearInterval(timerRef.current);
+    setCurrentCollection((prev) =>
+      prev === 0 ? collections.length - 1 : prev - 1
     );
-    setCurrentIndex(0);
+    setCurrentImage(0);
+    setNextImage(1);
   };
 
   return (
@@ -75,43 +88,57 @@ export default function Visuals() {
 
       <NavigationToggle />
 
+      {/* Main Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-6xl relative flex flex-col items-center">
+        <div className="w-full max-w-5xl relative flex flex-col items-center">
+          {/* Title */}
           <div className="mb-4 self-start">
-            <h2 className="text-sm font-medium text-white/70 drop-shadow-md">
-              {title}
-            </h2>
+            <h2 className="text-lg font-medium text-white/70">{title}</h2>
           </div>
 
+          {/* Tile + Arrows */}
           <div className="relative w-full flex items-center justify-center">
-            {/* Left arrow */}
+            {/* Left Arrow */}
             <button
               onClick={prevCollection}
-              className="absolute left-[-66px] top-1/2 transform -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              className="absolute left-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={28} />
             </button>
 
-            {/* Tile */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[480px] sm:h-[520px] md:h-[560px] lg:h-[600px] p-4 flex items-center justify-center overflow-hidden relative">
-              <div
-                className="absolute inset-0 m-auto w-[94%] h-[94%] rounded-xl shadow-md bg-center bg-contain bg-no-repeat"
-                style={{
-                  backgroundImage: `url("${items[currentIndex]}")`,
-                }}
+            {/* Tile with responsive height */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[450px] sm:h-[500px] lg:h-[550px] p-4 flex items-center justify-center overflow-hidden relative">
+              {/* Current Image */}
+              <img
+                src={items[currentImage]}
+                alt="current"
+                className={`absolute w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-${FADE_MS} ${
+                  fade ? "opacity-0" : "opacity-100"
+                }`}
+              />
+
+              {/* Next Image */}
+              <img
+                src={items[nextImage]}
+                alt="next"
+                className={`absolute w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-${FADE_MS} ${
+                  fade ? "opacity-100" : "opacity-0"
+                }`}
               />
             </div>
 
-            {/* Right arrow */}
+            {/* Right Arrow */}
             <button
               onClick={nextCollection}
-              className="absolute right-[-66px] top-1/2 transform -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              className="absolute right-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={28} />
             </button>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Visuals;
