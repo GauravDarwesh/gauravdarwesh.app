@@ -32,18 +32,19 @@ const Visuals = () => {
 
   const { title, items } = collections[currentCollection];
 
-  // Auto-slide images with fade transition
+  // Auto-slide images quickly with fast fade
   useEffect(() => {
     const timer = setInterval(() => {
       setFade(false);
       setTimeout(() => {
         setCurrentImage((prev) => (prev + 1) % items.length);
         setFade(true);
-      }, 300);
-    }, 2000); // Change this for speed
+      }, 150); // super fast fade
+    }, 2000); // speed of change
     return () => clearInterval(timer);
   }, [items]);
 
+  // Arrows for changing collections
   const nextCollection = () => {
     setCurrentCollection((prev) => (prev + 1) % collections.length);
     setCurrentImage(0);
@@ -94,7 +95,7 @@ const Visuals = () => {
               <img
                 src={items[currentImage]}
                 alt={`Slide ${currentImage}`}
-                className={`w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-700 ease-in-out ${
+                className={`w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-150 ease-in-out ${
                   fade ? "opacity-100" : "opacity-0"
                 }`}
               />
