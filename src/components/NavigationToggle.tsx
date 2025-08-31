@@ -8,7 +8,7 @@ const NavigationToggle = () => {
   const location = useLocation();
 
   // ✅ Only enable scroll-hide + up-arrow on these paths (exclude "/" so GDx won't show it)
-  const SHOW_ON_PATHS = ["/hobbies", "/blog"];
+  const SHOW_ON_PATHS = ["/hobbies", "/blog", "/visuals"];
   const enabledOnThisPath = useMemo(
     () => SHOW_ON_PATHS.includes(location.pathname),
     [location.pathname]
@@ -20,6 +20,7 @@ const NavigationToggle = () => {
     { name: "GDx", path: "/" },
     { name: "Classic", path: "/hobbies" },
     { name: "Perspectives", path: "/blog" },
+    { name: "Visuals", path: "/visuals" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
