@@ -42,13 +42,13 @@ const Index = () => {
       </div>
 
       {/* Side Names */}
-      <div className="fixed inset-y-0 left-6 flex items-center z-20">
-        <span className="text-white text-4xl sm:text-5xl font-bold tracking-wide select-none">
+      <div className="fixed inset-y-0 left-5 flex items-center z-20">
+        <span className="text-white text-2xl sm:text-2xl font-bold tracking-wide select-none">
           Gaurav
         </span>
       </div>
-      <div className="fixed inset-y-0 right-6 flex items-center z-20">
-        <span className="text-white text-4xl sm:text-5xl font-bold tracking-wide select-none">
+      <div className="fixed inset-y-0 right-5 flex items-center z-20">
+        <span className="text-white text-2xl sm:text-2xl font-bold tracking-wide select-none">
           Darwesh
         </span>
       </div>
