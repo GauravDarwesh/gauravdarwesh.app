@@ -27,29 +27,29 @@ const Visuals = () => {
           </div>
 
           {/* Glassmorphism Tile */}
-          <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[600px] overflow-hidden">
-            <Carousel className="w-full h-full rounded-2xl overflow-hidden">
-              <div className="w-full h-full flex items-center justify-center">
+          <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[600px] p-4 flex items-center justify-center">
+            <Carousel className="w-full h-full rounded-xl overflow-hidden">
+              <div className="w-full h-full flex items-center justify-center p-2">
                 <img
                   src="https://picsum.photos/1000/600?random=1"
                   alt="Visual 1"
-                  className="w-full h-full object-cover"
+                  className="w-[95%] h-[95%] object-cover rounded-xl shadow-md"
                 />
               </div>
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center p-2">
                 <video
                   src="https://www.w3schools.com/html/mov_bbb.mp4"
                   autoPlay
                   loop
                   muted
-                  className="w-full h-full object-cover"
+                  className="w-[95%] h-[95%] object-cover rounded-xl shadow-md"
                 />
               </div>
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center p-2">
                 <img
                   src="https://picsum.photos/1000/600?random=2"
                   alt="Visual 2"
-                  className="w-full h-full object-cover"
+                  className="w-[95%] h-[95%] object-cover rounded-xl shadow-md"
                 />
               </div>
             </Carousel>
