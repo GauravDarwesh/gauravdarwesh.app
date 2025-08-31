@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
-import DOMPurify from 'dompurify';
 
 // Function to get shortened link text based on domain
 const getShortenedLinkText = (url: string): string => {
@@ -78,13 +77,7 @@ const convertMarkdownToHtml = (text: string): string => {
     processedLines.push("</ul>");
   }
 
-  const rawHtml = processedLines.join("\n");
-  
-  // Sanitize HTML to prevent XSS attacks
-  return DOMPurify.sanitize(rawHtml, {
-    ALLOWED_TAGS: ['b', 'ul', 'li', 'a', 'svg', 'path'],
-    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'fill', 'stroke', 'viewBox', 'stroke-linecap', 'stroke-linejoin', 'stroke-width', 'd']
-  });
+  return processedLines.join("\n");
 };
 
 interface SearchBarProps {
