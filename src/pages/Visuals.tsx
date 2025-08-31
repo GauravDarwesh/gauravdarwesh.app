@@ -36,7 +36,7 @@ const Visuals = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentImage((prev) => (prev + 1) % items.length);
-    }, 2000);
+    }, 1000);
     return () => clearInterval(timer);
   }, [items]);
 
