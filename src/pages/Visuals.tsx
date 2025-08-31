@@ -1,44 +1,37 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
-import { Carousel } from "@/components/ui/carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const BASE_URL =
-  "https://zdrcjhohalgzhlbufwcl.storage.supabase.co/storage/v1/s3/JPN-2024";
-
-const collections = [
-  {
-    title: "Japan 2024 Collection",
-    items: [
-      `${BASE_URL}/image1.jpg`,
-      `${BASE_URL}/image2.jpg`,
-      `${BASE_URL}/video1.mp4`,
-    ],
-  },
-  {
-    title: "Japan 2025 Collection",
-    items: [
-      `${BASE_URL}/image3.jpg`,
-      `${BASE_URL}/image4.jpg`,
-      `${BASE_URL}/video2.mp4`,
-    ],
-  },
+const images2024 = [
+  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
+  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
+  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1833.jpg",
+  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1899.jpg",
+  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2068.jpg",
+  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2138.jpg",
+  "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2301.jpg",
 ];
 
 const Visuals = () => {
-  const [currentCollection, setCurrentCollection] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  const nextCollection = () => {
-    setCurrentCollection((prev) => (prev + 1) % collections.length);
+  // Auto-play every 2 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images2024.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const nextImage = () => {
+    setCurrentIndex((prev) => (prev + 1) % images2024.length);
   };
 
-  const prevCollection = () => {
-    setCurrentCollection((prev) =>
-      prev === 0 ? collections.length - 1 : prev - 1
+  const prevImage = () => {
+    setCurrentIndex((prev) =>
+      prev === 0 ? images2024.length - 1 : prev - 1
     );
   };
-
-  const { title, items } = collections[currentCollection];
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -53,13 +46,13 @@ const Visuals = () => {
       {/* Navigation */}
       <NavigationToggle />
 
-      {/* Main Content - Centered */}
+      {/* Main Content - Fully Centered */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl relative flex flex-col items-center">
           {/* Collection Title */}
           <div className="mb-4 self-start">
             <h2 className="text-2xl font-semibold text-white drop-shadow-lg">
-              {title}
+              Japan 2024 Collection
             </h2>
           </div>
 
@@ -67,43 +60,24 @@ const Visuals = () => {
           <div className="relative w-full flex items-center justify-center">
             {/* Left Button */}
             <button
-              onClick={prevCollection}
+              onClick={prevImage}
               className="absolute left-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
             >
               <ChevronLeft size={28} />
             </button>
 
-            {/* Glass Tile */}
+            {/* Glass Tile with Auto-playing Image */}
             <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[600px] p-4 flex items-center justify-center">
-              <Carousel className="w-full h-full rounded-xl overflow-hidden">
-                {items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="w-full h-full flex items-center justify-center p-2"
-                  >
-                    {item.endsWith(".mp4") ? (
-                      <video
-                        src={item}
-                        autoPlay
-                        loop
-                        muted
-                        className="w-[95%] h-[95%] object-cover rounded-xl shadow-md"
-                      />
-                    ) : (
-                      <img
-                        src={item}
-                        alt={`Visual ${idx}`}
-                        className="w-[95%] h-[95%] object-cover rounded-xl shadow-md"
-                      />
-                    )}
-                  </div>
-                ))}
-              </Carousel>
+              <img
+                src={images2024[currentIndex]}
+                alt={`Japan 2024 ${currentIndex}`}
+                className="w-[95%] h-[95%] object-cover rounded-xl shadow-md transition-all duration-500"
+              />
             </div>
 
             {/* Right Button */}
             <button
-              onClick={nextCollection}
+              onClick={nextImage}
               className="absolute right-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
             >
               <ChevronRight size={28} />
