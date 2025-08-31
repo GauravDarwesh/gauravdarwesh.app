@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const SLIDE_INTERVAL = 2000; // ms for switching speed
-const FADE_MS = 120;         // ms for fast fade
+const SLIDE_INTERVAL = 2000; // ms between slides
+const FADE_MS = 400;         // smoother fade time
 
 const collections = [
   {
@@ -36,7 +36,7 @@ const Visuals = () => {
   const [fade, setFade] = useState(true);
   const timerRef = useRef(null);
 
-  // Preload all images
+  // Preload images
   useEffect(() => {
     items.forEach((src) => {
       const img = new Image();
@@ -44,14 +44,14 @@ const Visuals = () => {
     });
   }, [items]);
 
-  // Auto image switching
+  // Auto image switching with fade
   useEffect(() => {
     timerRef.current = setInterval(() => {
-      setFade(false);
+      setFade(false); // start fade-out
       setTimeout(() => {
         setCurrentImage((prev) => (prev + 1) % items.length);
-        setFade(true);
-      }, FADE_MS);
+        setFade(true); // fade back in
+      }, FADE_MS); // wait till fade-out ends
     }, SLIDE_INTERVAL);
 
     return () => clearInterval(timerRef.current);
@@ -82,20 +82,15 @@ const Visuals = () => {
         }}
       />
 
-      {/* Navigation Toggle is back */}
       <NavigationToggle />
 
-      {/* Main Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl relative flex flex-col items-center">
-          {/* Title above tile */}
           <div className="mb-4 self-start">
             <h2 className="text-lg font-medium text-white/70">{title}</h2>
           </div>
 
-          {/* Tile + Arrows */}
           <div className="relative w-full flex items-center justify-center">
-            {/* Left Arrow */}
             <button
               onClick={prevCollection}
               className="absolute left-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
@@ -103,19 +98,17 @@ const Visuals = () => {
               <ChevronLeft size={28} />
             </button>
 
-            {/* Tile */}
             <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[550px] p-4 flex items-center justify-center overflow-hidden">
               <img
                 key={currentImage}
                 src={items[currentImage]}
                 alt="slide"
-                className={`w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-${FADE_MS} ${
+                className={`w-[96%] h-[96%] object-cover rounded-xl shadow-md transition-opacity duration-[${FADE_MS}ms] ${
                   fade ? "opacity-100" : "opacity-0"
                 }`}
               />
             </div>
 
-            {/* Right Arrow */}
             <button
               onClick={nextCollection}
               className="absolute right-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
