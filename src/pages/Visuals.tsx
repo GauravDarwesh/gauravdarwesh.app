@@ -74,7 +74,7 @@ const Visuals = () => {
         <div className="w-full max-w-5xl relative flex flex-col items-center">
           {/* Title above tile */}
           <div className="mb-4 self-start">
-            <h2 className="text-lg font-medium text-white/70 drop-shadow-md">
+            <h2 className="text-lg font-medium text-white drop-shadow-md">
               {title}
             </h2>
           </div>
