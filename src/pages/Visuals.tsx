@@ -1,43 +1,67 @@
 import React from "react";
 import NavigationToggle from "@/components/NavigationToggle";
+import { motion } from "framer-motion";
+import { Carousel } from "react-responsive-carousel";
+import "react-responsive-carousel/lib/styles/carousel.min.css";
 
 const Visuals = () => {
+  const mediaItems = [
+    { type: "image", src: "https://via.placeholder.com/800x400" },
+    { type: "video", src: "https://www.w3schools.com/html/mov_bbb.mp4" },
+    { type: "image", src: "https://via.placeholder.com/800x400?text=Second+Image" },
+  ];
+
   return (
-    <div className="min-h-screen w-full bg-background text-foreground">
+    <div
+      className="min-h-screen w-full text-foreground relative bg-cover bg-center"
+      style={{
+        backgroundImage: `url('https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg')`,
+      }}
+    >
       {/* Navigation Toggle */}
       <NavigationToggle />
-      
+
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-20">
-        <header className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Visuals</h1>
-          <p className="text-lg text-muted-foreground">
-            A collection of visual content and creative works
-          </p>
-        </header>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-card rounded-lg p-6 border">
-            <h3 className="text-xl font-semibold mb-2">Gallery</h3>
-            <p className="text-muted-foreground">
-              Visual galleries and image collections
-            </p>
-          </div>
-          
-          <div className="bg-card rounded-lg p-6 border">
-            <h3 className="text-xl font-semibold mb-2">Artwork</h3>
-            <p className="text-muted-foreground">
-              Digital art and creative designs
-            </p>
-          </div>
-          
-          <div className="bg-card rounded-lg p-6 border">
-            <h3 className="text-xl font-semibold mb-2">Photography</h3>
-            <p className="text-muted-foreground">
-              Photo collections and visual stories
-            </p>
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="w-full max-w-4xl p-6 rounded-2xl backdrop-blur-lg bg-white/10 border border-white/20 shadow-2xl"
+        >
+          <h1 className="text-3xl font-bold text-center mb-6">Visuals</h1>
+
+          {/* Carousel for photos & videos */}
+          <Carousel
+            showThumbs={false}
+            showStatus={false}
+            infiniteLoop
+            autoPlay
+            interval={3000}
+            stopOnHover
+            className="rounded-2xl overflow-hidden"
+          >
+            {mediaItems.map((item, index) => (
+              <div key={index} className="w-full h-[400px] bg-black">
+                {item.type === "image" ? (
+                  <img
+                    src={item.src}
+                    alt={`Slide ${index}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <video
+                    src={item.src}
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    muted
+                    loop
+                  />
+                )}
+              </div>
+            ))}
+          </Carousel>
+        </motion.div>
       </div>
     </div>
   );
