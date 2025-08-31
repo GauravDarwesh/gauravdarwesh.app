@@ -3,21 +3,24 @@ import NavigationToggle from "@/components/NavigationToggle";
 import { Carousel } from "@/components/ui/carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+const BASE_URL =
+  "https://zdrcjhohalgzhlbufwcl.storage.supabase.co/storage/v1/s3/JPN-2024";
+
 const collections = [
   {
     title: "Japan 2024 Collection",
     items: [
-      "https://picsum.photos/1000/600?random=1",
-      "https://www.w3schools.com/html/mov_bbb.mp4",
-      "https://picsum.photos/1000/600?random=2",
+      `${BASE_URL}/image1.jpg`,
+      `${BASE_URL}/image2.jpg`,
+      `${BASE_URL}/video1.mp4`,
     ],
   },
   {
     title: "Japan 2025 Collection",
     items: [
-      "https://picsum.photos/1000/600?random=3",
-      "https://picsum.photos/1000/600?random=4",
-      "https://www.w3schools.com/html/movie.mp4",
+      `${BASE_URL}/image3.jpg`,
+      `${BASE_URL}/image4.jpg`,
+      `${BASE_URL}/video2.mp4`,
     ],
   },
 ];
@@ -50,10 +53,10 @@ const Visuals = () => {
       {/* Navigation */}
       <NavigationToggle />
 
-      {/* Main Content - Fully Centered */}
+      {/* Main Content - Centered */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl relative flex flex-col items-center">
-          {/* Collection Title above tile */}
+          {/* Collection Title */}
           <div className="mb-4 self-start">
             <h2 className="text-2xl font-semibold text-white drop-shadow-lg">
               {title}
