@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const SLIDE_INTERVAL = 2000; // time between slides
+const SLIDE_INTERVAL = 2000;
 
 const collections = [
   {
@@ -29,12 +29,20 @@ const collections = [
 
 export default function Visuals() {
   const [currentCollection, setCurrentCollection] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const items = collections[currentCollection].items;
   const title = collections[currentCollection].title;
-
-  const [currentIndex, setCurrentIndex] = useState(0);
   const timerRef = useRef(null);
 
+  // ✅ Preload images so they are cached before use
+  useEffect(() => {
+    items.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, [items]);
+
+  // Auto-slide every SLIDE_INTERVAL ms
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setCurrentIndex(0);
