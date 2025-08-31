@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
-const ANIM_MS = 3000; // same duration for all
+const ANIM_MS = 3000; // same duration for fade
 
 const Index = () => {
   const [animate, setAnimate] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (!(window as any).__indexAnimationPlayed) {
@@ -38,17 +39,26 @@ const Index = () => {
 
       {/* Search Bar */}
       <div className="fixed top-6 inset-x-0 flex justify-center z-10">
-        <SearchBar />
+        {/* Pass a callback to know when it's expanded */}
+        <SearchBar onExpandChange={setExpanded} />
       </div>
 
       {/* Side Names */}
-      <div className="fixed inset-y-0 left-2 flex items-center z-10">
-        <span className="text-white text-2xl sm:text-2xl font-bold tracking-wide select-none">
+      <div
+        className={`fixed inset-y-0 left-4 flex items-center z-20 transition-all duration-500 ${
+          expanded ? "-translate-x-4" : ""
+        }`}
+      >
+        <span className="text-white text-[10px] sm:text-xs font-semibold tracking-wide select-none">
           Gaurav
         </span>
       </div>
-      <div className="fixed inset-y-0 right-2 flex items-center z-10">
-        <span className="text-white text-2xl sm:text-2xl font-bold tracking-wide select-none">
+      <div
+        className={`fixed inset-y-0 right-4 flex items-center z-20 transition-all duration-500 ${
+          expanded ? "translate-x-4" : ""
+        }`}
+      >
+        <span className="text-white text-[10px] sm:text-xs font-semibold tracking-wide select-none">
           Darwesh
         </span>
       </div>
