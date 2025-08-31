@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const SLIDE_INTERVAL = 2000; // ms between slides
-const FADE_MS = 400;         // smoother fade time
+const SLIDE_INTERVAL = 2500; // ms between slides
+const FADE_RATIO = 0.25;     // fade = 25% of total time
+const FADE_MS = SLIDE_INTERVAL * FADE_RATIO; // dynamic fade duration
 
 const collections = [
   {
@@ -44,7 +45,7 @@ const Visuals = () => {
     });
   }, [items]);
 
-  // Auto image switching with fade
+  // Auto image switching with smooth fade
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setFade(false); // start fade-out
@@ -91,6 +92,7 @@ const Visuals = () => {
           </div>
 
           <div className="relative w-full flex items-center justify-center">
+            {/* Left Arrow */}
             <button
               onClick={prevCollection}
               className="absolute left-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
@@ -98,6 +100,7 @@ const Visuals = () => {
               <ChevronLeft size={28} />
             </button>
 
+            {/* Image Tile */}
             <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[550px] p-4 flex items-center justify-center overflow-hidden">
               <img
                 key={currentImage}
@@ -109,6 +112,7 @@ const Visuals = () => {
               />
             </div>
 
+            {/* Right Arrow */}
             <button
               onClick={nextCollection}
               className="absolute right-[-70px] flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
