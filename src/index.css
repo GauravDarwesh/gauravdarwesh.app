@@ -208,4 +208,9 @@ html {
   opacity: 0.5;
 }
 
+@media (max-width: 768px) {
+  .bg-fixed {
+    background-attachment: scroll !important;
+  }
+}
 

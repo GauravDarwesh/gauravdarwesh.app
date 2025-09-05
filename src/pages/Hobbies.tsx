@@ -2,10 +2,10 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Portfolio = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden bg-fixed">
       {/* Background */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        className="absolute top-0 left-0 w-full h-full bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}
