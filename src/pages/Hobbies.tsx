@@ -2,16 +2,14 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Portfolio = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden bg-fixed">
+    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 -z-10">
-  <img
-    src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
-    alt="Background"
-    className="w-full h-full object-cover"
-  />
-</div>
-
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+        }}
+      />
 
       {/* Navigation Toggle */}
       <NavigationToggle />
