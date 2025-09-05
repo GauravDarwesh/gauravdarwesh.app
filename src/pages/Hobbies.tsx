@@ -1,333 +1,253 @@
-import React, { useState, useEffect, useRef } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
-import { Camera, Code, Gamepad2, Music, Plane, Coffee, Book, Zap, Star, Play, Pause } from "lucide-react";
 
-const hobbies = [
-  {
-    id: 1,
-    title: "Photography",
-    icon: Camera,
-    description: "Capturing moments through the lens, specializing in street and landscape photography.",
-    skillLevel: 85,
-    images: [
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2138.jpg",
-    ],
-    experiences: ["Shot in 15+ cities", "Featured in local exhibitions", "500+ Instagram followers"],
-    color: "from-purple-500 to-pink-500"
-  },
-  {
-    id: 2,
-    title: "Coding Projects",
-    icon: Code,
-    description: "Building innovative solutions and exploring new technologies in AI and web development.",
-    skillLevel: 90,
-    images: [
-      "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500",
-      "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500",
-    ],
-    experiences: ["10+ personal projects", "Open source contributions", "Hackathon winner"],
-    color: "from-blue-500 to-cyan-500"
-  },
-  {
-    id: 3,
-    title: "Gaming",
-    icon: Gamepad2,
-    description: "Passionate about strategy games and competitive gaming with friends.",
-    skillLevel: 75,
-    images: [
-      "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500",
-      "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500",
-    ],
-    experiences: ["League rank: Diamond", "Tournament participant", "Gaming setup enthusiast"],
-    color: "from-green-500 to-emerald-500"
-  },
-  {
-    id: 4,
-    title: "Music Production",
-    icon: Music,
-    description: "Creating beats and melodies, experimenting with electronic and ambient music.",
-    skillLevel: 70,
-    images: [
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500",
-      "https://images.unsplash.com/photo-1571974599782-87624638275c?w=500",
-    ],
-    experiences: ["50+ original tracks", "Ableton Live user", "Sound design enthusiast"],
-    color: "from-orange-500 to-red-500"
-  },
-  {
-    id: 5,
-    title: "Travel",
-    icon: Plane,
-    description: "Exploring different cultures and landscapes around the world.",
-    skillLevel: 80,
-    images: [
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2622.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_2370.jpg",
-    ],
-    experiences: ["12 countries visited", "Solo traveler", "Cultural photography"],
-    color: "from-indigo-500 to-purple-500"
-  },
-  {
-    id: 6,
-    title: "Coffee Art",
-    icon: Coffee,
-    description: "Perfecting latte art and exploring different brewing methods.",
-    skillLevel: 65,
-    images: [
-      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=500",
-      "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500",
-    ],
-    experiences: ["Home barista", "Latte art patterns", "Bean enthusiast"],
-    color: "from-amber-600 to-orange-600"
-  }
-];
-
-const InteractiveHobbies = () => {
-  const [selectedHobby, setSelectedHobby] = useState<number | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [visibleCards, setVisibleCards] = useState<number[]>([]);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const cardId = parseInt((entry.target as HTMLElement).dataset.cardId || '0');
-            setVisibleCards(prev => [...new Set([...prev, cardId])]);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    observerRef.current = observer;
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const cards = document.querySelectorAll('.hobby-card');
-    cards.forEach(card => {
-      if (observerRef.current) {
-        observerRef.current.observe(card);
-      }
-    });
-  }, []);
-
-  const SkillBar = ({ skill, level }: { skill: string; level: number }) => {
-    const [animatedLevel, setAnimatedLevel] = useState(0);
-
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        setAnimatedLevel(level);
-      }, 500);
-      return () => clearTimeout(timer);
-    }, [level]);
-
-    return (
-      <div className="mb-4">
-        <div className="flex justify-between text-sm mb-1">
-          <span className="text-muted-foreground">{skill}</span>
-          <span className="text-primary">{level}%</span>
-        </div>
-        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-1000 ease-out"
-            style={{ width: `${animatedLevel}%` }}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  const HobbyCard = ({ hobby, index }: { hobby: typeof hobbies[0]; index: number }) => {
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [isHovered, setIsHovered] = useState(false);
-    const isVisible = visibleCards.includes(hobby.id);
-
-    useEffect(() => {
-      if (isHovered && hobby.images.length > 1) {
-        const interval = setInterval(() => {
-          setCurrentImageIndex(prev => (prev + 1) % hobby.images.length);
-        }, 2000);
-        return () => clearInterval(interval);
-      }
-    }, [isHovered, hobby.images.length]);
-
-    return (
+const Portfolio = () => {
+  return (
+    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
+      {/* Background */}
       <div
-        data-card-id={hobby.id}
-        className={`hobby-card group relative backdrop-blur-xl bg-card/40 border border-border/50 rounded-2xl shadow-xl overflow-hidden cursor-pointer transform transition-all duration-700 hover:scale-105 hover:shadow-2xl ${
-          isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
-        }`}
-        style={{ transitionDelay: `${index * 150}ms` }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={() => setSelectedHobby(selectedHobby === hobby.id ? null : hobby.id)}
-      >
-        <div className="relative h-48 overflow-hidden">
-          <div 
-            className="w-full h-full bg-cover bg-center transition-all duration-500"
-            style={{ 
-              backgroundImage: `url(${hobby.images[currentImageIndex]})`,
-              filter: isHovered ? 'brightness(0.7)' : 'brightness(0.5)'
-            }}
-          />
-          <div className={`absolute inset-0 bg-gradient-to-t ${hobby.color} opacity-60`} />
-          
-          <div className="absolute inset-0 flex items-center justify-center">
-            <hobby.icon 
-              size={48} 
-              className={`text-white transition-all duration-300 ${
-                isHovered ? 'scale-110 rotate-6' : 'scale-100'
-              }`} 
-            />
-          </div>
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+        }}
+      />
 
-          <div className="absolute top-4 right-4">
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  size={12}
-                  className={`${
-                    i < Math.floor(hobby.skillLevel / 20) 
-                      ? 'text-yellow-400 fill-current' 
-                      : 'text-white/40'
-                  }`}
-                />
-              ))}
-            </div>
+      {/* Navigation Toggle */}
+      <NavigationToggle />
+
+      {/* Main Content with invisible scroll */}
+      <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-28">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold">Gaurav Darwesh</h1>
+          <div className="flex flex-wrap gap-4 text-white mt-2">
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
+            <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
+            <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter/</a>
+            <a href="https://instagram.com/allaboutgaurav" target="_blank">instagram/</a>
           </div>
         </div>
 
-        <div className="p-6">
-          <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
-            {hobby.title}
-          </h3>
-          <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-            {hobby.description}
-          </p>
+        {/* About Section */}
+        <p className="text-base sm:text-lg leading-relaxed mt-4">
+          I am a Cambridge University graduate in Strategic Business and Management, 
+          with a Bachelor of Engineering in Computer Science (AIML) from the University of Mumbai. 
+          Currently working at Nasdaq, with prior experience at notable MNC like Jio. 
+          Proficient in Jira, Salesforce, ServiceNow, Planhat, Power BI, and Excel, I specialize in developing 
+          innovative solutions that drive business growth and operational efficiency.
+        </p>
 
-          <SkillBar skill="Proficiency" level={hobby.skillLevel} />
+        {/* Education */}
+        <section>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
+  
+          <div className="mb-8">
+            <div className="flex justify-between items-start">
+              <h3 className="font-semibold">University of Mumbai</h3>
+              <span className="text-sm whitespace-nowrap italic">Dec 2021 – Jun 2025</span>
+            </div>
+            <p className="text-sm">
+              B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
+            </p>
+          </div>
 
-          <div className={`overflow-hidden transition-all duration-500 ${
-            selectedHobby === hobby.id ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          }`}>
-            <div className="pt-4 border-t border-border/20">
-              <h4 className="font-semibold text-sm text-foreground mb-2">Achievements</h4>
-              <ul className="space-y-1">
-                {hobby.experiences.map((exp, i) => (
-                  <li key={i} className="text-xs text-muted-foreground flex items-center">
-                    <Zap size={10} className="mr-2 text-primary" />
-                    {exp}
-                  </li>
-                ))}
+          <div className="mb-8">
+            <div className="flex justify-between items-start">
+              <h3 className="font-semibold">University of Cambridge</h3>
+              <span className="text-sm whitespace-nowrap italic">Oct 2023 – Jul 2024</span>
+            </div>
+            <p className="text-sm">
+              Undergraduate Certificate in Strategic Business & Management
+            </p>
+          </div>
+          
+        </section>
+
+        {/* Experience */}
+        <section>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
+
+          <div className="mb-8">
+            <h3 className="font-semibold">Nasdaq, Mumbai, India </h3>
+            <span className="float-right text-sm whitespace-nowrap italic">July 2025 – Present</span>
+            <p className="italic mb-3">
+              Product Manager Analyst 
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
+              <li>Monitoring and analyzing global regulatory updates across NAM and LATAM regions.</li>
+              <li>Managing JIRA tickets for regulatory changes, requirements, and enhancements.</li>
+              <li>Collaborating with cross-functional teams to interpret regulations and translate them into product requirements.</li>
+              <li>Supporting weekly regulatory newsletters for internal and external stakeholders.</li>
+              <li>Assisting pre-sales and sales teams by aligning client regulatory needs with solutions.</li>
+              <li>Contributing to product enhancement initiatives to improve responsiveness to regulatory change.</li>
+              <li>Building expertise in compliance frameworks such as Basel, EMIR, and SFTR.</li>
+              <li>Ensuring accuracy in regulatory documentation and maintaining data integrity.</li>
+              <li>Identifying and escalating potential regulatory risks to ensure proactive compliance.</li>
+              <li>Enhancing workflows by supporting business analysis and automating regulatory tracking.</li>
+
+            </ul>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
+            <span className="float-right text-sm whitespace-nowrap">Jan 2025 – Jun 2025</span>
+            <p className="italic mb-3">
+              Client Success Operations Intern 
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
+              <li>Led the Whitespace Project to identify upsell/cross-sell opportunities across Calypso, AxiomSL, and NTS product lines.</li>
+              <li>Deployed organization-level NPS campaigns via Qualtrics for Calypso, AxiomSL (ControllerView), NTS, CapCloud, and RegCloud product lines to capture client feedback and inform strategy.</li>
+              <li>Assisted with capturing global control times to provide smooth and relevant information flow.</li>
+              <li>Contributed to Nasdaq Trade Surveillance (Phase-1) by vetting SUBS through JIRA, automating procedures and building visualizations weekly for global account review meetings.</li>
+              <li>Utilized Planhat for customer success analytics and management.</li>
+              <li>Leveraged Power BI/Salesforce for strategic data visualization and reporting.</li>
+              <li>Partnered with global teams to streamline customer success operations.</li>
+              <li>Analyzed client trends to optimize retention strategies.</li>
+              <li>Assisted in automating workflows to enhance operational efficiency.</li>
+              <li>Strengthened global stakeholder engagement for success execution.</li>
+
+
+            </ul>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
+            <span className="float-right text-sm whitespace-nowrap">Dec 2023 – Jan 2024</span>
+            <p className="italic mb-3">
+              Data Science Intern
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
+              <li>Led the development of an AI-based system to improve indoor wireless network coverage, focusing on better planning and signal accuracy.</li>
+              <li>Built a ray tracing simulation using the open-source Pylayers library to model how signals travel inside buildings.</li>
+              <li>Created detailed visibility and interaction maps to represent indoor layouts and help place network access points more effectively.</li>
+              <li>Used computer vision with OpenCV to detect walls and structures, measuring distances to improve coverage planning.</li>
+              <li>Ran coverage simulations and visualized signal patterns to provide insights for enhancing 5G network design.</li>
+              <li>Showed how ray tracing can be applied to real-world 5G network challenges through a working proof-of-concept.</li>
+              <li>Worked closely with teams to share findings and support decision-making on Jio’s network improvement plans.</li>
+
+
+            </ul>
+          </div>
+
+          
+
+          <div className="mb-8">
+            <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
+            <span className="float-right text-sm whitespace-nowrap">May 2023 – July 2023</span>
+            <p className="italic mb-3">
+              Marketing Intern 
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
+              <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
+              <li>Led a comprehensive campaign titled "Feast from the east" for a month, targeting food enthusiasts in Mumbai.</li>
+              <li>Utilized Instagram and Google Ads to segment audiences based on culinary interests and online behavior.</li>
+              <li>Developed a content calendar featuring daily recipes, cooking tips, and user-generated content to maintain engagement.</li>
+              <li>Implemented A/B testing for ad creatives and landing pages to optimize performance.</li>
+              <li>Increased followers by 25% across all Instagram handles.</li>
+              <li>Achieved a 40% boost in engagement rates through targeted ads and interactive content.</li>
+
+            </ul>
+          </div>
+        </section>
+
+        {/* Recommendations */}
+<section>
+  <h2 className="text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
+  <div className="space-y-6">
+    <div>
+      <p>
+        <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq  
+      </p>
+      <p className="text-sm text-white mt-1">
+        Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s
+        motivation, curiosity, and strong engagement, describing him as a standout
+        contributor who brought fresh energy and shows great potential for the future.
+      </p>
+    </div>
+    <div>
+      <p>
+        <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge  
+      </p>
+      <p className="text-sm text-white mt-1">
+        Doug taught Gaurav in the Finance & Accounting unit at Cambridge. He highlighted
+        his ability to grasp complex finance topics, apply them to practical challenges,
+        and deliver insightful analysis. Doug also commended Gaurav’s strong time and
+        project management skills, confident he will add substantial value in any role.
+      </p>
+    </div>
+    <div>
+      <p>
+        <strong>Sourav Raj</strong> — Data Scientist, Jio  
+      </p>
+      <p className="text-sm text-white mt-1">
+        Sourav mentored Gaurav during an internship at Jio. He emphasized his flexibility,
+        rapid learning, and proactive approach to problem-solving. Gaurav consistently
+        delivered high-quality work on time, and Sourav noted he would be a valuable
+        asset in any future position.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+
+        {/* Skills */}
+        <section>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Languages / Skills / Awards / Extracurriculars</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+            <div>
+              <h3 className="font-semibold mb-2">Languages</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>English</li>
+                <li>Marathi</li>
+                <li>Hindi</li>
+                <li>Japanese</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-2">Skills</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Business Strategy</li>
+                <li>Data Analytics & Visualization</li>
+                <li>Project Management</li>
+                <li>Technical Leadership</li>
+                <li>Strategic Planning</li>
+                <li>AI Dev Solutions</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-2">Awards</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Student of The Year (2020-2021)</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-2">Extracurriculars</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>President – CSI (2024–2025)</li>
+                <li>Technical Lead – AIMSA (2024–2025)</li>
+                <li>Media Head – AIMSA (2023–2024)</li>
+                <li>Core Team – GDSC (2023–2024)</li>
               </ul>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen w-full relative overflow-hidden bg-background">
-      {/* Animated Background */}
-      <div className="fixed inset-0">
-        <div className="wave wave1" />
-        <div className="wave wave2" />
-        <div className="absolute inset-0 bg-background/80" />
+        </section>
       </div>
 
-      <NavigationToggle />
-
-      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        {/* Header */}
-        <div className="text-center mb-16 animate-slowFadeIn">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent mb-4">
-            My Hobbies & Passions
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Exploring creativity, technology, and adventure through diverse interests and experiences.
-          </p>
-          
-          <div className="flex items-center justify-center space-x-4">
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full hover:bg-primary/20 transition-all"
-            >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-              <span className="text-sm">{isPlaying ? 'Pause' : 'Play'} Showcase</span>
-            </button>
-            <div className="text-sm text-muted-foreground">
-              {visibleCards.length} / {hobbies.length} hobbies unlocked
-            </div>
-          </div>
-        </div>
-
-        {/* Hobbies Grid */}
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {hobbies.map((hobby, index) => (
-              <HobbyCard key={hobby.id} hobby={hobby} index={index} />
-            ))}
-          </div>
-        </div>
-
-        {/* Interactive Stats */}
-        <div className="max-w-4xl mx-auto mt-16 p-8 backdrop-blur-xl bg-card/40 border border-border/50 rounded-2xl">
-          <h2 className="text-2xl font-bold text-center mb-8">Hobby Statistics</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-            <div className="space-y-2">
-              <div className="text-3xl font-bold text-primary animate-pulse">
-                {hobbies.length}
-              </div>
-              <div className="text-sm text-muted-foreground">Active Hobbies</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold text-accent">
-                {Math.round(hobbies.reduce((acc, hobby) => acc + hobby.skillLevel, 0) / hobbies.length)}%
-              </div>
-              <div className="text-sm text-muted-foreground">Average Skill Level</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold text-primary">
-                {hobbies.reduce((acc, hobby) => acc + hobby.experiences.length, 0)}
-              </div>
-              <div className="text-sm text-muted-foreground">Total Achievements</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Reading Section */}
-        <div className="max-w-4xl mx-auto mt-16 p-8 backdrop-blur-xl bg-card/40 border border-border/50 rounded-2xl">
-          <div className="flex items-center space-x-3 mb-6">
-            <Book size={24} className="text-primary" />
-            <h2 className="text-2xl font-bold">Current Reading</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 bg-muted/20 rounded-lg border border-border/20">
-              <h3 className="font-semibold mb-2">The Pragmatic Programmer</h3>
-              <div className="w-full bg-muted/40 rounded-full h-2 mb-2">
-                <div className="w-3/4 h-full bg-primary rounded-full" />
-              </div>
-              <p className="text-xs text-muted-foreground">75% complete</p>
-            </div>
-            <div className="p-4 bg-muted/20 rounded-lg border border-border/20">
-              <h3 className="font-semibold mb-2">Atomic Habits</h3>
-              <div className="w-full bg-muted/40 rounded-full h-2 mb-2">
-                <div className="w-1/2 h-full bg-accent rounded-full" />
-              </div>
-              <p className="text-xs text-muted-foreground">50% complete</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Invisible scrollbar styling */}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };
 
-export default InteractiveHobbies;
+export default Portfolio;
