@@ -202,105 +202,80 @@ export default function Visuals() {
       {/* Navigation */}
       <NavigationToggle />
 
-      {/* Center area with improved spacing and alignment */}
+      {/* Center area */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-7xl mx-auto flex flex-col items-center justify-center">
-          {/* Collection title - better positioned and styled */}
-          <div className="mb-6 sm:mb-8 text-center">
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-light text-white drop-shadow-lg tracking-wide">
+        <div className="w-full max-w-6xl relative flex flex-col items-center">
+          {/* small translucent title above tile (left aligned to tile) */}
+          <div className="mb-4 self-start">
+            <h2 className="text-sm font-medium text-white drop-shadow-md">
               {collectionTitle}
-            </h1>
+            </h2>
           </div>
 
-          {/* Main content container */}
-          <div className="w-full flex flex-col items-center justify-center space-y-6 sm:space-y-8">
-            {/* Tile + Arrows - Desktop Layout */}
-            <div className="relative w-full max-w-4xl mx-auto flex items-center justify-center">
-              {/* Left Arrow - Desktop Only */}
-              <button
-                onClick={prevCollection}
-                className="hidden lg:flex absolute left-[-80px] xl:left-[-100px] top-1/2 transform -translate-y-1/2 items-center justify-center w-14 h-14 xl:w-16 xl:h-16 rounded-full bg-white/25 hover:bg-white/35 backdrop-blur-lg text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                aria-label="Previous collection"
-              >
-                <ChevronLeft size={24} className="xl:w-7 xl:h-7" />
-              </button>
+          {/* Tile + Arrows - Desktop Layout */}
+          <div className="relative w-full flex items-center justify-center">
+            {/* Left Arrow - Desktop Only */}
+            <button
+              onClick={prevCollection}
+              className="hidden md:flex absolute left-[-66px] top-1/2 transform -translate-y-1/2 items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              aria-label="Previous collection"
+            >
+              <ChevronLeft size={20} />
+            </button>
 
-              {/* Glass tile — improved responsive design */}
-              <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl w-full aspect-[4/3] sm:aspect-[16/10] lg:aspect-[16/9] p-3 sm:p-4 lg:p-6 flex items-center justify-center overflow-hidden relative">
-                {/* Layer A */}
-                <div
-                  ref={layerARef}
-                  className="absolute inset-3 sm:inset-4 lg:inset-6 rounded-2xl shadow-lg bg-center bg-cover"
-                  style={{
-                    opacity: 1,
-                    transition: `opacity ${FADE_MS}ms linear`,
-                    willChange: "opacity",
-                  }}
-                  aria-hidden="true"
-                />
+            {/* Glass tile — responsive height */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl shadow-xl w-full h-[420px] sm:h-[520px] md:h-[600px] lg:h-[650px] p-4 flex items-center justify-center overflow-hidden relative">
+              {/* Layer A */}
+              <div
+                ref={layerARef}
+                className="absolute inset-0 m-auto w-[90%] h-[90%] rounded-xl shadow-md bg-center bg-cover"
+                style={{
+                  opacity: 1,
+                  transition: `opacity ${FADE_MS}ms linear`,
+                  willChange: "opacity",
+                }}
+                aria-hidden="true"
+              />
 
-                {/* Layer B */}
-                <div
-                  ref={layerBRef}
-                  className="absolute inset-3 sm:inset-4 lg:inset-6 rounded-2xl shadow-lg bg-center bg-cover"
-                  style={{
-                    opacity: 0,
-                    transition: `opacity ${FADE_MS}ms linear`,
-                    willChange: "opacity",
-                  }}
-                  aria-hidden="true"
-                />
-              </div>
-
-              {/* Right Arrow - Desktop Only */}
-              <button
-                onClick={nextCollection}
-                className="hidden lg:flex absolute right-[-80px] xl:right-[-100px] top-1/2 transform -translate-y-1/2 items-center justify-center w-14 h-14 xl:w-16 xl:h-16 rounded-full bg-white/25 hover:bg-white/35 backdrop-blur-lg text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                aria-label="Next collection"
-              >
-                <ChevronRight size={24} className="xl:w-7 xl:h-7" />
-              </button>
+              {/* Layer B */}
+              <div
+                ref={layerBRef}
+                className="absolute inset-0 m-auto w-[90%] h-[90%] rounded-xl shadow-md bg-center bg-cover"
+                style={{
+                  opacity: 0,
+                  transition: `opacity ${FADE_MS}ms linear`,
+                  willChange: "opacity",
+                }}
+                aria-hidden="true"
+              />
             </div>
 
-            {/* Mobile/Tablet Navigation - Below the cascade */}
-            <div className="flex lg:hidden justify-center gap-6">
-              <button
-                onClick={prevCollection}
-                className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/25 hover:bg-white/35 backdrop-blur-lg text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                aria-label="Previous collection"
-              >
-                <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
-              </button>
-              <button
-                onClick={nextCollection}
-                className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/25 hover:bg-white/35 backdrop-blur-lg text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                aria-label="Next collection"
-              >
-                <ChevronRight size={20} className="sm:w-6 sm:h-6" />
-              </button>
-            </div>
+            {/* Right Arrow - Desktop Only */}
+            <button
+              onClick={nextCollection}
+              className="hidden md:flex absolute right-[-66px] top-1/2 transform -translate-y-1/2 items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              aria-label="Next collection"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
 
-            {/* Collection indicator dots */}
-            <div className="flex justify-center space-x-2 mt-4">
-              {collections.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    if (timerRef.current) {
-                      clearInterval(timerRef.current);
-                      timerRef.current = null;
-                    }
-                    setCurrentCollection(index);
-                  }}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentCollection
-                      ? "bg-white shadow-lg scale-125"
-                      : "bg-white/40 hover:bg-white/60"
-                  }`}
-                  aria-label={`Go to ${collections[index].title}`}
-                />
-              ))}
-            </div>
+          {/* Mobile Navigation - Below the cascade */}
+          <div className="flex md:hidden justify-center mt-6 gap-4">
+            <button
+              onClick={prevCollection}
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              aria-label="Previous collection"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <button
+              onClick={nextCollection}
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              aria-label="Next collection"
+            >
+              <ChevronRight size={20} />
+            </button>
           </div>
         </div>
       </div>
