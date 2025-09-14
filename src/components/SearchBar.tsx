@@ -29,18 +29,14 @@ const getShortenedLinkText = (url: string): string => {
       "youtu.be": "YouTube",
     };
 
-    // Match known hosts including subdomains (mobile.twitter.com)
     for (const key of Object.keys(domainMap)) {
       if (hostname === key || hostname.endsWith(`.${key}`)) {
         return domainMap[key];
       }
     }
 
-    // Heuristic fallback: use the second-level domain if possible (gives "Lovable" for preview--xxx.lovable.app)
     const parts = hostname.split(".");
     let candidate = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
-
-    // Clean up candidate (replace hyphens/underscores and title-case)
     candidate = candidate.replace(/[-_]+/g, " ");
     candidate = candidate
       .split(" ")
@@ -53,16 +49,11 @@ const getShortenedLinkText = (url: string): string => {
   }
 };
 
-// --- Markdown -> HTML (uses shortened link labels for both markdown links and bare URLs) ---
-// NOTE: rewritten to parse blocks (lists/paragraphs) first then run inline formatting per-block.
-// This prevents emphasis from crossing list boundaries and fixes the alternating italic/normal bug.
+// --- Markdown -> HTML ---
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
-
-  // Normalize newlines
   let processed = text.replace(/\r\n/g, "\n");
 
-  // 1) Extract markdown links [text](url) -> placeholders (we'll restore anchors at the end)
   const mdLinkMap: Record<string, string> = {};
   let mdLinkCounter = 0;
   processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, _displayText, linkUrl) => {
@@ -74,7 +65,6 @@ const convertMarkdownToHtml = (text: string): string => {
     return ph;
   });
 
-  // 2) Extract inline code spans `code` -> placeholders (so inline formatting won't touch code)
   const codeMap: Record<string, string> = {};
   let codeCounter = 0;
   processed = processed.replace(/`([^`\n]+?)`/g, (_m, code) => {
@@ -83,44 +73,30 @@ const convertMarkdownToHtml = (text: string): string => {
     return ph;
   });
 
-  // Helper: inline processing applied to each list-item / paragraph content separately
   const processInline = (s: string): string => {
     if (!s) return "";
-
-    // 1) Strong (bold): **bold** and __bold__
     s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     s = s.replace(/__(.+?)__/g, "<strong>$1</strong>");
-
-    // 2) Emphasis (italic): *italic* and _italic_
-    // Use patterns that avoid matching the double-star/double-underscore variants (already handled above)
     s = s.replace(/(^|[\s>])\*([^*]+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
     s = s.replace(/(^|[\s>])_([^_]+?)_($|[\s<])/g, "$1<em>$2</em>$3");
 
-    // 3) Bare URLs -> anchors with shortened labels (preserve trailing punctuation)
     const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
-      // If it's a placeholder we created earlier, leave it as-is
       if (rawMatch.startsWith("__MD_LINK_PLACEHOLDER_") || rawMatch.startsWith("__CODE_SPAN_")) {
         return rawMatch;
       }
-
-      // Trim trailing punctuation like . , ; : ! ? ) ]
       let match = rawMatch;
       let trailing = "";
       while (match.length > 0 && /[.,;:!?)\]]$/.test(match)) {
         trailing = match.slice(-1) + trailing;
         match = match.slice(0, -1);
       }
-
       const href = match.startsWith("http") ? match : `https://${match}`;
       const short = getShortenedLinkText(match);
-
       const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${short}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
-
       return anchor + trailing;
     });
 
-    // 4) Restore any inline code placeholders inside this string
     Object.keys(codeMap).forEach((ph) => {
       if (s.includes(ph)) s = s.split(ph).join(codeMap[ph]);
     });
@@ -128,7 +104,6 @@ const convertMarkdownToHtml = (text: string): string => {
     return s;
   };
 
-  // 3) Block parsing: build lists and paragraphs; apply inline processing per-item
   const lines = processed.split(/\n/);
   let inList = false;
   const out: string[] = [];
@@ -136,15 +111,12 @@ const convertMarkdownToHtml = (text: string): string => {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
-
-    // Bullet items (supports -, *, •)
     const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/s);
     if (bulletMatch) {
       if (!inList) {
         out.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      // process inline for the item content only
       out.push(`<li class="list-disc list-inside">${processInline(bulletMatch[1].trim())}</li>`);
     } else {
       if (inList) {
@@ -152,7 +124,6 @@ const convertMarkdownToHtml = (text: string): string => {
         inList = false;
       }
       if (trimmed === "") {
-        // preserve blank line (renders as just a gap)
         out.push("");
       } else {
         out.push(`<p class="mb-2 leading-relaxed">${processInline(trimmed)}</p>`);
@@ -161,13 +132,10 @@ const convertMarkdownToHtml = (text: string): string => {
   }
   if (inList) out.push("</ul>");
 
-  // 4) Restore markdown link placeholders (replace placeholders with actual anchor HTML)
   let result = out.join("\n");
   Object.keys(mdLinkMap).forEach((ph) => {
     if (result.includes(ph)) result = result.split(ph).join(mdLinkMap[ph]);
   });
-
-  // 5) Restore any leftover inline code placeholders (if any remain outside processed inline runs)
   Object.keys(codeMap).forEach((ph) => {
     if (result.includes(ph)) result = result.split(ph).join(codeMap[ph]);
   });
@@ -185,6 +153,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [response, setResponse] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showIntroBubble, setShowIntroBubble] = useState(false);
+  const [rotatingSuggestion, setRotatingSuggestion] = useState<string | null>(null);
+
+  // new rotating suggestion list
+  const rotatingSuggestions = [
+    "✨ Tell me about Gaurav’s Experience",
+    "✨ What is Gaurav’s Education?",
+    "✨ What are Gaurav’s Skills?",
+    "✨ Can you share Recommendations?",
+    "✨ Show me Achievements",
+    "✨ List Certifications",
+    "✨ What Projects has Gaurav done?",
+    "✨ Any Hobbies?",
+    "✨ How to Contact Gaurav?",
+  ];
 
   useEffect(() => {
     const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
@@ -194,6 +176,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }, 3000);
       localStorage.setItem("introBubbleVisits", String(visitCount + 1));
       return () => clearTimeout(timer);
+    } else {
+      // start rotating suggestions
+      const pickRandom = () => {
+        const random = rotatingSuggestions[Math.floor(Math.random() * rotatingSuggestions.length)];
+        setRotatingSuggestion(random);
+      };
+      pickRandom();
+      const interval = setInterval(pickRandom, 5000);
+      return () => clearInterval(interval);
     }
   }, []);
 
@@ -204,14 +195,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsLoading(true);
     setResponse(null);
-
     if (!customQuery) setQuery("");
 
     try {
       const result = await sendChatMessage(text);
       const assistant = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
-
       setResponse(String(assistant));
       setSuggestions(suggs);
       onSearch?.(String(assistant));
@@ -248,6 +237,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       )}
 
+      {/* Rotating Suggestions */}
+      {!showIntroBubble && rotatingSuggestion && (
+        <div
+          onClick={() => handleSuggestionClick(rotatingSuggestion)}
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+        >
+          {rotatingSuggestion}
+        </div>
+      )}
+
       <div
         className="mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30"
         style={{
@@ -262,7 +261,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
-          {/* Suggestions */}
           {suggestions.length > 0 && (
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
@@ -281,7 +279,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             </div>
           )}
 
-          {/* AI Response */}
           <div
             className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? "opacity-100 mb-5" : "opacity-0 mb-0"
@@ -303,7 +300,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             )}
           </div>
 
-          {/* Input */}
           <form
             onSubmit={(e) => handleSubmit(e)}
             className="flex items-center gap-3"
@@ -357,38 +353,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
         .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
 
-        /* Thinking shimmer */
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-
-        /* Apply shimmer to the input element itself (fixes Chrome/Android rendering of placeholder gradient) */
         .thinking-placeholder {
-          /* keep appearance identical visually while enabling background-clip text shimmer */
           background: linear-gradient(90deg, rgba(150,150,150,0.15) 25%, rgba(150,150,150,0.6) 50%, rgba(150,150,150,0.15) 75%);
           background-size: 200% 100%;
           -webkit-background-clip: text;
           background-clip: text;
-          -webkit-text-fill-color: transparent; /* for WebKit/Chrome */
-          color: transparent; /* fallback */
+          -webkit-text-fill-color: transparent;
+          color: transparent;
           animation: shimmer 2s infinite linear;
         }
-
-        /* Keep the placeholder fallback as well */
         .thinking-placeholder::placeholder {
           color: transparent;
         }
-
         .thinking-placeholder[disabled]::-webkit-text-fill-color {
           -webkit-text-fill-color: transparent;
         }
-
         .thinking-placeholder[disabled] {
-          caret-color: transparent; /* no caret while disabled */
+          caret-color: transparent;
         }
-
-        /* small styling for inline code */
         .inline-code { background: rgba(255,255,255,0.04); padding: 0.05rem 0.25rem; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace; font-size: 0.9em; }
       `}</style>
     </div>
