@@ -43,8 +43,7 @@ const convertMarkdownToHtml = (text: string): string => {
 
   html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
 
-  const urlRegex =
-    /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
   html = html.replace(urlRegex, (match) => {
     const url = match.startsWith("http") ? match : `https://${match}`;
     const linkText = getShortenedLinkText(match);
@@ -64,9 +63,7 @@ const convertMarkdownToHtml = (text: string): string => {
         processedLines.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      processedLines.push(
-        `<li class="list-disc list-inside">${bulletMatch[1]}</li>`
-      );
+      processedLines.push(`<li class="list-disc list-inside">${bulletMatch[1]}</li>`);
     } else {
       if (inList) {
         processedLines.push("</ul>");
@@ -126,8 +123,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Something went wrong. Try again.";
+      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
       onSearch?.(msg);
@@ -150,12 +146,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
-      {/* Intro Bubble (first 3 visits only, delayed) */}
+      {/* Intro Bubble */}
       {showIntroBubble && (
         <div
-          onClick={() =>
-            handleSuggestionClick("✨ What are these sections on the website?")
-          }
+          onClick={() => handleSuggestionClick("✨ What are these sections on the website?")}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
           ✨ What are these sections on the website?
@@ -163,8 +157,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       <div
-        className="mx-auto shadow-lg border border-border bg-background/70 backdrop-blur-xl 
-                   text-foreground"
+        className="mx-auto shadow-lg border bg-black/70 border-white/40 text-white" // <- better readability
         style={{
           width: targetWidth,
           maxWidth: "90vw",
@@ -208,14 +201,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             {response && (
               <div
-                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
+                className="text-white text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
-                dangerouslySetInnerHTML={{
-                  __html: convertMarkdownToHtml(response),
-                }}
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
             )}
           </div>
@@ -224,25 +215,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           <form
             onSubmit={(e) => handleSubmit(e)}
             className="flex items-center gap-3"
-            onFocus={() => setShowIntroBubble(false)} // Hide bubble if search bar clicked
+            onFocus={() => setShowIntroBubble(false)}
           >
             <Input
               type="text"
-              placeholder={
-                isLoading ? "" : "Ask anything…"
-              }
+              placeholder={isLoading ? "" : "Ask anything…"}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
-                if (showIntroBubble) setShowIntroBubble(false); // Hide bubble when typing
+                if (showIntroBubble) setShowIntroBubble(false);
               }}
-              className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                         text-foreground placeholder:text-muted-foreground text-base px-4 h-10`}
+              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+                         text-white placeholder:text-gray-300 text-base px-4 h-10"
               disabled={isLoading}
               aria-label="Ask anything"
             />
+            {/* Animated Thinking Text */}
             {isLoading && (
-              <span className="text-muted-foreground shimmer-text px-2 text-sm whitespace-nowrap">
+              <span className="text-sm font-medium text-gray-200 shimmer">
                 Thinking…
               </span>
             )}
@@ -255,7 +245,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
-              <Search className="h-4 w-4" />
+              <Search className="h-4 w-4 text-white" />
             </Button>
           </form>
         </div>
@@ -279,15 +269,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         /* Shimmer effect for Thinking… */
         @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
+          0% { background-position: -200px 0; }
+          100% { background-position: 200px 0; }
         }
-        .shimmer-text {
-          background: linear-gradient(90deg, rgba(200,200,200,0.2) 25%, rgba(255,255,255,0.8) 50%, rgba(200,200,200,0.2) 75%);
-          background-size: 200% 100%;
+        .shimmer {
+          background: linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.2) 75%);
+          background-size: 400px 100%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
-          animation: shimmer 2s infinite;
+          animation: shimmer 1.5s infinite linear;
         }
       `}</style>
     </div>
