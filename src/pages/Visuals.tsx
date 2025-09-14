@@ -213,7 +213,7 @@ export default function Visuals() {
               className="hidden lg:flex absolute left-[-80px] top-1/2 transform -translate-y-1/2 items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
               aria-label="Previous collection"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={24} className="translate-x-0.5" />
             </button>
 
             {/* Maximized glass cascade with controlled height */}
@@ -249,7 +249,7 @@ export default function Visuals() {
               className="hidden lg:flex absolute right-[-80px] top-1/2 transform -translate-y-1/2 items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
               aria-label="Next collection"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={24} className="-translate-x-0.5" />
             </button>
           </div>
 
@@ -267,14 +267,14 @@ export default function Visuals() {
               className="flex items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
               aria-label="Previous collection"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={24} className="translate-x-0.5" />
             </button>
             <button
               onClick={nextCollection}
               className="flex items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
               aria-label="Next collection"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={24} className="-translate-x-0.5" />
             </button>
           </div>
         </div>
