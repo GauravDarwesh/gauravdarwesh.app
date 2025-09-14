@@ -21,7 +21,7 @@ const NavigationToggle = () => {
   const options = [
     { name: "GDx", path: "/" },
     { name: "Classic", path: "/hobbies" },
-    { name: "Perspectives", path: "/blog" },
+    { name: "Notions", path: "/blog" },
     { name: "Visuals", path: "/visuals" },
   ];
 
