@@ -59,17 +59,15 @@ const NavigationToggle = () => {
     <>
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${isMobile ? 'gap-1 px-4' : 'gap-2'} 
-          ${isMobile ? '' : 'transition-all duration-1000 ease-in-out'}
-          ${
-            enabledOnThisPath && showScrollTop
-              ? isMobile 
-                ? "opacity-0 pointer-events-none"
-                : "opacity-0 -translate-y-2 pointer-events-none"
-              : "opacity-100 translate-y-0"
-          }
-        `}
-      >
+  className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${isMobile ? 'gap-1 px-4' : 'gap-2'} 
+    transition-all duration-500 ease-in-out
+    ${enabledOnThisPath && showScrollTop
+      ? "opacity-0 pointer-events-none"
+      : "opacity-100 pointer-events-auto"
+    }
+  `}
+>
+
         {options.map((option) => {
           const active = isActive(option.path);
           return (
