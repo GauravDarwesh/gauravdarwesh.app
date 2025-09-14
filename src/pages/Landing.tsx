@@ -1,20 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 
-const ANIM_MS = 3000;
-
 const Landing = () => {
-  const [animate, setAnimate] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!(window as any).__landingAnimationPlayed) {
-      setAnimate(true);
-      (window as any).__landingAnimationPlayed = true;
-      const t = setTimeout(() => setAnimate(false), ANIM_MS);
-      return () => clearTimeout(t);
-    }
-  }, []);
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -22,61 +10,44 @@ const Landing = () => {
 
   return (
     <div
-      className={`h-[100dvh] w-full flex flex-col items-start justify-center px-12 space-y-6 ${
-        animate ? "animate-slowFadeIn" : ""
-      }`}
+      className="h-[100dvh] w-full flex items-center justify-center px-6"
+      style={{
+        backgroundImage:
+          "url('https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
     >
-      {/* GDx Section */}
-      <div>
-        <button
+      <p className="text-white text-center text-lg md:text-xl space-x-4">
+        <span
+          className="underline cursor-pointer"
           onClick={() => handleNavigate("/gdx")}
-          className="text-xl md:text-2xl font-semibold underline text-white"
         >
           GDx
-        </button>
-        <p className="text-white/80 mt-1">
-          Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.
-        </p>
-      </div>
-
-      {/* Classic Section */}
-      <div>
-        <button
+        </span>{" "}
+        – Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.{" "}
+        <span
+          className="underline cursor-pointer"
           onClick={() => handleNavigate("/hobbies")}
-          className="text-xl md:text-2xl font-semibold underline text-white"
         >
           Classic
-        </button>
-        <p className="text-white/80 mt-1">
-          The official website hub for Gaurav Darwesh’s work, journey, and updates.
-        </p>
-      </div>
-
-      {/* Notions Section */}
-      <div>
-        <button
+        </span>{" "}
+        – The official website hub for Gaurav Darwesh’s work, journey, and updates.{" "}
+        <span
+          className="underline cursor-pointer"
           onClick={() => handleNavigate("/blog")}
-          className="text-xl md:text-2xl font-semibold underline text-white"
         >
           Notions
-        </button>
-        <p className="text-white/80 mt-1">
-          A curated blog space sharing ideas, reflections, and explorations.
-        </p>
-      </div>
-
-      {/* Visuals Section */}
-      <div>
-        <button
+        </span>{" "}
+        – A curated blog space sharing ideas, reflections, and explorations.{" "}
+        <span
+          className="underline cursor-pointer"
           onClick={() => handleNavigate("/visuals")}
-          className="text-xl md:text-2xl font-semibold underline text-white"
         >
           Visuals
-        </button>
-        <p className="text-white/80 mt-1">
-          A showcase of Gaurav’s photography, capturing stories through the lens.
-        </p>
-      </div>
+        </span>{" "}
+        – A showcase of Gaurav’s photography, capturing stories through the lens.
+      </p>
     </div>
   );
 };
