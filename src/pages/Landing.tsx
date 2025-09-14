@@ -20,57 +20,62 @@ const Landing = () => {
     navigate(path);
   };
 
-  const sections = [
-    {
-      name: "GDx",
-      desc: "Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.",
-      path: "/gdx",
-    },
-    {
-      name: "Classic",
-      desc: "The official website hub for Gaurav Darwesh’s work, journey, and updates.",
-      path: "/hobbies",
-    },
-    {
-      name: "Notions",
-      desc: "A curated blog space sharing ideas, reflections, and explorations.",
-      path: "/blog",
-    },
-    {
-      name: "Visuals",
-      desc: "A showcase of Gaurav’s photography, capturing stories through the lens.",
-      path: "/visuals",
-    },
-  ];
-
   return (
     <div
-      className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
+      className={`h-[100dvh] w-full flex flex-col items-start justify-center px-12 space-y-6 ${
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
-      {/* Background */}
-      <div className="fixed inset-0 z-0">
-        <img
-          src="/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png"
-          alt="background"
-          className="w-full h-full object-cover"
-        />
+      {/* GDx Section */}
+      <div>
+        <button
+          onClick={() => handleNavigate("/gdx")}
+          className="text-xl md:text-2xl font-semibold underline text-white"
+        >
+          GDx
+        </button>
+        <p className="text-white/80 mt-1">
+          Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.
+        </p>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-4xl mx-auto px-6 space-y-8 text-center">
-        {sections.map((sec) => (
-          <div key={sec.name} className="space-y-1">
-            <button
-              onClick={() => handleNavigate(sec.path)}
-              className="text-3xl md:text-4xl font-bold text-white underline hover:text-primary transition-colors duration-300 flex items-center justify-center gap-2"
-            >
-              {sec.name} <span className="text-xl">→</span>
-            </button>
-            <p className="text-white/80 text-lg md:text-xl">{sec.desc}</p>
-          </div>
-        ))}
+      {/* Classic Section */}
+      <div>
+        <button
+          onClick={() => handleNavigate("/hobbies")}
+          className="text-xl md:text-2xl font-semibold underline text-white"
+        >
+          Classic
+        </button>
+        <p className="text-white/80 mt-1">
+          The official website hub for Gaurav Darwesh’s work, journey, and updates.
+        </p>
+      </div>
+
+      {/* Notions Section */}
+      <div>
+        <button
+          onClick={() => handleNavigate("/blog")}
+          className="text-xl md:text-2xl font-semibold underline text-white"
+        >
+          Notions
+        </button>
+        <p className="text-white/80 mt-1">
+          A curated blog space sharing ideas, reflections, and explorations.
+        </p>
+      </div>
+
+      {/* Visuals Section */}
+      <div>
+        <button
+          onClick={() => handleNavigate("/visuals")}
+          className="text-xl md:text-2xl font-semibold underline text-white"
+        >
+          Visuals
+        </button>
+        <p className="text-white/80 mt-1">
+          A showcase of Gaurav’s photography, capturing stories through the lens.
+        </p>
       </div>
     </div>
   );
