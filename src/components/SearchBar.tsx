@@ -6,49 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-// --- Shortened link text (improved) ---
-const getShortenedLinkText = (url: string): string => {
-  try {
-    const normalized = url.startsWith("http") ? url : `https://${url}`;
-    const hostname = new URL(normalized).hostname.replace(/^www\./i, "");
-
-    const domainMap: { [key: string]: string } = {
-      "linkedin.com": "LinkedIn",
-      "twitter.com": "Twitter",
-      "x.com": "Twitter",
-      "facebook.com": "Facebook",
-      "instagram.com": "Instagram",
-      "youtube.com": "YouTube",
-      "github.com": "GitHub",
-      "google.com": "Google",
-      "microsoft.com": "Microsoft",
-      "apple.com": "Apple",
-      "amazon.com": "Amazon",
-      "netflix.com": "Netflix",
-      "t.co": "Twitter",
-      "youtu.be": "YouTube",
-    };
-
-    for (const key of Object.keys(domainMap)) {
-      if (hostname === key || hostname.endsWith(`.${key}`)) {
-        return domainMap[key];
-      }
-    }
-
-    const parts = hostname.split(".");
-    let candidate = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
-    candidate = candidate.replace(/[-_]+/g, " ");
-    candidate = candidate
-      .split(" ")
-      .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
-      .join(" ");
-
-    return candidate || "Link";
-  } catch {
-    return "Link";
-  }
-};
-
 // --- Markdown -> HTML ---
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
@@ -58,11 +15,10 @@ const convertMarkdownToHtml = (text: string): string => {
   const mdLinkMap: Record<string, string> = {};
   let mdLinkCounter = 0;
   
-  // Process markdown links [text](url)
+  // Direct clickable link with text, no shortening
   processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, displayText, linkUrl) => {
     const href = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
-    const short = getShortenedLinkText(linkUrl);
-    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${short}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${displayText}</a>`;
     const ph = `__MD_LINK_PLACEHOLDER_${mdLinkCounter++}__`;
     mdLinkMap[ph] = anchor;
     return ph;
@@ -88,10 +44,9 @@ const convertMarkdownToHtml = (text: string): string => {
     s = s.replace(/(^|[\s>])\*([^*]+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
     s = s.replace(/(^|[\s>])_([^_]+?)_($|[\s<])/g, "$1<em>$2</em>$3");
 
-    // Process bare URLs (but skip placeholders)
+    // Process bare URLs (no shortening, direct clickable link using rawMatch)
     const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
-      // Skip if it's a placeholder
       if (rawMatch.startsWith("__MD_LINK_PLACEHOLDER_") || rawMatch.startsWith("__CODE_SPAN_")) {
         return rawMatch;
       }
@@ -102,9 +57,8 @@ const convertMarkdownToHtml = (text: string): string => {
         match = match.slice(0, -1);
       }
       const href = match.startsWith("http") ? match : `https://${match}`;
-      const short = getShortenedLinkText(match);
-      const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${short}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
-      return anchor + trailing;
+      // Use the actual URL as visible text
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${match}</a>${trailing}`;
     });
 
     // Restore code spans
@@ -243,6 +197,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response]);
 
   // Typewriter effect
+  // --- MODIFIED: Bubble stays visible, only text inside changes ---
   useEffect(() => {
     if (showTypewriter && !showIntroBubble) {
       const typingSpeed = 40; // Faster typing for better UX
@@ -258,7 +213,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           setIsDeleting(true);
         }, pauseBeforeDelete);
       } else if (isDeleting && typewriterText === "") {
-        // Pause after deletion, then move to next suggestion
+        // Pause after deletion, then move to next suggestion in the same bubble
         timeout = setTimeout(() => {
           const nextIndex = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
           setCurrentSuggestionIndex(nextIndex);
@@ -344,8 +299,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       )}
 
-      {/* Typewriter Suggestions */}
-      {!showIntroBubble && showTypewriter && typewriterText && (
+      {/* Typewriter Suggestions (Bubble always visible; only text changes) */}
+      {!showIntroBubble && showTypewriter && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
