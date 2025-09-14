@@ -76,7 +76,7 @@ const NavigationToggle = () => {
         variant="ghost"
         size="sm"
         className={`
-          w-20 h-9 text-[10px] text-center tracking-normal rounded-full 
+          w-20 h-9 text-[12px] text-center tracking-normal rounded-full 
           bg-transparent hover:bg-transparent
           border border-transparent
           ${active
