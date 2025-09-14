@@ -9,7 +9,6 @@ const NavigationToggle = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
 
-  // ✅ Only enable scroll-hide + up-arrow on these paths (include "/gdx" so GDx shows navigation)
   const SHOW_ON_PATHS = ["/gdx", "/hobbies", "/blog", "/visuals"];
   const enabledOnThisPath = useMemo(
     () => SHOW_ON_PATHS.includes(location.pathname),
@@ -41,7 +40,6 @@ const NavigationToggle = () => {
       setShowScrollTop(hasScrollableContent && scrolledPastThreshold);
     };
 
-    // Run once on mount/route change, then on scroll/resize
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
@@ -57,18 +55,19 @@ const NavigationToggle = () => {
 
   return (
     <>
-      {/* Navigation buttons (fade only on allowed paths) */}
+      {/* Navigation buttons */}
       <div
         className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${
           isMobile ? "gap-1 px-4" : "gap-2 transition-all duration-1000 ease-in-out"
-        }
-          ${enabledOnThisPath && showScrollTop
-            ? isMobile
-              ? "opacity-0 pointer-events-none"
-              : "opacity-0 -translate-y-2 pointer-events-none"
+        } 
+        ${enabledOnThisPath && showScrollTop
+          ? isMobile
+            ? "opacity-0 pointer-events-none !transition-none"
+            : "opacity-0 -translate-y-2 pointer-events-none"
+          : isMobile
+            ? "opacity-100 pointer-events-auto !transition-none"
             : "opacity-100 translate-y-0"
-          }
-        `}
+        }`}
       >
         {options.map((option) => {
           const active = isActive(option.path);
@@ -95,7 +94,7 @@ const NavigationToggle = () => {
         })}
       </div>
 
-      {/* Floating round translucent ball (only on allowed paths) */}
+      {/* Scroll to top button */}
       <button
         onClick={scrollToTop}
         aria-label="Scroll to top"
@@ -107,7 +106,10 @@ const NavigationToggle = () => {
           text-white shadow-lg
           transition-all duration-1000 ease-in-out
           hover:bg-white/20
-          ${enabledOnThisPath && showScrollTop ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
+          ${enabledOnThisPath && showScrollTop
+            ? "opacity-100 scale-100 translate-y-0"
+            : "opacity-0 scale-0 translate-y-2 pointer-events-none"
+          }
         `}
       >
         <ChevronUp className="w-5 h-5" />
