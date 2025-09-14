@@ -72,9 +72,9 @@ const convertMarkdownToHtml = (text: string): string => {
   });
 
   // 2) Inline formatting: bold, italic, inline code
-  processed = processed.replace(/\*\*(.*?)\*\*/gs, "<strong>$1</strong>");
-  processed = processed.replace(/\*(.*?)\*/gs, "<em>$1</em>");
-  processed = processed.replace(/`([^`]+)`/g, "<code class=\"inline-code\">$1</code>");
+  processed = processed.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+processed = processed.replace(/(^|[\s>])\*(.+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
+processed = processed.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
 
   // 3) Bare URLs -> anchors with shortened labels (preserve trailing punctuation)
   const urlRegex = /(?:https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
