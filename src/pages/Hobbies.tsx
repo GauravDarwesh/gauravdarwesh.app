@@ -43,7 +43,6 @@ const Portfolio = () => {
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
-              <span className="text-sm whitespace-nowrap italic">Dec 2021 – Jun 2025</span>
             </div>
             <p className="text-sm">
               B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA
@@ -53,7 +52,6 @@ const Portfolio = () => {
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Cambridge</h3>
-              <span className="text-sm whitespace-nowrap italic">Oct 2023 – Jul 2024</span>
             </div>
             <p className="text-sm">
               Undergraduate Certificate in Strategic Business & Management
@@ -68,7 +66,6 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <h3 className="font-semibold">Nasdaq, Mumbai, India </h3>
-            <span className="float-right text-sm whitespace-nowrap italic">July 2025 – Present</span>
             <p className="italic mb-3">
               Product Manager Analyst 
             </p>
@@ -89,7 +86,6 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
-            <span className="float-right text-sm whitespace-nowrap">Jan 2025 – Jun 2025</span>
             <p className="italic mb-3">
               Client Success Operations Intern 
             </p>
@@ -111,7 +107,6 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
-            <span className="float-right text-sm whitespace-nowrap">Dec 2023 – Jan 2024</span>
             <p className="italic mb-3">
               Data Science Intern
             </p>
@@ -132,7 +127,6 @@ const Portfolio = () => {
 
           <div className="mb-8">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
-            <span className="float-right text-sm whitespace-nowrap">May 2023 – July 2023</span>
             <p className="italic mb-3">
               Marketing Intern 
             </p>
