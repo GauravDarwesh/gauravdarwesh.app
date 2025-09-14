@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ANIM_MS = 3000; // same duration as Index
+const ANIM_MS = 3000;
 
 const Landing = () => {
   const [animate, setAnimate] = useState(false);
@@ -20,6 +20,29 @@ const Landing = () => {
     navigate(path);
   };
 
+  const sections = [
+    {
+      name: "GDx",
+      desc: "Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.",
+      path: "/gdx",
+    },
+    {
+      name: "Classic",
+      desc: "The official website hub for Gaurav Darwesh’s work, journey, and updates.",
+      path: "/hobbies",
+    },
+    {
+      name: "Notions",
+      desc: "A curated blog space sharing ideas, reflections, and explorations.",
+      path: "/blog",
+    },
+    {
+      name: "Visuals",
+      desc: "A showcase of Gaurav’s photography, capturing stories through the lens.",
+      path: "/visuals",
+    },
+  ];
+
   return (
     <div
       className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
@@ -36,62 +59,18 @@ const Landing = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-4xl mx-auto px-6">
-        <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-2xl p-8 md:p-12">
-          <div className="space-y-8 text-center">
-            {/* GDx Section */}
-            <div className="space-y-2">
-              <button
-                onClick={() => handleNavigate("/gdx")}
-                className="story-link text-3xl md:text-4xl font-bold text-white hover:text-primary transition-colors duration-300"
-              >
-                GDx
-              </button>
-              <p className="text-white/80 text-lg md:text-xl">
-                Gaurav Darwesh's intelligent personal assistant, built to simplify and enhance your experience.
-              </p>
-            </div>
-
-            {/* Classic Section */}
-            <div className="space-y-2">
-              <button
-                onClick={() => handleNavigate("/hobbies")}
-                className="story-link text-3xl md:text-4xl font-bold text-white hover:text-primary transition-colors duration-300"
-              >
-                Classic
-              </button>
-              <p className="text-white/80 text-lg md:text-xl">
-                The official website hub for Gaurav Darwesh's work, journey, and updates.
-              </p>
-            </div>
-
-            {/* Notions Section */}
-            <div className="space-y-2">
-              <button
-                onClick={() => handleNavigate("/blog")}
-                className="story-link text-3xl md:text-4xl font-bold text-white hover:text-primary transition-colors duration-300"
-              >
-                Notions
-              </button>
-              <p className="text-white/80 text-lg md:text-xl">
-                A curated blog space sharing ideas, reflections, and explorations.
-              </p>
-            </div>
-
-            {/* Visuals Section */}
-            <div className="space-y-2">
-              <button
-                onClick={() => handleNavigate("/visuals")}
-                className="story-link text-3xl md:text-4xl font-bold text-white hover:text-primary transition-colors duration-300"
-              >
-                Visuals
-              </button>
-              <p className="text-white/80 text-lg md:text-xl">
-                A showcase of Gaurav's photography, capturing stories through the lens.
-              </p>
-            </div>
+      <div className="relative z-10 max-w-4xl mx-auto px-6 space-y-8 text-center">
+        {sections.map((sec) => (
+          <div key={sec.name} className="space-y-1">
+            <button
+              onClick={() => handleNavigate(sec.path)}
+              className="text-3xl md:text-4xl font-bold text-white underline hover:text-primary transition-colors duration-300 flex items-center justify-center gap-2"
+            >
+              {sec.name} <span className="text-xl">→</span>
+            </button>
+            <p className="text-white/80 text-lg md:text-xl">{sec.desc}</p>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
