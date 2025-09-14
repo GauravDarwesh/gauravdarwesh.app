@@ -59,7 +59,7 @@ const NavigationToggle = () => {
     <>
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
-  className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${isMobile ? 'gap-1 px-4' : 'gap-2'} 
+  className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 
     transition-opacity transition-transform duration-300 ease-in-out
     ${enabledOnThisPath && showScrollTop
       ? "opacity-0 scale-95 pointer-events-none"
@@ -67,33 +67,30 @@ const NavigationToggle = () => {
     }
   `}
 >
+  {options.map((option) => {
+    const active = isActive(option.path);
+    return (
+      <Button
+        key={option.name}
+        onClick={() => navigate(option.path)}
+        variant="ghost"
+        size="sm"
+        className={`
+          w-20 h-9 text-[10px] text-center tracking-normal rounded-full 
+          bg-transparent hover:bg-transparent
+          border border-transparent
+          ${active
+            ? "bg-white/10 border-white/20 text-white backdrop-blur-sm"
+            : "text-gray-300 hover:text-white"
+          }
+        `}
+      >
+        {option.name}
+      </Button>
+    );
+  })}
+</div>
 
-
-        {options.map((option) => {
-          const active = isActive(option.path);
-          return (
-            <Button
-              key={option.name}
-              onClick={() => navigate(option.path)}
-              variant="ghost"
-              size="sm"
-              className={`
-                ${isMobile ? 'w-20 text-[10px]' : 'w-28 text-sm'} h-9 text-center tracking-normal rounded-full 
-                bg-transparent hover:bg-transparent
-                transition-all duration-200 ease-in-out
-                border border-transparent
-                ${
-                  active
-                    ? "bg-white/10 border-white/20 text-white backdrop-blur-sm"
-                    : "text-gray-300 hover:text-white"
-                }
-              `}
-            >
-              {option.name}
-            </Button>
-          );
-        })}
-      </div>
 
       {/* Floating round translucent ball (only on allowed paths) */}
       <button
