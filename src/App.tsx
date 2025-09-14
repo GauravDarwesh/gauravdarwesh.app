@@ -8,7 +8,6 @@ import Hobbies from "./pages/Hobbies";
 import Others from "./pages/Others";
 import Blog from "./pages/Blog";
 import Visuals from "./pages/Visuals";
-import Landing from "./pages/Landing";
 import SessionTest from "./pages/SessionTest";
 import NotFound from "./pages/NotFound";
 
@@ -21,8 +20,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/gdx" element={<Index />} />
+          <Route path="/" element={<Index />} />
           <Route path="/hobbies" element={<Hobbies />} />
           <Route path="/others" element={<Others />} />
           <Route path="/blog" element={<Blog />} />
