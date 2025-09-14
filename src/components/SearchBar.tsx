@@ -133,7 +133,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   };
 
   const handleSuggestionClick = (s: string) => {
-    // When clicking bubble or suggestion → run query but keep box empty
     setQuery("");
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
@@ -157,7 +156,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       <div
-        className="mx-auto shadow-lg border bg-black/70 border-white/40 text-white" // <- better readability
+        className="mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30"
         style={{
           width: targetWidth,
           maxWidth: "90vw",
@@ -201,7 +200,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             {response && (
               <div
-                className="text-white text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
+                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
@@ -217,25 +216,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             className="flex items-center gap-3"
             onFocus={() => setShowIntroBubble(false)}
           >
-            <Input
-              type="text"
-              placeholder={isLoading ? "" : "Ask anything…"}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (showIntroBubble) setShowIntroBubble(false);
-              }}
-              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                         text-white placeholder:text-gray-300 text-base px-4 h-10"
-              disabled={isLoading}
-              aria-label="Ask anything"
-            />
-            {/* Animated Thinking Text */}
-            {isLoading && (
-              <span className="text-sm font-medium text-gray-200 shimmer">
-                Thinking…
-              </span>
-            )}
+            <div className="relative flex-1">
+              <Input
+                type="text"
+                placeholder={isLoading ? "Thinking…" : "Ask anything…"}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (showIntroBubble) setShowIntroBubble(false);
+                }}
+                className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
+                             isLoading ? "thinking-placeholder" : ""
+                           }`}
+                disabled={isLoading}
+                aria-label="Ask anything"
+              />
+            </div>
             <Button
               type="submit"
               variant="ghost"
@@ -245,7 +242,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
-              <Search className="h-4 w-4 text-white" />
+              <Search className="h-4 w-4" />
             </Button>
           </form>
         </div>
@@ -267,17 +264,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
         .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
 
-        /* Shimmer effect for Thinking… */
+        /* Thinking shimmer */
         @keyframes shimmer {
-          0% { background-position: -200px 0; }
-          100% { background-position: 200px 0; }
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
         }
-        .shimmer {
-          background: linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.2) 75%);
-          background-size: 400px 100%;
+        .thinking-placeholder::placeholder {
+          background: linear-gradient(90deg, rgba(150,150,150,0.2) 25%, rgba(150,150,150,0.6) 50%, rgba(150,150,150,0.2) 75%);
+          background-size: 200% 100%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
-          animation: shimmer 1.5s infinite linear;
+          animation: shimmer 2s infinite linear;
         }
       `}</style>
     </div>
