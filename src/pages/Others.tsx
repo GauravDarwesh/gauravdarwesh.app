@@ -3,12 +3,18 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Others = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden" style={{ overscrollBehavior: 'none' }}>
       {/* Background */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
+        className="absolute bg-cover bg-center bg-no-repeat animate-fadeInSlow"
         style={{
           backgroundImage: `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)`,
+          top: '-20%',
+          bottom: '-20%',
+          left: '-10%',
+          right: '-10%',
+          minWidth: '120%',
+          minHeight: '140%'
         }}
       />
 
