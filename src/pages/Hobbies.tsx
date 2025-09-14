@@ -15,7 +15,7 @@ const Portfolio = () => {
       <NavigationToggle />
 
       {/* Main Content with invisible scroll */}
-      <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-28">
+      <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-28 pb-20 sm:pb-28">
         {/* Header */}
         <div>
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold">Gaurav Darwesh</h1>
