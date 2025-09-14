@@ -77,7 +77,7 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                ${isMobile ? 'w-20' : 'w-28'} h-9 text-center tracking-normal rounded-full 
+                ${isMobile ? 'w-20 text-xs' : 'w-28 text-sm'} h-9 text-center tracking-normal rounded-full 
                 bg-transparent hover:bg-transparent
                 transition-all duration-200 ease-in-out
                 border border-transparent
