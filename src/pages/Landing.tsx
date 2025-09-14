@@ -42,7 +42,7 @@ const Landing = () => {
             {/* GDx Section */}
             <div className="space-y-2">
               <button
-                onClick={() => handleNavigate("/")}
+                onClick={() => handleNavigate("/gdx")}
                 className="story-link text-3xl md:text-4xl font-bold text-white hover:text-primary transition-colors duration-300"
               >
                 GDx
