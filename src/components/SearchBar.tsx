@@ -19,8 +19,10 @@ const convertMarkdownToHtml = (text: string): string => {
   processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, displayText, linkUrl) => {
     const href = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
     const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${displayText}</a>`;
-    const ph = `__MD_LINK_PLACEHOLDER_${mdLinkCounter++}__`;
-    mdLinkMap[ph] = anchor;
+    // In the markdown link replace:
+const ph = `MD_LINK_PLACEHOLDER_${mdLinkCounter}`;  // not with underscores
+mdLinkMap[ph] = anchor;
+
     return ph;
   });
 
@@ -62,9 +64,10 @@ const convertMarkdownToHtml = (text: string): string => {
     });
 
     // Restore code spans
-    Object.keys(codeMap).forEach((ph) => {
-      s = s.replace(new RegExp(ph, 'g'), codeMap[ph]);
-    });
+    Object.keys(mdLinkMap).forEach((ph) => {
+  result = result.replace(new RegExp(ph, 'g'), mdLinkMap[ph]);
+});
+
 
     return s;
   };
