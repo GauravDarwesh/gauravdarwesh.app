@@ -7,7 +7,8 @@ import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ------------------------------------------------------------------
-   1️⃣  MARKDOWN → HTML (with protection for existing <a> tags)
+   1️⃣  MARKDOWN → HTML (with safe handling of existing HTML,
+        bare URLs, and e‑mail addresses)
    ------------------------------------------------------------------ */
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
@@ -23,7 +24,10 @@ const convertMarkdownToHtml = (text: string): string => {
   const urlMap: Record<string, string> = {};
   let urlCounter = 0;
 
-  // we keep a map for **any HTML that already exists** (especially <a> tags)
+  const emailMap: Record<string, string> = {};
+  let emailCounter = 0;
+
+  // Preserve any HTML that already exists (especially <a> tags)
   const htmlMap: Record<string, string> = {};
   let htmlCounter = 0;
 
@@ -36,7 +40,7 @@ const convertMarkdownToHtml = (text: string): string => {
   });
 
   /* --------------------------------------------------------------
-     ②  INLINE CODE SPANS → placeholder (to keep them safe)
+     ②  INLINE CODE SPANS → placeholder
      -------------------------------------------------------------- */
   processed = processed.replace(/`([^`\n]+?)`/g, (_, code) => {
     const ph = `__CODE_SPAN_${codeCounter++}__`;
@@ -45,7 +49,7 @@ const convertMarkdownToHtml = (text: string): string => {
   });
 
   /* --------------------------------------------------------------
-     ③  INLINE PROCESSOR (bold, italic, existing HTML guard, URLs)
+     ③  INLINE PROCESSOR (bold, italic, protect HTML, URLs, e‑mail)
      -------------------------------------------------------------- */
   const processInline = (s: string): string => {
     if (!s) return "";
@@ -59,24 +63,25 @@ const convertMarkdownToHtml = (text: string): string => {
     s = s.replace(/(^|[\s>])_([^_]+?)_($|[\s<])/g, "$1<em>$2</em>$3");
 
     /* ----------------------------------------------------------
-       ③a. Protect existing HTML tags (especially <a> … </a>)
+       ③a. Protect existing HTML tags (especially <a>…</a>)
        ---------------------------------------------------------- */
     s = s.replace(/<a[\s\S]*?<\/a>/gi, (match) => {
       const ph = `__HTML_TAG_${htmlCounter++}__`;
-      htmlMap[ph] = match;      // store the whole tag
-      return ph;                // replace it with a harmless placeholder
+      htmlMap[ph] = match;
+      return ph;
     });
 
     /* ----------------------------------------------------------
-       ③b. Bare URLs → placeholder (single‑pass conversion)
+       ③b. Bare URLs → placeholder
        ---------------------------------------------------------- */
     const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
-      // Skip anything that is already a placeholder or that looks like a placeholder
+      // Skip anything that is already a placeholder or that looks like one
       if (
         rawMatch.startsWith("__CODE_SPAN_") ||
         rawMatch.startsWith("__URL_PLACEHOLDER_") ||
         rawMatch.startsWith("__HTML_TAG_") ||
+        rawMatch.startsWith("__EMAIL_PLACEHOLDER_") ||
         /PLACEHOLDER/i.test(rawMatch)
       ) {
         return rawMatch;
@@ -96,13 +101,29 @@ const convertMarkdownToHtml = (text: string): string => {
       return ph;
     });
 
-    // Restore code‑span placeholders (they were stored above)
+    /* ----------------------------------------------------------
+       ③c. Email addresses → placeholder (mailto:)
+       ---------------------------------------------------------- */
+    const emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+    s = s.replace(emailRegex, (rawMatch) => {
+      if (rawMatch.startsWith("__")) return rawMatch;
+      const ph = `__EMAIL_PLACEHOLDER_${emailCounter++}__`;
+      emailMap[ph] = `<a href="mailto:${rawMatch}" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${rawMatch}</a>`;
+      return ph;
+    });
+
+    // Restore code‑span placeholders
     Object.entries(codeMap).forEach(([ph, html]) => {
       s = s.replace(new RegExp(ph, "g"), html);
     });
 
-    // Restore **protected HTML tags** (the original <a> elements)
+    // Restore protected HTML tags (the original <a> elements)
     Object.entries(htmlMap).forEach(([ph, html]) => {
+      s = s.replace(new RegExp(ph, "g"), html);
+    });
+
+    // Restore e‑mail placeholders
+    Object.entries(emailMap).forEach(([ph, html]) => {
       s = s.replace(new RegExp(ph, "g"), html);
     });
 
@@ -149,16 +170,15 @@ const convertMarkdownToHtml = (text: string): string => {
      -------------------------------------------------------------- */
   let result = out.join("\n");
 
-  // URLs that we turned into placeholders
+  // Insert the real URLs that were stored as placeholders
   Object.entries(urlMap).forEach(([ph, html]) => {
     result = result.replace(new RegExp(ph, "g"), html);
   });
 
-  // (code spans were already restored; just clean any stray placeholders)
+  // Clean any stray placeholders (should be none, but just in case)
   result = result.replace(/__CODE_SPAN_\d+__/g, "");
   result = result.replace(/__HTML_TAG_\d+__/g, "");
-
-  // safety nets – remove any generic placeholders that might have slipped through
+  result = result.replace(/__EMAIL_PLACEHOLDER_\d+__/g, "");
   result = result.replace(/MD_LINK_PLACEHOLDER_\d+/g, "");
   result = result.replace(/URL_PLACEHOLDER_\d+/g, "");
 
@@ -166,7 +186,7 @@ const convertMarkdownToHtml = (text: string): string => {
 };
 
 /* ------------------------------------------------------------------
-   2️⃣  SEARCH BAR COMPONENT (unchanged)
+   2️⃣  SEARCH BAR COMPONENT (unchanged UI/logic)
    ------------------------------------------------------------------ */
 interface SearchBarProps {
   onSearch?: (response: string) => void;
@@ -370,7 +390,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       )}
 
-      {/* Typewriter bubble (text changes, bubble stays) */}
+      {/* Typewriter bubble */}
       {!showIntroBubble && showTypewriter && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
