@@ -25,7 +25,7 @@ const Index = () => {
       {/* Background */}
       <div className="fixed inset-0 z-0">
         <img
-          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/videos/fire.mp4"
+          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/videos/Water.mp4"
           alt="background"
           className="w-full h-full object-cover"
         />
