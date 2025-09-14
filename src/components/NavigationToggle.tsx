@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronUp } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const NavigationToggle = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   // ✅ Only enable scroll-hide + up-arrow on these paths (exclude "/" so GDx won't show it)
   const SHOW_ON_PATHS = ["/hobbies", "/blog", "/visuals"];
@@ -57,7 +59,7 @@ const NavigationToggle = () => {
     <>
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${isMobile ? 'gap-1 px-4' : 'gap-2'} 
           transition-all duration-1000 ease-in-out
           ${
             enabledOnThisPath && showScrollTop
@@ -75,7 +77,7 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                w-28 h-9 text-center tracking-normal rounded-full 
+                ${isMobile ? 'w-20' : 'w-28'} h-9 text-center tracking-normal rounded-full 
                 bg-transparent hover:bg-transparent
                 transition-all duration-200 ease-in-out
                 border border-transparent
