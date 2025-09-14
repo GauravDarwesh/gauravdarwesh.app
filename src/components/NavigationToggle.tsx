@@ -60,10 +60,12 @@ const NavigationToggle = () => {
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
         className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${isMobile ? 'gap-1 px-4' : 'gap-2'} 
-          transition-all duration-1000 ease-in-out
+          ${isMobile ? 'transition-opacity duration-300 ease-out' : 'transition-all duration-1000 ease-in-out'}
           ${
             enabledOnThisPath && showScrollTop
-              ? "opacity-0 -translate-y-2 pointer-events-none"
+              ? isMobile 
+                ? "opacity-0 pointer-events-none"
+                : "opacity-0 -translate-y-2 pointer-events-none"
               : "opacity-100 translate-y-0"
           }
         `}
@@ -77,7 +79,7 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                ${isMobile ? 'w-20 text-xs' : 'w-28 text-sm'} h-9 text-center tracking-normal rounded-full 
+                ${isMobile ? 'w-20 text-[10px]' : 'w-28 text-sm'} h-9 text-center tracking-normal rounded-full 
                 bg-transparent hover:bg-transparent
                 transition-all duration-200 ease-in-out
                 border border-transparent
