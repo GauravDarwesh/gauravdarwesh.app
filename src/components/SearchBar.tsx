@@ -7,12 +7,11 @@ import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ------------------------------------------------------------------
-   1️⃣  MARKDOWN → HTML (safe handling of existing HTML,
-        bare URLs, and e‑mail addresses)
+   1️⃣  MARKDOWN → HTML (now also supports headings)
    ------------------------------------------------------------------ */
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
-  // Normalise new‑lines
+  // Normalise line‑breaks
   let processed = text.replace(/\r\n/g, "\n");
 
   /* --------------------------------------------------------------
@@ -78,7 +77,6 @@ const convertMarkdownToHtml = (text: string): string => {
     const urlRegex =
       /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
-      // Skip anything that is already a placeholder
       if (
         rawMatch.startsWith("__CODE_SPAN_") ||
         rawMatch.startsWith("__URL_PLACEHOLDER_") ||
@@ -88,15 +86,12 @@ const convertMarkdownToHtml = (text: string): string => {
       ) {
         return rawMatch;
       }
-
-      // Remove trailing punctuation that shouldn’t be part of the URL
       let match = rawMatch;
       let trailing = "";
       while (match.length && /[.,;:!?)\]]$/.test(match)) {
         trailing = match.slice(-1) + trailing;
         match = match.slice(0, -1);
       }
-
       const href = match.startsWith("http") ? match : `https://${match}`;
       const ph = `__URL_PLACEHOLDER_${urlCounter++}__`;
       urlMap[ph] = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${match}</a>${trailing}`;
@@ -119,7 +114,7 @@ const convertMarkdownToHtml = (text: string): string => {
       s = s.replace(new RegExp(ph, "g"), html);
     });
 
-    // Restore protected HTML tags (the original <a> elements)
+    // Restore protected HTML tags
     Object.entries(htmlMap).forEach(([ph, html]) => {
       s = s.replace(new RegExp(ph, "g"), html);
     });
@@ -133,9 +128,9 @@ const convertMarkdownToHtml = (text: string): string => {
   };
 
   /* --------------------------------------------------------------
-     ④  LINE‑BY‑LINE → <ul>, <li>, <p>
+     ④  LINE‑BY‑LINE → headings, lists, paragraphs
      -------------------------------------------------------------- */
-  const lines = processed.split(/\n/);
+  const lines = processed.split("\n");
   let inList = false;
   const out: string[] = [];
 
@@ -143,7 +138,24 @@ const convertMarkdownToHtml = (text: string): string => {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // simple bullet list detection (‑, *, •)
+    // ----- 1️⃣ HEADINGS -------------------------------------------------
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length; // 1‑6
+      const content = processInline(headingMatch[2].trim());
+      out.push(
+        `<h${level} class="my-2 font-semibold text-${level === 1
+          ? "2xl"
+          : level === 2
+          ? "xl"
+          : level === 3
+          ? "lg"
+          : "base"}">${content}</h${level}>`
+      );
+      continue;
+    }
+
+    // ----- 2️⃣ BULLETED LISTS -------------------------------------------
     const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/s);
     if (bulletMatch) {
       if (!inList) {
@@ -153,18 +165,25 @@ const convertMarkdownToHtml = (text: string): string => {
       out.push(
         `<li class="list-disc list-inside">${processInline(bulletMatch[1].trim())}</li>`
       );
-    } else {
-      if (inList) {
-        out.push("</ul>");
-        inList = false;
-      }
-      if (trimmed === "") {
-        out.push("");
-      } else {
-        out.push(`<p class="mb-2 leading-relaxed">${processInline(trimmed)}</p>`);
-      }
+      continue;
     }
+
+    // ----- 3️⃣ END OF LIST ----------------------------------------------
+    if (inList) {
+      out.push("</ul>");
+      inList = false;
+    }
+
+    // ----- 4️⃣ EMPTY LINE ------------------------------------------------
+    if (trimmed === "") {
+      out.push("");
+      continue;
+    }
+
+    // ----- 5️⃣ PARAGRAPH -------------------------------------------------
+    out.push(`<p class="mb-2 leading-relaxed">${processInline(trimmed)}</p>`);
   }
+
   if (inList) out.push("</ul>");
 
   /* --------------------------------------------------------------
@@ -188,7 +207,7 @@ const convertMarkdownToHtml = (text: string): string => {
 };
 
 /* ------------------------------------------------------------------
-   2️⃣  SEARCH BAR COMPONENT (UI & logic unchanged)
+   2️⃣  SEARCH BAR COMPONENT (unchanged UI/logic)
    ------------------------------------------------------------------ */
 interface SearchBarProps {
   onSearch?: (response: string) => void;
