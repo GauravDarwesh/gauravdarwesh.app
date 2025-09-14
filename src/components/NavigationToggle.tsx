@@ -9,8 +9,8 @@ const NavigationToggle = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
 
-  // ✅ Only enable scroll-hide + up-arrow on these paths (exclude "/" so GDx won't show it)
-  const SHOW_ON_PATHS = ["/hobbies", "/blog", "/visuals"];
+  // ✅ Only enable scroll-hide + up-arrow on these paths (include "/gdx" so GDx shows navigation)
+  const SHOW_ON_PATHS = ["/gdx", "/hobbies", "/blog", "/visuals"];
   const enabledOnThisPath = useMemo(
     () => SHOW_ON_PATHS.includes(location.pathname),
     [location.pathname]
@@ -19,7 +19,7 @@ const NavigationToggle = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const options = [
-    { name: "GDx", path: "/" },
+    { name: "GDx", path: "/gdx" },
     { name: "Classic", path: "/hobbies" },
     { name: "Notions", path: "/blog" },
     { name: "Visuals", path: "/visuals" },
@@ -59,14 +59,14 @@ const NavigationToggle = () => {
     <>
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${isMobile ? 'gap-1 px-4' : 'gap-2'} 
-          ${isMobile ? '' : 'transition-all duration-1000 ease-in-out'}
-          ${
-            enabledOnThisPath && showScrollTop
-              ? isMobile 
-                ? "opacity-0 pointer-events-none"
-                : "opacity-0 -translate-y-2 pointer-events-none"
-              : "opacity-100 translate-y-0"
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${
+          isMobile ? "gap-1 px-4" : "gap-2 transition-all duration-1000 ease-in-out"
+        }
+          ${enabledOnThisPath && showScrollTop
+            ? isMobile
+              ? "opacity-0 pointer-events-none"
+              : "opacity-0 -translate-y-2 pointer-events-none"
+            : "opacity-100 translate-y-0"
           }
         `}
       >
@@ -79,14 +79,13 @@ const NavigationToggle = () => {
               variant="ghost"
               size="sm"
               className={`
-                ${isMobile ? 'w-20 text-[10px]' : 'w-28 text-sm'} h-9 text-center tracking-normal rounded-full 
+                ${isMobile ? "w-20 text-[10px]" : "w-28 text-sm"} h-9 text-center tracking-normal rounded-full 
                 bg-transparent hover:bg-transparent
                 transition-all duration-200 ease-in-out
                 border border-transparent
-                ${
-                  active
-                    ? "bg-white/10 border-white/20 text-white backdrop-blur-sm"
-                    : "text-gray-300 hover:text-white"
+                ${active
+                  ? "bg-white/10 border-white/20 text-white backdrop-blur-sm"
+                  : "text-gray-300 hover:text-white"
                 }
               `}
             >
