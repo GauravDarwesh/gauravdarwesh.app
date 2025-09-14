@@ -60,7 +60,7 @@ const NavigationToggle = () => {
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
         className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex ${isMobile ? 'gap-1 px-4' : 'gap-2'} 
-          ${isMobile ? 'transition-opacity duration-300 ease-out' : 'transition-all duration-1000 ease-in-out'}
+          ${isMobile ? '' : 'transition-all duration-1000 ease-in-out'}
           ${
             enabledOnThisPath && showScrollTop
               ? isMobile 
