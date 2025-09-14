@@ -64,10 +64,9 @@ mdLinkMap[ph] = anchor;
     });
 
     // Restore code spans
-    Object.keys(mdLinkMap).forEach((ph) => {
-  result = result.replace(new RegExp(ph, 'g'), mdLinkMap[ph]);
-});
-
+    Object.keys(codeMap).forEach((ph) => {
+      s = s.replace(new RegExp(ph, 'g'), codeMap[ph]);
+    });
 
     return s;
   };
