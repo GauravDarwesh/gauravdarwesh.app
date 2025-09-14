@@ -18,36 +18,44 @@ const Landing = () => {
         backgroundPosition: "center",
       }}
     >
-      <p className="text-white text-center text-lg md:text-xl space-x-4">
-        <span
-          className="underline cursor-pointer"
-          onClick={() => handleNavigate("/gdx")}
-        >
-          GDx
-        </span>{" "}
-        – Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.{" "}
-        <span
-          className="underline cursor-pointer"
-          onClick={() => handleNavigate("/hobbies")}
-        >
-          Classic
-        </span>{" "}
-        – The official website hub for Gaurav Darwesh’s work, journey, and updates.{" "}
-        <span
-          className="underline cursor-pointer"
-          onClick={() => handleNavigate("/blog")}
-        >
-          Notions
-        </span>{" "}
-        – A curated blog space sharing ideas, reflections, and explorations.{" "}
-        <span
-          className="underline cursor-pointer"
-          onClick={() => handleNavigate("/visuals")}
-        >
-          Visuals
-        </span>{" "}
-        – A showcase of Gaurav’s photography, capturing stories through the lens.
-      </p>
+      <ul className="text-white text-lg md:text-xl space-y-4 list-disc list-inside">
+        <li>
+          <span
+            className="underline cursor-pointer"
+            onClick={() => handleNavigate("/gdx")}
+          >
+            GDx
+          </span>{" "}
+          – Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.
+        </li>
+        <li>
+          <span
+            className="underline cursor-pointer"
+            onClick={() => handleNavigate("/hobbies")}
+          >
+            Classic
+          </span>{" "}
+          – The official website hub for Gaurav Darwesh’s work, journey, and updates.
+        </li>
+        <li>
+          <span
+            className="underline cursor-pointer"
+            onClick={() => handleNavigate("/blog")}
+          >
+            Notions
+          </span>{" "}
+          – A curated blog space sharing ideas, reflections, and explorations.
+        </li>
+        <li>
+          <span
+            className="underline cursor-pointer"
+            onClick={() => handleNavigate("/visuals")}
+          >
+            Visuals
+          </span>{" "}
+          – A showcase of Gaurav’s photography, capturing stories through the lens.
+        </li>
+      </ul>
     </div>
   );
 };
