@@ -43,7 +43,8 @@ const convertMarkdownToHtml = (text: string): string => {
 
   html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
 
-  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
+  const urlRegex =
+    /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
   html = html.replace(urlRegex, (match) => {
     const url = match.startsWith("http") ? match : `https://${match}`;
     const linkText = getShortenedLinkText(match);
@@ -63,7 +64,9 @@ const convertMarkdownToHtml = (text: string): string => {
         processedLines.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      processedLines.push(`<li class="list-disc list-inside">${bulletMatch[1]}</li>`);
+      processedLines.push(
+        `<li class="list-disc list-inside">${bulletMatch[1]}</li>`
+      );
     } else {
       if (inList) {
         processedLines.push("</ul>");
@@ -123,7 +126,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setSuggestions(suggs);
       onSearch?.(String(assistant));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
+      const msg =
+        err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
       onSearch?.(msg);
@@ -149,7 +153,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {/* Intro Bubble (first 3 visits only, delayed) */}
       {showIntroBubble && (
         <div
-          onClick={() => handleSuggestionClick("✨ What are these sections on the website?")}
+          onClick={() =>
+            handleSuggestionClick("✨ What are these sections on the website?")
+          }
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
           ✨ What are these sections on the website?
@@ -157,7 +163,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       <div
-        className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
+        className="mx-auto shadow-lg border border-border bg-background/70 backdrop-blur-xl 
+                   text-foreground"
         style={{
           width: targetWidth,
           maxWidth: "90vw",
@@ -206,7 +213,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
-                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+                dangerouslySetInnerHTML={{
+                  __html: convertMarkdownToHtml(response),
+                }}
               />
             )}
           </div>
@@ -219,17 +228,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             <Input
               type="text"
-              placeholder={isLoading ? "Thinking…" : "Ask anything…"}
+              placeholder={
+                isLoading ? "" : "Ask anything…"
+              }
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 if (showIntroBubble) setShowIntroBubble(false); // Hide bubble when typing
               }}
-              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                         text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
+              className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+                         text-foreground placeholder:text-muted-foreground text-base px-4 h-10`}
               disabled={isLoading}
               aria-label="Ask anything"
             />
+            {isLoading && (
+              <span className="text-muted-foreground shimmer-text px-2 text-sm whitespace-nowrap">
+                Thinking…
+              </span>
+            )}
             <Button
               type="submit"
               variant="ghost"
@@ -260,6 +276,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
         .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
+
+        /* Shimmer effect for Thinking… */
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .shimmer-text {
+          background: linear-gradient(90deg, rgba(200,200,200,0.2) 25%, rgba(255,255,255,0.8) 50%, rgba(200,200,200,0.2) 75%);
+          background-size: 200% 100%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: shimmer 2s infinite;
+        }
       `}</style>
     </div>
   );
