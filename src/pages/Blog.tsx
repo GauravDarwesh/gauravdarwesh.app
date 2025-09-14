@@ -7,7 +7,7 @@ const Blog = () => {
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/videos/Water.mp4)`,
         }}
       />
 
