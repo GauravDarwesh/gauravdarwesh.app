@@ -1,8 +1,15 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const ANIM_MS = 1000; // fade-in duration
+
 const Landing = () => {
+  const [animate, setAnimate] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setAnimate(true);
+  }, []);
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -10,7 +17,9 @@ const Landing = () => {
 
   return (
     <div
-      className="h-[100dvh] w-full flex items-center justify-center px-6"
+      className={`h-[100dvh] w-full flex flex-col items-start justify-center px-12 space-y-6 transition-opacity duration-1000 ${
+        animate ? "opacity-100" : "opacity-0"
+      }`}
       style={{
         backgroundImage:
           "url('https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg')",
@@ -18,44 +27,18 @@ const Landing = () => {
         backgroundPosition: "center",
       }}
     >
-      <ul className="text-white text-lg md:text-xl space-y-4 list-disc list-inside">
-        <li>
-          <span
-            className="underline cursor-pointer"
-            onClick={() => handleNavigate("/gdx")}
-          >
-            GDx
-          </span>{" "}
-          – Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.
-        </li>
-        <li>
-          <span
-            className="underline cursor-pointer"
-            onClick={() => handleNavigate("/hobbies")}
-          >
-            Classic
-          </span>{" "}
-          – The official website hub for Gaurav Darwesh’s work, journey, and updates.
-        </li>
-        <li>
-          <span
-            className="underline cursor-pointer"
-            onClick={() => handleNavigate("/blog")}
-          >
-            Notions
-          </span>{" "}
-          – A curated blog space sharing ideas, reflections, and explorations.
-        </li>
-        <li>
-          <span
-            className="underline cursor-pointer"
-            onClick={() => handleNavigate("/visuals")}
-          >
-            Visuals
-          </span>{" "}
-          – A showcase of Gaurav’s photography, capturing stories through the lens.
-        </li>
-      </ul>
+      <p className="text-white/80 underline cursor-pointer" onClick={() => handleNavigate("/gdx")}>
+        GDx – Gaurav Darwesh’s intelligent personal assistant, built to simplify and enhance your experience.
+      </p>
+      <p className="text-white/80 underline cursor-pointer" onClick={() => handleNavigate("/hobbies")}>
+        Classic – The official website hub for Gaurav Darwesh’s work, journey, and updates.
+      </p>
+      <p className="text-white/80 underline cursor-pointer" onClick={() => handleNavigate("/blog")}>
+        Notions – A curated blog space sharing ideas, reflections, and explorations.
+      </p>
+      <p className="text-white/80 underline cursor-pointer" onClick={() => handleNavigate("/visuals")}>
+        Visuals – A showcase of Gaurav’s photography, capturing stories through the lens.
+      </p>
     </div>
   );
 };
