@@ -21,15 +21,13 @@ const Index = () => {
       className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
         animate ? "animate-slowFadeIn" : ""
       }`}
-      style={{ overscrollBehavior: 'none' }}
     >
       {/* Background */}
-      <div className="fixed inset-0 z-0" style={{ top: '-20%', bottom: '-20%', left: '-10%', right: '-10%' }}>
+      <div className="fixed inset-0 z-0">
         <img
           src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt="background"
           className="w-full h-full object-cover"
-          style={{ minWidth: '120%', minHeight: '140%' }}
         />
       </div>
 

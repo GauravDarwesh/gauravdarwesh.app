@@ -2,18 +2,12 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Portfolio = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
       {/* Background */}
       <div
-        className="fixed bg-cover bg-center bg-no-repeat"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
-          top: '-20%',
-          bottom: '-20%',
-          left: '-10%',
-          right: '-10%',
-          minWidth: '120%',
-          minHeight: '140%'
         }}
       />
 
