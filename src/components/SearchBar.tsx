@@ -6,49 +6,43 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-/* --------------------------------------------------------------
-   1️⃣  MARKDOWN → HTML   (placeholder based implementation)
-   -------------------------------------------------------------- */
+/* ------------------------------------------------------------------
+   1️⃣  MARKDOWN → HTML
+   ------------------------------------------------------------------ */
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
-  // Normalise new‑lines
+  // Normalise line‑breaks
   let processed = text.replace(/\r\n/g, "\n");
 
-  /* ----------------------------------------------------------------
-     ①  PLACEHOLDER MAPS
-     ---------------------------------------------------------------- */
-  const mdLinkMap: Record<string, string> = {};
-  let mdLinkCounter = 0;
-
+  /* --------------------------------------------------------------
+     PLACEHOLDER MAPS (code spans & bare URLs)
+     -------------------------------------------------------------- */
   const codeMap: Record<string, string> = {};
   let codeCounter = 0;
 
   const urlMap: Record<string, string> = {};
   let urlCounter = 0;
 
-  /* ----------------------------------------------------------------
-     ②  MARKDOWN LINK → placeholder
-     ---------------------------------------------------------------- */
-  processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, displayText, linkUrl) => {
-    const href = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
-    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${displayText}</a>`;
-    const ph = `__MD_LINK_PLACEHOLDER_${mdLinkCounter++}__`;
-    mdLinkMap[ph] = anchor;
-    return ph;
+  /* --------------------------------------------------------------
+     ①  MARKDOWN LINKS → direct <a> (no placeholder needed)
+     -------------------------------------------------------------- */
+  processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, display, rawUrl) => {
+    const href = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${display}</a>`;
   });
 
-  /* ----------------------------------------------------------------
-     ③  INLINE CODE SPAN → placeholder
-     ---------------------------------------------------------------- */
+  /* --------------------------------------------------------------
+     ②  INLINE CODE SPANS → placeholder (so they survive later passes)
+     -------------------------------------------------------------- */
   processed = processed.replace(/`([^`\n]+?)`/g, (_, code) => {
     const ph = `__CODE_SPAN_${codeCounter++}__`;
     codeMap[ph] = `<code class="inline-code">${code}</code>`;
     return ph;
   });
 
-  /* ----------------------------------------------------------------
-     ④  Helper that deals with bold, italic **and** bare URLs
-     ---------------------------------------------------------------- */
+  /* --------------------------------------------------------------
+     ③  Inline formatter (bold, italic, bare URLs)
+     -------------------------------------------------------------- */
   const processInline = (s: string): string => {
     if (!s) return "";
 
@@ -60,16 +54,16 @@ const convertMarkdownToHtml = (text: string): string => {
     s = s.replace(/(^|[\s>])\*([^*]+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
     s = s.replace(/(^|[\s>])_([^_]+?)_($|[\s<])/g, "$1<em>$2</em>$3");
 
-    // ------------------------------------------------------------
-    // ⑤  BARE URL → placeholder (so it never gets processed twice)
-    // ------------------------------------------------------------
+    // ----------------------------------------------------------
+    // ④  BARE URL → placeholder (so we only replace it once)
+    // ----------------------------------------------------------
     const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
-      // Do not touch anything that is already a placeholder
+      // Skip anything that is already a placeholder (code span) or that looks like a placeholder
       if (
-        rawMatch.startsWith("__MD_LINK_PLACEHOLDER_") ||
         rawMatch.startsWith("__CODE_SPAN_") ||
-        rawMatch.startsWith("__URL_PLACEHOLDER_")
+        rawMatch.startsWith("__URL_PLACEHOLDER_") ||
+        /PLACEHOLDER/i.test(rawMatch)
       ) {
         return rawMatch;
       }
@@ -96,9 +90,9 @@ const convertMarkdownToHtml = (text: string): string => {
     return s;
   };
 
-  /* ----------------------------------------------------------------
-     ⑥  LINE‑BY‑LINE → <ul>, <li>, <p> …
-     ---------------------------------------------------------------- */
+  /* --------------------------------------------------------------
+     ⑤  LINE‑BY‑LINE → <ul>, <li>, <p> …
+     -------------------------------------------------------------- */
   const lines = processed.split(/\n/);
   let inList = false;
   const out: string[] = [];
@@ -106,13 +100,17 @@ const convertMarkdownToHtml = (text: string): string => {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+
+    // simple bullet list detection (‑, *, •) – you can extend it to handle numbered lists if you wish
     const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/s);
     if (bulletMatch) {
       if (!inList) {
         out.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      out.push(`<li class="list-disc list-inside">${processInline(bulletMatch[1].trim())}</li>`);
+      out.push(
+        `<li class="list-disc list-inside">${processInline(bulletMatch[1].trim())}</li>`
+      );
     } else {
       if (inList) {
         out.push("</ul>");
@@ -127,32 +125,29 @@ const convertMarkdownToHtml = (text: string): string => {
   }
   if (inList) out.push("</ul>");
 
-  /* ----------------------------------------------------------------
-     ⑦  FINAL REPLACEMENT OF ALL PLACEHOLDERS
-     ---------------------------------------------------------------- */
+  /* --------------------------------------------------------------
+     ⑥  FINAL REPLACEMENT OF PLACEHOLDERS
+     -------------------------------------------------------------- */
   let result = out.join("\n");
 
-  // markdown‑link placeholders
-  Object.entries(mdLinkMap).forEach(([ph, html]) => {
-    result = result.replace(new RegExp(ph, "g"), html);
-  });
-
-  // bare‑URL placeholders
+  // URL placeholders
   Object.entries(urlMap).forEach(([ph, html]) => {
     result = result.replace(new RegExp(ph, "g"), html);
   });
 
-  // (just in case any stray placeholders survived)
-  result = result.replace(/__MD_LINK_PLACEHOLDER_\d+__/g, "");
+  // (code spans were already restored inside processInline, but clean‑up any stray ones just in case)
   result = result.replace(/__CODE_SPAN_\d+__/g, "");
-  result = result.replace(/__URL_PLACEHOLDER_\d+__/g, "");
+
+  // safety: remove any leftover generic placeholders that might have slipped through
+  result = result.replace(/MD_LINK_PLACEHOLDER_\d+/g, "");
+  result = result.replace(/URL_PLACEHOLDER_\d+/g, "");
 
   return result;
 };
 
-/* --------------------------------------------------------------
-   2️⃣  SEARCH BAR COMPONENT (unchanged apart from the import)
-   -------------------------------------------------------------- */
+/* ------------------------------------------------------------------
+   2️⃣  SEARCH BAR COMPONENT (unchanged)
+   ------------------------------------------------------------------ */
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
@@ -184,7 +179,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ How to Contact Gaurav?",
   ];
 
-  // Track user activity
+  // ----------------------------------------------------------------
+  //  Activity tracking (mouse, key, click, scroll)
+  // ----------------------------------------------------------------
   useEffect(() => {
     const handleActivity = () => setLastActivityTime(Date.now());
 
@@ -201,7 +198,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, []);
 
-  // Show intro bubble (first 2‑3 visits)
+  // ----------------------------------------------------------------
+  //  Intro bubble (first 2‑3 visits)
+  // ----------------------------------------------------------------
   useEffect(() => {
     const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
     if (visitCount < 3) {
@@ -209,7 +208,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       localStorage.setItem("introBubbleVisits", String(visitCount + 1));
       return () => clearTimeout(timer);
     } else {
-      // after a few visits show the typewriter
       const timer = setTimeout(() => {
         if (!hasInteracted) setShowTypewriter(true);
       }, 2000);
@@ -217,13 +215,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, [hasInteracted]);
 
-  // Show typewriter again after inactivity
+  // ----------------------------------------------------------------
+  //  Show typewriter again after inactivity
+  // ----------------------------------------------------------------
   useEffect(() => {
     const inactivityTimer = setInterval(() => {
-      const inactiveMs = Date.now() - lastActivityTime;
+      const idle = Date.now() - lastActivityTime;
       const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
       if (
-        inactiveMs > 8000 &&
+        idle > 8000 &&
         hasInteracted &&
         !showIntroBubble &&
         visitCount >= 3 &&
@@ -236,7 +236,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => clearInterval(inactivityTimer);
   }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response]);
 
-  // ----- Typewriter effect -------------------------------------------------
+  // ----------------------------------------------------------------
+  //  Typewriter effect (cycles through rotatingSuggestions)
+  // ----------------------------------------------------------------
   useEffect(() => {
     if (!showTypewriter || showIntroBubble) return;
 
@@ -251,9 +253,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       timeout = setTimeout(() => setIsDeleting(true), pauseBeforeDelete);
     } else if (isDeleting && typewriterText === "") {
       timeout = setTimeout(() => {
-        const nextIdx = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
-        setCurrentSuggestionIndex(nextIdx);
-        setFullText(rotatingSuggestions[nextIdx]);
+        const next = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
+        setCurrentSuggestionIndex(next);
+        setFullText(rotatingSuggestions[next]);
         setIsDeleting(false);
       }, pauseAfterDelete);
     } else if (isDeleting) {
@@ -278,7 +280,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     showTypewriter,
   ]);
 
-  // ----- Submit ------------------------------------------------------------
+  // ----------------------------------------------------------------
+  //  Submit handler (calls your API)
+  // ----------------------------------------------------------------
   const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
@@ -292,11 +296,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     try {
       const result = await sendChatMessage(text);
-      const assistant = (result as any)?.response ?? "";
+      const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
-      setResponse(String(assistant));
+      setResponse(String(answer));
       setSuggestions(suggs);
-      onSearch?.(String(assistant));
+      onSearch?.(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
@@ -307,7 +311,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  // ----- Interaction helpers -----------------------------------------------
+  // ----------------------------------------------------------------
+  //  Interaction helpers
+  // ----------------------------------------------------------------
   const handleSuggestionClick = (s: string) => {
     setQuery("");
     setHasInteracted(true);
@@ -322,13 +328,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
   };
 
-  // ----- Layout calculations ------------------------------------------------
+  // ----------------------------------------------------------------
+  //  Layout calculations
+  // ----------------------------------------------------------------
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
-  // -------------------------------------------------------------------------
+  // ----------------------------------------------------------------
+  //  Render
+  // ----------------------------------------------------------------
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
       {/* Intro bubble */}
@@ -341,7 +351,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       )}
 
-      {/* Typewriter bubble (visible, only its text changes) */}
+      {/* Typewriter bubble (text changes, bubble stays) */}
       {!showIntroBubble && showTypewriter && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
@@ -387,7 +397,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             </div>
           )}
 
-          {/* Response */}
+          {/* Assistant response */}
           <div
             className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? "opacity-100 mb-5" : "opacity-0 mb-0"
@@ -404,7 +414,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
-                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+                dangerouslySetInnerHTML={{
+                  __html: convertMarkdownToHtml(response),
+                }}
               />
             )}
           </div>
@@ -448,7 +460,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* ---------------------------------------------------------- */}
+      {/* -------------------------------------------------------------- */}
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
