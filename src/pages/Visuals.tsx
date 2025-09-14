@@ -203,7 +203,7 @@ export default function Visuals() {
       <NavigationToggle />
 
       {/* Center area */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4 pt-20">
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4 pt-20 pb-20">
         <div className="w-full max-w-7xl relative">
           {/* Main cascade container */}
           <div className="relative w-full flex items-center justify-center">

@@ -27,7 +27,7 @@ const Blog = () => {
 
         {/* Blog Posts Section */}
         <div>
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
             <div className="space-y-12">
               {/* Blog Post 1 */}
               <article className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
