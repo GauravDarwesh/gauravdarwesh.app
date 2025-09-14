@@ -217,7 +217,7 @@ export default function Visuals() {
             {/* Left Arrow - Desktop Only */}
             <button
               onClick={prevCollection}
-              className="hidden md:flex absolute left-[-66px] top-1/2 transform -translate-y-1/2 items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              className="hidden lg:flex absolute left-[-66px] top-1/2 transform -translate-y-1/2 items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
               aria-label="Previous collection"
             >
               <ChevronLeft size={20} />
@@ -253,15 +253,15 @@ export default function Visuals() {
             {/* Right Arrow - Desktop Only */}
             <button
               onClick={nextCollection}
-              className="hidden md:flex absolute right-[-66px] top-1/2 transform -translate-y-1/2 items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
+              className="hidden lg:flex absolute right-[-66px] top-1/2 transform -translate-y-1/2 items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
               aria-label="Next collection"
             >
               <ChevronRight size={20} />
             </button>
           </div>
 
-          {/* Mobile Navigation - Below the cascade */}
-          <div className="flex md:hidden justify-center mt-6 gap-4">
+          {/* Mobile/Tablet Navigation - Below the cascade */}
+          <div className="flex lg:hidden justify-center mt-6 gap-4">
             <button
               onClick={prevCollection}
               className="flex items-center justify-center w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition shadow-md"
