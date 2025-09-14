@@ -254,8 +254,8 @@ export default function Visuals() {
           </div>
 
           {/* Collection title positioned at bottom right of cascade */}
-          <div className="mt-4 flex justify-start">
-            <h2 className="text-sm font-light text-white/70 drop-shadow-md">
+          <div className="mt-4 flex justify-center">
+            <h2 className="text-sm font-bold text-white/70 drop-shadow-md">
               {collectionTitle}
             </h2>
           </div>
