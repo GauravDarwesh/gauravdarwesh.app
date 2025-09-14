@@ -203,15 +203,8 @@ export default function Visuals() {
       <NavigationToggle />
 
       {/* Center area */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4 pt-20">
         <div className="w-full max-w-7xl relative">
-          {/* Collection title positioned at top left of cascade */}
-          <div className="mb-6">
-            <h2 className="text-lg font-medium text-white drop-shadow-lg">
-              {collectionTitle}
-            </h2>
-          </div>
-
           {/* Main cascade container */}
           <div className="relative w-full flex items-center justify-center">
             {/* Left Arrow - Large screens only (lg+) */}
@@ -223,8 +216,8 @@ export default function Visuals() {
               <ChevronLeft size={24} />
             </button>
 
-            {/* Maximized glass cascade */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl w-full aspect-[4/3] max-h-[85vh] p-6 flex items-center justify-center overflow-hidden relative">
+            {/* Maximized glass cascade with controlled height */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl w-full aspect-[4/3] max-h-[70vh] p-6 flex items-center justify-center overflow-hidden relative">
               {/* Layer A */}
               <div
                 ref={layerARef}
@@ -260,8 +253,15 @@ export default function Visuals() {
             </button>
           </div>
 
+          {/* Collection title positioned at bottom center of cascade */}
+          <div className="mt-6 flex justify-center">
+            <h2 className="text-lg font-medium text-white drop-shadow-lg text-center">
+              {collectionTitle}
+            </h2>
+          </div>
+
           {/* Navigation arrows for smaller screens (below lg) */}
-          <div className="flex lg:hidden justify-center mt-8 gap-6">
+          <div className="flex lg:hidden justify-center mt-6 gap-6">
             <button
               onClick={prevCollection}
               className="flex items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
