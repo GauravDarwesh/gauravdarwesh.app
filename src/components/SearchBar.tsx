@@ -54,12 +54,15 @@ const getShortenedLinkText = (url: string): string => {
 };
 
 // --- Markdown -> HTML (uses shortened link labels for both markdown links and bare URLs) ---
+// NOTE: rewritten to parse blocks (lists/paragraphs) first then run inline formatting per-block.
+// This prevents emphasis from crossing list boundaries and fixes the alternating italic/normal bug.
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
 
-  let processed = text;
+  // Normalize newlines
+  let processed = text.replace(/\r\n/g, "\n");
 
-  // 1) Extract markdown links [text](url) and replace with shortened-link anchors placeholders
+  // 1) Extract markdown links [text](url) -> placeholders (we'll restore anchors at the end)
   const mdLinkMap: Record<string, string> = {};
   let mdLinkCounter = 0;
   processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, _displayText, linkUrl) => {
@@ -71,40 +74,62 @@ const convertMarkdownToHtml = (text: string): string => {
     return ph;
   });
 
-  // 2) Inline formatting: bold, italic, inline code
-  processed = processed.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-processed = processed.replace(/(^|[\s>])\*(.+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
-processed = processed.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-
-  // 3) Bare URLs -> anchors with shortened labels (preserve trailing punctuation)
-  const urlRegex = /(?:https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
-  processed = processed.replace(urlRegex, (rawMatch) => {
-    // If it accidentally matches a placeholder, return as-is
-    if (mdLinkMap[rawMatch]) return mdLinkMap[rawMatch];
-
-    // Trim trailing punctuation like . , ; : ! ? ) ]
-    let match = rawMatch;
-    let trailing = "";
-    while (match.length > 0 && /[.,;:!?)\]]$/.test(match)) {
-      trailing = match.slice(-1) + trailing;
-      match = match.slice(0, -1);
-    }
-
-    const href = match.startsWith("http") ? match : `https://${match}`;
-    const short = getShortenedLinkText(match);
-
-    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${short}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
-
-    return anchor + trailing;
+  // 2) Extract inline code spans `code` -> placeholders (so inline formatting won't touch code)
+  const codeMap: Record<string, string> = {};
+  let codeCounter = 0;
+  processed = processed.replace(/`([^`\n]+?)`/g, (_m, code) => {
+    const ph = `__CODE_SPAN_${codeCounter++}__`;
+    codeMap[ph] = `<code class="inline-code">${code}</code>`;
+    return ph;
   });
 
-  // 4) Restore markdown link placeholders
-  Object.keys(mdLinkMap).forEach((ph) => {
-    processed = processed.split(ph).join(mdLinkMap[ph]);
-  });
+  // Helper: inline processing applied to each list-item / paragraph content separately
+  const processInline = (s: string): string => {
+    if (!s) return "";
 
-  // 5) Convert lines into lists and paragraphs (supports -, *, •)
-  const lines = processed.split(/\r?\n/);
+    // 1) Strong (bold): **bold** and __bold__
+    s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/__(.+?)__/g, "<strong>$1</strong>");
+
+    // 2) Emphasis (italic): *italic* and _italic_
+    // Use patterns that avoid matching the double-star/double-underscore variants (already handled above)
+    s = s.replace(/(^|[\s>])\*([^*]+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
+    s = s.replace(/(^|[\s>])_([^_]+?)_($|[\s<])/g, "$1<em>$2</em>$3");
+
+    // 3) Bare URLs -> anchors with shortened labels (preserve trailing punctuation)
+    const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
+    s = s.replace(urlRegex, (rawMatch) => {
+      // If it's a placeholder we created earlier, leave it as-is
+      if (rawMatch.startsWith("__MD_LINK_PLACEHOLDER_") || rawMatch.startsWith("__CODE_SPAN_")) {
+        return rawMatch;
+      }
+
+      // Trim trailing punctuation like . , ; : ! ? ) ]
+      let match = rawMatch;
+      let trailing = "";
+      while (match.length > 0 && /[.,;:!?)\]]$/.test(match)) {
+        trailing = match.slice(-1) + trailing;
+        match = match.slice(0, -1);
+      }
+
+      const href = match.startsWith("http") ? match : `https://${match}`;
+      const short = getShortenedLinkText(match);
+
+      const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${short}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+
+      return anchor + trailing;
+    });
+
+    // 4) Restore any inline code placeholders inside this string
+    Object.keys(codeMap).forEach((ph) => {
+      if (s.includes(ph)) s = s.split(ph).join(codeMap[ph]);
+    });
+
+    return s;
+  };
+
+  // 3) Block parsing: build lists and paragraphs; apply inline processing per-item
+  const lines = processed.split(/\n/);
   let inList = false;
   const out: string[] = [];
 
@@ -112,28 +137,42 @@ processed = processed.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>
     const line = lines[i];
     const trimmed = line.trim();
 
+    // Bullet items (supports -, *, •)
     const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/s);
     if (bulletMatch) {
       if (!inList) {
         out.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      out.push(`<li class="list-disc list-inside">${bulletMatch[1].trim()}</li>`);
+      // process inline for the item content only
+      out.push(`<li class="list-disc list-inside">${processInline(bulletMatch[1].trim())}</li>`);
     } else {
       if (inList) {
         out.push("</ul>");
         inList = false;
       }
       if (trimmed === "") {
+        // preserve blank line (renders as just a gap)
         out.push("");
       } else {
-        out.push(`<p class="mb-2 leading-relaxed">${trimmed}</p>`);
+        out.push(`<p class="mb-2 leading-relaxed">${processInline(trimmed)}</p>`);
       }
     }
   }
   if (inList) out.push("</ul>");
 
-  return out.join("\n");
+  // 4) Restore markdown link placeholders (replace placeholders with actual anchor HTML)
+  let result = out.join("\n");
+  Object.keys(mdLinkMap).forEach((ph) => {
+    if (result.includes(ph)) result = result.split(ph).join(mdLinkMap[ph]);
+  });
+
+  // 5) Restore any leftover inline code placeholders (if any remain outside processed inline runs)
+  Object.keys(codeMap).forEach((ph) => {
+    if (result.includes(ph)) result = result.split(ph).join(codeMap[ph]);
+  });
+
+  return result;
 };
 
 interface SearchBarProps {
