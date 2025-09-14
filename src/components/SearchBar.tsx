@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-// Function to get shortened link text based on domain
+// --- Improved getShortenedLinkText ---
 const getShortenedLinkText = (url: string): string => {
   try {
-    const domain = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace("www.", "");
+    const normalized = url.startsWith("http") ? url : `https://${url}`;
+    const hostname = new URL(normalized).hostname.replace(/^www\./i, "");
 
     const domainMap: { [key: string]: string } = {
       "linkedin.com": "LinkedIn",
@@ -24,60 +25,112 @@ const getShortenedLinkText = (url: string): string => {
       "apple.com": "Apple",
       "amazon.com": "Amazon",
       "netflix.com": "Netflix",
+      "t.co": "Twitter",
+      "youtu.be": "YouTube",
     };
 
-    if (domainMap[domain]) {
-      return domainMap[domain];
+    // Prefer exact or suffix match (handles subdomains like mobile.twitter.com)
+    for (const key of Object.keys(domainMap)) {
+      if (hostname === key || hostname.endsWith(`.${key}`)) {
+        return domainMap[key];
+      }
     }
 
-    const parts = domain.split(".");
-    return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+    // Fallback: use first subdomain/label (gives descriptive names for long subdomains)
+    const parts = hostname.split(".");
+    const first = parts[0] || hostname;
+    return first.charAt(0).toUpperCase() + first.slice(1);
   } catch {
     return "Link";
   }
 };
 
-// Convert markdown to clean HTML with clickable links
+// --- Improved markdown -> HTML converter ---
 const convertMarkdownToHtml = (text: string): string => {
-  let html = text;
+  if (!text) return "";
 
-  html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+  let processed = text;
 
-  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
-  html = html.replace(urlRegex, (match) => {
-    const url = match.startsWith("http") ? match : `https://${match}`;
-    const linkText = getShortenedLinkText(match);
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+  // 1) Extract markdown links [text](url) into placeholders so further URL processing won't touch them
+  const mdLinkMap: Record<string, string> = {};
+  let mdLinkCounter = 0;
+  processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, linkUrl) => {
+    const href = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
+    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}</a>`;
+    const placeholder = `__MD_LINK_PLACEHOLDER_${mdLinkCounter++}__`;
+    mdLinkMap[placeholder] = anchor;
+    return placeholder;
   });
 
-  const lines = html.split("\n");
+  // 2) Simple inline conversions (bold, italic, inline code)
+  // Bold first to avoid interfering with single-asterisk italics
+  processed = processed.replace(/\*\*(.*?)\*\*/gs, "<strong>$1</strong>");
+  processed = processed.replace(/\*(.*?)\*/gs, "<em>$1</em>");
+  processed = processed.replace(/`([^`]+)`/g, "<code class=\"inline-code\">$1</code>");
+
+  // 3) Replace bare URLs (http(s)://, www., or domain.tld/...). Trim trailing punctuation.
+  const urlRegex = /(?:https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
+  processed = processed.replace(urlRegex, (rawMatch) => {
+    // If this exact match is already an md link placeholder, skip (shouldn't normally happen)
+    if (mdLinkMap[rawMatch]) return mdLinkMap[rawMatch];
+
+    // Trim common trailing punctuation that may follow a URL in plain text (.,;:!?) and unmatched closing paren
+    let match = rawMatch;
+    let trailing = "";
+    while (match.length > 0 && /[.,;:!?)\]]$/.test(match)) {
+      trailing = match.slice(-1) + trailing;
+      match = match.slice(0, -1);
+    }
+
+    const href = match.startsWith("http") ? match : `https://${match}`;
+    const linkText = getShortenedLinkText(match);
+
+    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+
+    return anchor + trailing;
+  });
+
+  // 4) Restore markdown link placeholders
+  Object.keys(mdLinkMap).forEach((ph) => {
+    processed = processed.split(ph).join(mdLinkMap[ph]);
+  });
+
+  // 5) Convert lines to lists and paragraphs.
+  const lines = processed.split(/\r?\n/);
   let inList = false;
-  const processedLines: string[] = [];
+  const out: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const bulletMatch = line.match(/^\s*\*\s+(.+)$/);
+    const trimmed = line.trim();
+
+    // Match -, *, or • bullets
+    const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/s);
 
     if (bulletMatch) {
       if (!inList) {
-        processedLines.push('<ul class="list-disc pl-5 space-y-1 my-2">');
+        out.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      processedLines.push(`<li class="list-disc list-inside">${bulletMatch[1]}</li>`);
+      out.push(`<li class="list-disc list-inside">${bulletMatch[1].trim()}</li>`);
     } else {
       if (inList) {
-        processedLines.push("</ul>");
+        out.push("</ul>");
         inList = false;
       }
-      processedLines.push(line);
+      if (trimmed === "") {
+        // preserve paragraph breaks as a small gap
+        out.push("");
+      } else {
+        // Wrap other lines in a paragraph for spacing and readable layout
+        out.push(`<p class="mb-2 leading-relaxed">${trimmed}</p>`);
+      }
     }
   }
 
-  if (inList) {
-    processedLines.push("</ul>");
-  }
+  if (inList) out.push("</ul>");
 
-  return processedLines.join("\n");
+  return out.join("\n");
 };
 
 interface SearchBarProps {
@@ -92,12 +145,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [showIntroBubble, setShowIntroBubble] = useState(false);
 
   useEffect(() => {
-    // Track visits with localStorage
     const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
     if (visitCount < 3) {
       const timer = setTimeout(() => {
         setShowIntroBubble(true);
-      }, 3000); // delay 3s before showing
+      }, 3000);
       localStorage.setItem("introBubbleVisits", String(visitCount + 1));
       return () => clearTimeout(timer);
     }
@@ -205,6 +257,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
+                // We now generate reliable HTML for paragraphs, lists, links & inline formatting
                 dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
             )}
@@ -276,6 +329,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           -webkit-text-fill-color: transparent;
           animation: shimmer 2s infinite linear;
         }
+        /* small styling for inline code */
+        .inline-code { background: rgba(255,255,255,0.04); padding: 0.05rem 0.25rem; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace; font-size: 0.9em; }
       `}</style>
     </div>
   );
