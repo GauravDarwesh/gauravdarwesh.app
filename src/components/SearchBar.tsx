@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-// --- Improved getShortenedLinkText ---
+// --- Helpers ---
+const escapeHtml = (str: string) =>
+  str
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+// Shortened link text helper (keeps suffix matches like mobile.twitter.com -> Twitter)
 const getShortenedLinkText = (url: string): string => {
   try {
     const normalized = url.startsWith("http") ? url : `https://${url}`;
@@ -29,14 +37,13 @@ const getShortenedLinkText = (url: string): string => {
       "youtu.be": "YouTube",
     };
 
-    // Prefer exact or suffix match (handles subdomains like mobile.twitter.com)
     for (const key of Object.keys(domainMap)) {
       if (hostname === key || hostname.endsWith(`.${key}`)) {
         return domainMap[key];
       }
     }
 
-    // Fallback: use first subdomain/label (gives descriptive names for long subdomains)
+    // Fallback: use the first label (subdomain or domain)
     const parts = hostname.split(".");
     const first = parts[0] || hostname;
     return first.charAt(0).toUpperCase() + first.slice(1);
@@ -45,36 +52,36 @@ const getShortenedLinkText = (url: string): string => {
   }
 };
 
-// --- Improved markdown -> HTML converter ---
+// --- Markdown -> HTML converter with shortened anchors (handles markdown links, bare urls, lists, bold/italic/code) ---
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
 
-  let processed = text;
-
-  // 1) Extract markdown links [text](url) into placeholders so further URL processing won't touch them
+  // Store markdown link placeholders so we can process them separately and ensure shortened labels
   const mdLinkMap: Record<string, string> = {};
   let mdLinkCounter = 0;
-  processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, linkUrl) => {
+
+  // Replace markdown-style links with placeholders (we will build shortened anchors below)
+  let processed = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, linkUrl) => {
     const href = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
-    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}</a>`;
+    const label = getShortenedLinkText(linkUrl);
+    const title = escapeHtml(`${linkText} — ${href}`);
+    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" title="${title}" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${label}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
     const placeholder = `__MD_LINK_PLACEHOLDER_${mdLinkCounter++}__`;
     mdLinkMap[placeholder] = anchor;
     return placeholder;
   });
 
-  // 2) Simple inline conversions (bold, italic, inline code)
-  // Bold first to avoid interfering with single-asterisk italics
+  // Inline formatting
   processed = processed.replace(/\*\*(.*?)\*\*/gs, "<strong>$1</strong>");
   processed = processed.replace(/\*(.*?)\*/gs, "<em>$1</em>");
   processed = processed.replace(/`([^`]+)`/g, "<code class=\"inline-code\">$1</code>");
 
-  // 3) Replace bare URLs (http(s)://, www., or domain.tld/...). Trim trailing punctuation.
+  // Replace bare URLs (http(s)://, www., or domain.tld/...) — trim trailing punctuation
   const urlRegex = /(?:https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
   processed = processed.replace(urlRegex, (rawMatch) => {
-    // If this exact match is already an md link placeholder, skip (shouldn't normally happen)
     if (mdLinkMap[rawMatch]) return mdLinkMap[rawMatch];
 
-    // Trim common trailing punctuation that may follow a URL in plain text (.,;:!?) and unmatched closing paren
+    // Trim trailing punctuation that often follows URLs in plain text
     let match = rawMatch;
     let trailing = "";
     while (match.length > 0 && /[.,;:!?)\]]$/.test(match)) {
@@ -83,19 +90,18 @@ const convertMarkdownToHtml = (text: string): string => {
     }
 
     const href = match.startsWith("http") ? match : `https://${match}`;
-    const linkText = getShortenedLinkText(match);
-
-    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
-
+    const label = getShortenedLinkText(match);
+    const title = escapeHtml(`${href}`);
+    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" title="${title}" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${label}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
     return anchor + trailing;
   });
 
-  // 4) Restore markdown link placeholders
+  // Restore any md link placeholders (already built with shortened labels)
   Object.keys(mdLinkMap).forEach((ph) => {
     processed = processed.split(ph).join(mdLinkMap[ph]);
   });
 
-  // 5) Convert lines to lists and paragraphs.
+  // Convert lines to lists and paragraphs
   const lines = processed.split(/\r?\n/);
   let inList = false;
   const out: string[] = [];
@@ -103,8 +109,6 @@ const convertMarkdownToHtml = (text: string): string => {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
-
-    // Match -, *, or • bullets
     const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/s);
 
     if (bulletMatch) {
@@ -119,15 +123,12 @@ const convertMarkdownToHtml = (text: string): string => {
         inList = false;
       }
       if (trimmed === "") {
-        // preserve paragraph breaks as a small gap
         out.push("");
       } else {
-        // Wrap other lines in a paragraph for spacing and readable layout
         out.push(`<p class="mb-2 leading-relaxed">${trimmed}</p>`);
       }
     }
   }
-
   if (inList) out.push("</ul>");
 
   return out.join("\n");
@@ -163,7 +164,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
     setResponse(null);
 
-    // Clear query only if it's user-typed, not a suggestion
     if (!customQuery) setQuery("");
 
     try {
@@ -257,7 +257,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
-                // We now generate reliable HTML for paragraphs, lists, links & inline formatting
                 dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
             )}
@@ -279,13 +278,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   if (showIntroBubble) setShowIntroBubble(false);
                 }}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                             isLoading ? "thinking-placeholder" : ""
-                           }`}
+                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10`}
                 disabled={isLoading}
                 aria-label="Ask anything"
               />
+
+              {/* Cross-browser thinking overlay (shimmer + animated dots) */}
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center pointer-events-none pl-4">
+                  <div className="flex items-center gap-2">
+                    <span className="shimmer-text" aria-hidden>
+                      Thinking…
+                    </span>
+                    <span className="dots" aria-hidden>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
+
             <Button
               type="submit"
               variant="ghost"
@@ -317,18 +331,47 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
         .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
 
-        /* Thinking shimmer */
+        /* Shimmer used previously (kept) */
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-        .thinking-placeholder::placeholder {
-          background: linear-gradient(90deg, rgba(150,150,150,0.2) 25%, rgba(150,150,150,0.6) 50%, rgba(150,150,150,0.2) 75%);
+
+        /* Thinking overlay styling (works cross-browser) */
+        .shimmer-text {
+          font-size: 1rem;
+          line-height: 1;
+          background: linear-gradient(90deg, rgba(255,255,255,0.12) 20%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.12) 80%);
           background-size: 200% 100%;
           -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          animation: shimmer 2s infinite linear;
+          background-clip: text;
+          color: transparent;
+          animation: shimmer 1.6s linear infinite;
+          user-select: none;
         }
+
+        /* Dots fallback animation (always visible; complements shimmer) */
+        .dots span {
+          display:inline-block;
+          width:6px;
+          height:6px;
+          border-radius:9999px;
+          background-color: currentColor;
+          opacity:0.8;
+          margin-right:4px;
+          transform: translateY(0);
+          animation: dot 1s infinite ease-in-out;
+        }
+        .dots span:nth-child(1) { animation-delay: 0s; }
+        .dots span:nth-child(2) { animation-delay: 0.12s; }
+        .dots span:nth-child(3) { animation-delay: 0.24s; }
+
+        @keyframes dot {
+          0% { transform: translateY(0); opacity:0.6; }
+          50% { transform: translateY(-6px); opacity:1; }
+          100% { transform: translateY(0); opacity:0.6; }
+        }
+
         /* small styling for inline code */
         .inline-code { background: rgba(255,255,255,0.04); padding: 0.05rem 0.25rem; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace; font-size: 0.9em; }
       `}</style>
