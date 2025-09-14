@@ -7,7 +7,7 @@ import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ------------------------------------------------------------------
-   1️⃣  MARKDOWN → HTML
+   1️⃣  MARKDOWN → HTML (with protection for existing <a> tags)
    ------------------------------------------------------------------ */
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
@@ -15,7 +15,7 @@ const convertMarkdownToHtml = (text: string): string => {
   let processed = text.replace(/\r\n/g, "\n");
 
   /* --------------------------------------------------------------
-     PLACEHOLDER MAPS (code spans & bare URLs)
+     PLACEHOLDER MAPS
      -------------------------------------------------------------- */
   const codeMap: Record<string, string> = {};
   let codeCounter = 0;
@@ -23,8 +23,12 @@ const convertMarkdownToHtml = (text: string): string => {
   const urlMap: Record<string, string> = {};
   let urlCounter = 0;
 
+  // we keep a map for **any HTML that already exists** (especially <a> tags)
+  const htmlMap: Record<string, string> = {};
+  let htmlCounter = 0;
+
   /* --------------------------------------------------------------
-     ①  MARKDOWN LINKS → direct <a> (no placeholder needed)
+     ①  MARKDOWN LINKS → direct <a>
      -------------------------------------------------------------- */
   processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, display, rawUrl) => {
     const href = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
@@ -32,7 +36,7 @@ const convertMarkdownToHtml = (text: string): string => {
   });
 
   /* --------------------------------------------------------------
-     ②  INLINE CODE SPANS → placeholder (so they survive later passes)
+     ②  INLINE CODE SPANS → placeholder (to keep them safe)
      -------------------------------------------------------------- */
   processed = processed.replace(/`([^`\n]+?)`/g, (_, code) => {
     const ph = `__CODE_SPAN_${codeCounter++}__`;
@@ -41,7 +45,7 @@ const convertMarkdownToHtml = (text: string): string => {
   });
 
   /* --------------------------------------------------------------
-     ③  Inline formatter (bold, italic, bare URLs)
+     ③  INLINE PROCESSOR (bold, italic, existing HTML guard, URLs)
      -------------------------------------------------------------- */
   const processInline = (s: string): string => {
     if (!s) return "";
@@ -54,21 +58,31 @@ const convertMarkdownToHtml = (text: string): string => {
     s = s.replace(/(^|[\s>])\*([^*]+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
     s = s.replace(/(^|[\s>])_([^_]+?)_($|[\s<])/g, "$1<em>$2</em>$3");
 
-    // ----------------------------------------------------------
-    // ④  BARE URL → placeholder (so we only replace it once)
-    // ----------------------------------------------------------
+    /* ----------------------------------------------------------
+       ③a. Protect existing HTML tags (especially <a> … </a>)
+       ---------------------------------------------------------- */
+    s = s.replace(/<a[\s\S]*?<\/a>/gi, (match) => {
+      const ph = `__HTML_TAG_${htmlCounter++}__`;
+      htmlMap[ph] = match;      // store the whole tag
+      return ph;                // replace it with a harmless placeholder
+    });
+
+    /* ----------------------------------------------------------
+       ③b. Bare URLs → placeholder (single‑pass conversion)
+       ---------------------------------------------------------- */
     const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
-      // Skip anything that is already a placeholder (code span) or that looks like a placeholder
+      // Skip anything that is already a placeholder or that looks like a placeholder
       if (
         rawMatch.startsWith("__CODE_SPAN_") ||
         rawMatch.startsWith("__URL_PLACEHOLDER_") ||
+        rawMatch.startsWith("__HTML_TAG_") ||
         /PLACEHOLDER/i.test(rawMatch)
       ) {
         return rawMatch;
       }
 
-      // Strip trailing punctuation that should not be part of the URL
+      // Trim trailing punctuation that should not be part of the URL
       let match = rawMatch;
       let trailing = "";
       while (match.length && /[.,;:!?)\]]$/.test(match)) {
@@ -82,8 +96,13 @@ const convertMarkdownToHtml = (text: string): string => {
       return ph;
     });
 
-    // Restore code‑span placeholders (they were stored earlier)
+    // Restore code‑span placeholders (they were stored above)
     Object.entries(codeMap).forEach(([ph, html]) => {
+      s = s.replace(new RegExp(ph, "g"), html);
+    });
+
+    // Restore **protected HTML tags** (the original <a> elements)
+    Object.entries(htmlMap).forEach(([ph, html]) => {
       s = s.replace(new RegExp(ph, "g"), html);
     });
 
@@ -91,7 +110,7 @@ const convertMarkdownToHtml = (text: string): string => {
   };
 
   /* --------------------------------------------------------------
-     ⑤  LINE‑BY‑LINE → <ul>, <li>, <p> …
+     ④  LINE‑BY‑LINE → <ul>, <li>, <p>
      -------------------------------------------------------------- */
   const lines = processed.split(/\n/);
   let inList = false;
@@ -101,7 +120,7 @@ const convertMarkdownToHtml = (text: string): string => {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // simple bullet list detection (‑, *, •) – you can extend it to handle numbered lists if you wish
+    // simple bullet list detection (‑, *, •)
     const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/s);
     if (bulletMatch) {
       if (!inList) {
@@ -126,19 +145,20 @@ const convertMarkdownToHtml = (text: string): string => {
   if (inList) out.push("</ul>");
 
   /* --------------------------------------------------------------
-     ⑥  FINAL REPLACEMENT OF PLACEHOLDERS
+     ⑤  FINAL REPLACEMENT OF URL PLACEHOLDERS
      -------------------------------------------------------------- */
   let result = out.join("\n");
 
-  // URL placeholders
+  // URLs that we turned into placeholders
   Object.entries(urlMap).forEach(([ph, html]) => {
     result = result.replace(new RegExp(ph, "g"), html);
   });
 
-  // (code spans were already restored inside processInline, but clean‑up any stray ones just in case)
+  // (code spans were already restored; just clean any stray placeholders)
   result = result.replace(/__CODE_SPAN_\d+__/g, "");
+  result = result.replace(/__HTML_TAG_\d+__/g, "");
 
-  // safety: remove any leftover generic placeholders that might have slipped through
+  // safety nets – remove any generic placeholders that might have slipped through
   result = result.replace(/MD_LINK_PLACEHOLDER_\d+/g, "");
   result = result.replace(/URL_PLACEHOLDER_\d+/g, "");
 
@@ -166,7 +186,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showTypewriter, setShowTypewriter] = useState(false);
 
-  // rotating suggestion list
   const rotatingSuggestions = [
     "✨ Tell me about Gaurav's Experience",
     "✨ What is Gaurav's Education?",
@@ -179,9 +198,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ How to Contact Gaurav?",
   ];
 
-  // ----------------------------------------------------------------
-  //  Activity tracking (mouse, key, click, scroll)
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Activity tracking (mouse, key, click, scroll)
+     ---------------------------------------------------------------- */
   useEffect(() => {
     const handleActivity = () => setLastActivityTime(Date.now());
 
@@ -198,9 +217,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, []);
 
-  // ----------------------------------------------------------------
-  //  Intro bubble (first 2‑3 visits)
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Intro bubble (first 2‑3 visits)
+     ---------------------------------------------------------------- */
   useEffect(() => {
     const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
     if (visitCount < 3) {
@@ -215,9 +234,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, [hasInteracted]);
 
-  // ----------------------------------------------------------------
-  //  Show typewriter again after inactivity
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Show typewriter again after inactivity
+     ---------------------------------------------------------------- */
   useEffect(() => {
     const inactivityTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
@@ -236,9 +255,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => clearInterval(inactivityTimer);
   }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response]);
 
-  // ----------------------------------------------------------------
-  //  Typewriter effect (cycles through rotatingSuggestions)
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Typewriter effect (rotates through suggestions)
+     ---------------------------------------------------------------- */
   useEffect(() => {
     if (!showTypewriter || showIntroBubble) return;
 
@@ -280,9 +299,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     showTypewriter,
   ]);
 
-  // ----------------------------------------------------------------
-  //  Submit handler (calls your API)
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Submit handler (calls your API)
+     ---------------------------------------------------------------- */
   const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
@@ -311,9 +330,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  // ----------------------------------------------------------------
-  //  Interaction helpers
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Interaction helpers
+     ---------------------------------------------------------------- */
   const handleSuggestionClick = (s: string) => {
     setQuery("");
     setHasInteracted(true);
@@ -328,17 +347,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
   };
 
-  // ----------------------------------------------------------------
-  //  Layout calculations
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Layout calculations
+     ---------------------------------------------------------------- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
-  // ----------------------------------------------------------------
-  //  Render
-  // ----------------------------------------------------------------
+  /* ----------------------------------------------------------------
+     Render
+     ---------------------------------------------------------------- */
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
       {/* Intro bubble */}
@@ -460,7 +479,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* -------------------------------------------------------------- */}
+      {/* ---------------------------------------------------------------- */}
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
