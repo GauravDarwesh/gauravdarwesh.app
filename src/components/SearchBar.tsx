@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
@@ -54,9 +54,12 @@ const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
   let processed = text.replace(/\r\n/g, "\n");
 
+  // Store markdown links first before any processing
   const mdLinkMap: Record<string, string> = {};
   let mdLinkCounter = 0;
-  processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, _displayText, linkUrl) => {
+  
+  // Process markdown links [text](url)
+  processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, displayText, linkUrl) => {
     const href = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
     const short = getShortenedLinkText(linkUrl);
     const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${short}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
@@ -65,6 +68,7 @@ const convertMarkdownToHtml = (text: string): string => {
     return ph;
   });
 
+  // Store code spans
   const codeMap: Record<string, string> = {};
   let codeCounter = 0;
   processed = processed.replace(/`([^`\n]+?)`/g, (_m, code) => {
@@ -75,13 +79,19 @@ const convertMarkdownToHtml = (text: string): string => {
 
   const processInline = (s: string): string => {
     if (!s) return "";
+    
+    // Process bold
     s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     s = s.replace(/__(.+?)__/g, "<strong>$1</strong>");
+    
+    // Process italic
     s = s.replace(/(^|[\s>])\*([^*]+?)\*($|[\s<])/g, "$1<em>$2</em>$3");
     s = s.replace(/(^|[\s>])_([^_]+?)_($|[\s<])/g, "$1<em>$2</em>$3");
 
+    // Process bare URLs (but skip placeholders)
     const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
+      // Skip if it's a placeholder
       if (rawMatch.startsWith("__MD_LINK_PLACEHOLDER_") || rawMatch.startsWith("__CODE_SPAN_")) {
         return rawMatch;
       }
@@ -97,8 +107,9 @@ const convertMarkdownToHtml = (text: string): string => {
       return anchor + trailing;
     });
 
+    // Restore code spans
     Object.keys(codeMap).forEach((ph) => {
-      if (s.includes(ph)) s = s.split(ph).join(codeMap[ph]);
+      s = s.replace(new RegExp(ph, 'g'), codeMap[ph]);
     });
 
     return s;
@@ -133,12 +144,15 @@ const convertMarkdownToHtml = (text: string): string => {
   if (inList) out.push("</ul>");
 
   let result = out.join("\n");
+  
+  // Replace markdown link placeholders with actual links
   Object.keys(mdLinkMap).forEach((ph) => {
-    if (result.includes(ph)) result = result.split(ph).join(mdLinkMap[ph]);
+    result = result.replace(new RegExp(ph, 'g'), mdLinkMap[ph]);
   });
-  Object.keys(codeMap).forEach((ph) => {
-    if (result.includes(ph)) result = result.split(ph).join(codeMap[ph]);
-  });
+  
+  // Final cleanup - ensure no placeholders remain
+  result = result.replace(/__MD_LINK_PLACEHOLDER_\d+__/g, '');
+  result = result.replace(/__CODE_SPAN_\d+__/g, '');
 
   return result;
 };
@@ -157,6 +171,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [fullText, setFullText] = useState("");
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [showTypewriter, setShowTypewriter] = useState(false);
 
   // rotating suggestion list
   const rotatingSuggestions = [
@@ -171,6 +188,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ How to Contact Gaurav?",
   ];
 
+  // Track user activity
+  useEffect(() => {
+    const handleActivity = () => {
+      setLastActivityTime(Date.now());
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keypress', handleActivity);
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keypress', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+    };
+  }, []);
+
+  // Show intro bubble
   useEffect(() => {
     const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
     if (visitCount < 3) {
@@ -179,16 +216,39 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }, 3000);
       localStorage.setItem("introBubbleVisits", String(visitCount + 1));
       return () => clearTimeout(timer);
+    } else {
+      // Start showing typewriter after a delay
+      const timer = setTimeout(() => {
+        if (!hasInteracted) {
+          setShowTypewriter(true);
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [hasInteracted]);
+
+  // Check for inactivity and show typewriter again
+  useEffect(() => {
+    const inactivityTimer = setInterval(() => {
+      const timeSinceLastActivity = Date.now() - lastActivityTime;
+      const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
+      
+      // Show typewriter if inactive for 8-10 seconds and user has interacted before
+      if (timeSinceLastActivity > 8000 && hasInteracted && !showIntroBubble && visitCount >= 3 && !isLoading && !response) {
+        setShowTypewriter(true);
+      }
+    }, 1000);
+
+    return () => clearInterval(inactivityTimer);
+  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response]);
 
   // Typewriter effect
   useEffect(() => {
-    const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
-    if (visitCount >= 3 && !showIntroBubble) {
-      const typingSpeed = 50; // milliseconds per character when typing
-      const deletingSpeed = 30; // milliseconds per character when deleting
-      const pauseDuration = 2000; // pause at the end of each suggestion
+    if (showTypewriter && !showIntroBubble) {
+      const typingSpeed = 40; // Faster typing for better UX
+      const deletingSpeed = 20; // Faster deleting
+      const pauseBeforeDelete = 3000; // 3 seconds pause before deleting
+      const pauseAfterDelete = 500; // Small pause after deletion
 
       let timeout: NodeJS.Timeout;
 
@@ -196,13 +256,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         // Pause at the end before deleting
         timeout = setTimeout(() => {
           setIsDeleting(true);
-        }, pauseDuration);
+        }, pauseBeforeDelete);
       } else if (isDeleting && typewriterText === "") {
-        // Move to next suggestion
-        const nextIndex = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
-        setCurrentSuggestionIndex(nextIndex);
-        setFullText(rotatingSuggestions[nextIndex]);
-        setIsDeleting(false);
+        // Pause after deletion, then move to next suggestion
+        timeout = setTimeout(() => {
+          const nextIndex = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
+          setCurrentSuggestionIndex(nextIndex);
+          setFullText(rotatingSuggestions[nextIndex]);
+          setIsDeleting(false);
+        }, pauseAfterDelete);
       } else if (isDeleting) {
         // Delete characters
         timeout = setTimeout(() => {
@@ -221,7 +283,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       return () => clearTimeout(timeout);
     }
-  }, [typewriterText, isDeleting, fullText, currentSuggestionIndex, rotatingSuggestions, showIntroBubble]);
+  }, [typewriterText, isDeleting, fullText, currentSuggestionIndex, rotatingSuggestions, showIntroBubble, showTypewriter]);
 
   const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
     e?.preventDefault();
@@ -230,6 +292,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsLoading(true);
     setResponse(null);
+    setHasInteracted(true);
+    setShowTypewriter(false);
     if (!customQuery) setQuery("");
 
     try {
@@ -251,8 +315,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const handleSuggestionClick = (s: string) => {
     setQuery("");
+    setHasInteracted(true);
+    setShowTypewriter(false);
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
+  };
+
+  const handleInputFocus = () => {
+    setShowIntroBubble(false);
+    setShowTypewriter(false);
+    setHasInteracted(true);
   };
 
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
@@ -273,7 +345,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       {/* Typewriter Suggestions */}
-      {!showIntroBubble && typewriterText && (
+      {!showIntroBubble && showTypewriter && typewriterText && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
@@ -341,7 +413,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           <form
             onSubmit={(e) => handleSubmit(e)}
             className="flex items-center gap-3"
-            onFocus={() => setShowIntroBubble(false)}
+            onFocus={handleInputFocus}
           >
             <div className="relative flex-1">
               <Input
@@ -350,7 +422,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
-                  if (showIntroBubble) setShowIntroBubble(false);
+                  setHasInteracted(true);
+                  setShowTypewriter(false);
                 }}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                            text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
