@@ -7,12 +7,12 @@ import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ------------------------------------------------------------------
-   1️⃣  MARKDOWN → HTML (with safe handling of existing HTML,
+   1️⃣  MARKDOWN → HTML (safe handling of existing HTML,
         bare URLs, and e‑mail addresses)
    ------------------------------------------------------------------ */
 const convertMarkdownToHtml = (text: string): string => {
   if (!text) return "";
-  // Normalise line‑breaks
+  // Normalise new‑lines
   let processed = text.replace(/\r\n/g, "\n");
 
   /* --------------------------------------------------------------
@@ -49,7 +49,8 @@ const convertMarkdownToHtml = (text: string): string => {
   });
 
   /* --------------------------------------------------------------
-     ③  INLINE PROCESSOR (bold, italic, protect HTML, URLs, e‑mail)
+     ③  INLINE PROCESSOR (bold, italic, protect HTML,
+         bare URLs, e‑mail)
      -------------------------------------------------------------- */
   const processInline = (s: string): string => {
     if (!s) return "";
@@ -74,9 +75,10 @@ const convertMarkdownToHtml = (text: string): string => {
     /* ----------------------------------------------------------
        ③b. Bare URLs → placeholder
        ---------------------------------------------------------- */
-    const urlRegex = /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
+    const urlRegex =
+      /(?:https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g;
     s = s.replace(urlRegex, (rawMatch) => {
-      // Skip anything that is already a placeholder or that looks like one
+      // Skip anything that is already a placeholder
       if (
         rawMatch.startsWith("__CODE_SPAN_") ||
         rawMatch.startsWith("__URL_PLACEHOLDER_") ||
@@ -87,7 +89,7 @@ const convertMarkdownToHtml = (text: string): string => {
         return rawMatch;
       }
 
-      // Trim trailing punctuation that should not be part of the URL
+      // Remove trailing punctuation that shouldn’t be part of the URL
       let match = rawMatch;
       let trailing = "";
       while (match.length && /[.,;:!?)\]]$/.test(match)) {
@@ -102,7 +104,7 @@ const convertMarkdownToHtml = (text: string): string => {
     });
 
     /* ----------------------------------------------------------
-       ③c. Email addresses → placeholder (mailto:)
+       ③c. E‑mail addresses → placeholder (mailto:)
        ---------------------------------------------------------- */
     const emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
     s = s.replace(emailRegex, (rawMatch) => {
@@ -170,12 +172,12 @@ const convertMarkdownToHtml = (text: string): string => {
      -------------------------------------------------------------- */
   let result = out.join("\n");
 
-  // Insert the real URLs that were stored as placeholders
+  // Insert real URLs stored as placeholders
   Object.entries(urlMap).forEach(([ph, html]) => {
     result = result.replace(new RegExp(ph, "g"), html);
   });
 
-  // Clean any stray placeholders (should be none, but just in case)
+  // Clean any stray placeholders (should be none)
   result = result.replace(/__CODE_SPAN_\d+__/g, "");
   result = result.replace(/__HTML_TAG_\d+__/g, "");
   result = result.replace(/__EMAIL_PLACEHOLDER_\d+__/g, "");
@@ -186,7 +188,7 @@ const convertMarkdownToHtml = (text: string): string => {
 };
 
 /* ------------------------------------------------------------------
-   2️⃣  SEARCH BAR COMPONENT (unchanged UI/logic)
+   2️⃣  SEARCH BAR COMPONENT (UI & logic unchanged)
    ------------------------------------------------------------------ */
 interface SearchBarProps {
   onSearch?: (response: string) => void;
