@@ -189,7 +189,7 @@ export default function Visuals() {
   };
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden">
+    <div className="h-screen w-full relative overflow-hidden">
       {/* Background */}
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
@@ -202,17 +202,21 @@ export default function Visuals() {
       {/* Navigation */}
       <NavigationToggle />
 
-      {/* Center area */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4 pt-20 pb-20">
-        <div className="w-full max-w-7xl relative">
-          {/* Main cascade container - maximized for photo viewing */}
-          <div className="relative w-full">
-            {/* Maximized glass cascade with larger height for better photo viewing */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl w-full aspect-[4/3] max-h-[75vh] p-6 flex items-center justify-center overflow-hidden relative">
+      {/* Center area - full height flex container */}
+      <div className="relative z-10 h-screen flex flex-col pt-16 pb-4 px-4">
+        {/* Spacer for top gap */}
+        <div className="flex-1 min-h-4"></div>
+        
+        {/* Main content container */}
+        <div className="w-full max-w-7xl mx-auto flex flex-col items-center">
+          {/* Cascade container - takes available space */}
+          <div className="w-full max-w-5xl">
+            {/* Dynamic cascade that adapts to screen size */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl w-full h-[60vh] sm:h-[65vh] md:h-[70vh] p-4 sm:p-6 flex items-center justify-center overflow-hidden relative">
               {/* Layer A */}
               <div
                 ref={layerARef}
-                className="absolute inset-0 m-6 rounded-2xl shadow-lg bg-center bg-cover"
+                className="absolute inset-0 m-4 sm:m-6 rounded-2xl shadow-lg bg-center bg-cover"
                 style={{
                   opacity: 1,
                   transition: `opacity ${FADE_MS}ms linear`,
@@ -224,7 +228,7 @@ export default function Visuals() {
               {/* Layer B */}
               <div
                 ref={layerBRef}
-                className="absolute inset-0 m-6 rounded-2xl shadow-lg bg-center bg-cover"
+                className="absolute inset-0 m-4 sm:m-6 rounded-2xl shadow-lg bg-center bg-cover"
                 style={{
                   opacity: 0,
                   transition: `opacity ${FADE_MS}ms linear`,
@@ -235,31 +239,34 @@ export default function Visuals() {
             </div>
           </div>
 
-          {/* Collection title centered below cascade */}
-          <div className="mt-6 flex justify-center">
-            <h2 className="text-lg font-bold text-white/80 drop-shadow-md text-center">
+          {/* Collection title */}
+          <div className="mt-4 sm:mt-6 flex justify-center">
+            <h2 className="text-base sm:text-lg font-bold text-white/80 drop-shadow-md text-center px-4">
               {collectionTitle}
             </h2>
           </div>
 
-          {/* Dynamic navigation arrows - always at bottom below text */}
-          <div className="flex justify-center mt-6 gap-6">
+          {/* Navigation arrows */}
+          <div className="flex justify-center mt-3 sm:mt-4 gap-4 sm:gap-6">
             <button
               onClick={prevCollection}
-              className="flex items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
               aria-label="Previous collection"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
             </button>
             <button
               onClick={nextCollection}
-              className="flex items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
               aria-label="Next collection"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={20} className="sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
+        
+        {/* Spacer for bottom gap */}
+        <div className="flex-1 min-h-4"></div>
       </div>
     </div>
   );
