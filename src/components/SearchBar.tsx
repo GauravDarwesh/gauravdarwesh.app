@@ -423,9 +423,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-placeholder[disabled]::-webkit-text-fill-color{ -webkit-text-fill-color:transparent;}
         .thinking-placeholder[disabled]{caret-color:transparent;}
         .thinking-button{
-          animation: shimmer 2s infinite linear;
           background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.05) 75%);
           background-size: 200% 100%;
+          animation: shimmer 2s infinite linear;
+        }
+        .thinking-button svg {
+          background: none !important;
+          animation: none !important;
+          filter: none !important;
         }
 
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
