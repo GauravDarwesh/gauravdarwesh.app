@@ -205,19 +205,10 @@ export default function Visuals() {
       {/* Center area */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4 pt-20 pb-20">
         <div className="w-full max-w-7xl relative">
-          {/* Main cascade container */}
-          <div className="relative w-full flex items-center justify-center">
-            {/* Left Arrow - Large screens only (lg+) */}
-            <button
-              onClick={prevCollection}
-              className="hidden lg:flex absolute left-[-80px] top-1/2 transform -translate-y-1/2 items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
-              aria-label="Previous collection"
-            >
-              <ChevronLeft size={24} />
-            </button>
-
-            {/* Maximized glass cascade with controlled height */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl w-full aspect-[4/3] max-h-[70vh] p-6 flex items-center justify-center overflow-hidden relative">
+          {/* Main cascade container - maximized for photo viewing */}
+          <div className="relative w-full">
+            {/* Maximized glass cascade with larger height for better photo viewing */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-3xl shadow-2xl w-full aspect-[4/3] max-h-[75vh] p-6 flex items-center justify-center overflow-hidden relative">
               {/* Layer A */}
               <div
                 ref={layerARef}
@@ -242,26 +233,17 @@ export default function Visuals() {
                 aria-hidden="true"
               />
             </div>
-
-            {/* Right Arrow - Large screens only (lg+) */}
-            <button
-              onClick={nextCollection}
-              className="hidden lg:flex absolute right-[-80px] top-1/2 transform -translate-y-1/2 items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
-              aria-label="Next collection"
-            >
-              <ChevronRight size={24} />
-            </button>
           </div>
 
-          {/* Collection title positioned at bottom right of cascade */}
-          <div className="mt-4 flex justify-center">
-            <h2 className="text-sm font-bold text-white/70 drop-shadow-md">
+          {/* Collection title centered below cascade */}
+          <div className="mt-6 flex justify-center">
+            <h2 className="text-lg font-bold text-white/80 drop-shadow-md text-center">
               {collectionTitle}
             </h2>
           </div>
 
-          {/* Navigation arrows for smaller screens (below lg) */}
-          <div className="flex lg:hidden justify-center mt-6 gap-6">
+          {/* Dynamic navigation arrows - always at bottom below text */}
+          <div className="flex justify-center mt-6 gap-6">
             <button
               onClick={prevCollection}
               className="flex items-center justify-center w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl"
