@@ -157,12 +157,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const visitCount =
         parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
       if (
-        idle > 8000 &&
+        idle > 10000 &&
         hasInteracted &&
         !showIntroBubble &&
         visitCount >= 3 &&
-        !isLoading &&
-        !response
+        !isLoading
       ) {
         setShowTypewriter(true);
       }
@@ -284,7 +283,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       <Fade show={showTypewriter && !showIntroBubble} duration={400}>
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+          className={`cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn ${
+            isExpanded 
+              ? "absolute -top-14 left-1/2 -translate-x-1/2" 
+              : ""
+          }`}
         >
           <span className="typewriter-text">
             {typewriterText}
@@ -295,7 +298,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 relative ${
           isLoading ? "thinking-container" : ""
         }`}
         style={{
