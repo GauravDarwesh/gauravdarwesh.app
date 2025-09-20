@@ -26,6 +26,42 @@ const Blog = () => {
         </div>
 
         {/* Blog Posts Section */}
+
+        {/* Blog Post 4 - Embedded Notion Page */}
+<article className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
+  <div className="mb-4">
+    <span className="text-white/70 text-sm">September 20, 2025</span>
+    <h2 className="text-2xl font-bold text-white mt-2 mb-3">
+      Learn to do anything
+    </h2>
+    <p className="text-white/90 leading-relaxed mb-4">
+      Explore my curated Notion page that captures step-by-step guides, frameworks, 
+      and methods to quickly pick up new skills.
+    </p>
+
+    {/* Embedded Notion Page */}
+    <div className="rounded-xl overflow-hidden border border-white/20">
+      <iframe
+        src="https://olive-zircon-d34.notion.site/ebd/b4225891b21343bf8328dfce2ba7bd10"
+        width="100%"
+        height="600"
+        className="w-full rounded-xl"
+        style={{ background: "transparent" }}
+        frameBorder="0"
+        allowFullScreen
+      />
+    </div>
+  </div>
+  <div className="flex flex-wrap gap-2 mt-4">
+    <span className="px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full">Notion</span>
+    <span className="px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full">Learning</span>
+    <span className="px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full">Guides</span>
+  </div>
+</article>
+
+
+
+        
         <div>
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
             <div className="space-y-12">
