@@ -71,7 +71,9 @@ const Blog = () => {
       />
 
       {/* Navigation Toggle */}
-      <NavigationToggle />
+      <div className="relative z-10">
+        <NavigationToggle />
+      </div>
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
@@ -90,10 +92,10 @@ const Blog = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
             {/* Filter Section */}
             <div className="mb-8 relative">
-              <div className="flex items-center gap-3 flex-wrap justify-start">
+              <div className="flex items-center gap-3 flex-wrap justify-start relative z-25">
                 <button
                   onClick={() => setFilterOpen(true)}
-                  className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
+                  className="relative z-25 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
                 >
                   Filter
                 </button>
@@ -101,7 +103,7 @@ const Blog = () => {
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className="flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm"
+                    className="relative z-25 flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm"
                   >
                     {tag}
                     <button
