@@ -30,11 +30,11 @@ const Blog = () => {
       notionUrl: "https://olive-zircon-d34.notion.site/placeholder3",
     },
     {
-      date: "September 20, 2025",
+      date: "July 26, 2020",
       title: "Learn to Do Anything",
       description:
-        "A deep dive into how I structure learning in any field using modern tools, communities, and persistence. This blog includes a live embedded Notion page.",
-      tags: ["Learning", "Growth", "Notion", "Youtube"],
+        "Learning any new skill starts with the courage to try, the patience to practice, and the mindset to embrace mistakes. In this post, I share how taking small opportunities, staying consistent, and welcoming discomfort can shape your growth. These lessons will guide you to build confidence and carve your own career path.",
+      tags: ["Learning", "Growth", "Youtube"],
       notionUrl:
         "https://olive-zircon-d34.notion.site/ebd/b4225891b21343bf8328dfce2ba7bd10",
     },
