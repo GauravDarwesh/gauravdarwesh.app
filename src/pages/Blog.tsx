@@ -34,7 +34,7 @@ const Blog = () => {
       title: "Learn to Do Anything",
       description:
         "A deep dive into how I structure learning in any field using modern tools, communities, and persistence. This blog includes a live embedded Notion page.",
-      tags: ["Learning", "Growth", "Notion"],
+      tags: ["Learning", "Growth", "Notion", "Youtube"],
       notionUrl:
         "https://olive-zircon-d34.notion.site/ebd/b4225891b21343bf8328dfce2ba7bd10",
     },
