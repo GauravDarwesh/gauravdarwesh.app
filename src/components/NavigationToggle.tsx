@@ -60,9 +60,9 @@ const NavigationToggle = () => {
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
   className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 
-    transition-opacity transition-transform duration-300 ease-in-out
+    transition-all duration-700 ease-out
     ${enabledOnThisPath && showScrollTop
-      ? "opacity-0 scale-95 pointer-events-none"
+      ? "opacity-0 scale-98 pointer-events-none"
       : "opacity-100 scale-100 pointer-events-auto"
     }
   `}
