@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
+import GyroscopeShimmer from "@/components/GyroscopeShimmer";
 
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
@@ -91,26 +92,27 @@ const Blog = () => {
             {/* Filter Section */}
             <div className="mb-8 relative">
               <div className="flex items-center gap-3 flex-wrap justify-start">
-                <button
-                  onClick={() => setFilterOpen(true)}
-                  className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
-                >
-                  Filter
-                </button>
+                <GyroscopeShimmer intensity={0.7}>
+                  <button
+                    onClick={() => setFilterOpen(true)}
+                    className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
+                  >
+                    Filter
+                  </button>
+                </GyroscopeShimmer>
 
                 {selectedTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm"
-                  >
-                    {tag}
-                    <button
-                      onClick={() => toggleTag(tag)}
-                      className="text-white/70 hover:text-white"
-                    >
-                      ✕
-                    </button>
-                  </span>
+                  <GyroscopeShimmer key={tag} intensity={0.5}>
+                    <span className="flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm">
+                      {tag}
+                      <button
+                        onClick={() => toggleTag(tag)}
+                        className="text-white/70 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </GyroscopeShimmer>
                 ))}
               </div>
 
