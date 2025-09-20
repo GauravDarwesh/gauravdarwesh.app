@@ -85,65 +85,64 @@ const Blog = () => {
           </div>
         </div>
 
-        {/* Filter Section */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 relative">
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={() => setFilterOpen(true)}
-              className="px-4 py-2 rounded-full bg-white/10 text-white/90 border border-white/20 hover:bg-white/20 transition"
-            >
-              Filter
-            </button>
-
-            {selectedTags.map((tag) => (
-              <span
-                key={tag}
-                className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white/90 text-sm"
-              >
-                {tag}
-                <button
-                  onClick={() => toggleTag(tag)}
-                  className="text-white/70 hover:text-white"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-
-          {filterOpen && (
-            <>
-              {/* Blur overlay */}
-              <div
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
-                onClick={() => setFilterOpen(false)}
-              />
-
-              {/* Dropdown */}
-              <div className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2 w-full max-w-lg">
-                <div className="flex flex-wrap gap-2">
-                  {allTags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1 rounded-full text-sm transition border ${
-                        selectedTags.includes(tag)
-                          ? "bg-white/30 text-white border-white/30"
-                          : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
         {/* Blog Posts Section */}
         <div>
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+            {/* Filter Section */}
+            <div className="mb-8 relative">
+              <div className="flex items-center gap-3 flex-wrap justify-start">
+                <button
+                  onClick={() => setFilterOpen(true)}
+                  className="px-4 py-2 rounded-full bg-white/10 text-white/90 border border-white/20 hover:bg-white/20 transition"
+                >
+                  Filter
+                </button>
+
+                {selectedTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white/90 text-sm"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => toggleTag(tag)}
+                      className="text-white/70 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {filterOpen && (
+                <>
+                  {/* Blur overlay */}
+                  <div
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
+                    onClick={() => setFilterOpen(false)}
+                  />
+
+                  {/* Dropdown */}
+                  <div className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2 w-full max-w-lg">
+                    <div className="flex flex-wrap gap-2">
+                      {allTags.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => toggleTag(tag)}
+                          className={`px-3 py-1 rounded-full text-sm transition border ${
+                            selectedTags.includes(tag)
+                              ? "bg-white/30 text-white border-white/30"
+                              : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <div className="space-y-12">
               {filteredPosts.map((post, idx) => (
                 <article
