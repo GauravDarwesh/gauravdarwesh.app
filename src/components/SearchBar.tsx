@@ -381,10 +381,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               type="submit"
               variant="ghost"
               size="sm"
-              className={`h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0 ${
-                           isLoading ? "thinking-button" : ""
-                         }`}
+              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
