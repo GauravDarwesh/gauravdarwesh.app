@@ -128,18 +128,18 @@ const Blog = () => {
                 <>
                   {/* Blur overlay */}
                   <div
-                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20 animate-fade-in"
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20 animate-fade-in duration-500"
                     onClick={() => setFilterOpen(false)}
                   />
 
                   {/* Dropdown */}
-                  <div id="blog-filter-dropdown" className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg animate-fade-in animate-scale-in">
+                  <div id="blog-filter-dropdown" className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg animate-fade-in animate-scale-in duration-500 ease-out">
                     <div className="flex flex-wrap gap-2">
                       {allTags.map((tag) => (
                         <button
                           key={tag}
                           onClick={() => toggleTag(tag)}
-                          className={`px-3 py-1 rounded-full text-sm transition border hover-scale ${
+                          className={`px-3 py-1 rounded-full text-sm transition-all duration-300 border hover-scale ${
                             selectedTags.includes(tag)
                               ? "bg-white/30 text-white border-white/30"
                               : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
