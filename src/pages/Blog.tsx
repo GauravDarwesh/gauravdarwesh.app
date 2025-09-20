@@ -131,6 +131,7 @@ const Blog = () => {
                   <div
                     className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
                     onClick={() => setFilterOpen(false)}
+                    style={{ zIndex: 20 }}
                   />
 
                   {/* Dropdown */}
@@ -190,11 +191,12 @@ const Blog = () => {
       {/* Glassmorphism Modal for Notion */}
       {activeNotion && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => setActiveNotion(null)}
+          style={{ zIndex: 50 }}
         >
           <div
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-11/12 md:w-3/4 lg:w-2/3 border border-white/20 shadow-xl"
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-11/12 md:w-3/4 lg:w-2/3 border border-white/20 shadow-xl z-60"
             onClick={(e) => e.stopPropagation()}
           >
             <iframe

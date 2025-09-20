@@ -59,7 +59,7 @@ const NavigationToggle = () => {
     <>
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
-  className={`fixed top-6 left-1/2 -translate-x-1/2 z-[60] flex gap-2 
+  className={`fixed top-6 left-1/2 -translate-x-1/2 z-[70] flex gap-2 
     transition-all duration-700 ease-out
     ${enabledOnThisPath && showScrollTop
       ? "opacity-0 scale-98 pointer-events-none"
@@ -97,7 +97,7 @@ const NavigationToggle = () => {
         onClick={scrollToTop}
         aria-label="Scroll to top"
         className={`
-          fixed bottom-6 right-6 z-[60] 
+          fixed bottom-6 right-6 z-[70] 
           flex items-center justify-center
           w-12 h-12 rounded-full backdrop-blur-md
           bg-white/10 border border-white/20
