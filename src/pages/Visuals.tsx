@@ -202,21 +202,21 @@ export default function Visuals() {
       {/* Navigation */}
       <NavigationToggle />
 
-      {/* Center area - responsive layout */}
+      {/* Center area - fully responsive layout */}
       <div className="relative z-10 h-screen flex flex-col">
         {/* Top spacer to clear NavigationToggle */}
         <div className="h-20 sm:h-24 flex-shrink-0"></div>
         
-        {/* Main content container with responsive padding */}
-        <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-8">
-          {/* Dynamic cascade container */}
-          <div className="w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl">
-            {/* Responsive cascade that adapts to all screen sizes */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl sm:rounded-3xl shadow-2xl w-full aspect-[4/3] sm:aspect-[16/10] md:aspect-[16/9] lg:aspect-[21/9] p-3 sm:p-4 md:p-6 flex items-center justify-center overflow-hidden relative">
+        {/* Main content container - dynamic sizing */}
+        <div className="flex-1 flex flex-col items-center justify-center px-2 sm:px-4 md:px-6 lg:px-8 pb-4 sm:pb-6 md:pb-8">
+          {/* Fully dynamic cascade container */}
+          <div className="w-full h-full max-w-[96vw] max-h-[calc(100vh-8rem)] sm:max-w-[92vw] sm:max-h-[calc(100vh-9rem)] md:max-w-[88vw] lg:max-w-[85vw] xl:max-w-[80vw]">
+            {/* Responsive cascade with dynamic height and width */}
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl sm:rounded-3xl shadow-2xl w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] p-2 sm:p-3 md:p-4 lg:p-6 flex items-center justify-center overflow-hidden relative">
               {/* Layer A */}
               <div
                 ref={layerARef}
-                className="absolute inset-3 sm:inset-4 md:inset-6 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
+                className="absolute inset-2 sm:inset-3 md:inset-4 lg:inset-6 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
                 style={{
                   opacity: 1,
                   transition: `opacity ${FADE_MS}ms linear`,
@@ -228,7 +228,7 @@ export default function Visuals() {
               {/* Layer B */}
               <div
                 ref={layerBRef}
-                className="absolute inset-3 sm:inset-4 md:inset-6 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
+                className="absolute inset-2 sm:inset-3 md:inset-4 lg:inset-6 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
                 style={{
                   opacity: 0,
                   transition: `opacity ${FADE_MS}ms linear`,
@@ -239,15 +239,15 @@ export default function Visuals() {
             </div>
           </div>
 
-          {/* Collection title - non-bold and more translucent */}
-          <div className="mt-4 sm:mt-6 md:mt-8 flex justify-center">
-            <h2 className="text-sm sm:text-base md:text-lg text-white/50 drop-shadow-md text-center px-4 transition-opacity duration-300">
+          {/* Collection title - bold and smaller */}
+          <div className="mt-3 sm:mt-4 md:mt-6 flex justify-center">
+            <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/80 drop-shadow-md text-center px-4 transition-opacity duration-300">
               {collectionTitle}
             </h2>
           </div>
 
           {/* Navigation arrows */}
-          <div className="flex justify-center mt-3 sm:mt-4 md:mt-6 gap-4 sm:gap-6">
+          <div className="flex justify-center mt-2 sm:mt-3 md:mt-4 gap-3 sm:gap-4 md:gap-6">
             <button
               onClick={prevCollection}
               className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
