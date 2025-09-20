@@ -404,46 +404,44 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           0%{background-position:-200% 0;}
           100%{background-position:200% 0;}
         }
-        @keyframes containerShimmer {
-          0%{box-shadow: 0 0 0 0 rgba(255,255,255,0.1), inset 0 0 20px rgba(255,255,255,0.05);}
-          50%{box-shadow: 0 0 20px 2px rgba(255,255,255,0.2), inset 0 0 30px rgba(255,255,255,0.15);}
-          100%{box-shadow: 0 0 0 0 rgba(255,255,255,0.1), inset 0 0 20px rgba(255,255,255,0.05);}
-        }
         .thinking-container{
-          animation: containerShimmer 2s infinite ease-in-out;
+          border: 1px solid rgba(255,255,255,0.2);
+          background: linear-gradient(90deg, 
+            rgba(255,255,255,0.05) 25%, 
+            rgba(255,255,255,0.15) 50%, 
+            rgba(255,255,255,0.05) 75%);
+          background-size: 200% 100%;
+          animation: shimmer 2s infinite linear;
         }
         .thinking-placeholder{
-          background:linear-gradient(90deg,rgb(150,150,150,.15) 25%,rgb(150,150,150,.6) 50%,rgb(150,150,150,.15) 75%);
-          background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
-          -webkit-text-fill-color:transparent;color:transparent;animation:shimmer 2s infinite linear;
+          background: linear-gradient(90deg, 
+            rgba(255,255,255,0.3) 25%, 
+            rgba(255,255,255,0.7) 50%, 
+            rgba(255,255,255,0.3) 75%);
+          background-size: 200% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
+          animation: shimmer 2s infinite linear;
         }
         .thinking-placeholder::placeholder{color:transparent;}
         .thinking-placeholder[disabled]::-webkit-text-fill-color{ -webkit-text-fill-color:transparent;}
         .thinking-placeholder[disabled]{caret-color:transparent;}
-        .thinking-button{
-          background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.05) 75%);
-          background-size: 200% 100%;
-          animation: shimmer 2s infinite linear;
-        }
-        .thinking-button svg {
-          background: none !important;
-          animation: none !important;
-          filter: none !important;
-        }
         .thinking-icon {
-          stroke: url(#shimmer-gradient);
-          animation: shimmer 2s infinite linear;
+          stroke: rgba(255,255,255,0.5);
+          filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
+          animation: iconGlow 2s infinite linear;
         }
-        .thinking-icon * {
-          stroke: rgba(255,255,255,0.6);
-          stroke-dasharray: 50;
-          stroke-dashoffset: 0;
-          animation: iconShimmer 2s infinite linear;
-        }
-        @keyframes iconShimmer {
-          0% { stroke-dashoffset: 100; stroke: rgba(255,255,255,0.3); }
-          50% { stroke-dashoffset: 0; stroke: rgba(255,255,255,0.8); }
-          100% { stroke-dashoffset: -100; stroke: rgba(255,255,255,0.3); }
+        @keyframes iconGlow {
+          0%, 100% { 
+            stroke: rgba(255,255,255,0.3);
+            filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
+          }
+          50% { 
+            stroke: rgba(255,255,255,0.8);
+            filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
+          }
         }
 
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
