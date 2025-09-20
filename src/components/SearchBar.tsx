@@ -279,18 +279,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </Fade>
 
-      {/* ── Typewriter bubble (with fade) - non-expanded fallback ── */}
-      <Fade show={showTypewriter && !showIntroBubble && !isExpanded} duration={400}>
-        <div
-          onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-        >
-          <span className="typewriter-text">
-            {typewriterText}
-            <span className="typewriter-cursor">|</span>
-          </span>
-        </div>
-      </Fade>
+      {/* Typewriter bubble anchored to search bar is handled below */}
 
       {/* ── Search bar container ── */}
       <div
@@ -304,9 +293,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
-        {/* Bubble anchored to expanded search bar */}
-        <Fade show={showTypewriter && !showIntroBubble && isExpanded} duration={400}>
-          <div className="absolute left-1/2 -translate-x-1/2 -top-3 sm:-top-4 z-20">
+        {/* Bubble anchored to search bar */}
+        <Fade show={showTypewriter && !showIntroBubble} duration={400}>
+          <div className="absolute left-1/2 -translate-x-1/2 -top-12 sm:-top-14 md:-top-16 z-20">
             <div
               onClick={() => handleSuggestionClick(fullText)}
               className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
