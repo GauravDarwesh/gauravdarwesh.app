@@ -92,11 +92,21 @@ const Blog = () => {
             <div className="mb-8 relative">
               <div className="flex items-center gap-3 flex-wrap justify-start">
                 <button
-                  onClick={() => setFilterOpen(true)}
-                  className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
+                  onClick={() => setFilterOpen((prev) => !prev)}
+                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-40' : ''}`}
+                  aria-expanded={filterOpen}
+                  aria-controls="blog-filter-dropdown"
                 >
                   Filter
                 </button>
+                {selectedTags.length > 0 && (
+                  <button
+                    onClick={() => setSelectedTags([])}
+                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-40' : ''}`}
+                  >
+                    Clear All
+                  </button>
+                )}
 
                 {selectedTags.map((tag) => (
                   <span
@@ -123,7 +133,7 @@ const Blog = () => {
                   />
 
                   {/* Dropdown */}
-                  <div className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2 w-full max-w-lg">
+                  <div id="blog-filter-dropdown" className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2 w-full max-w-lg">
                     <div className="flex flex-wrap gap-2">
                       {allTags.map((tag) => (
                         <button
