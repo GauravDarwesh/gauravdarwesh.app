@@ -295,7 +295,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
-        className="mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30"
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
+          isLoading ? "thinking-container" : ""
+        }`}
         style={{
           width: targetWidth,
           maxWidth: "90vw",
@@ -379,12 +381,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               type="submit"
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
+              className={`h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0 ${
+                           isLoading ? "thinking-button" : ""
+                         }`}
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
-              <Search className="h-4 w-4" />
+              <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
             </Button>
           </form>
         </div>
@@ -402,6 +406,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           0%{background-position:-200% 0;}
           100%{background-position:200% 0;}
         }
+        @keyframes containerShimmer {
+          0%{box-shadow: 0 0 0 0 rgba(255,255,255,0.1), inset 0 0 20px rgba(255,255,255,0.05);}
+          50%{box-shadow: 0 0 20px 2px rgba(255,255,255,0.2), inset 0 0 30px rgba(255,255,255,0.15);}
+          100%{box-shadow: 0 0 0 0 rgba(255,255,255,0.1), inset 0 0 20px rgba(255,255,255,0.05);}
+        }
+        .thinking-container{
+          animation: containerShimmer 2s infinite ease-in-out;
+        }
         .thinking-placeholder{
           background:linear-gradient(90deg,rgb(150,150,150,.15) 25%,rgb(150,150,150,.6) 50%,rgb(150,150,150,.15) 75%);
           background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
@@ -410,6 +422,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-placeholder::placeholder{color:transparent;}
         .thinking-placeholder[disabled]::-webkit-text-fill-color{ -webkit-text-fill-color:transparent;}
         .thinking-placeholder[disabled]{caret-color:transparent;}
+        .thinking-button{
+          animation: shimmer 2s infinite linear;
+          background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.05) 75%);
+          background-size: 200% 100%;
+        }
+        .thinking-icon{
+          animation: shimmer 2s infinite linear;
+          filter: brightness(1.2);
+        }
 
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
                      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
