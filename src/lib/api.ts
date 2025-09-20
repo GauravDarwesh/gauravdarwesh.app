@@ -14,7 +14,7 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
   console.log('Sending chat message:', { message, sessionId });
   
   try {
-    const { data, error } = await supabase.functions.invoke('gemini-chat', {
+    const { data, error } = await supabase.functions.invoke('bright-action', {
       body: { 
         message: message.trim(),
         sessionId 
