@@ -86,7 +86,7 @@ const Blog = () => {
         </div>
 
         {/* Filter Section */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 relative">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 relative">
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => setFilterOpen(true)}
@@ -120,7 +120,7 @@ const Blog = () => {
               />
 
               {/* Dropdown */}
-              <div className="absolute mt-3 left-0 right-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2">
+              <div className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2 w-full max-w-lg">
                 <div className="flex flex-wrap gap-2">
                   {allTags.map((tag) => (
                     <button
@@ -143,20 +143,20 @@ const Blog = () => {
 
         {/* Blog Posts Section */}
         <div>
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
             <div className="space-y-12">
               {filteredPosts.map((post, idx) => (
                 <article
                   key={idx}
                   onClick={() => setActiveNotion(post.notionUrl)}
-                  className="cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition"
+                  className="cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
                 >
                   <div className="mb-4">
                     <span className="text-white/70 text-sm">{post.date}</span>
-                    <h2 className="text-2xl font-bold text-white mt-2 mb-3">
+                    <h2 className="text-3xl font-bold text-white mt-2 mb-3">
                       {post.title}
                     </h2>
-                    <p className="text-white/90 leading-relaxed">
+                    <p className="text-white/90 leading-relaxed text-lg">
                       {post.description}
                     </p>
                   </div>
