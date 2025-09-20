@@ -73,47 +73,51 @@ const Blog = () => {
       {/* Navigation Toggle */}
       <NavigationToggle />
 
-      {/* Filter Button (Corner) */}
-      <div className="fixed bottom-6 right-6 z-30">
-        <button
-          onClick={() => setFilterOpen(true)}
-          className="bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-2 text-white text-sm shadow-lg hover:bg-white/30 transition"
-        >
-          Filter
-        </button>
-      </div>
-
-      {/* Filter Overlay */}
-      {filterOpen && (
+      {/* Filter Button (Top Right) */}
+      <div className="fixed top-6 right-6 z-30">
         <div
-          className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => setFilterOpen(false)}
+          className={`relative origin-top-right transition-transform duration-300 ease-out ${
+            filterOpen ? "scale-100" : "scale-100"
+          }`}
         >
-          <div
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 w-11/12 md:w-2/3 lg:w-1/2 border border-white/20 shadow-xl scale-95 animate-[fadeIn_0.3s_ease-out_forwards]"
-            onClick={(e) => e.stopPropagation()}
+          <button
+            onClick={() => setFilterOpen((prev) => !prev)}
+            className="bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-2 text-white text-sm shadow-lg hover:bg-white/30 transition"
           >
-            <h3 className="text-white/90 mb-4 text-center text-lg font-semibold">
-              Select Tags
-            </h3>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {allTags.map((tag) => (
-                <span
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className={`px-3 py-1 rounded-full text-sm cursor-pointer transition backdrop-blur-sm border border-white/20 ${
-                    selectedTags.includes(tag)
-                      ? "bg-white/30 text-white font-semibold"
-                      : "bg-white/10 text-white/80 hover:bg-white/20"
-                  }`}
-                >
-                  {tag}
-                </span>
-              ))}
+            {filterOpen ? "Close" : "Filter"}
+          </button>
+
+          {/* Expanding Tags */}
+          <div
+            className={`absolute top-full right-0 mt-3 transform origin-top-right transition-all duration-300 ease-out ${
+              filterOpen
+                ? "scale-100 opacity-100 translate-x-0 translate-y-0"
+                : "scale-75 opacity-0 -translate-x-6 -translate-y-6"
+            }`}
+          >
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-56 border border-white/20 shadow-xl">
+              <h3 className="text-white/90 mb-3 text-sm font-semibold text-center">
+                Select Tags
+              </h3>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {allTags.map((tag) => (
+                  <span
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={`px-3 py-1 rounded-full text-sm cursor-pointer transition backdrop-blur-sm border border-white/20 ${
+                      selectedTags.includes(tag)
+                        ? "bg-white/30 text-white font-semibold"
+                        : "bg-white/10 text-white/80 hover:bg-white/20"
+                    }`}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
