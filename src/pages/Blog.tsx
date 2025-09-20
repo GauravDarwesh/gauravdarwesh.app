@@ -22,19 +22,19 @@ const Blog = () => {
       notionUrl: "https://olive-zircon-d34.notion.site/placeholder2",
     },
     {
-      date: "February 10, 2024",
-      title: "The Power of Open Source: Contributing to the Developer Community",
+      date: "December 29, 2020",
+      title: "How to read more Books in the Golden Age of Content",
       description:
-        "Open source software has shaped my career in countless ways. From learning new technologies to collaborating with developers worldwide, here's why I believe every developer should contribute to open source projects...",
-      tags: ["Open Source", "Community", "Development"],
-      notionUrl: "https://olive-zircon-d34.notion.site/placeholder3",
+        "In today’s world of endless social media and distractions, finding time to read books feels harder than ever. Yet, with the right habits, anyone can finish multiple books a year without feeling overwhelmed. In this post, I’ll share practical tips to read more, enjoy the process, and make books a powerful part of your growth.",
+      tags: ["Life", "Books", "Growth"],
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd/af37b2ddb019405c873004b8a91a9137",
     },
     {
       date: "July 26, 2020",
       title: "Learn to Do Anything",
       description:
         "Learning any new skill starts with the courage to try, the patience to practice, and the mindset to embrace mistakes. In this post, I share how taking small opportunities, staying consistent, and welcoming discomfort can shape your growth. These lessons will guide you to build confidence and carve your own career path.",
-      tags: ["Learning", "Growth", "Youtube"],
+      tags: ["Career", "Learning", "Growth"],
       notionUrl:
         "https://olive-zircon-d34.notion.site/ebd/b4225891b21343bf8328dfce2ba7bd10",
     },
