@@ -94,11 +94,20 @@ const Blog = () => {
             <div className="mb-8 relative">
               <div className="flex items-center gap-3 flex-wrap justify-start relative z-30">
                 <button
-                  onClick={() => setFilterOpen(true)}
+                  onClick={() => setFilterOpen(!filterOpen)}
                   className="relative z-30 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
                 >
                   Filter
                 </button>
+
+                {selectedTags.length > 0 && (
+                  <button
+                    onClick={() => setSelectedTags([])}
+                    className="relative z-30 h-9 px-4 text-[12px] rounded-full bg-red-500/20 text-white border border-red-500/30 backdrop-blur-sm hover:bg-red-500/30 transition-all duration-700 ease-out"
+                  >
+                    Clear All
+                  </button>
+                )}
 
                 {selectedTags.map((tag) => (
                   <span
