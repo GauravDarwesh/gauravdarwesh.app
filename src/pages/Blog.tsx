@@ -3,6 +3,7 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const blogPosts = [
     {
@@ -27,7 +28,8 @@ const Blog = () => {
       description:
         "In today’s world of endless social media and distractions, finding time to read books feels harder than ever. Yet, with the right habits, anyone can finish multiple books a year without feeling overwhelmed. In this post, I’ll share practical tips to read more, enjoy the process, and make books a powerful part of your growth.",
       tags: ["Life", "Books", "Growth"],
-      notionUrl: "https://olive-zircon-d34.notion.site/ebd/af37b2ddb019405c873004b8a91a9137",
+      notionUrl:
+        "https://olive-zircon-d34.notion.site/ebd/af37b2ddb019405c873004b8a91a9137",
     },
     {
       date: "July 26, 2020",
@@ -39,6 +41,14 @@ const Blog = () => {
         "https://olive-zircon-d34.notion.site/ebd/b4225891b21343bf8328dfce2ba7bd10",
     },
   ];
+
+  // Collect all unique tags
+  const allTags = Array.from(new Set(blogPosts.flatMap((post) => post.tags)));
+
+  // Filtered posts
+  const filteredPosts = selectedTag
+    ? blogPosts.filter((post) => post.tags.includes(selectedTag))
+    : blogPosts;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -56,7 +66,7 @@ const Blog = () => {
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header Section */}
-        <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+        <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-8">
           <div className="text-center">
             <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
               Thoughts, insights, and stories from my journey in technology,
@@ -65,11 +75,40 @@ const Blog = () => {
           </div>
         </div>
 
+        {/* Filter Section */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={() => setSelectedTag(null)}
+              className={`px-4 py-2 rounded-full text-sm transition ${
+                selectedTag === null
+                  ? "bg-white/20 text-white font-semibold"
+                  : "bg-white/10 text-white/80 hover:bg-white/20"
+              }`}
+            >
+              All
+            </button>
+            {allTags.map((tag, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedTag(tag)}
+                className={`px-4 py-2 rounded-full text-sm transition ${
+                  selectedTag === tag
+                    ? "bg-white/20 text-white font-semibold"
+                    : "bg-white/10 text-white/80 hover:bg-white/20"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Blog Posts Section */}
         <div>
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
             <div className="space-y-12">
-              {blogPosts.map((post, idx) => (
+              {filteredPosts.map((post, idx) => (
                 <article
                   key={idx}
                   onClick={() => setActiveNotion(post.notionUrl)}
@@ -96,6 +135,11 @@ const Blog = () => {
                   </div>
                 </article>
               ))}
+              {filteredPosts.length === 0 && (
+                <p className="text-center text-white/70">
+                  No blogs found for this tag.
+                </p>
+              )}
             </div>
           </div>
         </div>
