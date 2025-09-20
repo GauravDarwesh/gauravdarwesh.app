@@ -93,7 +93,7 @@ const Blog = () => {
               <div className="flex items-center gap-3 flex-wrap justify-start">
                 <button
                   onClick={() => setFilterOpen(true)}
-                  className="px-4 py-2 rounded-full bg-white/10 text-white/90 border border-white/20 hover:bg-white/20 transition"
+                  className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
                 >
                   Filter
                 </button>
@@ -101,7 +101,7 @@ const Blog = () => {
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white/90 text-sm"
+                    className="flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm"
                   >
                     {tag}
                     <button
