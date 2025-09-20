@@ -406,12 +406,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         .thinking-container{
           border: 1px solid rgba(255,255,255,0.2);
-          background: linear-gradient(90deg, 
-            rgba(255,255,255,0.05) 25%, 
-            rgba(255,255,255,0.15) 50%, 
-            rgba(255,255,255,0.05) 75%);
-          background-size: 200% 100%;
-          animation: shimmer 2s infinite linear;
+          background: rgba(255,255,255,0.05);
+          animation: glowPulse 2s infinite ease-in-out;
+        }
+        @keyframes glowPulse {
+          0%, 100% { 
+            box-shadow: 0 0 5px rgba(255,255,255,0.1), inset 0 0 10px rgba(255,255,255,0.05);
+          }
+          50% { 
+            box-shadow: 0 0 20px rgba(255,255,255,0.3), inset 0 0 20px rgba(255,255,255,0.15);
+          }
         }
         .thinking-placeholder{
           background: linear-gradient(90deg, 
