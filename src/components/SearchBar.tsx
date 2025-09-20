@@ -157,11 +157,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const visitCount =
         parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
       if (
-        idle > 10000 &&
+        idle > 8000 &&
         hasInteracted &&
         !showIntroBubble &&
         visitCount >= 3 &&
-        !isLoading
+        !isLoading &&
+        !response
       ) {
         setShowTypewriter(true);
       }
@@ -258,7 +259,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const isExpanded = suggestions.length > 0 || !!response;
+  const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
@@ -279,11 +280,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </Fade>
 
-      {/* Typewriter bubble anchored to search bar is handled below */}
+      {/* ── Typewriter bubble (with fade) ── */}
+      <Fade show={showTypewriter && !showIntroBubble} duration={400}>
+        <div
+          onClick={() => handleSuggestionClick(fullText)}
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+        >
+          <span className="typewriter-text">
+            {typewriterText}
+            <span className="typewriter-cursor">|</span>
+          </span>
+        </div>
+      </Fade>
 
       {/* ── Search bar container ── */}
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 relative ${
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
         }`}
         style={{
@@ -293,21 +305,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
-        {/* Bubble anchored to search bar */}
-        <Fade show={showTypewriter && !showIntroBubble} duration={400}>
-          <div className="absolute left-1/2 -translate-x-1/2 -top-12 sm:-top-14 md:-top-16 z-20">
-            <div
-              onClick={() => handleSuggestionClick(fullText)}
-              className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-            >
-              <span className="typewriter-text">
-                {typewriterText}
-                <span className="typewriter-cursor">|</span>
-              </span>
-            </div>
-          </div>
-        </Fade>
-
         <div
           className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
             isExpanded ? "p-5 pt-6" : "p-2"
