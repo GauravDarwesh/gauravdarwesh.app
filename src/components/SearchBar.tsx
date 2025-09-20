@@ -258,7 +258,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const isExpanded = suggestions.length > 0 || response;
+  const isExpanded = suggestions.length > 0 || !!response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
@@ -279,15 +279,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </Fade>
 
-      {/* ── Typewriter bubble (with fade) ── */}
-      <Fade show={showTypewriter && !showIntroBubble} duration={400}>
+      {/* ── Typewriter bubble (with fade) - non-expanded fallback ── */}
+      <Fade show={showTypewriter && !showIntroBubble && !isExpanded} duration={400}>
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className={`cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn ${
-            isExpanded 
-              ? "absolute -top-12 left-1/2 transform -translate-x-1/2 z-10" 
-              : ""
-          }`}
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
           <span className="typewriter-text">
             {typewriterText}
@@ -308,6 +304,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
+        {/* Bubble anchored to expanded search bar */}
+        <Fade show={showTypewriter && !showIntroBubble && isExpanded} duration={400}>
+          <div className="absolute left-1/2 -translate-x-1/2 -top-3 sm:-top-4 z-20">
+            <div
+              onClick={() => handleSuggestionClick(fullText)}
+              className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+            >
+              <span className="typewriter-text">
+                {typewriterText}
+                <span className="typewriter-cursor">|</span>
+              </span>
+            </div>
+          </div>
+        </Fade>
+
         <div
           className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
             isExpanded ? "p-5 pt-6" : "p-2"
