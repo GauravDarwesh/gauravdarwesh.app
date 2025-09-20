@@ -157,18 +157,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const visitCount =
         parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
       if (
-        idle > 8000 &&
+        idle > 10000 &&
         hasInteracted &&
         !showIntroBubble &&
         visitCount >= 3 &&
-        !isLoading &&
-        !response
+        !isLoading
       ) {
         setShowTypewriter(true);
       }
     }, 1000);
     return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response]);
+  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading]);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -262,6 +261,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
+  const inputHeight = query.length > 50 ? "h-16" : query.length > 30 ? "h-12" : "h-10";
 
   /* ----- 🔒 Render ----- */
   return (
@@ -370,7 +370,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   setShowTypewriter(false);
                 }}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
+                           text-foreground placeholder:text-muted-foreground text-base px-4 ${inputHeight} 
+                           resize-none transition-all duration-300 ${
                              isLoading ? "thinking-placeholder" : ""
                            }`}
                 disabled={isLoading}
