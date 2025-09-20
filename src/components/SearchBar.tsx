@@ -285,7 +285,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           onClick={() => handleSuggestionClick(fullText)}
           className={`cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn ${
             isExpanded 
-              ? "absolute -top-14 left-1/2 -translate-x-1/2" 
+              ? "absolute -top-12 left-1/2 transform -translate-x-1/2 z-10" 
               : ""
           }`}
         >
