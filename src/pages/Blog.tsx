@@ -29,7 +29,8 @@ const Blog = () => {
       description:
         "In today’s world of endless social media and distractions, finding time to read books feels harder than ever. Yet, with the right habits, anyone can finish multiple books a year without feeling overwhelmed. In this post, I’ll share practical tips to read more, enjoy the process, and make books a powerful part of your growth.",
       tags: ["Life", "Books", "Growth"],
-      notionUrl: "https://olive-zircon-d34.notion.site/ebd/af37b2ddb019405c873004b8a91a9137",
+      notionUrl:
+        "https://olive-zircon-d34.notion.site/ebd/af37b2ddb019405c873004b8a91a9137",
     },
     {
       date: "July 26, 2020",
@@ -42,23 +43,22 @@ const Blog = () => {
     },
   ];
 
-  // collect unique tags
-  const allTags = Array.from(new Set(blogPosts.flatMap((p) => p.tags)));
+  const allTags = Array.from(new Set(blogPosts.flatMap((post) => post.tags)));
 
-  // filter logic (multiple tags)
-  const filteredPosts =
-    selectedTags.length > 0
-      ? blogPosts.filter((post) =>
-          selectedTags.every((tag) => post.tags.includes(tag))
-        )
-      : blogPosts;
-
-  // toggle tag selection
   const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter((t) => t !== tag));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+    }
   };
+
+  const filteredPosts =
+    selectedTags.length === 0
+      ? blogPosts
+      : blogPosts.filter((post) =>
+          selectedTags.every((tag) => post.tags.includes(tag))
+        );
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -73,52 +73,6 @@ const Blog = () => {
       {/* Navigation Toggle */}
       <NavigationToggle />
 
-      {/* Filter Button (Top Right) */}
-      <div className="fixed top-6 right-6 z-30">
-        <div
-          className={`relative origin-top-right transition-transform duration-300 ease-out ${
-            filterOpen ? "scale-100" : "scale-100"
-          }`}
-        >
-          <button
-            onClick={() => setFilterOpen((prev) => !prev)}
-            className="bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-2 text-white text-sm shadow-lg hover:bg-white/30 transition"
-          >
-            {filterOpen ? "Close" : "Filter"}
-          </button>
-
-          {/* Expanding Tags */}
-          <div
-            className={`absolute top-full right-0 mt-3 transform origin-top-right transition-all duration-300 ease-out ${
-              filterOpen
-                ? "scale-100 opacity-100 translate-x-0 translate-y-0"
-                : "scale-75 opacity-0 -translate-x-6 -translate-y-6"
-            }`}
-          >
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-56 border border-white/20 shadow-xl">
-              <h3 className="text-white/90 mb-3 text-sm font-semibold text-center">
-                Select Tags
-              </h3>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {allTags.map((tag) => (
-                  <span
-                    key={tag}
-                    onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1 rounded-full text-sm cursor-pointer transition backdrop-blur-sm border border-white/20 ${
-                      selectedTags.includes(tag)
-                        ? "bg-white/30 text-white font-semibold"
-                        : "bg-white/10 text-white/80 hover:bg-white/20"
-                    }`}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header Section */}
@@ -129,6 +83,62 @@ const Blog = () => {
               business and beyond.
             </p>
           </div>
+        </div>
+
+        {/* Filter Section */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 relative">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => setFilterOpen(true)}
+              className="px-4 py-2 rounded-full bg-white/10 text-white/90 border border-white/20 hover:bg-white/20 transition"
+            >
+              Filter
+            </button>
+
+            {selectedTags.map((tag) => (
+              <span
+                key={tag}
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white/90 text-sm"
+              >
+                {tag}
+                <button
+                  onClick={() => toggleTag(tag)}
+                  className="text-white/70 hover:text-white"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {filterOpen && (
+            <>
+              {/* Blur overlay */}
+              <div
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
+                onClick={() => setFilterOpen(false)}
+              />
+
+              {/* Dropdown */}
+              <div className="absolute mt-3 left-0 right-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2">
+                <div className="flex flex-wrap gap-2">
+                  {allTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTag(tag)}
+                      className={`px-3 py-1 rounded-full text-sm transition border ${
+                        selectedTags.includes(tag)
+                          ? "bg-white/30 text-white border-white/30"
+                          : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Blog Posts Section */}
