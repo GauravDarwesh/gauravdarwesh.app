@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronUp } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import GyroscopeShimmer from "@/components/GyroscopeShimmer";
 
 const NavigationToggle = () => {
   const navigate = useNavigate();
@@ -71,49 +70,45 @@ const NavigationToggle = () => {
   {options.map((option) => {
     const active = isActive(option.path);
     return (
-      <GyroscopeShimmer key={option.name} intensity={active ? 0.8 : 0.5}>
-        <Button
-          onClick={() => navigate(option.path)}
-          variant="ghost"
-          size="sm"
-          className={`
-            w-20 h-9 text-[12px] text-center tracking-normal rounded-full 
-            bg-transparent hover:bg-transparent
-            border border-transparent
-            ${active
-              ? "bg-white/10 border-white/20 text-white backdrop-blur-sm"
-              : "text-gray-300 hover:text-white"
-            }
-          `}
-        >
-          {option.name}
-        </Button>
-      </GyroscopeShimmer>
+      <Button
+        key={option.name}
+        onClick={() => navigate(option.path)}
+        variant="ghost"
+        size="sm"
+        className={`
+          w-20 h-9 text-[12px] text-center tracking-normal rounded-full 
+          bg-transparent hover:bg-transparent
+          border border-transparent
+          ${active
+            ? "bg-white/10 border-white/20 text-white backdrop-blur-sm"
+            : "text-gray-300 hover:text-white"
+          }
+        `}
+      >
+        {option.name}
+      </Button>
     );
   })}
 </div>
 
 
       {/* Floating round translucent ball (only on allowed paths) */}
-      <GyroscopeShimmer 
-        intensity={0.7}
-        className={`fixed bottom-6 right-6 z-50 ${enabledOnThisPath && showScrollTop ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}`}
+      <button
+        onClick={scrollToTop}
+        aria-label="Scroll to top"
+        className={`
+          fixed bottom-6 right-6 z-50 
+          flex items-center justify-center
+          w-12 h-12 rounded-full backdrop-blur-md
+          bg-white/10 border border-white/20
+          text-white shadow-lg
+          transition-all duration-1000 ease-in-out
+          hover:bg-white/20
+          ${enabledOnThisPath && showScrollTop ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
+        `}
       >
-        <button
-          onClick={scrollToTop}
-          aria-label="Scroll to top"
-          className="
-            flex items-center justify-center
-            w-12 h-12 rounded-full backdrop-blur-md
-            bg-white/10 border border-white/20
-            text-white shadow-lg
-            transition-all duration-1000 ease-in-out
-            hover:bg-white/20
-          "
-        >
-          <ChevronUp className="w-5 h-5" />
-        </button>
-      </GyroscopeShimmer>
+        <ChevronUp className="w-5 h-5" />
+      </button>
     </>
   );
 };

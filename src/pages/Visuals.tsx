@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import GyroscopeShimmer from "@/components/GyroscopeShimmer";
 
 /* Change this to adjust speed */
 const SLIDE_INTERVAL = 2000; // 2000 ms = 2 seconds
@@ -249,24 +248,20 @@ export default function Visuals() {
 
           {/* Navigation arrows */}
           <div className="flex justify-center mt-2 sm:mt-3 md:mt-4 gap-3 sm:gap-4 md:gap-6">
-            <GyroscopeShimmer intensity={0.7}>
-              <button
-                onClick={prevCollection}
-                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-                aria-label="Previous collection"
-              >
-                <ChevronLeft size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
-              </button>
-            </GyroscopeShimmer>
-            <GyroscopeShimmer intensity={0.7}>
-              <button
-                onClick={nextCollection}
-                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-                aria-label="Next collection"
-              >
-                <ChevronRight size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
-              </button>
-            </GyroscopeShimmer>
+            <button
+              onClick={prevCollection}
+              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
+              aria-label="Previous collection"
+            >
+              <ChevronLeft size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
+            </button>
+            <button
+              onClick={nextCollection}
+              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
+              aria-label="Next collection"
+            >
+              <ChevronRight size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
+            </button>
           </div>
         </div>
       </div>

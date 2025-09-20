@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
-import GyroscopeShimmer from "@/components/GyroscopeShimmer";
 
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
@@ -269,46 +268,41 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
       {/* ── Intro bubble (with fade) ── */}
       <Fade show={showIntroBubble} duration={400}>
-        <GyroscopeShimmer intensity={0.6}>
-          <div
-            onClick={() =>
-              handleSuggestionClick(
-                "✨ What are these sections on the website?"
-              )
-            }
-            className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-          >
-            ✨ What are these sections on the website?
-          </div>
-        </GyroscopeShimmer>
+        <div
+          onClick={() =>
+            handleSuggestionClick(
+              "✨ What are these sections on the website?"
+            )
+          }
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+        >
+          ✨ What are these sections on the website?
+        </div>
       </Fade>
 
       {/* ── Typewriter bubble (with fade) ── */}
       <Fade show={showTypewriter && !showIntroBubble} duration={400}>
-        <GyroscopeShimmer intensity={0.6}>
-          <div
-            onClick={() => handleSuggestionClick(fullText)}
-            className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-          >
-            <span className="typewriter-text">
-              {typewriterText}
-              <span className="typewriter-cursor">|</span>
-            </span>
-          </div>
-        </GyroscopeShimmer>
+        <div
+          onClick={() => handleSuggestionClick(fullText)}
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+        >
+          <span className="typewriter-text">
+            {typewriterText}
+            <span className="typewriter-cursor">|</span>
+          </span>
+        </div>
       </Fade>
 
       {/* ── Search bar container ── */}
-      <GyroscopeShimmer intensity={0.8}>
-        <div
-          className="mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30"
-          style={{
-            width: targetWidth,
-            maxWidth: "90vw",
-            borderRadius: targetRadius,
-            transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
-          }}
-        >
+      <div
+        className="mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30"
+        style={{
+          width: targetWidth,
+          maxWidth: "90vw",
+          borderRadius: targetRadius,
+          transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
+        }}
+      >
         <div
           className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
             isExpanded ? "p-5 pt-6" : "p-2"
@@ -321,15 +315,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               style={{ animation: "fadeIn 0.4s ease forwards" }}
             >
               {suggestions.map((s, i) => (
-                <GyroscopeShimmer key={i} intensity={0.5}>
-                  <button
-                    onClick={() => handleSuggestionClick(s)}
-                    className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
-                    disabled={isLoading}
-                  >
-                    {s}
-                  </button>
-                </GyroscopeShimmer>
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(s)}
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {s}
+                </button>
               ))}
             </div>
           </Fade>
@@ -382,23 +375,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 aria-label="Ask anything"
               />
             </div>
-            <GyroscopeShimmer intensity={0.6}>
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                           ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
-                disabled={isLoading || !query.trim()}
-                aria-label="Send"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </GyroscopeShimmer>
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
+              disabled={isLoading || !query.trim()}
+              aria-label="Send"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
           </form>
         </div>
-        </div>
-      </GyroscopeShimmer>
+      </div>
 
       {/* ── Shared CSS ── */}
       <style>{`
