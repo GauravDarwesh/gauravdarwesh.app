@@ -388,7 +388,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
-              <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
+              <Search className="h-4 w-4" />
             </Button>
           </form>
         </div>
@@ -426,10 +426,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           animation: shimmer 2s infinite linear;
           background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.05) 75%);
           background-size: 200% 100%;
-        }
-        .thinking-icon{
-          animation: shimmer 2s infinite linear;
-          filter: brightness(1.2);
         }
 
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
