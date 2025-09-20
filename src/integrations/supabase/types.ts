@@ -74,6 +74,26 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      get_session_info: {
+        Args: { p_session_id: string }
+        Returns: {
+          introduced: boolean
+          last_updated: string
+          session_id: string
+          total_messages: number
+          user_name: string
+        }[]
+      }
+      get_session_messages: {
+        Args: { p_session_id: string }
+        Returns: {
+          content: string
+          created_at: string
+          id: number
+          role: string
+          source: string
+        }[]
+      }
       halfvec_avg: {
         Args: { "": number[] }
         Returns: unknown
@@ -105,6 +125,15 @@ export type Database = {
       hnswhandler: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      insert_session_message: {
+        Args: {
+          p_content: string
+          p_role: string
+          p_session_id: string
+          p_source?: string
+        }
+        Returns: number
       }
       ivfflat_bit_support: {
         Args: { "": unknown }
