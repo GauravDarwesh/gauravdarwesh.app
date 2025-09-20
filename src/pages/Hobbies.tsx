@@ -23,7 +23,7 @@ const Portfolio = () => {
             <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
             <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
             <a href="https://www.threads.com/@allaboutgaurav" target="_blank">threads/</a>
-            <a href="https://twitter.com/gaurav11darwesh" target="_blank">x/</a>
+            <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter/</a>
             <a href="https://instagram.com/allaboutgaurav" target="_blank">instagram/</a>
           </div>
         </div>
