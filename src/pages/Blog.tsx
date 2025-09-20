@@ -4,7 +4,7 @@ import NavigationToggle from "@/components/NavigationToggle";
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const blogPosts = [
     {
@@ -45,10 +45,20 @@ const Blog = () => {
   // collect unique tags
   const allTags = Array.from(new Set(blogPosts.flatMap((p) => p.tags)));
 
-  // filter logic
-  const filteredPosts = selectedTag
-    ? blogPosts.filter((post) => post.tags.includes(selectedTag))
-    : blogPosts;
+  // filter logic (multiple tags)
+  const filteredPosts =
+    selectedTags.length > 0
+      ? blogPosts.filter((post) =>
+          selectedTags.every((tag) => post.tags.includes(tag))
+        )
+      : blogPosts;
+
+  // toggle tag selection
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -63,6 +73,48 @@ const Blog = () => {
       {/* Navigation Toggle */}
       <NavigationToggle />
 
+      {/* Filter Button (Corner) */}
+      <div className="fixed bottom-6 right-6 z-30">
+        <button
+          onClick={() => setFilterOpen(true)}
+          className="bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-2 text-white text-sm shadow-lg hover:bg-white/30 transition"
+        >
+          Filter
+        </button>
+      </div>
+
+      {/* Filter Overlay */}
+      {filterOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setFilterOpen(false)}
+        >
+          <div
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 w-11/12 md:w-2/3 lg:w-1/2 border border-white/20 shadow-xl scale-95 animate-[fadeIn_0.3s_ease-out_forwards]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-white/90 mb-4 text-center text-lg font-semibold">
+              Select Tags
+            </h3>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {allTags.map((tag) => (
+                <span
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`px-3 py-1 rounded-full text-sm cursor-pointer transition backdrop-blur-sm border border-white/20 ${
+                    selectedTags.includes(tag)
+                      ? "bg-white/30 text-white font-semibold"
+                      : "bg-white/10 text-white/80 hover:bg-white/20"
+                  }`}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header Section */}
@@ -72,49 +124,6 @@ const Blog = () => {
               Thoughts, insights, and stories from my journey in technology,
               business and beyond.
             </p>
-          </div>
-        </div>
-
-        {/* Filter Section */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-          <div
-            className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 cursor-pointer transition hover:bg-white/20"
-            onClick={() => setFilterOpen((prev) => !prev)}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-white/90 text-sm">
-                {selectedTag ? `Filter: ${selectedTag}` : "Filter by tags"}
-              </span>
-              <span className="text-white/70 text-sm">
-                {filterOpen ? "▲" : "▼"}
-              </span>
-            </div>
-
-            {/* Expandable Tags */}
-            <div
-              className={`transition-all overflow-hidden ${
-                filterOpen ? "max-h-40 mt-3" : "max-h-0"
-              }`}
-            >
-              <div className="flex flex-wrap gap-2">
-                {allTags.map((tag) => (
-                  <span
-                    key={tag}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedTag(tag === selectedTag ? null : tag);
-                    }}
-                    className={`px-3 py-1 rounded-full text-sm cursor-pointer transition backdrop-blur-sm border border-white/20 ${
-                      selectedTag === tag
-                        ? "bg-white/30 text-white font-semibold"
-                        : "bg-white/10 text-white/80 hover:bg-white/20"
-                    }`}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -157,7 +166,7 @@ const Blog = () => {
       {/* Glassmorphism Modal for Notion */}
       {activeNotion && (
         <div
-          className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => setActiveNotion(null)}
         >
           <div
