@@ -4,6 +4,7 @@ import NavigationToggle from "@/components/NavigationToggle";
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const blogPosts = [
@@ -92,8 +93,18 @@ const Blog = () => {
             <div className="mb-8 relative">
               <div className="flex items-center gap-3 flex-wrap justify-start">
                 <button
-                  onClick={() => setFilterOpen((prev) => !prev)}
-                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-40' : ''}`}
+                  onClick={() => {
+                    if (filterOpen) {
+                      setIsAnimating(true);
+                      setTimeout(() => {
+                        setFilterOpen(false);
+                        setIsAnimating(false);
+                      }, 300);
+                    } else {
+                      setFilterOpen(true);
+                    }
+                  }}
+                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? 'relative z-40' : ''}`}
                   aria-expanded={filterOpen}
                   aria-controls="blog-filter-dropdown"
                 >
@@ -128,18 +139,33 @@ const Blog = () => {
                 <>
                   {/* Blur overlay */}
                   <div
-                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20 animate-fade-in duration-500"
-                    onClick={() => setFilterOpen(false)}
+                    className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-20 transition-all duration-300 ease-out ${
+                      isAnimating ? 'opacity-0' : 'opacity-100'
+                    }`}
+                    onClick={() => {
+                      setIsAnimating(true);
+                      setTimeout(() => {
+                        setFilterOpen(false);
+                        setIsAnimating(false);
+                      }, 300);
+                    }}
                   />
 
                   {/* Dropdown */}
-                  <div id="blog-filter-dropdown" className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg animate-fade-in animate-scale-in duration-500 ease-out">
+                  <div 
+                    id="blog-filter-dropdown" 
+                    className={`absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
+                      isAnimating 
+                        ? 'opacity-0 scale-95 translate-y-2' 
+                        : 'opacity-100 scale-100 translate-y-0'
+                    }`}
+                  >
                     <div className="flex flex-wrap gap-2">
                       {allTags.map((tag) => (
                         <button
                           key={tag}
                           onClick={() => toggleTag(tag)}
-                          className={`px-3 py-1 rounded-full text-sm transition-all duration-300 border hover-scale ${
+                          className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
                             selectedTags.includes(tag)
                               ? "bg-white/30 text-white border-white/30"
                               : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
