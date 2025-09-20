@@ -71,9 +71,7 @@ const Blog = () => {
       />
 
       {/* Navigation Toggle */}
-      <div className="relative z-10">
-        <NavigationToggle />
-      </div>
+      <NavigationToggle />
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
@@ -92,27 +90,18 @@ const Blog = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
             {/* Filter Section */}
             <div className="mb-8 relative">
-              <div className="flex items-center gap-3 flex-wrap justify-start relative z-30">
+              <div className="flex items-center gap-3 flex-wrap justify-start">
                 <button
-                  onClick={() => setFilterOpen(!filterOpen)}
-                  className="relative z-30 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
+                  onClick={() => setFilterOpen(true)}
+                  className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
                 >
                   Filter
                 </button>
 
-                {selectedTags.length > 0 && (
-                  <button
-                    onClick={() => setSelectedTags([])}
-                    className="relative z-30 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out"
-                  >
-                    Clear All
-                  </button>
-                )}
-
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className="relative z-30 flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm"
+                    className="flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm"
                   >
                     {tag}
                     <button
@@ -131,11 +120,10 @@ const Blog = () => {
                   <div
                     className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
                     onClick={() => setFilterOpen(false)}
-                    style={{ zIndex: 20 }}
                   />
 
                   {/* Dropdown */}
-                  <div className="absolute mt-3 left-0 z-40 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2 w-full max-w-lg">
+                  <div className="absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg animate-in fade-in slide-in-from-top-2 w-full max-w-lg">
                     <div className="flex flex-wrap gap-2">
                       {allTags.map((tag) => (
                         <button
@@ -191,12 +179,11 @@ const Blog = () => {
       {/* Glassmorphism Modal for Notion */}
       {activeNotion && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => setActiveNotion(null)}
-          style={{ zIndex: 50 }}
         >
           <div
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-11/12 md:w-3/4 lg:w-2/3 border border-white/20 shadow-xl z-60"
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-11/12 md:w-3/4 lg:w-2/3 border border-white/20 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <iframe
