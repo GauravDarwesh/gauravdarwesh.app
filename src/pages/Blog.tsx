@@ -88,7 +88,7 @@ const Blog = () => {
 
         {/* Blog Posts Section */}
         <div>
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-40">
             {/* Filter Section */}
             <div className="mb-8 relative">
               <div className="flex items-center gap-3 flex-wrap justify-start">
