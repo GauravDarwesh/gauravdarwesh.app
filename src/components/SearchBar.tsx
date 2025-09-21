@@ -413,14 +413,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             box-shadow: 0 0 20px rgba(255,255,255,0.3), inset 0 0 20px rgba(255,255,255,0.15);
           }
         }
+        @keyframes textGlow {
+          0%, 100% { 
+            color: rgba(255,255,255,0.3);
+            text-shadow: 0 0 1px rgba(255,255,255,0.2);
+          }
+          50% { 
+            color: rgba(255,255,255,0.8);
+            text-shadow: 0 0 3px rgba(255,255,255,0.6);
+          }
+        }
         .thinking-placeholder::placeholder{
           color: rgba(255,255,255,0.6);
+          animation: textGlow 2s infinite ease-in-out;
         }
         .thinking-placeholder[disabled]{caret-color:transparent;}
         .thinking-icon {
           stroke: rgba(255,255,255,0.5);
           filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: iconGlow 2s infinite linear;
+          animation: iconGlow 2s infinite ease-in-out;
         }
         @keyframes iconGlow {
           0%, 100% { 
