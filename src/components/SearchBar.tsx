@@ -419,17 +419,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         .thinking-placeholder{
           color: rgba(255,255,255,0.5);
-          animation: textGlow 2s infinite ease-in-out;
-        }
-        @keyframes textGlow {
-          0%, 100% { 
-            color: rgba(255,255,255,0.3);
-            text-shadow: 0 0 1px rgba(255,255,255,0.2);
-          }
-          50% { 
-            color: rgba(255,255,255,0.8);
-            text-shadow: 0 0 3px rgba(255,255,255,0.6);
-          }
+          animation: glowPulse 2s infinite ease-in-out;
         }
         .thinking-placeholder::placeholder{color:transparent;}
         .thinking-placeholder[disabled]::-webkit-text-fill-color{ -webkit-text-fill-color:transparent;}
@@ -437,17 +427,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-icon {
           stroke: rgba(255,255,255,0.5);
           filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: iconGlow 2s infinite linear;
-        }
-        @keyframes iconGlow {
-          0%, 100% { 
-            stroke: rgba(255,255,255,0.3);
-            filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
-          }
-          50% { 
-            stroke: rgba(255,255,255,0.8);
-            filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
-          }
+          animation: glowPulse 2s infinite ease-in-out;
         }
 
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
