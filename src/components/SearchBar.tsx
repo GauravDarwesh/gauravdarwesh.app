@@ -419,33 +419,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         .thinking-placeholder{
           background: linear-gradient(90deg, 
-            rgba(255,255,255,0.2) 0%, 
-            rgba(255,255,255,0.6) 50%, 
-            rgba(255,255,255,0.2) 100%);
+            rgba(255,255,255,0.3) 25%, 
+            rgba(255,255,255,0.7) 50%, 
+            rgba(255,255,255,0.3) 75%);
           background-size: 200% 100%;
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
           color: transparent;
-          animation: thinkingShimmer 2s infinite ease-in-out;
-        }
-        @keyframes thinkingShimmer {
-          0%, 100% { 
-            background: linear-gradient(90deg, 
-              rgba(255,255,255,0.2) 0%, 
-              rgba(255,255,255,0.4) 50%, 
-              rgba(255,255,255,0.2) 100%);
-            background-size: 200% 100%;
-            background-position: -200% 0;
-          }
-          50% { 
-            background: linear-gradient(90deg, 
-              rgba(255,255,255,0.4) 0%, 
-              rgba(255,255,255,0.9) 50%, 
-              rgba(255,255,255,0.4) 100%);
-            background-size: 200% 100%;
-            background-position: 200% 0;
-          }
+          animation: shimmer 2s infinite linear;
         }
         .thinking-placeholder::placeholder{color:transparent;}
         .thinking-placeholder[disabled]::-webkit-text-fill-color{ -webkit-text-fill-color:transparent;}
@@ -453,7 +435,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-icon {
           stroke: rgba(255,255,255,0.5);
           filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: glowPulse 2s infinite ease-in-out;
+          animation: iconGlow 2s infinite linear;
+        }
+        @keyframes iconGlow {
+          0%, 100% { 
+            stroke: rgba(255,255,255,0.3);
+            filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
+          }
+          50% { 
+            stroke: rgba(255,255,255,0.8);
+            filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
+          }
         }
 
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
