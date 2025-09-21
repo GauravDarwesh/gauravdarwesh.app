@@ -8,17 +8,20 @@ export interface ChatResponse {
   debug?: object;
 }
 
-export async function sendChatMessage(message: string): Promise<ChatResponse> {
+export async function sendChatMessage(message: string, audioData?: string): Promise<ChatResponse> {
   const sessionId = getSessionId();
   
-  console.log('Sending chat message:', { message, sessionId });
+  console.log('Sending chat message:', { message, sessionId, hasAudio: !!audioData });
   
   try {
-    const { data, error } = await supabase.functions.invoke('bright-action', {
-      body: { 
-        message: message.trim(),
-        sessionId 
-      },
+    // Use gemini-voice-chat if audio data is provided, otherwise use bright-action
+    const functionName = audioData ? 'gemini-voice-chat' : 'bright-action';
+    const body = audioData 
+      ? { message: message.trim(), sessionId, audioData }
+      : { message: message.trim(), sessionId };
+
+    const { data, error } = await supabase.functions.invoke(functionName, {
+      body,
     });
 
     if (error) {
