@@ -242,7 +242,7 @@ export default function Visuals() {
 
               {/* Collection title inside carousel */}
               <div className="mt-3 sm:mt-4 flex justify-center">
-                <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/90 drop-shadow-md text-center px-4 transition-opacity duration-300">
+                <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/90 drop-shadow-md text-center px-2 transition-opacity duration-300">
                   {collectionTitle}
                 </h2>
               </div>
