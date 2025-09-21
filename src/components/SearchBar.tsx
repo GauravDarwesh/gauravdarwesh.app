@@ -418,8 +418,34 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
         .thinking-placeholder{
-          color: rgba(255,255,255,0.5);
-          animation: glowPulse 2s infinite ease-in-out;
+          background: linear-gradient(90deg, 
+            rgba(255,255,255,0.2) 0%, 
+            rgba(255,255,255,0.6) 50%, 
+            rgba(255,255,255,0.2) 100%);
+          background-size: 200% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
+          animation: thinkingShimmer 2s infinite ease-in-out;
+        }
+        @keyframes thinkingShimmer {
+          0%, 100% { 
+            background: linear-gradient(90deg, 
+              rgba(255,255,255,0.2) 0%, 
+              rgba(255,255,255,0.4) 50%, 
+              rgba(255,255,255,0.2) 100%);
+            background-size: 200% 100%;
+            background-position: -200% 0;
+          }
+          50% { 
+            background: linear-gradient(90deg, 
+              rgba(255,255,255,0.4) 0%, 
+              rgba(255,255,255,0.9) 50%, 
+              rgba(255,255,255,0.4) 100%);
+            background-size: 200% 100%;
+            background-position: 200% 0;
+          }
         }
         .thinking-placeholder::placeholder{color:transparent;}
         .thinking-placeholder[disabled]::-webkit-text-fill-color{ -webkit-text-fill-color:transparent;}
