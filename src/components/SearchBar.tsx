@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, AudioWaveform } from "lucide-react";
+import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
@@ -107,7 +107,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [speechState, setSpeechState] = useState<'idle' | 'listening' | 'thinking'>('idle');
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -258,25 +257,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
   };
 
-  const handleSpeechClick = () => {
-    setHasInteracted(true);
-    setShowTypewriter(false);
-    setShowIntroBubble(false);
-    
-    if (speechState === 'idle') {
-      setSpeechState('listening');
-      // Simulate speech recognition process
-      setTimeout(() => {
-        setSpeechState('thinking');
-        setTimeout(() => {
-          setSpeechState('idle');
-          // Here you would implement actual speech-to-text functionality
-          console.log('Speech recognition would happen here');
-        }, 2000);
-      }, 3000);
-    }
-  };
-
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
@@ -397,19 +377,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 aria-label="Ask anything"
               />
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={`h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0 mr-3
-                         ${speechState === 'listening' ? 'scale-75' : speechState === 'thinking' ? 'scale-90' : ''}`}
-              onClick={handleSpeechClick}
-              disabled={isLoading || speechState !== 'idle'}
-              aria-label={speechState === 'idle' ? 'Start voice input' : speechState === 'listening' ? 'Listening...' : 'Processing...'}
-            >
-              <AudioWaveform className={`h-4 w-4 opacity-60 ${speechState === 'listening' ? 'text-red-400 opacity-80' : speechState === 'thinking' ? 'thinking-icon opacity-70' : ''}`} />
-            </Button>
             <Button
               type="submit"
               variant="ghost"
