@@ -79,7 +79,7 @@ const Blog = () => {
         {/* Header Section */}
         <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-12">
           <div className="text-center">
-            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg text-white/90 max-w-2xl mx-auto leading-relaxed">
               Thoughts, insights, and stories from my journey in technology,
               business and beyond.
             </p>
@@ -188,10 +188,10 @@ const Blog = () => {
                 >
                   <div className="mb-4">
                     <span className="text-white/70 text-sm">{post.date}</span>
-                    <h2 className="text-3xl font-bold text-white mt-2 mb-3">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white mt-2 mb-3">
                       {post.title}
                     </h2>
-                    <p className="text-white/90 leading-relaxed text-lg">
+                    <p className="text-white/90 leading-relaxed text-base sm:text-lg">
                       {post.description}
                     </p>
                   </div>
