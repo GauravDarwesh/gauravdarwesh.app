@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, AudioWaveform } from "lucide-react";
+import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
@@ -107,8 +107,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -244,86 +242,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  /* ----- 9️⃣ Voice recording functions ----- */
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      const audioChunks: BlobPart[] = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        await processVoiceInput(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Error starting recording:', error);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-      setMediaRecorder(null);
-      setIsRecording(false);
-    }
-  };
-
-  const processVoiceInput = async (audioBlob: Blob) => {
-    setIsLoading(true);
-    setResponse(null);
-    setHasInteracted(true);
-    setShowTypewriter(false);
-
-    try {
-      // Convert blob to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      
-      reader.onloadend = async () => {
-        const base64Audio = (reader.result as string).split(',')[1];
-        
-        const result = await sendChatMessage("", base64Audio);
-        const answer = (result as any)?.response ?? "";
-        const suggs = (result as any)?.suggestions || [];
-        setResponse(String(answer));
-        setSuggestions(suggs);
-        onSearch?.(String(answer));
-
-        // Play the audio response if available
-        if ((result as any)?.audioContent) {
-          const audioResponse = (result as any).audioContent;
-          const audioBlob = new Blob([
-            new Uint8Array(atob(audioResponse).split('').map(char => char.charCodeAt(0)))
-          ], { type: 'audio/mp3' });
-          
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          audio.play();
-        }
-      };
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Something went wrong. Try again.";
-      setResponse(msg);
-      setSuggestions([]);
-      onSearch?.(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /* ----- 🔟 Interaction helpers ----- */
+  /* ----- 9️⃣ Interaction helpers ----- */
   const handleSuggestionClick = (s: string) => {
     setQuery("");
     setHasInteracted(true);
@@ -338,7 +257,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
   };
 
-  /* ----- 1️⃣1️⃣ Layout calculations ----- */
+  /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
@@ -458,20 +377,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 aria-label="Ask anything"
               />
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={`h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0 mr-2 ${
-                           isRecording ? 'bg-red-500/20 hover:bg-red-500/30' : ''
-                         }`}
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={isLoading}
-              aria-label={isRecording ? "Stop recording" : "Start voice recording"}
-            >
-              <AudioWaveform className={`h-4 w-4 ${isRecording ? "text-red-400 animate-pulse" : ""} ${isLoading ? "thinking-icon" : ""}`} />
-            </Button>
             <Button
               type="submit"
               variant="ghost"
