@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Mic } from "lucide-react";
+import { Search, AudioWaveform } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
@@ -408,7 +408,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               disabled={isLoading || speechState !== 'idle'}
               aria-label={speechState === 'idle' ? 'Start voice input' : speechState === 'listening' ? 'Listening...' : 'Processing...'}
             >
-              <Mic className={`h-4 w-4 ${speechState === 'listening' ? 'text-red-400' : speechState === 'thinking' ? 'thinking-icon' : ''}`} />
+              <AudioWaveform className={`h-4 w-4 opacity-60 ${speechState === 'listening' ? 'text-red-400 opacity-80' : speechState === 'thinking' ? 'thinking-icon opacity-70' : ''}`} />
             </Button>
             <Button
               type="submit"
