@@ -6,36 +6,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const SLIDE_INTERVAL = 2000; // 2000 ms = 2 seconds
 
 // Collections (kept from your input)
-const collections = [
-  {
-    title: "Japan 2024 Collection",
-    items: [
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1833.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1899.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2068.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2138.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2301.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2622.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2779.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_2267.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_2370.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_4885.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_4892.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_4894.jpg",
-    ],
-  },
-  {
-    title: "Switzerland 2016 Collection",
-    items: [
-      "https://picsum.photos/1000/600?random=10",
-      "https://picsum.photos/1000/600?random=11",
-      "https://picsum.photos/1000/600?random=12",
-    ],
-  },
-];
-
+const collections = [{
+  title: "Japan 2024 Collection",
+  items: ["https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1833.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1899.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2068.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2138.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2301.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2622.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_2779.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_2267.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_2370.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_4885.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_4892.jpg", "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/IMG_4894.jpg"]
+}, {
+  title: "Switzerland 2016 Collection",
+  items: ["https://picsum.photos/1000/600?random=10", "https://picsum.photos/1000/600?random=11", "https://picsum.photos/1000/600?random=12"]
+}];
 export default function Visuals() {
   const [currentCollection, setCurrentCollection] = useState(0);
   const items = collections[currentCollection].items;
@@ -58,8 +35,7 @@ export default function Visuals() {
   const FADE_MS = Math.max(80, Math.min(500, Math.round(SLIDE_INTERVAL * 0.2)));
 
   // Preload helper (returns promise that resolves when loaded or on timeout)
-  const preload = (src: string, timeout = 3000): Promise<void> =>
-  new Promise<void>((resolve) => {
+  const preload = (src: string, timeout = 3000): Promise<void> => new Promise<void>(resolve => {
     if (!src) return resolve();
     if (cacheRef.current.has(src)) return resolve();
     const img = new Image();
@@ -76,10 +52,9 @@ export default function Visuals() {
     setTimeout(finish, timeout);
   });
 
-
   // Preload all images in background (non-blocking)
-  const preloadAll = (list) => {
-    list.forEach((s) => preload(s, 5000));
+  const preloadAll = list => {
+    list.forEach(s => preload(s, 5000));
   };
 
   // Initialize tile when collection changes
@@ -92,7 +67,6 @@ export default function Visuals() {
     // set both layers' styles and immediate backgrounds (first & second if present)
     const first = items[0] || "";
     const second = items.length > 1 ? items[1] : first;
-
     if (layerARef.current) {
       layerARef.current.style.backgroundImage = `url("${first}")`;
       layerARef.current.style.opacity = "1";
@@ -126,7 +100,6 @@ export default function Visuals() {
       // keep preloading everything in background (non-blocking)
       preloadAll(items);
     });
-
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -141,18 +114,15 @@ export default function Visuals() {
     if (!items || items.length === 0) return;
     const nextIndex = (indexRef.current + 1) % items.length;
     const nextSrc = items[nextIndex];
-
     const active = activeLayerRef.current;
     const inactive = active === "A" ? "B" : "A";
     const activeNode = active === "A" ? layerARef.current : layerBRef.current;
     const inactiveNode = inactive === "A" ? layerARef.current : layerBRef.current;
-
     if (!inactiveNode || !activeNode) return;
 
     // ensure next image is preloaded (but fallback after short wait so we never stall)
     const preloadPromise = preload(nextSrc, 2000);
-    await Promise.race<void>([preload(nextSrc, 2000), new Promise<void>((res) => setTimeout(res, 350))]);
-
+    await Promise.race<void>([preload(nextSrc, 2000), new Promise<void>(res => setTimeout(res, 350))]);
 
     // set background on inactive
     inactiveNode.style.backgroundImage = `url("${nextSrc}")`;
@@ -177,27 +147,20 @@ export default function Visuals() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    setCurrentCollection((c) => (c + 1) % collections.length);
+    setCurrentCollection(c => (c + 1) % collections.length);
   };
-
   const prevCollection = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    setCurrentCollection((c) => (c === 0 ? collections.length - 1 : c - 1));
+    setCurrentCollection(c => c === 0 ? collections.length - 1 : c - 1);
   };
-
-  return (
-    <div className="h-screen w-full relative overflow-hidden">
+  return <div className="h-screen w-full relative overflow-hidden">
       {/* Background */}
-      <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage:
-            "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
-        }}
-      />
+      <div className="fixed inset-0 bg-cover bg-center bg-no-repeat" style={{
+      backgroundImage: "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)"
+    }} />
 
       {/* Navigation */}
       <NavigationToggle />
@@ -216,33 +179,23 @@ export default function Visuals() {
               {/* Image container */}
               <div className="flex-1 relative w-full">
                 {/* Layer A */}
-                <div
-                  ref={layerARef}
-                  className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
-                  style={{
-                    opacity: 1,
-                    transition: `opacity ${FADE_MS}ms linear`,
-                    willChange: "opacity",
-                  }}
-                  aria-hidden="true"
-                />
+                <div ref={layerARef} className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover" style={{
+                opacity: 1,
+                transition: `opacity ${FADE_MS}ms linear`,
+                willChange: "opacity"
+              }} aria-hidden="true" />
 
                 {/* Layer B */}
-                <div
-                  ref={layerBRef}
-                  className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
-                  style={{
-                    opacity: 0,
-                    transition: `opacity ${FADE_MS}ms linear`,
-                    willChange: "opacity",
-                  }}
-                  aria-hidden="true"
-                />
+                <div ref={layerBRef} className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover" style={{
+                opacity: 0,
+                transition: `opacity ${FADE_MS}ms linear`,
+                willChange: "opacity"
+              }} aria-hidden="true" />
               </div>
 
               {/* Collection title inside carousel */}
               <div className="mt-3 sm:mt-4 flex justify-center">
-                <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/90 drop-shadow-md text-center px-4 transition-opacity duration-300">
+                <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/90 drop-shadow-md text-center px-4 transition-opacity duration-300 mx-[30px]">
                   {collectionTitle}
                 </h2>
               </div>
@@ -251,23 +204,14 @@ export default function Visuals() {
 
           {/* Navigation arrows */}
           <div className="flex justify-center mt-2 sm:mt-3 md:mt-4 gap-3 sm:gap-4 md:gap-6">
-            <button
-              onClick={prevCollection}
-              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-              aria-label="Previous collection"
-            >
+            <button onClick={prevCollection} className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105" aria-label="Previous collection">
               <ChevronLeft size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
             </button>
-            <button
-              onClick={nextCollection}
-              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-              aria-label="Next collection"
-            >
+            <button onClick={nextCollection} className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105" aria-label="Next collection">
               <ChevronRight size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
             </button>
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
