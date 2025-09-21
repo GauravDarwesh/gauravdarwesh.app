@@ -400,10 +400,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
         .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
 
-        @keyframes shimmer {
-          0%{background-position:-200% 0;}
-          100%{background-position:200% 0;}
-        }
         .thinking-container{
           border: 1px solid rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.05);
@@ -417,11 +413,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             box-shadow: 0 0 20px rgba(255,255,255,0.3), inset 0 0 20px rgba(255,255,255,0.15);
           }
         }
-        .thinking-placeholder{
+        .thinking-placeholder::placeholder{
           color: rgba(255,255,255,0.6);
         }
-        .thinking-placeholder::placeholder{color:transparent;}
-        .thinking-placeholder[disabled]::-webkit-text-fill-color{ -webkit-text-fill-color:transparent;}
         .thinking-placeholder[disabled]{caret-color:transparent;}
         .thinking-icon {
           stroke: rgba(255,255,255,0.5);
