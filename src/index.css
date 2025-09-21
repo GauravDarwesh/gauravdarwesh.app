@@ -2,65 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Elegant Design System - Premium colors, typography, and effects */
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
 
 @layer base {
   :root {
-    /* Sophisticated color palette */
-    --background: 225 15% 8%;
-    --foreground: 0 0% 98%;
+    /* Dark minimalist design system */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 95%;
     
-    /* Premium gradient system */
-    --primary-gradient-1: 240 85% 65%;
-    --primary-gradient-2: 280 90% 70%;
-    --primary-gradient-3: 320 85% 75%;
-    --accent-gradient-1: 200 85% 60%;
-    --accent-gradient-2: 180 80% 65%;
+    /* Blue gradient system */
+    --primary-blue: 220 100% 60%;
+    --secondary-blue: 240 100% 70%;
+    --accent-blue: 200 100% 50%;
     
-    /* Enhanced color tokens */
-    --card: 225 20% 10%;
-    --card-foreground: 0 0% 98%;
-    --card-border: 240 30% 18%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
     
-    --primary: 260 85% 68%;
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 260 85% 78%;
+    --primary: 220 100% 60%;
+    --primary-foreground: 0 0% 95%;
     
-    --secondary: 225 15% 15%;
+    --secondary: 0 0% 12%;
     --secondary-foreground: 0 0% 95%;
-    --secondary-hover: 225 20% 18%;
     
-    --muted: 225 15% 12%;
-    --muted-foreground: 0 0% 70%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 65%;
     
-    --accent: 200 85% 60%;
-    --accent-foreground: 0 0% 98%;
-    --accent-glow: 200 85% 70%;
+    --accent: 220 100% 60%;
+    --accent-foreground: 0 0% 95%;
     
-    --border: 240 20% 18%;
-    --border-subtle: 240 15% 15%;
-    --input: 225 20% 12%;
-    --ring: 260 85% 68%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 220 100% 60%;
     
-    --radius: 0.75rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.5rem;
+    --radius: 0.5rem;
     
-    /* Elegant shadows */
-    --shadow-sm: 0 2px 8px -2px hsl(var(--primary) / 0.1);
-    --shadow-md: 0 8px 25px -8px hsl(var(--primary) / 0.15);
-    --shadow-lg: 0 20px 40px -12px hsl(var(--primary) / 0.25);
-    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.3);
-    
-    /* Premium surfaces */
-    --glass-subtle: rgba(255, 255, 255, 0.03);
-    --glass-medium: rgba(255, 255, 255, 0.08);
-    --glass-strong: rgba(255, 255, 255, 0.12);
-    
-    /* Elegant transitions */
-    --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-spring: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-    --transition-elegant: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    /* Custom gradients */
+    --gradient-blue-1: 220 100% 60%;
+    --gradient-blue-2: 240 100% 70%;
+    --gradient-blue-3: 200 100% 50%;
   }
 }
 
@@ -70,33 +51,7 @@
   }
 
   body {
-    @apply bg-background text-foreground font-inter antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    font-variation-settings: "opsz" 32;
-  }
-
-  /* Elegant typography scale */
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-playfair font-medium tracking-tight;
-  }
-
-  /* Premium scrollbars */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: hsl(var(--muted));
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--accent)));
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(45deg, hsl(var(--primary-glow)), hsl(var(--accent-glow)));
+    @apply bg-background text-foreground;
   }
 }
 

@@ -88,10 +88,10 @@ const Blog = () => {
 
         {/* Blog Posts Section */}
         <div>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-40">
-            {/* Elegant Filter Section */}
-            <div className="mb-12 relative">
-              <div className="flex items-center gap-4 flex-wrap justify-center">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-40">
+            {/* Filter Section */}
+            <div className="mb-8 relative">
+              <div className="flex items-center gap-3 flex-wrap justify-start">
                 <button
                   onClick={() => {
                     if (filterOpen) {
@@ -104,30 +104,30 @@ const Blog = () => {
                       setFilterOpen(true);
                     }
                   }}
-                  className={`h-11 px-6 text-sm font-medium rounded-elegant bg-glass-medium backdrop-blur-elegant text-foreground border border-card-border shadow-elegant-md hover:bg-glass-strong hover:scale-105 transition-all duration-300 ease-elegant ${filterOpen ? 'relative z-40' : ''}`}
+                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? 'relative z-40' : ''}`}
                   aria-expanded={filterOpen}
                   aria-controls="blog-filter-dropdown"
                 >
-                  Filter Articles
+                  Filter
                 </button>
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => setSelectedTags([])}
-                    className={`h-11 px-6 text-sm font-medium rounded-elegant bg-glass-subtle border border-card-border text-foreground/80 hover:bg-glass-medium hover:scale-105 transition-all duration-300 ease-elegant ${filterOpen ? 'relative z-40' : ''}`}
+                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-40' : ''}`}
                   >
-                    Clear Filters
+                    Clear All
                   </button>
                 )}
 
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className={`flex items-center gap-2 h-11 px-4 text-sm font-medium rounded-elegant bg-gradient-accent text-accent-foreground border border-accent/20 shadow-elegant-sm ${filterOpen ? 'relative z-40' : ''}`}
+                    className={`flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm ${filterOpen ? 'relative z-40' : ''}`}
                   >
                     {tag}
                     <button
                       onClick={() => toggleTag(tag)}
-                      className="text-accent-foreground/70 hover:text-accent-foreground"
+                      className="text-white/70 hover:text-white"
                     >
                       ✕
                     </button>
@@ -137,9 +137,9 @@ const Blog = () => {
 
               {filterOpen && (
                 <>
-                  {/* Elegant Blur overlay */}
+                  {/* Blur overlay */}
                   <div
-                    className={`fixed inset-0 bg-background/60 backdrop-blur-md z-20 transition-all duration-300 ease-elegant ${
+                    className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-20 transition-all duration-300 ease-out ${
                       isAnimating ? 'opacity-0' : 'opacity-100'
                     }`}
                     onClick={() => {
@@ -151,27 +151,24 @@ const Blog = () => {
                     }}
                   />
 
-                  {/* Enhanced Dropdown */}
+                  {/* Dropdown */}
                   <div 
                     id="blog-filter-dropdown" 
-                    className={`absolute mt-4 left-1/2 -translate-x-1/2 z-30 bg-glass-strong backdrop-blur-elegant rounded-elegant p-6 border border-card-border shadow-elegant-lg w-full max-w-2xl transition-all duration-300 ease-elegant ${
+                    className={`absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
                       isAnimating 
                         ? 'opacity-0 scale-95 translate-y-2' 
                         : 'opacity-100 scale-100 translate-y-0'
                     }`}
                   >
-                    <h3 className="font-playfair text-lg font-semibold text-foreground mb-4 text-center">
-                      Filter by Topics
-                    </h3>
-                    <div className="flex flex-wrap gap-3 justify-center">
+                    <div className="flex flex-wrap gap-2">
                       {allTags.map((tag) => (
                         <button
                           key={tag}
                           onClick={() => toggleTag(tag)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-elegant border hover:scale-105 active:scale-95 ${
+                          className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
                             selectedTags.includes(tag)
-                              ? "bg-gradient-primary text-primary-foreground border-primary/30 shadow-elegant-md"
-                              : "bg-glass-subtle text-foreground/80 border-card-border hover:bg-glass-medium hover:border-primary/20"
+                              ? "bg-white/30 text-white border-white/30"
+                              : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
                           }`}
                         >
                           {tag}
@@ -182,24 +179,19 @@ const Blog = () => {
                 </>
               )}
             </div>
-            
-            {/* Elegant Blog Posts Grid */}
-            <div className="space-y-8">
+            <div className="space-y-12">
               {filteredPosts.map((post, idx) => (
                 <article
                   key={idx}
                   onClick={() => setActiveNotion(post.notionUrl)}
-                  className="group cursor-pointer bg-glass-medium backdrop-blur-elegant rounded-elegant p-8 border border-card-border hover:bg-glass-strong hover:border-primary/20 hover:shadow-elegant-lg hover:scale-[1.02] transition-all duration-500 ease-elegant"
+                  className="cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
                 >
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-foreground/60 text-sm font-medium font-inter">{post.date}</span>
-                      <div className="w-6 h-6 rounded-full bg-glass-subtle border border-card-border group-hover:bg-primary group-hover:border-primary transition-all duration-300" />
-                    </div>
-                    <h2 className="font-playfair text-2xl md:text-3xl font-bold text-foreground mt-3 mb-4 group-hover:text-primary transition-colors duration-300">
+                  <div className="mb-4">
+                    <span className="text-white/70 text-sm">{post.date}</span>
+                    <h2 className="text-3xl font-bold text-white mt-2 mb-3">
                       {post.title}
                     </h2>
-                    <p className="text-foreground/80 leading-relaxed text-base md:text-lg font-inter">
+                    <p className="text-white/90 leading-relaxed text-lg">
                       {post.description}
                     </p>
                   </div>
@@ -207,7 +199,7 @@ const Blog = () => {
                     {post.tags.map((tag, i) => (
                       <span
                         key={i}
-                        className="px-3 py-1 bg-glass-subtle border border-card-border text-foreground/70 text-sm rounded-full font-medium group-hover:border-primary/30 transition-colors duration-300"
+                        className="px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full"
                       >
                         {tag}
                       </span>
@@ -220,32 +212,23 @@ const Blog = () => {
         </div>
       </div>
 
-      {/* Elegant Modal for Notion */}
+      {/* Glassmorphism Modal for Notion */}
       {activeNotion && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-elegant"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => setActiveNotion(null)}
         >
           <div
-            className="bg-glass-strong backdrop-blur-elegant rounded-elegant p-6 w-11/12 md:w-4/5 lg:w-3/4 xl:w-2/3 border border-card-border shadow-elegant-lg animate-fade-in-elegant"
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-11/12 md:w-3/4 lg:w-2/3 border border-white/20 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-playfair text-xl font-semibold text-foreground">Article</h3>
-              <button
-                onClick={() => setActiveNotion(null)}
-                className="w-8 h-8 rounded-full bg-glass-medium border border-card-border text-foreground/70 hover:text-foreground hover:bg-glass-strong transition-all duration-200"
-              >
-                ✕
-              </button>
-            </div>
             <iframe
               src={activeNotion}
               width="100%"
               height="600"
               frameBorder="0"
               allowFullScreen
-              className="rounded-lg"
+              className="rounded-xl"
             />
           </div>
         </div>

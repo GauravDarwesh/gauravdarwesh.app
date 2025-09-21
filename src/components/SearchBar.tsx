@@ -274,7 +274,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               "✨ What are these sections on the website?"
             )
           }
-          className="cursor-pointer bg-glass-medium backdrop-blur-glass text-sm text-foreground px-6 py-3 rounded-full shadow-elegant-md border border-card-border opacity-0 animate-delayedFadeIn hover:bg-glass-strong hover:scale-105 transition-all duration-300 ease-elegant"
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
           ✨ What are these sections on the website?
         </div>
@@ -284,7 +284,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       <Fade show={showTypewriter && !showIntroBubble} duration={400}>
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-glass-medium backdrop-blur-glass text-sm text-foreground px-6 py-3 rounded-full shadow-elegant-md border border-card-border opacity-0 animate-delayedFadeIn hover:bg-glass-strong hover:scale-105 transition-all duration-300 ease-elegant"
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
           <span className="typewriter-text">
             {typewriterText}
@@ -295,8 +295,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
-        className={`mx-auto shadow-elegant-lg border bg-glass-medium backdrop-blur-elegant text-foreground border-card-border ${
-          isLoading ? "thinking-container shadow-glow" : ""
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
+          isLoading ? "thinking-container" : ""
         }`}
         style={{
           width: targetWidth,
@@ -320,7 +320,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <button
                   key={i}
                   onClick={() => handleSuggestionClick(s)}
-                  className="px-4 py-2 bg-glass-subtle border border-card-border text-xs sm:text-sm rounded-full hover:bg-glass-medium hover:scale-105 hover:shadow-elegant-sm transition-all duration-300 ease-elegant cursor-pointer font-medium"
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
                   disabled={isLoading}
                 >
                   {s}
@@ -379,10 +379,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             </div>
             <Button
               type="submit"
-              variant="glass"
+              variant="ghost"
               size="sm"
-              className="h-10 w-10 p-0 rounded-full transition-all duration-300 
-                         ease-elegant hover:scale-110 hover:shadow-elegant-sm active:scale-95 shrink-0"
+              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
