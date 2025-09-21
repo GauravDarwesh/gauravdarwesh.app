@@ -239,13 +239,11 @@ export default function Visuals() {
             </div>
           </div>
 
-          {/* Collection title in glassmorphism tile */}
+          {/* Collection title - bold and smaller */}
           <div className="mt-3 sm:mt-4 md:mt-6 flex justify-center">
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-xl sm:rounded-2xl shadow-lg px-6 py-3 sm:px-8 sm:py-4">
-              <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/90 text-center transition-opacity duration-300">
-                {collectionTitle}
-              </h2>
-            </div>
+            <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/80 drop-shadow-md text-center px-4 transition-opacity duration-300">
+              {collectionTitle}
+            </h2>
           </div>
 
           {/* Navigation arrows */}
