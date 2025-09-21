@@ -73,15 +73,14 @@ const NavigationToggle = () => {
       <Button
         key={option.name}
         onClick={() => navigate(option.path)}
-        variant="ghost"
+        variant="glass"
         size="sm"
         className={`
-          w-20 h-9 text-[12px] text-center tracking-normal rounded-full 
-          bg-transparent hover:bg-transparent
-          border border-transparent
+          w-20 h-9 text-xs font-medium tracking-wide rounded-full 
+          transition-all duration-500 ease-elegant font-inter
           ${active
-            ? "bg-white/10 border-white/20 text-white backdrop-blur-sm"
-            : "text-gray-300 hover:text-white"
+            ? "bg-glass-strong border-primary/30 text-foreground shadow-elegant-sm scale-105"
+            : "text-foreground/70 hover:text-foreground hover:shadow-elegant-sm"
           }
         `}
       >
@@ -99,11 +98,11 @@ const NavigationToggle = () => {
         className={`
           fixed bottom-6 right-6 z-50 
           flex items-center justify-center
-          w-12 h-12 rounded-full backdrop-blur-md
-          bg-white/10 border border-white/20
-          text-white shadow-lg
-          transition-all duration-1000 ease-in-out
-          hover:bg-white/20
+          w-14 h-14 rounded-full 
+          bg-glass-medium backdrop-blur-elegant border border-card-border
+          text-foreground shadow-elegant-lg
+          transition-all duration-700 ease-spring
+          hover:bg-glass-strong hover:scale-110 hover:shadow-glow
           ${enabledOnThisPath && showScrollTop ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
         `}
       >
