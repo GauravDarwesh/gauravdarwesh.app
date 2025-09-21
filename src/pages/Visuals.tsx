@@ -212,38 +212,41 @@ export default function Visuals() {
           {/* Fully dynamic cascade container */}
           <div className="w-full h-full max-w-[96vw] max-h-[calc(100vh-8rem)] sm:max-w-[92vw] sm:max-h-[calc(100vh-9rem)] md:max-w-[88vw] lg:max-w-[85vw] xl:max-w-[80vw]">
             {/* Responsive cascade with dynamic height and width */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl sm:rounded-3xl shadow-2xl w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] p-2 sm:p-3 md:p-4 lg:p-6 flex items-center justify-center overflow-hidden relative">
-              {/* Layer A */}
-              <div
-                ref={layerARef}
-                className="absolute inset-2 sm:inset-3 md:inset-4 lg:inset-6 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
-                style={{
-                  opacity: 1,
-                  transition: `opacity ${FADE_MS}ms linear`,
-                  willChange: "opacity",
-                }}
-                aria-hidden="true"
-              />
+            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl sm:rounded-3xl shadow-2xl w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] p-2 sm:p-3 md:p-4 lg:p-6 flex flex-col items-center justify-center overflow-hidden relative">
+              {/* Image container */}
+              <div className="flex-1 relative w-full">
+                {/* Layer A */}
+                <div
+                  ref={layerARef}
+                  className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
+                  style={{
+                    opacity: 1,
+                    transition: `opacity ${FADE_MS}ms linear`,
+                    willChange: "opacity",
+                  }}
+                  aria-hidden="true"
+                />
 
-              {/* Layer B */}
-              <div
-                ref={layerBRef}
-                className="absolute inset-2 sm:inset-3 md:inset-4 lg:inset-6 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
-                style={{
-                  opacity: 0,
-                  transition: `opacity ${FADE_MS}ms linear`,
-                  willChange: "opacity",
-                }}
-                aria-hidden="true"
-              />
+                {/* Layer B */}
+                <div
+                  ref={layerBRef}
+                  className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
+                  style={{
+                    opacity: 0,
+                    transition: `opacity ${FADE_MS}ms linear`,
+                    willChange: "opacity",
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+
+              {/* Collection title inside carousel */}
+              <div className="mt-3 sm:mt-4 flex justify-center">
+                <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/90 drop-shadow-md text-center px-4 transition-opacity duration-300">
+                  {collectionTitle}
+                </h2>
+              </div>
             </div>
-          </div>
-
-          {/* Collection title - bold and smaller */}
-          <div className="mt-3 sm:mt-4 md:mt-6 flex justify-center">
-            <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/80 drop-shadow-md text-center px-4 transition-opacity duration-300">
-              {collectionTitle}
-            </h2>
           </div>
 
           {/* Navigation arrows */}
