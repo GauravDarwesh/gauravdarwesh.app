@@ -112,7 +112,30 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
           ${(enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
         `}
       >
-        {isModalOpen ? <X className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
+        <div className="relative w-5 h-5">
+          {/* Scroll to top icon */}
+          <ChevronUp 
+            className={`
+              absolute top-0 left-0 w-5 h-5 
+              transition-all duration-500 ease-in-out
+              ${isModalOpen 
+                ? "opacity-0 scale-75 rotate-90" 
+                : "opacity-100 scale-100 rotate-0"
+              }
+            `} 
+          />
+          {/* Close modal icon */}
+          <X 
+            className={`
+              absolute top-0 left-0 w-5 h-5 
+              transition-all duration-500 ease-in-out
+              ${isModalOpen 
+                ? "opacity-100 scale-100 rotate-0" 
+                : "opacity-0 scale-75 rotate-90"
+              }
+            `} 
+          />
+        </div>
       </button>
     </>
   );
