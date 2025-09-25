@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const NavigationToggle = () => {
+interface NavigationToggleProps {
+  isModalOpen?: boolean;
+  onCloseModal?: () => void;
+}
+
+const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggleProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -92,10 +97,10 @@ const NavigationToggle = () => {
 </div>
 
 
-      {/* Floating round translucent ball (only on allowed paths) */}
+      {/* Floating round translucent ball (scroll to top or close modal) */}
       <button
-        onClick={scrollToTop}
-        aria-label="Scroll to top"
+        onClick={isModalOpen ? onCloseModal : scrollToTop}
+        aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
         className={`
           fixed bottom-6 right-6 z-50 
           flex items-center justify-center
@@ -104,10 +109,10 @@ const NavigationToggle = () => {
           text-white shadow-lg
           transition-all duration-1000 ease-in-out
           hover:bg-white/20
-          ${enabledOnThisPath && showScrollTop ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
+          ${(enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
         `}
       >
-        <ChevronUp className="w-5 h-5" />
+        {isModalOpen ? <X className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
       </button>
     </>
   );

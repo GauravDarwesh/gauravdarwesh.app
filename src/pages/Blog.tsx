@@ -87,7 +87,10 @@ const Blog = () => {
       />
 
       {/* Navigation Toggle */}
-      <NavigationToggle />
+      <NavigationToggle 
+        isModalOpen={!!activeNotion} 
+        onCloseModal={() => setActiveNotion(null)} 
+      />
 
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
