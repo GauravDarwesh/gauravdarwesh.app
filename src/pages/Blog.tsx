@@ -220,22 +220,22 @@ const Blog = () => {
           onClick={() => setActiveNotion(null)}
         >
           <div
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 w-full max-w-7xl h-[85vh] border border-white/20 shadow-xl relative"
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-full max-w-7xl h-[85vh] border border-white/20 shadow-xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setActiveNotion(null)}
-              className="absolute top-2 left-2 z-50 flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
+              className="absolute top-4 left-4 z-50 flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
             >
               <X size={16} />
             </button>
             <iframe
               src={activeNotion}
               width="100%"
-              height="calc(100% - 2rem)"
+              height="100%"
               frameBorder="0"
               allowFullScreen
-              className="rounded-xl w-full mt-8"
+              className="rounded-xl w-full h-full"
             />
           </div>
           <div className="mt-4">
