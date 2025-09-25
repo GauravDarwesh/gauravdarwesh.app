@@ -211,14 +211,14 @@ export default function Visuals() {
         <div className="flex-1 flex flex-col items-center justify-center px-2 sm:px-4 md:px-6 lg:px-8 pb-4 sm:pb-6 md:pb-8">
           {/* Fully dynamic cascade container */}
           <div className="w-full h-full max-w-[96vw] max-h-[calc(100vh-8rem)] sm:max-w-[92vw] sm:max-h-[calc(100vh-9rem)] md:max-w-[88vw] lg:max-w-[85vw] xl:max-w-[80vw]">
-            {/* Responsive cascade with dynamic height and width */}
-            <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl sm:rounded-3xl shadow-2xl w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] p-2 sm:p-3 md:p-4 lg:p-6 flex flex-col items-center justify-center overflow-hidden relative">
+            {/* Glassmorphic tile with same styling as blog posts */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] flex items-center justify-center overflow-hidden relative">
               {/* Image container */}
-              <div className="flex-1 relative w-full">
+              <div className="relative w-full h-full">
                 {/* Layer A */}
                 <div
                   ref={layerARef}
-                  className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
+                  className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
                   style={{
                     opacity: 1,
                     transition: `opacity ${FADE_MS}ms linear`,
@@ -230,7 +230,7 @@ export default function Visuals() {
                 {/* Layer B */}
                 <div
                   ref={layerBRef}
-                  className="absolute inset-0 rounded-xl sm:rounded-2xl shadow-lg bg-center bg-cover"
+                  className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
                   style={{
                     opacity: 0,
                     transition: `opacity ${FADE_MS}ms linear`,
@@ -239,31 +239,32 @@ export default function Visuals() {
                   aria-hidden="true"
                 />
               </div>
-
-              {/* Collection title inside carousel */}
-              <div className="mt-3 sm:mt-4 flex justify-center">
-                <h2 className="text-xs sm:text-sm md:text-base font-bold text-white/90 drop-shadow-md text-center px-2 transition-opacity duration-300">
-                  {collectionTitle}
-                </h2>
-              </div>
             </div>
           </div>
 
-          {/* Navigation arrows */}
-          <div className="flex justify-center mt-2 sm:mt-3 md:mt-4 gap-3 sm:gap-4 md:gap-6">
+          {/* Navigation section with title between arrows */}
+          <div className="flex items-center justify-center mt-6 sm:mt-8 gap-6 sm:gap-8 md:gap-12 w-full max-w-md">
             <button
               onClick={prevCollection}
-              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
+              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20"
               aria-label="Previous collection"
             >
-              <ChevronLeft size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
+              <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
             </button>
+            
+            {/* Collection title between arrows */}
+            <div className="flex-1 flex justify-center">
+              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/90 text-center px-2 transition-opacity duration-300">
+                {collectionTitle}
+              </h2>
+            </div>
+            
             <button
               onClick={nextCollection}
-              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
+              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20"
               aria-label="Next collection"
             >
-              <ChevronRight size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
+              <ChevronRight size={18} className="sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
