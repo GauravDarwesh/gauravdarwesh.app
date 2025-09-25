@@ -216,11 +216,11 @@ const Blog = () => {
       {/* Glassmorphism Modal for Notion */}
       {activeNotion && (
         <div
-          className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={() => setActiveNotion(null)}
         >
           <div
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-11/12 md:w-3/4 lg:w-2/3 border border-white/20 shadow-xl relative"
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-full max-w-7xl h-[85vh] border border-white/20 shadow-xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -232,10 +232,10 @@ const Blog = () => {
             <iframe
               src={activeNotion}
               width="100%"
-              height="600"
+              height="100%"
               frameBorder="0"
               allowFullScreen
-              className="rounded-xl"
+              className="rounded-xl w-full h-full"
             />
           </div>
           <div className="mt-4">
