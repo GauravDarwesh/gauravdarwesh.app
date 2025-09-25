@@ -1,12 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (activeNotion) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    // Cleanup function to reset overflow when component unmounts
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [activeNotion]);
 
   const blogPosts = [
     {
@@ -223,12 +237,6 @@ const Blog = () => {
             className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-full max-w-7xl h-[85vh] border border-white/20 shadow-xl relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              onClick={() => setActiveNotion(null)}
-              className="absolute top-4 left-4 z-50 flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
-            >
-              <X size={16} />
-            </button>
             <iframe
               src={activeNotion}
               width="100%"
