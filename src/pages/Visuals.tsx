@@ -204,31 +204,37 @@ export default function Visuals() {
 
       {/* Center area - no scroll layout */}
       <div className="relative z-10 h-screen flex flex-col">
-        {/* Top spacer to clear NavigationToggle */}
-        <div className="h-20 sm:h-24 flex-shrink-0"></div>
+        {/* Reduced top spacer to move content up */}
+        <div className="h-16 sm:h-18 flex-shrink-0"></div>
         
         {/* Main content container - fixed height, no scroll */}
         <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-8 min-h-0">
           {/* Container for tile with text and navigation */}
-          <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[70vw] flex flex-col h-full max-h-[calc(100vh-12rem)]">
+          <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[70vw] flex flex-col h-full max-h-[calc(100vh-10rem)]">
             
-            {/* Top row: Title (left) and Navigation Button (right) */}
+            {/* Top row: Title (left) and Navigation Buttons (right) */}
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
               {/* Collection title - top left */}
               <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/60 transition-opacity duration-300">
                 {collectionTitle}
               </h2>
               
-              {/* Combined navigation button - top right (filter style) */}
-              <div className="relative">
+              {/* Left and right buttons - top right, smaller size */}
+              <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    // Toggle between next collection on each click
-                    nextCollection();
-                  }}
-                  className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
+                  onClick={prevCollection}
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  aria-label="Previous collection"
                 >
-                  Collection
+                  <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
+                </button>
+                
+                <button
+                  onClick={nextCollection}
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  aria-label="Next collection"
+                >
+                  <ChevronRight size={14} className="sm:w-4 sm:h-4" />
                 </button>
               </div>
             </div>
