@@ -242,26 +242,26 @@ export default function Visuals() {
             </div>
           </div>
 
-          {/* Navigation section with title between arrows */}
-          <div className="flex items-center justify-center mt-6 sm:mt-8 gap-6 sm:gap-8 md:gap-12 w-full max-w-md">
+          {/* Navigation section with dynamic spacing based on title length */}
+          <div className="flex items-center justify-between mt-6 sm:mt-8 gap-4 sm:gap-6 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-auto">
             <button
               onClick={prevCollection}
-              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20"
+              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
               aria-label="Previous collection"
             >
               <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
             </button>
             
-            {/* Collection title between arrows - more translucent */}
-            <div className="flex-1 flex justify-center">
-              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/60 text-center px-2 transition-opacity duration-300">
+            {/* Collection title with flexible width */}
+            <div className="flex-1 flex justify-center min-w-0 px-2 sm:px-4">
+              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/60 text-center transition-opacity duration-300 whitespace-nowrap overflow-hidden text-ellipsis">
                 {collectionTitle}
               </h2>
             </div>
             
             <button
               onClick={nextCollection}
-              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20"
+              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
               aria-label="Next collection"
             >
               <ChevronRight size={18} className="sm:w-5 sm:h-5" />
