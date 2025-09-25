@@ -202,68 +202,67 @@ export default function Visuals() {
       {/* Navigation */}
       <NavigationToggle />
 
-      {/* Center area - fully responsive layout */}
+      {/* Center area - no scroll layout */}
       <div className="relative z-10 h-screen flex flex-col">
         {/* Top spacer to clear NavigationToggle */}
         <div className="h-20 sm:h-24 flex-shrink-0"></div>
         
-        {/* Main content container - dynamic sizing */}
-        <div className="flex-1 flex flex-col items-center justify-center px-2 sm:px-4 md:px-6 lg:px-8 pb-4 sm:pb-6 md:pb-8">
-          {/* Navigation section with dynamic spacing - above the tile */}
-          <div className="flex items-center justify-between mb-6 sm:mb-8 gap-4 sm:gap-6 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-auto">
-            <button
-              onClick={prevCollection}
-              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
-              aria-label="Previous collection"
-            >
-              <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
-            </button>
+        {/* Main content container - fixed height, no scroll */}
+        <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-8 min-h-0">
+          {/* Container for tile with text and navigation */}
+          <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[70vw] flex flex-col h-full max-h-[calc(100vh-12rem)]">
             
-            {/* Collection title with flexible width */}
-            <div className="flex-1 flex justify-center min-w-0 px-2 sm:px-4">
-              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/60 text-center transition-opacity duration-300 whitespace-nowrap overflow-hidden text-ellipsis">
+            {/* Top row: Title (left) and Navigation Button (right) */}
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+              {/* Collection title - top left */}
+              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/60 transition-opacity duration-300">
                 {collectionTitle}
               </h2>
+              
+              {/* Combined navigation button - top right (filter style) */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    // Toggle between next collection on each click
+                    nextCollection();
+                  }}
+                  className="h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
+                >
+                  Collection
+                </button>
+              </div>
             </div>
-            
-            <button
-              onClick={nextCollection}
-              className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
-              aria-label="Next collection"
-            >
-              <ChevronRight size={18} className="sm:w-5 sm:h-5" />
-            </button>
-          </div>
 
-          {/* Fully dynamic cascade container - responsive sizing */}
-          <div className="w-full h-full max-w-[95vw] max-h-[calc(100vh-10rem)] sm:max-w-[90vw] sm:max-h-[calc(100vh-10rem)] md:max-w-[85vw] md:max-h-[calc(100vh-9rem)] lg:max-w-[80vw] lg:max-h-[calc(100vh-8rem)] xl:max-w-[75vw]">
-            {/* Glassmorphic tile with thinner padding and responsive design */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 sm:p-4 md:p-6 border border-white/20 hover:bg-white/20 transition w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] flex items-center justify-center overflow-hidden relative">
-              {/* Image container */}
-              <div className="relative w-full h-full">
-                {/* Layer A */}
-                <div
-                  ref={layerARef}
-                  className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
-                  style={{
-                    opacity: 1,
-                    transition: `opacity ${FADE_MS}ms linear`,
-                    willChange: "opacity",
-                  }}
-                  aria-hidden="true"
-                />
+            {/* Tile container - takes remaining space */}
+            <div className="flex-1 min-h-0">
+              {/* Glassmorphic tile */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 sm:p-4 md:p-6 border border-white/20 hover:bg-white/20 transition w-full h-full flex items-center justify-center overflow-hidden relative">
+                {/* Image container */}
+                <div className="relative w-full h-full">
+                  {/* Layer A */}
+                  <div
+                    ref={layerARef}
+                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
+                    style={{
+                      opacity: 1,
+                      transition: `opacity ${FADE_MS}ms linear`,
+                      willChange: "opacity",
+                    }}
+                    aria-hidden="true"
+                  />
 
-                {/* Layer B */}
-                <div
-                  ref={layerBRef}
-                  className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
-                  style={{
-                    opacity: 0,
-                    transition: `opacity ${FADE_MS}ms linear`,
-                    willChange: "opacity",
-                  }}
-                  aria-hidden="true"
-                />
+                  {/* Layer B */}
+                  <div
+                    ref={layerBRef}
+                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
+                    style={{
+                      opacity: 0,
+                      transition: `opacity ${FADE_MS}ms linear`,
+                      willChange: "opacity",
+                    }}
+                    aria-hidden="true"
+                  />
+                </div>
               </div>
             </div>
           </div>
