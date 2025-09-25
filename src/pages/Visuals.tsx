@@ -209,10 +209,10 @@ export default function Visuals() {
         
         {/* Main content container - dynamic sizing */}
         <div className="flex-1 flex flex-col items-center justify-center px-2 sm:px-4 md:px-6 lg:px-8 pb-4 sm:pb-6 md:pb-8">
-          {/* Fully dynamic cascade container */}
-          <div className="w-full h-full max-w-[96vw] max-h-[calc(100vh-8rem)] sm:max-w-[92vw] sm:max-h-[calc(100vh-9rem)] md:max-w-[88vw] lg:max-w-[85vw] xl:max-w-[80vw]">
-            {/* Glassmorphic tile with same styling as blog posts */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] flex items-center justify-center overflow-hidden relative">
+          {/* Fully dynamic cascade container - responsive sizing */}
+          <div className="w-full h-full max-w-[95vw] max-h-[calc(100vh-10rem)] sm:max-w-[90vw] sm:max-h-[calc(100vh-10rem)] md:max-w-[85vw] md:max-h-[calc(100vh-9rem)] lg:max-w-[80vw] lg:max-h-[calc(100vh-8rem)] xl:max-w-[75vw]">
+            {/* Glassmorphic tile with thinner padding and responsive design */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 sm:p-4 md:p-6 border border-white/20 hover:bg-white/20 transition w-full h-full min-h-[40vh] max-h-[70vh] sm:max-h-[75vh] md:max-h-[78vh] lg:max-h-[80vh] flex items-center justify-center overflow-hidden relative">
               {/* Image container */}
               <div className="relative w-full h-full">
                 {/* Layer A */}
@@ -252,9 +252,9 @@ export default function Visuals() {
               <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
             </button>
             
-            {/* Collection title between arrows */}
+            {/* Collection title between arrows - more translucent */}
             <div className="flex-1 flex justify-center">
-              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/90 text-center px-2 transition-opacity duration-300">
+              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/60 text-center px-2 transition-opacity duration-300">
                 {collectionTitle}
               </h2>
             </div>
