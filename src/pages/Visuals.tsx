@@ -214,8 +214,8 @@ export default function Visuals() {
             
             {/* Top row: Title (left) and Navigation Buttons (right) */}
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              {/* Collection title - styled like filter button, non-transparent and non-bold */}
-              <div className="h-9 px-4 text-[12px] rounded-full bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 ease-out flex items-center">
+              {/* Collection title - styled like filter button, with translucent text */}
+              <div className="h-9 px-4 text-[12px] rounded-full bg-white/20 text-white/80 border border-white/20 backdrop-blur-sm transition-all duration-300 ease-out flex items-center">
                 {collectionTitle}
               </div>
               
