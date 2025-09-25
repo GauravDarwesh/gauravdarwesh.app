@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
+import { ExternalLink } from "lucide-react";
 
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
@@ -230,6 +231,17 @@ const Blog = () => {
               allowFullScreen
               className="rounded-xl"
             />
+            <div className="flex justify-center mt-4">
+              <a
+                href={activeNotion}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
+              >
+                Visit Notion Page
+                <ExternalLink size={14} />
+              </a>
+            </div>
           </div>
         </div>
       )}
