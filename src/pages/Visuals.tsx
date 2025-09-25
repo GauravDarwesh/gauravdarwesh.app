@@ -214,10 +214,10 @@ export default function Visuals() {
             
             {/* Top row: Title (left) and Navigation Buttons (right) */}
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              {/* Collection title - top left */}
-              <h2 className="text-sm sm:text-base md:text-lg font-bold text-white/60 transition-opacity duration-300">
+              {/* Collection title - styled like filter button, non-transparent and non-bold */}
+              <div className="h-9 px-4 text-[12px] rounded-full bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 ease-out flex items-center">
                 {collectionTitle}
-              </h2>
+              </div>
               
               {/* Left and right buttons - top right, smaller size */}
               <div className="flex gap-2">
