@@ -109,7 +109,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
 
-  /* ----- type‑writer configuration ----- */
+  const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
+
+  /* ----- type-writer configuration ----- */
   const rotatingSuggestions = [
     "✨ Tell me about Gaurav's Experience",
     "✨ What is Gaurav's Education?",
@@ -151,7 +153,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, [hasInteracted]);
 
-  /* ----- 6️⃣ Re‑show typewriter after inactivity ----- */
+  /* ----- 6️⃣ Re-show typewriter after inactivity ----- */
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
@@ -272,6 +274,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
   };
 
+  /* 🔹 Outside click handler to reset */
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchBarRef.current &&
+        !searchBarRef.current.contains(e.target as Node)
+      ) {
+        if (response || suggestions.length > 0) {
+          setResponse(null);
+          setSuggestions([]);
+          setShowExpandedSuggestions(false);
+        }
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [response, suggestions]);
+
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
@@ -280,7 +300,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔒 Render ----- */
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
+    <div
+      ref={searchBarRef}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
+    >
       {/* ── Intro bubble (with fade) ── */}
       <Fade show={showIntroBubble} duration={400}>
         <div
