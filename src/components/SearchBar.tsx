@@ -307,6 +307,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
+  const expandedSuggestionPool = suggestions.length > 0 ? suggestions : rotatingSuggestions;
 
   /* ----- 🔒 Render ----- */
   return (
@@ -357,12 +358,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
+          <Fade show={showExpandedSuggestions && expandedSuggestionPool.length > 0} duration={400}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.4s ease forwards" }}
             >
-              {suggestions.map((s, i) => (
+              {expandedSuggestionPool.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => handleSuggestionClick(s)}
