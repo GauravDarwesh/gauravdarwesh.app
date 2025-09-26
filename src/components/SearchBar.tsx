@@ -108,10 +108,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
-  const [isManuallyCollapsed, setIsManuallyCollapsed] = useState(false);
-
-  /* ----- Refs ----- */
-  const searchBarRef = useRef<HTMLDivElement>(null);
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -138,22 +134,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       );
     };
   }, []);
-
-  /* ----- Click outside handler ----- */
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
-        if ((suggestions.length > 0 || response) && !isManuallyCollapsed) {
-          setIsManuallyCollapsed(true);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [suggestions.length, response, isManuallyCollapsed]);
 
   /* ----- 5️⃣ Intro bubble (first 3 visits) ----- */
   useEffect(() => {
@@ -245,16 +225,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     showTypewriter,
   ]);
 
-  /* ----- Helper to shuffle array ----- */
-  const shuffleArray = (array: string[]): string[] => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
-
   /* ----- 8️⃣ Submit handler ----- */
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
@@ -272,7 +242,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
-      setSuggestions(shuffleArray(suggs));
+      setSuggestions(suggs);
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
@@ -291,7 +261,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
-    setIsManuallyCollapsed(false);
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
   };
@@ -301,12 +270,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
-    setIsManuallyCollapsed(false);
   };
 
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const isExpanded = (suggestions.length > 0 || response) && !isManuallyCollapsed;
+  const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
@@ -342,7 +310,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
-        ref={searchBarRef}
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
         }`}
