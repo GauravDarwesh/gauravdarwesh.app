@@ -107,6 +107,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -168,6 +169,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 1000);
     return () => clearInterval(idleTimer);
   }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading]);
+
+  /* Delay expanded suggestions until 10s inactivity */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const idle = Date.now() - lastActivityTime;
+      if ((response || suggestions.length > 0) && !isLoading && idle > 10000) {
+        setShowExpandedSuggestions(true);
+      } else {
+        setShowExpandedSuggestions(false);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [lastActivityTime, response, suggestions, isLoading]);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -246,6 +260,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setQuery("");
     setHasInteracted(true);
     setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
   };
@@ -253,6 +268,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const handleInputFocus = () => {
     setShowIntroBubble(false);
     setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
     setHasInteracted(true);
   };
 
@@ -310,7 +326,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={suggestions.length > 0} duration={400}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.4s ease forwards" }}
@@ -367,6 +383,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   setQuery(e.target.value);
                   setHasInteracted(true);
                   setShowTypewriter(false);
+                  setShowExpandedSuggestions(false);
                 }}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                            text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
