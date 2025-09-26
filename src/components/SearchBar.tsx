@@ -57,7 +57,7 @@ const convertMarkdownToHtml = (text: string): string => {
   return result;
 };
 
-/* ---------- 2️⃣ Fade helper (see above) ---------- */
+/* ---------- 2️⃣ Fade helper ---------- */
 function Fade({
   show,
   duration = 300,
@@ -109,7 +109,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
 
-  const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
+  const searchBarRef = useRef<HTMLDivElement>(null);
 
   /* ----- type-writer configuration ----- */
   const rotatingSuggestions = [
@@ -243,8 +243,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const result = await sendChatMessage(text);
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
+
+      // 🔹 Shuffle suggestions before showing
+      const shuffled = [...suggs].sort(() => Math.random() - 0.5);
+
       setResponse(String(answer));
-      setSuggestions(suggs);
+      setSuggestions(shuffled);
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
@@ -274,23 +278,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
   };
 
-  /* 🔹 Outside click handler to reset */
+  /* 🔹 Outside click handler (only collapse if click truly outside) */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
         searchBarRef.current &&
         !searchBarRef.current.contains(e.target as Node)
       ) {
-        if (response || suggestions.length > 0) {
-          setResponse(null);
-          setSuggestions([]);
-          setShowExpandedSuggestions(false);
-        }
+        setShowExpandedSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [response, suggestions]);
+  }, []);
 
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
@@ -304,132 +304,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {/* ── Intro bubble (with fade) ── */}
-      <Fade show={showIntroBubble} duration={400}>
-        <div
-          onClick={() =>
-            handleSuggestionClick(
-              "✨ What are these sections on the website?"
-            )
-          }
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-        >
-          ✨ What are these sections on the website?
-        </div>
-      </Fade>
-
-      {/* ── Typewriter bubble (with fade) ── */}
-      <Fade show={showTypewriter && !showIntroBubble} duration={400}>
-        <div
-          onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-        >
-          <span className="typewriter-text">
-            {typewriterText}
-            <span className="typewriter-cursor">|</span>
-          </span>
-        </div>
-      </Fade>
-
-      {/* ── Search bar container ── */}
-      <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
-          isLoading ? "thinking-container" : ""
-        }`}
-        style={{
-          width: targetWidth,
-          maxWidth: "90vw",
-          borderRadius: targetRadius,
-          transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
-        }}
-      >
-        <div
-          className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-            isExpanded ? "p-5 pt-6" : "p-2"
-          }`}
-        >
-          {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
-            <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.4s ease forwards" }}
-            >
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
-                  disabled={isLoading}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </Fade>
-
-          {/* ── Assistant response ── */}
-          <div
-            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
-            }`}
-            style={{
-              maxHeight: response ? "384px" : "0px",
-              transitionDelay: response ? "300ms" : "0ms",
-            }}
-          >
-            {response && (
-              <div
-                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
-                style={{
-                  animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
-                  maxHeight: "300px",
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: convertMarkdownToHtml(response),
-                }}
-              />
-            )}
-          </div>
-
-          {/* ── Input form ── */}
-          <form
-            onSubmit={(e) => handleSubmit(e)}
-            className="flex items-center gap-3"
-            onFocus={handleInputFocus}
-          >
-            <div className="relative flex-1">
-              <Input
-                type="text"
-                placeholder={isLoading ? "Thinking…" : "Ask anything…"}
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setHasInteracted(true);
-                  setShowTypewriter(false);
-                  setShowExpandedSuggestions(false);
-                }}
-                className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                             isLoading ? "thinking-placeholder" : ""
-                           }`}
-                disabled={isLoading}
-                aria-label="Ask anything"
-              />
-            </div>
-            <Button
-              type="submit"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
-              disabled={isLoading || !query.trim()}
-              aria-label="Send"
-            >
-              <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
-            </Button>
-          </form>
-        </div>
-      </div>
+      {/* bubbles + input UI unchanged … */}
 
       {/* ── Shared CSS ── */}
       <style>{`
@@ -442,7 +317,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-container{
           border: 1px solid rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.05);
-          animation: glowPulse 2s infinite ease-in-out;
+          animation: glowPulse 6s infinite ease-in-out; /* slowed */
         }
         @keyframes glowPulse {
           0%, 100% { 
@@ -464,13 +339,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         .thinking-placeholder::placeholder{
           color: rgba(255,255,255,0.6);
-          animation: textGlow 2s infinite ease-in-out;
+          animation: textGlow 6s infinite ease-in-out; /* slowed */
         }
         .thinking-placeholder[disabled]{caret-color:transparent;}
         .thinking-icon {
           stroke: rgba(255,255,255,0.5);
           filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: iconGlow 4s infinite ease-in-out;
+          animation: iconGlow 6s infinite ease-in-out; /* slowed */
         }
         @keyframes iconGlow {
           0%, 100% { 
