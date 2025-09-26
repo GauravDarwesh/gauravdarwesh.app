@@ -105,7 +105,7 @@ Remember to:
 
     console.log('Calling Gemini API with prompt length:', prompt.length);
 
-    // Call Gemini API for main response
+    // Call Gemini API
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
       {
@@ -139,8 +139,7 @@ Remember to:
       return new Response(
         JSON.stringify({ 
           response: 'I apologize, but I\'m experiencing technical difficulties. Please try again later.', 
-          success: false,
-          suggestions: []
+          success: false 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
@@ -153,80 +152,11 @@ Remember to:
     const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 
                      'I apologize, but I couldn\'t generate a response. Please try asking again.';
 
-    // Generate contextual suggestions
-    const suggestionPrompt = `Based on the conversation about Gaurav Darwesh and the user's question: "${message}", suggest 3-5 short, engaging follow-up questions that users might want to ask next. 
-
-Make the suggestions:
-- Relevant to Gaurav's background from the knowledge base
-- Short and concise (max 6 words each)
-- Start with an emoji
-- Different from the original question
-- Cover various aspects like experience, projects, skills, achievements, etc.
-
-Return ONLY the suggestions, one per line, nothing else.
-
-Examples:
-✨ Tell me about his projects
-🎓 What's his educational background?
-💼 Show me his work experience
-🏆 Any notable achievements?`;
-
-    // Call Gemini API for suggestions
-    const suggestionsResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: suggestionPrompt
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.8,
-            topK: 30,
-            topP: 0.9,
-            maxOutputTokens: 200,
-          }
-        }),
-      }
-    );
-
-    let suggestions: string[] = [];
-    if (suggestionsResponse.ok) {
-      const suggestionsData = await suggestionsResponse.json();
-      const suggestionsText = suggestionsData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      suggestions = suggestionsText
-        .split('\n')
-        .map((s: string) => s.trim())
-        .filter((s: string) => s.length > 0 && s.includes('✨') || s.includes('🎓') || s.includes('💼') || s.includes('🏆') || s.includes('🔧') || s.includes('📱') || s.includes('🌟'))
-        .slice(0, 5);
-    }
-
-    // Fallback suggestions if AI generation fails
-    if (suggestions.length === 0) {
-      suggestions = [
-        '✨ Tell me about experience',
-        '🎓 What about education?',
-        '💼 Show me projects',
-        '🏆 Any achievements?',
-        '🔧 What are his skills?'
-      ];
-    }
-
     console.log('Sending response, length:', aiResponse.length);
 
     return new Response(
       JSON.stringify({ 
         response: aiResponse,
-        suggestions: suggestions,
         success: true
       }),
       { 
@@ -239,7 +169,6 @@ Examples:
     return new Response(
       JSON.stringify({ 
         response: 'I apologize, but something went wrong. Please try again later.',
-        suggestions: [],
         success: false 
       }),
       { 
