@@ -108,8 +108,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -134,24 +132,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ["mousemove", "keypress", "click", "scroll"].forEach((e) =>
         window.removeEventListener(e, handleActivity)
       );
-    };
-  }, []);
-
-  /* Outside click to collapse */
-  useEffect(() => {
-    const onPointerDown = (e: MouseEvent | TouchEvent) => {
-      const el = wrapperRef.current;
-      if (!el) return;
-      const target = e.target as Node;
-      if (!el.contains(target)) {
-        setExpanded(false);
-      }
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
     };
   }, []);
 
@@ -263,7 +243,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
       setSuggestions(suggs);
-      setExpanded(true);
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
@@ -295,13 +274,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const isExpanded = expanded;
+  const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
   /* ----- 🔒 Render ----- */
   return (
-    <div ref={wrapperRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
       {/* ── Intro bubble (with fade) ── */}
       <Fade show={showIntroBubble} duration={400}>
         <div
@@ -347,7 +326,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={expanded && showExpandedSuggestions && suggestions.length > 0} duration={400}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.4s ease forwards" }}
@@ -368,11 +347,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           {/* ── Assistant response ── */}
           <div
             className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              expanded && response ? "opacity-100 mb-5" : "opacity-0 mb-0"
+              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: expanded && response ? "384px" : "0px",
-              transitionDelay: expanded && response ? "300ms" : "0ms",
+              maxHeight: response ? "384px" : "0px",
+              transitionDelay: response ? "300ms" : "0ms",
             }}
           >
             {response && (
