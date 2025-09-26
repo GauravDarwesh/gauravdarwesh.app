@@ -108,6 +108,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
+  const searchBarRef = useRef<HTMLDivElement>(null);
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -122,18 +123,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ How to Contact Gaurav?",
   ];
 
-  /* ----- 4️⃣ Activity tracking ----- */
+  /* ----- 4️⃣ Activity tracking & click outside ----- */
   useEffect(() => {
     const handleActivity = () => setLastActivityTime(Date.now());
-    ["mousemove", "keypress", "click", "scroll"].forEach((e) =>
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
+        // Clicked outside - collapse search bar
+        if (response || suggestions.length > 0) {
+          setResponse(null);
+          setSuggestions([]);
+          setShowExpandedSuggestions(false);
+          setQuery("");
+        }
+      }
+    };
+
+    ["mousemove", "keypress", "scroll"].forEach((e) =>
       window.addEventListener(e, handleActivity)
     );
+    window.addEventListener("click", handleClickOutside);
+    
     return () => {
-      ["mousemove", "keypress", "click", "scroll"].forEach((e) =>
+      ["mousemove", "keypress", "scroll"].forEach((e) =>
         window.removeEventListener(e, handleActivity)
       );
+      window.removeEventListener("click", handleClickOutside);
     };
-  }, []);
+  }, [response, suggestions]);
 
   /* ----- 5️⃣ Intro bubble (first 3 visits) ----- */
   useEffect(() => {
@@ -151,30 +167,40 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, [hasInteracted]);
 
-  /* ----- 6️⃣ Re‑show typewriter after inactivity ----- */
+  /* ----- 6️⃣ Re‑show typewriter after inactivity (only when search bar NOT expanded) ----- */
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
       const visitCount =
         parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
+      const isExpanded = response || suggestions.length > 0;
+      
+      // Only show typewriter if search bar is NOT expanded
       if (
         idle > 10000 &&
         hasInteracted &&
         !showIntroBubble &&
         visitCount >= 3 &&
-        !isLoading
+        !isLoading &&
+        !isExpanded
       ) {
         setShowTypewriter(true);
       }
     }, 1000);
     return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading]);
+  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response, suggestions]);
 
-  /* Delay expanded suggestions until 10s inactivity */
+  /* ----- 6️⃣ Expanded suggestions timing (only when search bar is expanded) ----- */
   useEffect(() => {
     const interval = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      if ((response || suggestions.length > 0) && !isLoading && idle > 10000) {
+      const isExpanded = response || suggestions.length > 0;
+      
+      // Only show expanded suggestions if:
+      // 1. Search bar is expanded (has response/suggestions)
+      // 2. Not loading
+      // 3. 10+ seconds of inactivity
+      if (isExpanded && !isLoading && idle > 10000) {
         setShowExpandedSuggestions(true);
       } else {
         setShowExpandedSuggestions(false);
@@ -243,12 +269,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
       setSuggestions(suggs);
+      // Reset activity time when response arrives to start fresh 10s countdown
+      setLastActivityTime(Date.now());
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
+      // Reset activity time even on error
+      setLastActivityTime(Date.now());
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -310,6 +340,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
+        ref={searchBarRef}
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
         }`}
