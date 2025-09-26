@@ -246,6 +246,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   ]);
 
   /* ----- 8️⃣ Submit handler ----- */
+  const shuffleArray = (array: string[]): string[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
@@ -262,7 +271,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
-      setSuggestions(suggs);
+      setSuggestions(shuffleArray(suggs));
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
