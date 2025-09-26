@@ -191,22 +191,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
-        // Start smooth collapse animation
         if (response || suggestions.length > 0) {
+          // Trigger collapse: container will animate width/radius; content fades via state below
           setIsCollapsing(true);
           setShowExpandedSuggestions(false);
           setShowTypewriter(false);
           setShowIntroBubble(false);
-          
-          // Stagger the reset to create smooth collapse
-          setTimeout(() => {
-            setResponse(null);
-            setSuggestions([]);
-          }, 400); // Reset content first
-          
-          setTimeout(() => {
-            setIsCollapsing(false);
-          }, 850); // Then reset collapsing state
         }
       }
     };
@@ -214,6 +204,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [response, suggestions]);
+
+  /* ----- Transition end: finalize collapse ----- */
+  useEffect(() => {
+    if (!isCollapsing) return;
+    const el = searchBarRef.current;
+    if (!el) return;
+    const onEnd = (e: TransitionEvent) => {
+      if (e.propertyName === 'width' || e.propertyName === 'border-radius') {
+        setResponse(null);
+        setSuggestions([]);
+        setIsCollapsing(false);
+      }
+    };
+    el.addEventListener('transitionend', onEnd as any);
+    return () => el.removeEventListener('transitionend', onEnd as any);
+  }, [isCollapsing]);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -343,9 +349,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {/* ── Search bar container ── */}
       <div
         ref={searchBarRef}
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden ${
           isLoading ? "thinking-container" : ""
-        }`}
+        } ${isCollapsing ? 'pointer-events-none' : ''}`}
         style={{
           width: targetWidth,
           maxWidth: "90vw",
@@ -387,6 +393,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             style={{
               maxHeight: response && !isCollapsing ? "384px" : "0px",
               transitionDelay: response && !isCollapsing ? "300ms" : "0ms",
+              willChange: 'opacity, max-height, transform'
             }}
           >
             {response && (
