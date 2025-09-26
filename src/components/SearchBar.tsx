@@ -103,6 +103,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
+  const searchBarRef = useRef<HTMLDivElement>(null);
 
   /* ----- 4️⃣ Activity tracking ----- */
   useEffect(() => {
@@ -140,6 +141,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 500);
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
+
+  /* ----- Click outside handler ----- */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
+        // Collapse the search bar by clearing response and suggestions
+        setResponse(null);
+        setSuggestions([]);
+        setShowExpandedSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   /* ----- 6️⃣ Submit handler ----- */
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
@@ -210,6 +228,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
+        ref={searchBarRef}
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
         }`}
