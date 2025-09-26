@@ -470,7 +470,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-icon {
           stroke: rgba(255,255,255,0.5);
           filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: iconGlow 2s infinite ease-in-out;
+          animation: iconGlow 4s infinite ease-in-out;
         }
         @keyframes iconGlow {
           0%, 100% { 
