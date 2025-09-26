@@ -112,6 +112,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- refs ----- */
   const searchBarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -192,7 +193,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
         if (response || suggestions.length > 0) {
-          // Trigger collapse: container will animate width/radius; content fades via state below
+          // Prepare content wrapper for smooth height collapse
+          const el = contentRef.current;
+          if (el) {
+            const current = el.scrollHeight;
+            el.style.maxHeight = current + 'px';
+            el.style.opacity = '1';
+            // force reflow to ensure the browser registers the current height
+            void el.offsetHeight;
+            el.style.maxHeight = '0px';
+            el.style.opacity = '0';
+          }
+
           setIsCollapsing(true);
           setShowExpandedSuggestions(false);
           setShowTypewriter(false);
@@ -220,6 +232,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     el.addEventListener('transitionend', onEnd as any);
     return () => el.removeEventListener('transitionend', onEnd as any);
   }, [isCollapsing]);
+
+  /* ----- Content wrapper auto height management ----- */
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const expanded = (suggestions.length > 0 || !!response) && !isCollapsing;
+    if (expanded) {
+      // Expand to content height
+      el.style.maxHeight = el.scrollHeight + 'px';
+      el.style.opacity = '1';
+    } else if (!isCollapsing) {
+      // Ensure collapsed when not in explicit collapsing state
+      el.style.maxHeight = '0px';
+      el.style.opacity = '0';
+    }
+  }, [isCollapsing, response, suggestions]);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -364,50 +392,46 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
-          {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0 && !isCollapsing} duration={300}>
-            <div
-              className={`flex gap-2 flex-wrap justify-center mb-3 transition-all duration-300 ${
-                isCollapsing ? 'opacity-0 transform translate-y-2' : 'opacity-100 transform translate-y-0'
-              }`}
-              style={{ animation: "fadeIn 0.3s ease forwards" }}
-            >
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
-                  disabled={isLoading}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </Fade>
-
-          {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response && !isCollapsing ? "opacity-100 mb-5" : "opacity-0 mb-0"
-            }`}
-            style={{
-              maxHeight: response && !isCollapsing ? "384px" : "0px",
-              transitionDelay: response && !isCollapsing ? "300ms" : "0ms",
-              willChange: 'opacity, max-height, transform'
-            }}
+            ref={contentRef}
+            className="overflow-hidden transition-[max-height,opacity,transform] duration-700 ease-[cubic-bezier(0.25,1,0.3,1)]"
+            style={{ willChange: 'max-height, opacity, transform' }}
           >
-            {response && (
-              <div
-                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
-                style={{
-                  animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
-                  maxHeight: "300px",
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: convertMarkdownToHtml(response),
-                }}
-              />
-            )}
+            {/* ── Suggestion list (with fade) ── */}
+            <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={300}>
+              <div className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSuggestionClick(s)}
+                    className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
+                    disabled={isLoading}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </Fade>
+
+            {/* ── Assistant response ── */}
+            <div
+              className={`transition-opacity duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                response ? "opacity-100 mb-5" : "opacity-0 mb-0"
+              }`}
+            >
+              {response && (
+                <div
+                  className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
+                  style={{
+                    animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
+                    maxHeight: "300px",
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: convertMarkdownToHtml(response),
+                  }}
+                />
+              )}
+            </div>
           </div>
 
           {/* ── Input form ── */}
