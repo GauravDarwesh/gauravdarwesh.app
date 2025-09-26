@@ -100,56 +100,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [response, setResponse] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showIntroBubble, setShowIntroBubble] = useState(false);
-  const [showTypewriter, setShowTypewriter] = useState(false);
-  const [typewriterText, setTypewriterText] = useState("");
-  const [fullText, setFullText] = useState("");
-  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
-  const searchBarRef = useRef<HTMLDivElement>(null);
 
-  /* ----- type‑writer configuration ----- */
-  const rotatingSuggestions = [
-    "✨ Tell me about Gaurav's Experience",
-    "✨ What is Gaurav's Education?",
-    "✨ What are Gaurav's Skills?",
-    "✨ Can you share Recommendations?",
-    "✨ Show me Achievements",
-    "✨ List Certifications",
-    "✨ What Projects has Gaurav done?",
-    "✨ Any Hobbies?",
-    "✨ How to Contact Gaurav?",
-  ];
-
-  /* ----- 4️⃣ Activity tracking & click outside ----- */
+  /* ----- 4️⃣ Activity tracking ----- */
   useEffect(() => {
     const handleActivity = () => setLastActivityTime(Date.now());
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
-        // Clicked outside - collapse search bar
-        if (response || suggestions.length > 0) {
-          setResponse(null);
-          setSuggestions([]);
-          setShowExpandedSuggestions(false);
-          setQuery("");
-        }
-      }
-    };
-
-    ["mousemove", "keypress", "scroll"].forEach((e) =>
+    ["mousemove", "keypress", "click", "scroll"].forEach((e) =>
       window.addEventListener(e, handleActivity)
     );
-    window.addEventListener("click", handleClickOutside);
-    
     return () => {
-      ["mousemove", "keypress", "scroll"].forEach((e) =>
+      ["mousemove", "keypress", "click", "scroll"].forEach((e) =>
         window.removeEventListener(e, handleActivity)
       );
-      window.removeEventListener("click", handleClickOutside);
     };
-  }, [response, suggestions]);
+  }, []);
 
   /* ----- 5️⃣ Intro bubble (first 3 visits) ----- */
   useEffect(() => {
@@ -159,48 +125,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const timer = setTimeout(() => setShowIntroBubble(true), 3000);
       localStorage.setItem("introBubbleVisits", String(visitCount + 1));
       return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => {
-        if (!hasInteracted) setShowTypewriter(true);
-      }, 2000);
-      return () => clearTimeout(timer);
     }
   }, [hasInteracted]);
 
-  /* ----- 6️⃣ Re‑show typewriter after inactivity (only when search bar NOT expanded) ----- */
-  useEffect(() => {
-    const idleTimer = setInterval(() => {
-      const idle = Date.now() - lastActivityTime;
-      const visitCount =
-        parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
-      const isExpanded = response || suggestions.length > 0;
-      
-      // Only show typewriter if search bar is NOT expanded
-      if (
-        idle > 10000 &&
-        hasInteracted &&
-        !showIntroBubble &&
-        visitCount >= 3 &&
-        !isLoading &&
-        !isExpanded
-      ) {
-        setShowTypewriter(true);
-      }
-    }, 1000);
-    return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response, suggestions]);
-
-  /* ----- 6️⃣ Expanded suggestions timing (only when search bar is expanded) ----- */
+  /* Delay expanded suggestions until 10s inactivity */
   useEffect(() => {
     const interval = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      const isExpanded = response || suggestions.length > 0;
-      
-      // Only show expanded suggestions if:
-      // 1. Search bar is expanded (has response/suggestions)
-      // 2. Not loading
-      // 3. 10+ seconds of inactivity
-      if (isExpanded && !isLoading && idle > 10000) {
+      if ((response || suggestions.length > 0) && !isLoading && idle > 10000) {
         setShowExpandedSuggestions(true);
       } else {
         setShowExpandedSuggestions(false);
@@ -209,49 +141,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
 
-  /* ----- 7️⃣ Typewriter effect ----- */
-  useEffect(() => {
-    if (!showTypewriter || showIntroBubble) return;
-
-    const typingSpeed = 40;
-    const deletingSpeed = 20;
-    const pauseBeforeDelete = 3000;
-    const pauseAfterDelete = 500;
-
-    let timeout: NodeJS.Timeout;
-
-    if (!isDeleting && typewriterText === fullText && fullText !== "") {
-      timeout = setTimeout(() => setIsDeleting(true), pauseBeforeDelete);
-    } else if (isDeleting && typewriterText === "") {
-      timeout = setTimeout(() => {
-        const next = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
-        setCurrentSuggestionIndex(next);
-        setFullText(rotatingSuggestions[next]);
-        setIsDeleting(false);
-      }, pauseAfterDelete);
-    } else if (isDeleting) {
-      timeout = setTimeout(() => setTypewriterText((p) => p.slice(0, -1)), deletingSpeed);
-    } else {
-      if (fullText === "") setFullText(rotatingSuggestions[currentSuggestionIndex]);
-      else
-        timeout = setTimeout(
-          () => setTypewriterText((p) => fullText.slice(0, p.length + 1)),
-          typingSpeed
-        );
-    }
-
-    return () => clearTimeout(timeout);
-  }, [
-    typewriterText,
-    isDeleting,
-    fullText,
-    currentSuggestionIndex,
-    rotatingSuggestions,
-    showIntroBubble,
-    showTypewriter,
-  ]);
-
-  /* ----- 8️⃣ Submit handler ----- */
+  /* ----- 6️⃣ Submit handler ----- */
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
@@ -260,7 +150,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
     setResponse(null);
     setHasInteracted(true);
-    setShowTypewriter(false);
     if (!customQuery) setQuery("");
 
     try {
@@ -268,28 +157,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
-      setSuggestions(suggs);
-      // Reset activity time when response arrives to start fresh 10s countdown
-      setLastActivityTime(Date.now());
+      setSuggestions(Array.isArray(suggs) ? suggs : []);
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
-      // Reset activity time even on error
-      setLastActivityTime(Date.now());
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  /* ----- 9️⃣ Interaction helpers ----- */
+  /* ----- 7️⃣ Interaction helpers ----- */
   const handleSuggestionClick = (s: string) => {
     setQuery("");
     setHasInteracted(true);
-    setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
@@ -297,17 +181,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const handleInputFocus = () => {
     setShowIntroBubble(false);
-    setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
   };
 
-  /* ----- 🔟 Layout calculations ----- */
+  /* ----- 8️⃣ Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
-  const expandedSuggestionPool = suggestions.length > 0 ? suggestions : rotatingSuggestions;
 
   /* ----- 🔒 Render ----- */
   return (
@@ -326,22 +208,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </Fade>
 
-      {/* ── Typewriter bubble (with fade) ── */}
-      <Fade show={showTypewriter && !showIntroBubble} duration={400}>
-        <div
-          onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-        >
-          <span className="typewriter-text">
-            {typewriterText}
-            <span className="typewriter-cursor">|</span>
-          </span>
-        </div>
-      </Fade>
-
       {/* ── Search bar container ── */}
       <div
-        ref={searchBarRef}
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
         }`}
@@ -358,12 +226,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && expandedSuggestionPool.length > 0} duration={400}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.4s ease forwards" }}
             >
-              {expandedSuggestionPool.map((s, i) => (
+              {suggestions.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => handleSuggestionClick(s)}
@@ -414,7 +282,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setHasInteracted(true);
-                  setShowTypewriter(false);
                   setShowExpandedSuggestions(false);
                 }}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
@@ -495,11 +362,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
                      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
                      font-size:.9em;}
-
-        /* Typewriter cursor */
-        @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
-        .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
-        .typewriter-text{display:inline-block;min-height:1.2em;}
       `}</style>
     </div>
   );
