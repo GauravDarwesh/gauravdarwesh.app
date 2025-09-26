@@ -52,6 +52,49 @@ async function getKnowledgeBase(): Promise<string> {
   }
 }
 
+// Generate follow-up suggestions using Gemini
+async function generateSuggestions(apiKey: string, userMessage: string, aiAnswer: string, knowledgeBase: string): Promise<string[]> {
+  try {
+    const prompt = `You are helping a user explore information about Gaurav Darwesh. Based on the knowledge base, the user's question, and the answer already provided, generate 5-7 short, diverse, and clickable follow-up questions strictly about Gaurav (experience, projects, skills, achievements, education, contact, hobbies, certifications, recommendations). Return ONLY a valid JSON array of strings with no additional text.
+
+Knowledge base (truncated if long):\n${knowledgeBase.slice(0, 6000)}\n\nUser question: ${userMessage}\nYour previous answer: ${aiAnswer}\n\nOutput: JSON array of strings`;
+
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.6, topK: 40, topP: 0.9, maxOutputTokens: 256 }
+      })
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text();
+      console.error('Gemini suggestions error:', resp.status, t);
+      return [];
+    }
+
+    const data = await resp.json();
+    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    // Try to extract JSON array
+    const start = text.indexOf('[');
+    const end = text.lastIndexOf(']');
+    if (start !== -1 && end !== -1 && end > start) {
+      const json = text.slice(start, end + 1);
+      try {
+        const parsed = JSON.parse(json);
+        return Array.isArray(parsed) ? parsed.filter((s: unknown) => typeof s === 'string').slice(0, 8) : [];
+      } catch (e) {
+        console.error('Failed to parse suggestions JSON:', e, json);
+      }
+    }
+    return [];
+  } catch (e) {
+    console.error('generateSuggestions exception:', e);
+    return [];
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -145,24 +188,34 @@ Remember to:
       );
     }
 
-    const geminiData = await geminiResponse.json();
-    console.log('Gemini API response received');
-    
-    // Extract the response text
-    const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 
-                     'I apologize, but I couldn\'t generate a response. Please try asking again.';
+const geminiData = await geminiResponse.json();
+console.log('Gemini API response received');
 
-    console.log('Sending response, length:', aiResponse.length);
+// Extract the response text
+const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 
+                 'I apologize, but I couldn\'t generate a response. Please try asking again.';
 
-    return new Response(
-      JSON.stringify({ 
-        response: aiResponse,
-        success: true
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+// Generate follow-up suggestions
+let suggestions: string[] = [];
+try {
+  suggestions = await generateSuggestions(apiKey, message, aiResponse, knowledgeBase);
+  console.log('Suggestions generated:', suggestions.length);
+} catch (e) {
+  console.error('Suggestions generation failed:', e);
+}
+
+console.log('Sending response, length:', aiResponse.length);
+
+return new Response(
+  JSON.stringify({ 
+    response: aiResponse,
+    suggestions,
+    success: true
+  }),
+  { 
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+  }
+);
 
   } catch (error) {
     console.error('Edge function error:', error);
