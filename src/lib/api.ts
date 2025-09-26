@@ -5,7 +5,6 @@ import { getSessionId } from './session';
 export interface ChatResponse {
   response: string;
   success: boolean;
-  suggestions?: string[];
   debug?: object;
 }
 
@@ -31,7 +30,6 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
     
     return {
       response: (data as any)?.response ?? 'No response generated',
-      suggestions: (data as any)?.suggestions ?? [],
       success: true,
       debug: data
     };
