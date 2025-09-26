@@ -157,7 +157,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const visitCount =
         parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
       if (
-        idle > 8000 &&
+        idle > 10000 &&
         hasInteracted &&
         !showIntroBubble &&
         visitCount >= 3 &&
