@@ -109,6 +109,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
 
+  /* ----- refs ----- */
+  const searchBarRef = useRef<HTMLDivElement>(null);
+
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
     "✨ Tell me about Gaurav's Experience",
@@ -182,6 +185,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 500);
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
+
+  /* ----- 🎯 Click outside handler ----- */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
+        // Reset to normal state when clicking outside
+        setResponse(null);
+        setSuggestions([]);
+        setShowExpandedSuggestions(false);
+        setShowTypewriter(false);
+        setShowIntroBubble(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -310,6 +330,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
+        ref={searchBarRef}
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
         }`}
