@@ -108,11 +108,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
-  const [isCollapsing, setIsCollapsing] = useState(false);
-
-  /* ----- refs ----- */
-  const searchBarRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
 
   /* ----- type‑writer configuration ----- */
   const rotatingSuggestions = [
@@ -187,67 +182,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 500);
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
-
-  /* ----- 🎯 Click outside handler ----- */
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
-        if (response || suggestions.length > 0) {
-          // Prepare content wrapper for smooth height collapse
-          const el = contentRef.current;
-          if (el) {
-            const current = el.scrollHeight;
-            el.style.maxHeight = current + 'px';
-            el.style.opacity = '1';
-            // force reflow to ensure the browser registers the current height
-            void el.offsetHeight;
-            el.style.maxHeight = '0px';
-            el.style.opacity = '0';
-          }
-
-          setIsCollapsing(true);
-          setShowExpandedSuggestions(false);
-          setShowTypewriter(false);
-          setShowIntroBubble(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [response, suggestions]);
-
-  /* ----- Transition end: finalize collapse ----- */
-  useEffect(() => {
-    if (!isCollapsing) return;
-    const el = searchBarRef.current;
-    if (!el) return;
-    const onEnd = (e: TransitionEvent) => {
-      if (e.propertyName === 'width' || e.propertyName === 'border-radius') {
-        setResponse(null);
-        setSuggestions([]);
-        setIsCollapsing(false);
-      }
-    };
-    el.addEventListener('transitionend', onEnd as any);
-    return () => el.removeEventListener('transitionend', onEnd as any);
-  }, [isCollapsing]);
-
-  /* ----- Content wrapper auto height management ----- */
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const expanded = (suggestions.length > 0 || !!response) && !isCollapsing;
-    if (expanded) {
-      // Expand to content height
-      el.style.maxHeight = el.scrollHeight + 'px';
-      el.style.opacity = '1';
-    } else if (!isCollapsing) {
-      // Ensure collapsed when not in explicit collapsing state
-      el.style.maxHeight = '0px';
-      el.style.opacity = '0';
-    }
-  }, [isCollapsing, response, suggestions]);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -340,7 +274,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const isExpanded = (suggestions.length > 0 || response) && !isCollapsing;
+  const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
@@ -376,10 +310,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
-        ref={searchBarRef}
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden ${
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
-        } ${isCollapsing ? 'pointer-events-none' : ''}`}
+        }`}
         style={{
           width: targetWidth,
           maxWidth: "90vw",
@@ -392,46 +325,47 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
-          <div
-            ref={contentRef}
-            className="overflow-hidden transition-[max-height,opacity,transform] duration-700 ease-[cubic-bezier(0.25,1,0.3,1)]"
-            style={{ willChange: 'max-height, opacity, transform' }}
-          >
-            {/* ── Suggestion list (with fade) ── */}
-            <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={300}>
-              <div className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn">
-                {suggestions.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSuggestionClick(s)}
-                    className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
-                    disabled={isLoading}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </Fade>
-
-            {/* ── Assistant response ── */}
+          {/* ── Suggestion list (with fade) ── */}
+          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
             <div
-              className={`transition-opacity duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-                response ? "opacity-100 mb-5" : "opacity-0 mb-0"
-              }`}
+              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
+              style={{ animation: "fadeIn 0.4s ease forwards" }}
             >
-              {response && (
-                <div
-                  className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
-                  style={{
-                    animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
-                    maxHeight: "300px",
-                  }}
-                  dangerouslySetInnerHTML={{
-                    __html: convertMarkdownToHtml(response),
-                  }}
-                />
-              )}
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(s)}
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
+          </Fade>
+
+          {/* ── Assistant response ── */}
+          <div
+            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
+            }`}
+            style={{
+              maxHeight: response ? "384px" : "0px",
+              transitionDelay: response ? "300ms" : "0ms",
+            }}
+          >
+            {response && (
+              <div
+                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
+                style={{
+                  animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
+                  maxHeight: "300px",
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: convertMarkdownToHtml(response),
+                }}
+              />
+            )}
           </div>
 
           {/* ── Input form ── */}
@@ -479,14 +413,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
         @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
         @keyframes delayedFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes collapseOut { 
-          0% { opacity:1; transform:translateY(0) scale(1); }
-          50% { opacity:0.7; transform:translateY(-5px) scale(0.98); }
-          100% { opacity:0; transform:translateY(-10px) scale(0.95); }
-        }
         .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
         .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
-        .animate-collapseOut { animation: collapseOut 0.4s ease forwards; }
 
         .thinking-container{
           border: 1px solid rgba(255,255,255,0.2);
