@@ -110,9 +110,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
 
   /* ----- type‑writer configuration ----- */
-  const rotatingSuggestions = [
+  const rotatingSuggestions = suggestions.length > 0 ? suggestions : [
     "✨ Tell me about Gaurav's Experience",
-    "✨ What is Gaurav's Education?",
+    "✨ What is Gaurav's Education?", 
     "✨ What are Gaurav's Skills?",
     "✨ Can you share Recommendations?",
     "✨ Show me Achievements",
@@ -185,7 +185,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
-    if (!showTypewriter || showIntroBubble) return;
+    if (!showTypewriter || showIntroBubble || rotatingSuggestions.length === 0) return;
 
     const typingSpeed = 40;
     const deletingSpeed = 20;
@@ -242,7 +242,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
-      setSuggestions(suggs);
+      setSuggestions(Array.isArray(suggs) ? suggs : []);
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
