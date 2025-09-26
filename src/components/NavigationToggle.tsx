@@ -117,10 +117,10 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
           <ChevronUp 
             className={`
               absolute top-0 left-0 w-5 h-5 
-              transition-all duration-500 ease-in-out
+              transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1)
               ${isModalOpen 
-                ? "opacity-0 scale-75 rotate-90" 
-                : "opacity-100 scale-100 rotate-0"
+                ? "opacity-0 scale-50 rotate-180 translate-y-1" 
+                : "opacity-100 scale-100 rotate-0 translate-y-0"
               }
             `} 
           />
@@ -128,10 +128,10 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
           <X 
             className={`
               absolute top-0 left-0 w-5 h-5 
-              transition-all duration-500 ease-in-out
+              transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1)
               ${isModalOpen 
-                ? "opacity-100 scale-100 rotate-0" 
-                : "opacity-0 scale-75 rotate-90"
+                ? "opacity-100 scale-100 rotate-0 translate-y-0" 
+                : "opacity-0 scale-50 rotate-180 translate-y-1"
               }
             `} 
           />
