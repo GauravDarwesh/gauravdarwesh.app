@@ -110,7 +110,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
 
   /* ----- type‑writer configuration ----- */
-  const rotatingSuggestions = suggestions.length > 0 ? suggestions : [
+  const defaultSuggestions = [
     "✨ Tell me about Gaurav's Experience",
     "✨ What is Gaurav's Education?", 
     "✨ What are Gaurav's Skills?",
@@ -121,6 +121,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ Any Hobbies?",
     "✨ How to Contact Gaurav?",
   ];
+  
+  const rotatingSuggestions = suggestions.length > 0 ? suggestions : defaultSuggestions;
 
   /* ----- 4️⃣ Activity tracking ----- */
   useEffect(() => {
@@ -224,6 +226,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     showIntroBubble,
     showTypewriter,
   ]);
+
+  /* Reset typewriter when suggestions change */
+  useEffect(() => {
+    if (suggestions.length > 0 && showTypewriter) {
+      setCurrentSuggestionIndex(0);
+      setFullText(suggestions[0]);
+      setTypewriterText("");
+      setIsDeleting(false);
+    }
+  }, [suggestions, showTypewriter]);
 
   /* ----- 8️⃣ Submit handler ----- */
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
