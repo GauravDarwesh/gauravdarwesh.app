@@ -100,10 +100,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [response, setResponse] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showIntroBubble, setShowIntroBubble] = useState(false);
+  const [showTypewriter, setShowTypewriter] = useState(false);
+  const [typewriterText, setTypewriterText] = useState("");
+  const [fullText, setFullText] = useState("");
+  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
-  const searchBarRef = useRef<HTMLDivElement>(null);
+
+  /* ----- type‑writer configuration ----- */
+  const rotatingSuggestions = [
+    "✨ Tell me about Gaurav's Experience",
+    "✨ What is Gaurav's Education?",
+    "✨ What are Gaurav's Skills?",
+    "✨ Can you share Recommendations?",
+    "✨ Show me Achievements",
+    "✨ List Certifications",
+    "✨ What Projects has Gaurav done?",
+    "✨ Any Hobbies?",
+    "✨ How to Contact Gaurav?",
+  ];
 
   /* ----- 4️⃣ Activity tracking ----- */
   useEffect(() => {
@@ -126,8 +143,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const timer = setTimeout(() => setShowIntroBubble(true), 3000);
       localStorage.setItem("introBubbleVisits", String(visitCount + 1));
       return () => clearTimeout(timer);
+    } else {
+      const timer = setTimeout(() => {
+        if (!hasInteracted) setShowTypewriter(true);
+      }, 2000);
+      return () => clearTimeout(timer);
     }
   }, [hasInteracted]);
+
+  /* ----- 6️⃣ Re‑show typewriter after inactivity ----- */
+  useEffect(() => {
+    const idleTimer = setInterval(() => {
+      const idle = Date.now() - lastActivityTime;
+      const visitCount =
+        parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
+      if (
+        idle > 10000 &&
+        hasInteracted &&
+        !showIntroBubble &&
+        visitCount >= 3 &&
+        !isLoading
+      ) {
+        setShowTypewriter(true);
+      }
+    }, 1000);
+    return () => clearInterval(idleTimer);
+  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading]);
 
   /* Delay expanded suggestions until 10s inactivity */
   useEffect(() => {
@@ -142,24 +183,49 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
 
-  /* ----- Click outside handler ----- */
+  /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
-        // Collapse the search bar by clearing response and suggestions
-        setResponse(null);
-        setSuggestions([]);
-        setShowExpandedSuggestions(false);
-      }
-    };
+    if (!showTypewriter || showIntroBubble) return;
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+    const typingSpeed = 40;
+    const deletingSpeed = 20;
+    const pauseBeforeDelete = 3000;
+    const pauseAfterDelete = 500;
 
-  /* ----- 6️⃣ Submit handler ----- */
+    let timeout: NodeJS.Timeout;
+
+    if (!isDeleting && typewriterText === fullText && fullText !== "") {
+      timeout = setTimeout(() => setIsDeleting(true), pauseBeforeDelete);
+    } else if (isDeleting && typewriterText === "") {
+      timeout = setTimeout(() => {
+        const next = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
+        setCurrentSuggestionIndex(next);
+        setFullText(rotatingSuggestions[next]);
+        setIsDeleting(false);
+      }, pauseAfterDelete);
+    } else if (isDeleting) {
+      timeout = setTimeout(() => setTypewriterText((p) => p.slice(0, -1)), deletingSpeed);
+    } else {
+      if (fullText === "") setFullText(rotatingSuggestions[currentSuggestionIndex]);
+      else
+        timeout = setTimeout(
+          () => setTypewriterText((p) => fullText.slice(0, p.length + 1)),
+          typingSpeed
+        );
+    }
+
+    return () => clearTimeout(timeout);
+  }, [
+    typewriterText,
+    isDeleting,
+    fullText,
+    currentSuggestionIndex,
+    rotatingSuggestions,
+    showIntroBubble,
+    showTypewriter,
+  ]);
+
+  /* ----- 8️⃣ Submit handler ----- */
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
@@ -168,6 +234,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
     setResponse(null);
     setHasInteracted(true);
+    setShowTypewriter(false);
     if (!customQuery) setQuery("");
 
     try {
@@ -175,7 +242,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
-      setSuggestions(Array.isArray(suggs) ? suggs : []);
+      setSuggestions(suggs);
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
@@ -188,10 +255,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  /* ----- 7️⃣ Interaction helpers ----- */
+  /* ----- 9️⃣ Interaction helpers ----- */
   const handleSuggestionClick = (s: string) => {
     setQuery("");
     setHasInteracted(true);
+    setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
@@ -199,11 +267,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const handleInputFocus = () => {
     setShowIntroBubble(false);
+    setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
   };
 
-  /* ----- 8️⃣ Layout calculations ----- */
+  /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
   const isExpanded = suggestions.length > 0 || response;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
@@ -226,9 +295,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </Fade>
 
+      {/* ── Typewriter bubble (with fade) ── */}
+      <Fade show={showTypewriter && !showIntroBubble} duration={400}>
+        <div
+          onClick={() => handleSuggestionClick(fullText)}
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+        >
+          <span className="typewriter-text">
+            {typewriterText}
+            <span className="typewriter-cursor">|</span>
+          </span>
+        </div>
+      </Fade>
+
       {/* ── Search bar container ── */}
       <div
-        ref={searchBarRef}
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
           isLoading ? "thinking-container" : ""
         }`}
@@ -301,6 +382,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setHasInteracted(true);
+                  setShowTypewriter(false);
                   setShowExpandedSuggestions(false);
                 }}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
@@ -381,6 +463,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
                      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
                      font-size:.9em;}
+
+        /* Typewriter cursor */
+        @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
+        .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
+        .typewriter-text{display:inline-block;min-height:1.2em;}
       `}</style>
     </div>
   );
