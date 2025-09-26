@@ -191,19 +191,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
-        // Start collapse animation
+        // Start smooth collapse animation
         if (response || suggestions.length > 0) {
           setIsCollapsing(true);
           setShowExpandedSuggestions(false);
           setShowTypewriter(false);
           setShowIntroBubble(false);
           
-          // After animation completes, reset state
+          // Stagger the reset to create smooth collapse
           setTimeout(() => {
             setResponse(null);
             setSuggestions([]);
+          }, 400); // Reset content first
+          
+          setTimeout(() => {
             setIsCollapsing(false);
-          }, 800); // Match the transition duration
+          }, 850); // Then reset collapsing state
         }
       }
     };
@@ -356,10 +359,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0 && !isCollapsing} duration={300}>
             <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.4s ease forwards" }}
+              className={`flex gap-2 flex-wrap justify-center mb-3 transition-all duration-300 ${
+                isCollapsing ? 'opacity-0 transform translate-y-2' : 'opacity-100 transform translate-y-0'
+              }`}
+              style={{ animation: "fadeIn 0.3s ease forwards" }}
             >
               {suggestions.map((s, i) => (
                 <button
@@ -443,8 +448,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
         @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
         @keyframes delayedFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+        @keyframes collapseOut { 
+          0% { opacity:1; transform:translateY(0) scale(1); }
+          50% { opacity:0.7; transform:translateY(-5px) scale(0.98); }
+          100% { opacity:0; transform:translateY(-10px) scale(0.95); }
+        }
         .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
         .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
+        .animate-collapseOut { animation: collapseOut 0.4s ease forwards; }
 
         .thinking-container{
           border: 1px solid rgba(255,255,255,0.2);
