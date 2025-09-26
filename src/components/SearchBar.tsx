@@ -161,14 +161,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         hasInteracted &&
         !showIntroBubble &&
         visitCount >= 3 &&
-        !isLoading &&
-        !response
+        !isLoading
       ) {
         setShowTypewriter(true);
       }
     }, 1000);
     return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response]);
+  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading]);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
