@@ -464,7 +464,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         .thinking-placeholder::placeholder{
           color: rgba(255,255,255,0.6);
-          animation: textGlow 2s infinite ease-in-out;
+          animation: textGlow 4s infinite ease-in-out;
         }
         .thinking-placeholder[disabled]{caret-color:transparent;}
         .thinking-icon {
