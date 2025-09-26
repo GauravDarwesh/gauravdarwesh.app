@@ -108,6 +108,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
 
   /* ----- refs ----- */
   const searchBarRef = useRef<HTMLDivElement>(null);
@@ -190,18 +191,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchBarRef.current && !searchBarRef.current.contains(event.target as Node)) {
-        // Reset to normal state when clicking outside
-        setResponse(null);
-        setSuggestions([]);
-        setShowExpandedSuggestions(false);
-        setShowTypewriter(false);
-        setShowIntroBubble(false);
+        // Start collapse animation
+        if (response || suggestions.length > 0) {
+          setIsCollapsing(true);
+          setShowExpandedSuggestions(false);
+          setShowTypewriter(false);
+          setShowIntroBubble(false);
+          
+          // After animation completes, reset state
+          setTimeout(() => {
+            setResponse(null);
+            setSuggestions([]);
+            setIsCollapsing(false);
+          }, 800); // Match the transition duration
+        }
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [response, suggestions]);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -294,7 +303,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔟 Layout calculations ----- */
   const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const isExpanded = suggestions.length > 0 || response;
+  const isExpanded = (suggestions.length > 0 || response) && !isCollapsing;
   const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
   const targetRadius = isExpanded ? "16px" : "999px";
 
@@ -368,11 +377,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           {/* ── Assistant response ── */}
           <div
             className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
+              response && !isCollapsing ? "opacity-100 mb-5" : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: response ? "384px" : "0px",
-              transitionDelay: response ? "300ms" : "0ms",
+              maxHeight: response && !isCollapsing ? "384px" : "0px",
+              transitionDelay: response && !isCollapsing ? "300ms" : "0ms",
             }}
           >
             {response && (
