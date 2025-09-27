@@ -229,7 +229,7 @@ html {
 
 .bg-fire-waves {
   position: relative;
-  background: radial-gradient(circle at center, #1a0a0a, #0a0505);
+  background: linear-gradient(135deg, #2d1b0d, #1a0f05, #0d0704);
   overflow: hidden;
 }
 
@@ -237,36 +237,36 @@ html {
   position: absolute;
   inset: 0;
   background-size: 300% 300%;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
   animation-iteration-count: infinite;
   animation-timing-function: ease-in-out;
 }
 
 .fire-wave-1 {
   background: 
-    radial-gradient(ellipse at 20% 80%, #ff4500, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, #ff6600, transparent 50%),
-    radial-gradient(ellipse at 40% 40%, #ff8c00, transparent 30%);
+    radial-gradient(ellipse at 20% 80%, #ff4500 0%, #ff6600 30%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, #ff6600 0%, #ff8c00 25%, transparent 50%),
+    radial-gradient(ellipse at 40% 40%, #ff8c00 0%, #ffb000 20%, transparent 40%);
   animation: fireWave1 18s ease-in-out infinite;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .fire-wave-2 {
   background: 
-    radial-gradient(ellipse at 60% 10%, #ff7f00, transparent 40%),
-    radial-gradient(ellipse at 10% 60%, #ff9500, transparent 45%),
-    radial-gradient(ellipse at 90% 90%, #ffb000, transparent 35%);
+    radial-gradient(ellipse at 60% 10%, #ff7f00 0%, #ff9500 35%, transparent 55%),
+    radial-gradient(ellipse at 10% 60%, #ff9500 0%, #ffb000 30%, transparent 50%),
+    radial-gradient(ellipse at 90% 90%, #ffb000 0%, #ffd700 25%, transparent 45%);
   animation: fireWave2 25s ease-in-out infinite;
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 .fire-wave-3 {
   background: 
-    radial-gradient(ellipse at 30% 70%, #ff6b00, transparent 25%),
-    radial-gradient(ellipse at 70% 30%, #ff8500, transparent 30%),
-    radial-gradient(ellipse at 50% 50%, #ffa500, transparent 20%);
+    radial-gradient(ellipse at 30% 70%, #ff6b00 0%, #ff8500 40%, transparent 65%),
+    radial-gradient(ellipse at 70% 30%, #ff8500 0%, #ffa500 35%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, #ffa500 0%, #ffc000 30%, transparent 50%);
   animation: fireWave3 22s ease-in-out infinite;
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .typewriter-fade-out {
