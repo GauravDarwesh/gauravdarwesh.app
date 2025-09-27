@@ -203,14 +203,14 @@ export default function Visuals() {
       <NavigationToggle />
 
       {/* Center area - no scroll layout */}
-      <div className="relative z-10 h-screen flex flex-col">
+      <div className="relative z-10 h-screen flex flex-col overflow-hidden">
         {/* Reduced top spacer to move content up */}
-        <div className="h-16 sm:h-18 flex-shrink-0"></div>
+        <div className="h-14 sm:h-16 lg:h-18 flex-shrink-0"></div>
         
         {/* Main content container - fixed height, no scroll */}
-        <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-4 min-h-0">
+        <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-2 sm:pb-4 min-h-0 overflow-hidden">
           {/* Container for tile with text and navigation */}
-          <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[65vw] flex flex-col h-full max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
+          <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[65vw] flex flex-col h-full max-h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-10rem)] overflow-hidden">
             
             {/* Top row: Title (left) and Navigation Buttons (right) */}
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
@@ -240,7 +240,7 @@ export default function Visuals() {
             </div>
 
             {/* Tile container - takes remaining space with aspect ratio constraint */}
-            <div className="flex-1 min-h-0 max-h-[60vh] sm:max-h-none">
+            <div className="flex-1 min-h-0 max-h-[55vh] sm:max-h-none overflow-hidden">
               {/* Glassmorphic tile */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/20 hover:bg-white/20 transition w-full h-full flex items-center justify-center overflow-hidden relative">
                 {/* Image container */}
