@@ -190,12 +190,14 @@ export default function Visuals() {
 
   return (
     <div className="h-screen w-full relative overflow-hidden">
-      {/* Fire Wave Background */}
-      <div className="fixed inset-0 bg-fire-waves">
-        <div className="fire-wave fire-wave-1"></div>
-        <div className="fire-wave fire-wave-2"></div>
-        <div className="fire-wave fire-wave-3"></div>
-      </div>
+      {/* Background */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage:
+            "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
+        }}
+      />
 
       {/* Navigation */}
       <NavigationToggle />
