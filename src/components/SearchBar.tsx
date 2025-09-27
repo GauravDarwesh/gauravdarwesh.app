@@ -475,14 +475,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 ${
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden ${
           isLoading ? "thinking-container" : ""
         }`}
         style={{
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transition: "all 1.8s cubic-bezier(0.25, 1, 0.3, 1)",
+          transitionProperty: "width, border-radius, background-color, box-shadow",
+          transitionDuration: "1800ms",
+          transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
+          willChange: "width, border-radius",
         }}
       >
         <div
