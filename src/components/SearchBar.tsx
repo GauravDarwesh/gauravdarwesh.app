@@ -433,12 +433,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- 🔟 Layout calculations (memoized for performance) ----- */
   const layoutValues = useMemo(() => {
     const dynamicWidth = Math.min(300 + query.length * 8, 700);
-    const isExpanded = suggestions.length > 0 || response;
+    const isExpanded = suggestions.length > 0 || response || isLoading;
     const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
     
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
-  }, [query.length, suggestions.length, response]);
+  }, [query.length, suggestions.length, response, isLoading]);
 
   /* ----- 🔒 Render ----- */
   return (
