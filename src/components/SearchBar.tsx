@@ -4,6 +4,8 @@ import React, {
   useState,
   useEffect,
   useRef,
+  useCallback,
+  useMemo,
   ChangeEvent,
   FormEvent,
 } from "react";
@@ -124,18 +126,48 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ How to Contact Gaurav?",
   ];
 
-  /* ----- 4️⃣ Activity tracking ----- */
-  useEffect(() => {
-    const handleActivity = () => setLastActivityTime(Date.now());
-    ["mousemove", "keypress", "click", "scroll"].forEach((e) =>
-      window.addEventListener(e, handleActivity)
-    );
-    return () => {
-      ["mousemove", "keypress", "click", "scroll"].forEach((e) =>
-        window.removeEventListener(e, handleActivity)
-      );
-    };
+  /* ----- 4️⃣ Activity tracking with debouncing ----- */
+  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  const debouncedSetActivity = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      setLastActivityTime(Date.now());
+    }, 100); // Debounce mouse movements to reduce frequent updates
   }, []);
+
+  useEffect(() => {
+    const handleActivity = () => {
+      // For critical events like clicks, update immediately
+      if (event?.type === 'click' || event?.type === 'keypress') {
+        setLastActivityTime(Date.now());
+      } else {
+        // For mouse movements, use debounced version
+        debouncedSetActivity();
+      }
+    };
+    
+    const handleMouseMove = debouncedSetActivity;
+    const handleImmediate = () => setLastActivityTime(Date.now());
+    
+    // Use debounced handler for mousemove only
+    window.addEventListener('mousemove', handleMouseMove);
+    ["keypress", "click", "scroll"].forEach((e) =>
+      window.addEventListener(e, handleImmediate)
+    );
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      ["keypress", "click", "scroll"].forEach((e) =>
+        window.removeEventListener(e, handleImmediate)
+      );
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [debouncedSetActivity]);
 
   /* ----- 5️⃣ Intro bubble (first 3 visits) ----- */
   useEffect(() => {
@@ -153,7 +185,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, [hasInteracted]);
 
-  /* ----- 6️⃣ Re-show typewriter after inactivity ----- */
+  /* ----- 6️⃣ Re-show typewriter after inactivity (optimized) ----- */
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
@@ -168,20 +200,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ) {
         setShowTypewriter(true);
       }
-    }, 1000);
+    }, 2000); // Reduced frequency from 1000ms to 2000ms
     return () => clearInterval(idleTimer);
   }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading]);
 
-  /* Delay expanded suggestions until 10s inactivity */
+  /* Delay expanded suggestions until 10s inactivity (optimized) */
+  const shouldShowExpandedSuggestions = useMemo(() => {
+    const idle = Date.now() - lastActivityTime;
+    return (response || suggestions.length > 0) && !isLoading && idle > 10000;
+  }, [lastActivityTime, response, suggestions, isLoading]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      if ((response || suggestions.length > 0) && !isLoading && idle > 10000) {
-        setShowExpandedSuggestions(true);
-      } else {
-        setShowExpandedSuggestions(false);
-      }
-    }, 500);
+      const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000;
+      setShowExpandedSuggestions(shouldShow);
+    }, 1000); // Reduced frequency from 500ms to 1000ms
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
 
@@ -257,22 +291,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   };
 
-  /* ----- 9️⃣ Interaction helpers ----- */
-  const handleSuggestionClick = (s: string) => {
+  /* ----- 9️⃣ Interaction helpers (optimized with useCallback) ----- */
+  const handleSuggestionClick = useCallback((s: string) => {
     setQuery("");
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     handleSubmit(undefined, s);
     setShowIntroBubble(false);
-  };
+  }, []);
 
-  const handleInputFocus = () => {
+  const handleInputFocus = useCallback(() => {
     setShowIntroBubble(false);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
-  };
+  }, []);
+
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    setHasInteracted(true);
+    setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
+  }, []);
 
   /* 🔹 Outside click handler to reset */
   useEffect(() => {
@@ -292,11 +333,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [response, suggestions]);
 
-  /* ----- 🔟 Layout calculations ----- */
-  const dynamicWidth = Math.min(300 + query.length * 8, 700);
-  const isExpanded = suggestions.length > 0 || response;
-  const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
-  const targetRadius = isExpanded ? "16px" : "999px";
+  /* ----- 🔟 Layout calculations (memoized for performance) ----- */
+  const layoutValues = useMemo(() => {
+    const dynamicWidth = Math.min(300 + query.length * 8, 700);
+    const isExpanded = suggestions.length > 0 || response;
+    const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
+    const targetRadius = isExpanded ? "16px" : "999px";
+    
+    return { dynamicWidth, isExpanded, targetWidth, targetRadius };
+  }, [query.length, suggestions.length, response]);
 
   /* ----- 🔒 Render ----- */
   return (
@@ -337,15 +382,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           isLoading ? "thinking-container" : ""
         }`}
         style={{
-          width: targetWidth,
+          width: layoutValues.targetWidth,
           maxWidth: "90vw",
-          borderRadius: targetRadius,
+          borderRadius: layoutValues.targetRadius,
           transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div
           className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-            isExpanded ? "p-5 pt-6" : "p-2"
+            layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
@@ -402,12 +447,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 type="text"
                 placeholder={isLoading ? "Thinking…" : "Ask anything…"}
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setHasInteracted(true);
-                  setShowTypewriter(false);
-                  setShowExpandedSuggestions(false);
-                }}
+                onChange={handleInputChange}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                            text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
                              isLoading ? "thinking-placeholder" : ""
