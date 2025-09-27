@@ -81,9 +81,10 @@ function Fade({
   if (!visible && !show) return null;
   return (
     <div
-      className={`transition-opacity duration-${duration} ${
+      className={`transition-opacity ${
         show ? "opacity-100" : "opacity-0"
       }`}
+      style={{ transitionDuration: `${duration}ms` }}
     >
       {children}
     </div>
@@ -413,7 +414,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       );
 
       if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 800; // Match original pacing while allowing smooth collapse
+        const COLLAPSE_MS = 1400; // Slower, matching container and content transitions for calm collapse
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
         window.setTimeout(() => {
@@ -446,7 +447,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
       {/* ── Intro bubble (with fade) ── */}
-      <Fade show={showIntroBubble} duration={400}>
+      <Fade show={showIntroBubble} duration={800}>
         <div
           onClick={() =>
             handleSuggestionClick(
@@ -460,7 +461,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </Fade>
 
       {/* ── Typewriter bubble (with fade) ── */}
-      <Fade show={showTypewriter && !showIntroBubble} duration={400}>
+      <Fade show={showTypewriter && !showIntroBubble} duration={800}>
         <div
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
@@ -481,19 +482,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
+          transition: "all 1.4s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div
-          className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+          className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
             layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={800}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.4s ease forwards" }}
+              style={{ animation: "fadeIn 0.8s ease forwards" }}
             >
               {suggestions.map((s, i) => (
                 <button
@@ -510,7 +511,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
@@ -522,7 +523,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
+                  animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
                 dangerouslySetInnerHTML={{
@@ -572,8 +573,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
         @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
         @keyframes delayedFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
-        .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
+        .animate-fadeIn { animation: fadeIn 0.8s ease forwards; }
+        .animate-delayedFadeIn { animation: delayedFadeIn 1s ease forwards; animation-delay: 0.1s; }
 
         .thinking-container{
           border: 1px solid rgba(255,255,255,0.2);
