@@ -11,7 +11,7 @@ import React, {
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
@@ -490,7 +490,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] relative ${
             layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
           }`}
           style={{
@@ -498,6 +498,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             transitionDelay: layoutValues.isExpanded ? "600ms" : "0ms",
           }}
         >
+          {/* ── Close button for expanded state ── */}
+          {layoutValues.isExpanded && (
+            <button
+              onClick={() => {
+                setIsCollapsing(true);
+                setShowExpandedSuggestions(false);
+                setTimeout(() => {
+                  setResponse(null);
+                  setSuggestions([]);
+                  setQuery("");
+                  setIsCollapsing(false);
+                  clearPersistedState();
+                }, 300);
+              }}
+              className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-200 flex items-center justify-center text-white/70 hover:text-white z-10"
+              aria-label="Close conversation"
+            >
+              <X size={14} />
+            </button>
+          )}
           {/* ── Suggestion list (with fade) ── */}
           <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={800}>
             <div
