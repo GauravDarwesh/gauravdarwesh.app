@@ -210,7 +210,7 @@ export default function Visuals() {
         {/* Main content container - fixed height, no scroll */}
         <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-8 min-h-0">
           {/* Container for tile with text and navigation */}
-          <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[70vw] flex flex-col h-full max-h-[calc(100vh-10rem)]">
+          <div className="w-full max-w-[85vw] sm:max-w-[80vw] md:max-w-[75vw] lg:max-w-[70vw] xl:max-w-[65vw] flex flex-col h-full max-h-[calc(100vh-8rem)]">
             
             {/* Top row: Title (left) and Navigation Buttons (right) */}
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
@@ -242,7 +242,7 @@ export default function Visuals() {
             {/* Tile container - takes remaining space */}
             <div className="flex-1 min-h-0">
               {/* Glassmorphic tile */}
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 sm:p-4 md:p-6 border border-white/20 hover:bg-white/20 transition w-full h-full flex items-center justify-center overflow-hidden relative">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/20 hover:bg-white/20 transition w-full h-full flex items-center justify-center overflow-hidden relative">
                 {/* Image container */}
                 <div className="relative w-full h-full">
                   {/* Layer A */}
