@@ -22,11 +22,13 @@ const Index = () => {
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
-      {/* Fire Wave Background */}
-      <div className="fixed inset-0 z-0 bg-fire-waves">
-        <div className="fire-wave fire-wave-1"></div>
-        <div className="fire-wave fire-wave-2"></div>
-        <div className="fire-wave fire-wave-3"></div>
+      {/* Background */}
+      <div className="fixed inset-0 z-0">
+        <img
+          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
+          alt="background"
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {/* Navigation Toggle */}
