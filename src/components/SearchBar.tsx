@@ -157,6 +157,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
   const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
+  const [isCollapsing, setIsCollapsing] = useState(false);
 
   /* ----- Save state changes to localStorage ----- */
   useEffect(() => {
@@ -394,32 +395,36 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowExpandedSuggestions(false);
   }, []);
 
-  /* 🔹 Outside click handler to reset (exclude navigation) */
+  /* 🔹 Outside click handler to collapse smoothly (exclude navigation) */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      
-      // Check if click is within search bar
-      if (searchBarRef.current && searchBarRef.current.contains(target)) {
-        return;
-      }
-      
-      // Check if click is on navigation elements (exclude them)
-      const clickedElement = target as Element;
-      const isNavigationClick = clickedElement?.closest && (
-        clickedElement.closest('[class*="fixed top-6"]') || // Top navigation buttons
-        clickedElement.closest('[class*="fixed bottom-6 right-6"]') || // Floating scroll button
-        clickedElement.closest('button[aria-label*="Scroll to top"]') ||
-        clickedElement.closest('button[aria-label*="Close modal"]')
+
+      // Inside the search bar → ignore
+      if (searchBarRef.current && searchBarRef.current.contains(target)) return;
+
+      // Exclude navigation UI from collapsing
+      const el = target as Element;
+      const isNavigationClick = !!el?.closest && (
+        el.closest('[class*="fixed top-6"]') ||
+        el.closest('[class*="fixed bottom-6 right-6"]') ||
+        el.closest('button[aria-label*="Scroll to top"]') ||
+        el.closest('button[aria-label*="Close modal"]')
       );
-      
+
       if (!isNavigationClick && (response || suggestions.length > 0)) {
-        setResponse(null);
-        setSuggestions([]);
+        const COLLAPSE_MS = 1100;
+        setIsCollapsing(true);
         setShowExpandedSuggestions(false);
-        clearPersistedState(); // Clear from localStorage too
+        window.setTimeout(() => {
+          setResponse(null);
+          setSuggestions([]);
+          setIsCollapsing(false);
+          clearPersistedState();
+        }, COLLAPSE_MS);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [response, suggestions, clearPersistedState]);
@@ -476,16 +481,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
+          transition: "all 1.1s cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         <div
-          className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+          className={`transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={500}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.4s ease forwards" }}
@@ -505,12 +510,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
+            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: response ? "384px" : "0px",
-              transitionDelay: response ? "300ms" : "0ms",
+              maxHeight: isCollapsing ? "0px" : (response ? "384px" : "0px"),
+              transitionDelay: response && !isCollapsing ? "300ms" : "0ms",
             }}
           >
             {response && (
