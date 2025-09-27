@@ -315,18 +315,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowExpandedSuggestions(false);
   }, []);
 
-  /* 🔹 Outside click handler to reset */
+  /* 🔹 Outside click handler to reset (exclude navigation) */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        searchBarRef.current &&
-        !searchBarRef.current.contains(e.target as Node)
-      ) {
-        if (response || suggestions.length > 0) {
-          setResponse(null);
-          setSuggestions([]);
-          setShowExpandedSuggestions(false);
-        }
+      const target = e.target as Node;
+      
+      // Check if click is within search bar
+      if (searchBarRef.current && searchBarRef.current.contains(target)) {
+        return;
+      }
+      
+      // Check if click is on navigation elements (exclude them)
+      const clickedElement = target as Element;
+      const isNavigationClick = clickedElement?.closest && (
+        clickedElement.closest('[class*="fixed top-6"]') || // Top navigation buttons
+        clickedElement.closest('[class*="fixed bottom-6 right-6"]') || // Floating scroll button
+        clickedElement.closest('button[aria-label*="Scroll to top"]') ||
+        clickedElement.closest('button[aria-label*="Close modal"]')
+      );
+      
+      if (!isNavigationClick && (response || suggestions.length > 0)) {
+        setResponse(null);
+        setSuggestions([]);
+        setShowExpandedSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
