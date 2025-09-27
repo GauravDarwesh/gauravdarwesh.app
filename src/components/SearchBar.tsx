@@ -499,7 +499,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }}
         >
           {/* ── Close button for expanded state ── */}
-          {layoutValues.isExpanded && (
+          {response && (
             <button
               onClick={() => {
                 setIsCollapsing(true);
@@ -512,7 +512,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   clearPersistedState();
                 }, 300);
               }}
-              className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-200 flex items-center justify-center text-white/70 hover:text-white z-10"
+              className="absolute top-3 left-3 w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-200 flex items-center justify-center text-white/70 hover:text-white z-10"
               aria-label="Close conversation"
             >
               <X size={14} />
