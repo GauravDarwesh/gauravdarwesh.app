@@ -483,15 +483,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
           transitionProperty: "width, border-radius, background-color, box-shadow",
-          transitionDuration: "1800ms",
+          transitionDuration: "1200ms",
           transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
+          transitionDelay: "0ms",
           willChange: "width, border-radius",
         }}
       >
         <div
-          className={`transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
             layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
           }`}
+          style={{
+            transitionDuration: "800ms",
+            transitionDelay: layoutValues.isExpanded ? "600ms" : "0ms",
+          }}
         >
           {/* ── Suggestion list (with fade) ── */}
           <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={800}>
@@ -519,7 +524,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }`}
             style={{
               maxHeight: isCollapsing ? "0px" : (response ? "384px" : "0px"),
-              transitionDelay: response && !isCollapsing ? "300ms" : "0ms",
+              transitionDelay: response && !isCollapsing ? "900ms" : "0ms",
             }}
           >
             {response && (
@@ -527,6 +532,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: "1000ms",
                   maxHeight: "300px",
                 }}
                 dangerouslySetInnerHTML={{
