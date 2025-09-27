@@ -413,7 +413,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       );
 
       if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 1200; // Slower, more calm collapse
+        const COLLAPSE_MS = 800; // Match original pacing while allowing smooth collapse
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
         window.setTimeout(() => {
@@ -481,11 +481,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transition: "all 1.2s cubic-bezier(0.25, 1, 0.3, 1)",
+          transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div
-          className={`transition-all duration-[1200ms] ease-[cubic-bezier(0.25,1,0.3,1)] ${
+          className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
             layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
@@ -510,12 +510,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-[1200ms] ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
               maxHeight: isCollapsing ? "0px" : (response ? "384px" : "0px"),
-              transitionDelay: response && !isCollapsing ? "400ms" : "0ms",
+              transitionDelay: response && !isCollapsing ? "300ms" : "0ms",
             }}
           >
             {response && (
