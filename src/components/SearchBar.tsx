@@ -482,7 +482,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transition: "all 1.4s cubic-bezier(0.25, 1, 0.3, 1)",
+          transition: "all 1.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div
