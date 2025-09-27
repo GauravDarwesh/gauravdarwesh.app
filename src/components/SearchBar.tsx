@@ -413,7 +413,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       );
 
       if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 1500; // Increased to match refined timing
+        const COLLAPSE_MS = 800; // Match original pacing while allowing smooth collapse
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
         window.setTimeout(() => {
@@ -481,16 +481,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transition: "all 1.4s cubic-bezier(0.19, 1, 0.22, 1)",
+          transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div
-          className={`transition-all duration-[1400ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${
+          className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
             layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
           }`}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={600}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={400}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.4s ease forwards" }}
@@ -510,19 +510,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-[1400ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${
+            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
               maxHeight: isCollapsing ? "0px" : (response ? "384px" : "0px"),
-              transitionDelay: response && !isCollapsing ? "400ms" : "100ms",
+              transitionDelay: response && !isCollapsing ? "300ms" : "0ms",
             }}
           >
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: "fadeSlideIn 500ms cubic-bezier(0.19, 1, 0.22, 1) both",
+                  animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
                 dangerouslySetInnerHTML={{
