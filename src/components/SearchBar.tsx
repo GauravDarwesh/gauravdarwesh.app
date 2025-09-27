@@ -96,20 +96,88 @@ interface SearchBarProps {
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
+  /* ----- Persistent state keys ----- */
+  const STORAGE_KEY = 'searchbar_state';
+
+  /* ----- Load persisted state ----- */
+  const loadPersistedState = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          response: parsed.response || null,
+          suggestions: parsed.suggestions || [],
+          hasInteracted: parsed.hasInteracted || false,
+          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
+          lastActivityTime: parsed.lastActivityTime || Date.now(),
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to load persisted search state:', error);
+    }
+    return {
+      response: null,
+      suggestions: [],
+      hasInteracted: false,
+      showExpandedSuggestions: false,
+      lastActivityTime: Date.now(),
+    };
+  }, []);
+
+  /* ----- Save state to localStorage ----- */
+  const saveState = useCallback((state: {
+    response: string | null;
+    suggestions: string[];
+    hasInteracted: boolean;
+    showExpandedSuggestions: boolean;
+    lastActivityTime: number;
+  }) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.warn('Failed to save search state:', error);
+    }
+  }, []);
+
+  /* ----- Initialize with persisted state ----- */
+  const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
+
   /* ----- UI state ----- */
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [response, setResponse] = useState<string | null>(persistedState.response);
+  const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
   const [showIntroBubble, setShowIntroBubble] = useState(false);
   const [showTypewriter, setShowTypewriter] = useState(false);
   const [typewriterText, setTypewriterText] = useState("");
   const [fullText, setFullText] = useState("");
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
+  const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
+  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
+
+  /* ----- Save state changes to localStorage ----- */
+  useEffect(() => {
+    const stateToSave = {
+      response,
+      suggestions,
+      hasInteracted,
+      showExpandedSuggestions,
+      lastActivityTime,
+    };
+    saveState(stateToSave);
+  }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime, saveState]);
+
+  /* ----- Clear persisted state when manually reset ----- */
+  const clearPersistedState = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear persisted search state:', error);
+    }
+  }, []);
 
   const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
 
@@ -169,8 +237,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [debouncedSetActivity]);
 
-  /* ----- 5️⃣ Intro bubble (first 3 visits) ----- */
+  /* ----- 5️⃣ Intro bubble (first 3 visits) - respect persisted state ----- */
   useEffect(() => {
+    // Don't show intro bubble if we have persisted content
+    if (response || suggestions.length > 0) {
+      return;
+    }
+    
     const visitCount =
       parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
     if (visitCount < 3) {
@@ -183,14 +256,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [hasInteracted]);
+  }, [hasInteracted, response, suggestions]);
 
-  /* ----- 6️⃣ Re-show typewriter after inactivity (optimized) ----- */
+  /* ----- 6️⃣ Re-show typewriter after inactivity (optimized) - respect persisted state ----- */
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
       const visitCount =
         parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
+      
+      // Don't show typewriter if we have persisted content
+      if (response || suggestions.length > 0) {
+        return;
+      }
+      
       if (
         idle > 10000 &&
         hasInteracted &&
@@ -202,7 +281,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
     }, 2000); // Reduced frequency from 1000ms to 2000ms
     return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading]);
+  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response, suggestions]);
 
   /* Delay expanded suggestions until 10s inactivity (optimized) */
   const shouldShowExpandedSuggestions = useMemo(() => {
@@ -338,11 +417,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         setResponse(null);
         setSuggestions([]);
         setShowExpandedSuggestions(false);
+        clearPersistedState(); // Clear from localStorage too
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [response, suggestions]);
+  }, [response, suggestions, clearPersistedState]);
 
   /* ----- 🔟 Layout calculations (memoized for performance) ----- */
   const layoutValues = useMemo(() => {
