@@ -178,6 +178,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
+  const [showRestoringAnimation, setShowRestoringAnimation] = useState(false);
+  const [showRestoringText, setShowRestoringText] = useState(false);
 
   /* ----- Save state changes to localStorage ----- */
   useEffect(() => {
@@ -199,6 +201,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       console.warn('Failed to clear persisted search state:', error);
     }
   }, []);
+
+  /* ----- Restoring animation when returning with persisted content ----- */
+  useEffect(() => {
+    if (isRestoredFromStorage && response) {
+      // Start the expansion animation
+      setShowRestoringAnimation(true);
+      setShowRestoringText(true);
+      
+      // After expansion animation, hide "Your Answer" text and show actual content
+      const timer = setTimeout(() => {
+        setShowRestoringText(false);
+        setShowRestoringAnimation(false);
+      }, 1200); // Match the expansion duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, []); // Only run once on component mount
 
   const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
   const inputRef = useRef<HTMLInputElement>(null); // 🔹 Ref for input focus
@@ -483,12 +502,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- 🔟 Layout calculations (memoized for performance) ----- */
   const layoutValues = useMemo(() => {
     const dynamicWidth = Math.min(300 + query.length * 8, 700);
-    const isExpanded = suggestions.length > 0 || response || isLoading;
+    const isExpanded = suggestions.length > 0 || response || isLoading || showRestoringAnimation;
     const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
     
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
-  }, [query.length, suggestions.length, response, isLoading]);
+  }, [query.length, suggestions.length, response, isLoading, showRestoringAnimation]);
 
   /* ----- 🔒 Render ----- */
   return (
@@ -545,7 +564,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
           style={{
             transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
+            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage && !showRestoringAnimation ? "600ms" : "0ms",
           }}
         >
           {/* ── Suggestion list (with fade) ── */}
@@ -570,19 +589,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           {/* ── Assistant response ── */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
+              (response || showRestoringAnimation) ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing ? "0px" : (response ? "384px" : "0px"),
-              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
+              maxHeight: isCollapsing ? "0px" : ((response || showRestoringAnimation) ? "384px" : "0px"),
+              transitionDelay: (response || showRestoringAnimation) && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
-            {response && (
+            {showRestoringText && (
+              <div className="text-foreground text-sm leading-relaxed px-4 flex items-center justify-center h-16">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                  <span className="font-medium">Your Answer</span>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            )}
+            {response && !showRestoringText && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
+                  animation: isRestoredFromStorage && !showRestoringAnimation ? "fadeSlideIn 600ms cubic-bezier(0.25,1,0.3,1) both" : (isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both"),
+                  animationDelay: isRestoredFromStorage && !showRestoringAnimation ? "0ms" : (isRestoredFromStorage ? "0ms" : "1000ms"),
                   maxHeight: "300px",
                 }}
                 dangerouslySetInnerHTML={{
