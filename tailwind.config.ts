@@ -12,35 +12,10 @@ export default {
 	theme: {
 		container: {
 			center: true,
-			padding: {
-				DEFAULT: '1rem',
-				sm: '2rem',
-				lg: '4rem',
-				xl: '5rem',
-				'2xl': '6rem',
-			},
+			padding: '2rem',
 			screens: {
-				'sm': '640px',
-				'md': '768px',
-				'lg': '1024px',
-				'xl': '1280px',
 				'2xl': '1400px'
 			}
-		},
-		screens: {
-			'xs': '475px',
-			'sm': '640px',
-			'md': '768px',
-			'lg': '1024px',
-			'xl': '1280px',
-			'2xl': '1400px',
-			// Tablet specific breakpoints
-			'tablet': '768px',
-			'laptop': '1024px',
-			// Mobile-first approach
-			'mobile-sm': '320px',
-			'mobile-md': '375px',
-			'mobile-lg': '414px',
 		},
 		extend: {
 			colors: {

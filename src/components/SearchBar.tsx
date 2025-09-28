@@ -494,15 +494,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔒 Render ----- */
   return (
-        <div
-          className="
-            fixed bottom-6 left-1/2 transform -translate-x-1/2 
-            mobile-sm:bottom-4 mobile-md:bottom-5 
-            px-2 mobile-sm:px-3 mobile-md:px-4 z-50 
-            w-full flex flex-col items-center gap-3
-            max-w-[calc(100vw-2rem)]
-          "
-        >
+    <div
+      ref={searchBarRef}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
+    >
       {/* ── Typewriter bubble (with fade) ── */}
       <Fade show={showTypewriter} duration={800}>
         <div
