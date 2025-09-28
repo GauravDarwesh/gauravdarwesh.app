@@ -243,8 +243,49 @@ All colors MUST be HSL.
   100% { background-position: 1000px 0; }
 }
 
-html {
-  scrollbar-gutter: stable;
+/* Enhanced Cross-Browser CSS fixes */
+@layer base {
+  html, body {
+    /* Prevent horizontal scrolling and ensure full coverage */
+    overflow-x: hidden;
+    min-height: 100vh;
+    min-width: 100vw;
+    /* Fix iOS Safari viewport issues */
+    -webkit-text-size-adjust: 100%;
+    /* Ensure consistent box-sizing */
+    box-sizing: border-box;
+  }
+  
+  /* Fix viewport units on mobile browsers */
+  .h-\[100dvh\] {
+    height: 100vh; /* Fallback */
+    height: 100dvh; /* Modern browsers */
+    /* Additional iOS Safari fix */
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Ensure backgrounds cover full area during scrolling */
+  .fixed {
+    /* Force GPU acceleration for better scrolling performance */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  /* Fix background coverage issues on all browsers */
+  [style*="backgroundImage"] {
+    background-attachment: fixed !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+  }
+  
+  /* Mobile Safari specific fixes */
+  @supports (-webkit-touch-callout: none) {
+    .fixed[style*="backgroundImage"] {
+      background-attachment: scroll !important;
+    }
+  }
 }
 
 @keyframes slowFadeIn {

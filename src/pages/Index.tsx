@@ -23,11 +23,20 @@ const Index = () => {
       }`}
     >
       {/* Background */}
-      <div className="fixed inset-0 z-0">
+      <div className="fixed inset-0 z-0" style={{ minHeight: '100vh', minWidth: '100vw' }}>
         <img
           src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt="background"
           className="w-full h-full object-cover"
+          style={{ 
+            minHeight: '100vh', 
+            minWidth: '100vw',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0
+          }}
         />
       </div>
 
