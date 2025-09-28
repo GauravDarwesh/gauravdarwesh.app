@@ -176,6 +176,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
   const [isCollapsing, setIsCollapsing] = useState(false);
+  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
 
   /* ----- Save state changes to localStorage ----- */
   useEffect(() => {
@@ -377,12 +378,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
       setSuggestions(suggs);
+      setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
+      setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -512,7 +515,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }`}
           style={{
             transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded ? "600ms" : "0ms",
+            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
           }}
         >
           {/* ── Suggestion list (with fade) ── */}
@@ -541,15 +544,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }`}
             style={{
               maxHeight: isCollapsing ? "0px" : (response ? "384px" : "0px"),
-              transitionDelay: response && !isCollapsing ? "900ms" : "0ms",
+              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: "1000ms",
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
                   maxHeight: "300px",
                 }}
                 dangerouslySetInnerHTML={{
