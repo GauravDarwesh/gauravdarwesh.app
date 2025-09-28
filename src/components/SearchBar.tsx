@@ -107,11 +107,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          response: null, // Always reset response on page refresh
-          suggestions: [], // Always reset suggestions on page refresh
+          response: parsed.response || null,
+          suggestions: parsed.suggestions || [],
           hasInteracted: parsed.hasInteracted || false,
-          showExpandedSuggestions: false, // Always reset expanded state
-          lastActivityTime: Date.now(), // Reset activity time
+          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
+          lastActivityTime: parsed.lastActivityTime || Date.now(),
         };
       }
     } catch (error) {
