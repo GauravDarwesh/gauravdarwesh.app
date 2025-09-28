@@ -167,7 +167,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(persistedState.response);
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
-  const [showIntroBubble, setShowIntroBubble] = useState(false);
+  
   const [showTypewriter, setShowTypewriter] = useState(false);
   const [typewriterText, setTypewriterText] = useState("");
   const [fullText, setFullText] = useState("");
@@ -259,33 +259,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [debouncedSetActivity]);
 
-  /* ----- 5️⃣ Intro bubble (first 3 visits) - respect persisted state ----- */
+  /* ----- 5️⃣ Show typewriter after delay ----- */
   useEffect(() => {
-    // Don't show intro bubble if we have persisted content
+    // Don't show typewriter if we have persisted content
     if (response || suggestions.length > 0) {
       return;
     }
     
-    const visitCount =
-      parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
-    if (visitCount < 3) {
-      const timer = setTimeout(() => setShowIntroBubble(true), 3000);
-      localStorage.setItem("introBubbleVisits", String(visitCount + 1));
-      return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => {
-        if (!hasInteracted) setShowTypewriter(true);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      if (!hasInteracted) setShowTypewriter(true);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [hasInteracted, response, suggestions]);
 
   /* ----- 6️⃣ Re-show typewriter after inactivity (optimized) - respect persisted state ----- */
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      const visitCount =
-        parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
       
       // Don't show typewriter if we have persisted content
       if (response || suggestions.length > 0) {
@@ -295,15 +285,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (
         idle > 10000 &&
         hasInteracted &&
-        !showIntroBubble &&
-        visitCount >= 3 &&
         !isLoading
       ) {
         setShowTypewriter(true);
       }
     }, 2000); // Reduced frequency from 1000ms to 2000ms
     return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, showIntroBubble, isLoading, response, suggestions]);
+  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions]);
 
   /* Delay expanded suggestions until 10s inactivity (optimized) */
   const shouldShowExpandedSuggestions = useMemo(() => {
@@ -337,7 +325,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         if (!isInputFocused && inputRef.current) {
           e.preventDefault();
           inputRef.current.focus();
-          setShowIntroBubble(false);
           setShowTypewriter(false);
           setHasInteracted(true);
         }
@@ -350,7 +337,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
-    if (!showTypewriter || showIntroBubble) return;
+    if (!showTypewriter) return;
 
     const typingSpeed = 40;
     const deletingSpeed = 20;
@@ -386,7 +373,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     fullText,
     currentSuggestionIndex,
     rotatingSuggestions,
-    showIntroBubble,
     showTypewriter,
   ]);
 
@@ -429,11 +415,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     handleSubmit(undefined, s);
-    setShowIntroBubble(false);
   }, []);
 
   const handleInputFocus = useCallback(() => {
-    setShowIntroBubble(false);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
@@ -496,22 +480,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {/* ── Intro bubble (with fade) ── */}
-      <Fade show={showIntroBubble} duration={800}>
-        <div
-          onClick={() =>
-            handleSuggestionClick(
-              "✨ What are these sections on the website?"
-            )
-          }
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
-        >
-          ✨ What are these sections on the website?
-        </div>
-      </Fade>
-
       {/* ── Typewriter bubble (with fade) ── */}
-      <Fade show={showTypewriter && !showIntroBubble} duration={800}>
+      <Fade show={showTypewriter} duration={800}>
         <div
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
