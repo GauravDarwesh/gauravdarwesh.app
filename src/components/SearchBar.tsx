@@ -339,8 +339,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           activeElement.contentEditable === 'true'
         );
 
-        // Focus search bar if not already focused on an input
-        if (!isInputFocused && inputRef.current) {
+        // Check if our search input is already focused
+        const isSearchInputFocused = activeElement === inputRef.current;
+
+        // Focus search bar only if not already focused on any input (including our search input)
+        if (!isInputFocused && !isSearchInputFocused && inputRef.current) {
           e.preventDefault();
           inputRef.current.focus();
           setShowTypewriter(false);
