@@ -46,9 +46,7 @@ const Index = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="fixed top-6 inset-x-0 flex justify-center z-10">
-        <SearchBar />
-      </div>
+      <SearchBar />
     </div>
   );
 };
