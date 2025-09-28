@@ -48,135 +48,60 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
-    /* Ensure box-sizing is border-box for all elements */
-    box-sizing: border-box;
-    -webkit-box-sizing: border-box;
-    -moz-box-sizing: border-box;
   }
 
   body {
     @apply bg-background text-foreground;
-    /* Improve text rendering */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    /* Ensure proper scroll behavior */
-    overflow-x: hidden;
-  }
-  
-  /* Backdrop-filter fallback for older browsers */
-  .backdrop-blur-sm {
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-  }
-  
-  .backdrop-blur-md {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  
-  .backdrop-blur-lg {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-  }
-  
-  /* Fallback for browsers that don't support backdrop-filter */
-  @supports not (backdrop-filter: blur(1px)) {
-    .backdrop-blur-sm,
-    .backdrop-blur-md,
-    .backdrop-blur-lg {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
   }
 }
 
-/* Custom Animation for Spinning Asterisk - Cross Browser */
+/* Custom Animation for Spinning Asterisk */
 @keyframes spin-slow {
-  from { 
-    transform: rotate(0deg);
-    -webkit-transform: rotate(0deg);
-    -moz-transform: rotate(0deg);
-    -ms-transform: rotate(0deg);
-  }
-  to { 
-    transform: rotate(360deg);
-    -webkit-transform: rotate(360deg);
-    -moz-transform: rotate(360deg);
-    -ms-transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
-  -webkit-animation: spin-slow 3s linear infinite;
-  -moz-animation: spin-slow 3s linear infinite;
-  -ms-animation: spin-slow 3s linear infinite;
 }
 
 @keyframes fadeInSlow {
   0% {
     opacity: 0;
-    transform: scale(1.05);
-    -webkit-transform: scale(1.05);
-    -moz-transform: scale(1.05);
-    -ms-transform: scale(1.05);
+    transform: scale(1.05); /* start slightly zoomed */
   }
   100% {
     opacity: 1;
-    transform: scale(1);
-    -webkit-transform: scale(1);
-    -moz-transform: scale(1);
-    -ms-transform: scale(1);
+    transform: scale(1); /* settle to normal */
   }
 }
 
 .animate-fadeInSlow {
   animation: fadeInSlow 3s ease-in-out forwards;
-  -webkit-animation: fadeInSlow 3s ease-in-out forwards;
-  -moz-animation: fadeInSlow 3s ease-in-out forwards;
-  -ms-animation: fadeInSlow 3s ease-in-out forwards;
 }
 
 @keyframes droplet-flow {
   0% {
     transform: scaleX(1);
-    -webkit-transform: scaleX(1);
-    -moz-transform: scaleX(1);
-    -ms-transform: scaleX(1);
   }
   40% {
-    transform: scaleX(1.3);
-    -webkit-transform: scaleX(1.3);
-    -moz-transform: scaleX(1.3);
-    -ms-transform: scaleX(1.3);
+    transform: scaleX(1.3); /* stretch while moving */
   }
   70% {
-    transform: scaleX(0.9);
-    -webkit-transform: scaleX(0.9);
-    -moz-transform: scaleX(0.9);
-    -ms-transform: scaleX(0.9);
+    transform: scaleX(0.9); /* compress before settling */
   }
   100% {
     transform: scaleX(1);
-    -webkit-transform: scaleX(1);
-    -moz-transform: scaleX(1);
-    -ms-transform: scaleX(1);
   }
 }
 
 .animate-droplet {
   transition: transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
-  -webkit-transition: -webkit-transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
-  -moz-transition: -moz-transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
-  -ms-transition: -ms-transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
 }
 
 .animate-droplet:active,
 .animate-droplet[style] {
   animation: droplet-flow 0.8s cubic-bezier(0.25, 1, 0.3, 1);
-  -webkit-animation: droplet-flow 0.8s cubic-bezier(0.25, 1, 0.3, 1);
-  -moz-animation: droplet-flow 0.8s cubic-bezier(0.25, 1, 0.3, 1);
-  -ms-animation: droplet-flow 0.8s cubic-bezier(0.25, 1, 0.3, 1);
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -191,16 +116,10 @@ All colors MUST be HSL.
   from {
     opacity: 0;
     transform: translateY(6px);
-    -webkit-transform: translateY(6px);
-    -moz-transform: translateY(6px);
-    -ms-transform: translateY(6px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    -webkit-transform: translateY(0);
-    -moz-transform: translateY(0);
-    -ms-transform: translateY(0);
   }
 }
 
@@ -221,19 +140,11 @@ All colors MUST be HSL.
   content: "";
   position: absolute;
   inset: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
   mix-blend-mode: overlay;
-  -webkit-mix-blend-mode: overlay;
-  opacity: 0.15;
+  opacity: 0.15; /* adjust grain intensity */
   pointer-events: none;
   animation: wave-shift 20s linear infinite;
-  -webkit-animation: wave-shift 20s linear infinite;
-  -moz-animation: wave-shift 20s linear infinite;
-  -ms-animation: wave-shift 20s linear infinite;
   background-size: 200px 200px;
 }
 
@@ -243,89 +154,24 @@ All colors MUST be HSL.
   100% { background-position: 1000px 0; }
 }
 
-/* Enhanced Cross-Browser CSS fixes */
-@layer base {
-  html, body {
-    /* Prevent horizontal scrolling and ensure full coverage */
-    overflow-x: hidden;
-    min-height: 100vh;
-    min-width: 100vw;
-    /* Fix iOS Safari viewport issues */
-    -webkit-text-size-adjust: 100%;
-    /* Ensure consistent box-sizing */
-    box-sizing: border-box;
-  }
-  
-  /* Fix viewport units on mobile browsers */
-  .h-\[100dvh\] {
-    height: 100vh; /* Fallback */
-    height: 100dvh; /* Modern browsers */
-    /* Additional iOS Safari fix */
-    min-height: -webkit-fill-available;
-  }
-  
-  /* Ensure backgrounds cover full area during scrolling */
-  .fixed {
-    /* Force GPU acceleration for better scrolling performance */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    will-change: transform;
-  }
-  
-  /* Fix background coverage issues on all browsers */
-  [style*="backgroundImage"] {
-    background-attachment: fixed !important;
-    background-size: cover !important;
-    background-repeat: no-repeat !important;
-    background-position: center center !important;
-  }
-  
-  /* Mobile Safari specific fixes */
-  @supports (-webkit-touch-callout: none) {
-    .fixed[style*="backgroundImage"] {
-      background-attachment: scroll !important;
-    }
-  }
-  
-  /* Mobile search bar positioning fixes */
-  @supports (bottom: env(safe-area-inset-bottom)) {
-    .fixed[style*="safe-area-inset-bottom"] {
-      bottom: max(16px, env(safe-area-inset-bottom)) !important;
-      padding-bottom: env(safe-area-inset-bottom) !important;
-    }
-  }
-  
-  /* Ensure proper touch interaction on mobile */
-  @media (max-width: 640px) {
-    .fixed {
-      touch-action: manipulation;
-    }
-  }
+html {
+  scrollbar-gutter: stable;
 }
 
 @keyframes slowFadeIn {
   0% {
     opacity: 0;
     filter: blur(8px);
-    -webkit-filter: blur(8px);
-    -moz-filter: blur(8px);
-    -ms-filter: blur(8px);
   }
   100% {
     opacity: 1;
     filter: blur(0);
-    -webkit-filter: blur(0);
-    -moz-filter: blur(0);
-    -ms-filter: blur(0);
   }
 }
 
 /* Tailwind-safe helper class name */
 .animate-slowFadeIn {
   animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  -webkit-animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  -moz-animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  -ms-animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* Keyframes for waves */
@@ -344,22 +190,11 @@ All colors MUST be HSL.
 .wave {
   position: absolute;
   inset: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background-size: 400% 400%;
-  mix-blend-mode: screen;
-  -webkit-mix-blend-mode: screen;
+  background-size: 400% 400%; /* necessary for motion */
+  mix-blend-mode: screen; /* creates overlapping glow effect */
   opacity: 0.6;
   animation-iteration-count: infinite;
   animation-timing-function: ease-in-out;
-  -webkit-animation-iteration-count: infinite;
-  -webkit-animation-timing-function: ease-in-out;
-  -moz-animation-iteration-count: infinite;
-  -moz-animation-timing-function: ease-in-out;
-  -ms-animation-iteration-count: infinite;
-  -ms-animation-timing-function: ease-in-out;
 }
 
 .wave1 {

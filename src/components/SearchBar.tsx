@@ -103,33 +103,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Load persisted state ----- */
   const loadPersistedState = useCallback(() => {
     try {
-      // Detect if this is a page refresh vs route navigation with fallbacks
-      let isPageRefresh = false;
-      
-      // Modern browsers
-      if (window.performance?.navigation?.type === 1) {
-        isPageRefresh = true;
-      }
-      // Fallback for older browsers
-      else if (window.performance?.getEntriesByType) {
-        const navEntry = window.performance.getEntriesByType('navigation')?.[0] as any;
-        isPageRefresh = navEntry?.type === 'reload';
-      }
-      // Ultimate fallback - check if page was loaded from cache
-      else if (window.performance?.navigation?.type === undefined) {
-        // If performance API not available, assume navigation
-        isPageRefresh = false;
-      }
+      // Detect if this is a page refresh vs route navigation
+      // Check performance navigation type for page refresh
+      const isPageRefresh = (window.performance as any)?.navigation?.type === 1 || 
+                           ((window.performance?.getEntriesByType('navigation')?.[0] as any)?.type === 'reload');
       
       if (isPageRefresh) {
         // Page refresh - clear any persisted state and return to normal
-        try {
-          if (typeof Storage !== 'undefined' && localStorage) {
-            localStorage.removeItem(STORAGE_KEY);
-          }
-        } catch (e) {
-          // localStorage not available
-        }
+        localStorage.removeItem(STORAGE_KEY);
         return {
           response: null,
           suggestions: [],
@@ -140,18 +121,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       
       // Route navigation - load persisted state
-      if (typeof Storage !== 'undefined' && localStorage) {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          return {
-            response: parsed.response || null,
-            suggestions: parsed.suggestions || [],
-            hasInteracted: parsed.hasInteracted || false,
-            showExpandedSuggestions: parsed.showExpandedSuggestions || false,
-            lastActivityTime: parsed.lastActivityTime || Date.now(),
-          };
-        }
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          response: parsed.response || null,
+          suggestions: parsed.suggestions || [],
+          hasInteracted: parsed.hasInteracted || false,
+          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
+          lastActivityTime: parsed.lastActivityTime || Date.now(),
+        };
       }
     } catch (error) {
       console.warn('Failed to load persisted search state:', error);
@@ -174,9 +153,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     lastActivityTime: number;
   }) => {
     try {
-      if (typeof Storage !== 'undefined' && localStorage) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
       console.warn('Failed to save search state:', error);
     }
@@ -217,9 +194,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Clear persisted state when manually reset ----- */
   const clearPersistedState = useCallback(() => {
     try {
-      if (typeof Storage !== 'undefined' && localStorage) {
-        localStorage.removeItem(STORAGE_KEY);
-      }
+      localStorage.removeItem(STORAGE_KEY);
     } catch (error) {
       console.warn('Failed to clear persisted search state:', error);
     }
@@ -287,26 +262,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- 5️⃣ Auto-submit intro for first-time users ----- */
   useEffect(() => {
     const FIRST_VISIT_KEY = 'gd_ai_first_visit';
-    let isFirstVisit = false;
-    
-    try {
-      if (typeof Storage !== 'undefined' && localStorage) {
-        isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
-      }
-    } catch (e) {
-      // localStorage not available, treat as first visit
-      isFirstVisit = true;
-    }
+    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
     
     if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
       // Mark as visited immediately to prevent multiple submissions
-      try {
-        if (typeof Storage !== 'undefined' && localStorage) {
-          localStorage.setItem(FIRST_VISIT_KEY, 'true');
-        }
-      } catch (e) {
-        // localStorage not available
-      }
+      localStorage.setItem(FIRST_VISIT_KEY, 'true');
       
       // Auto-submit the intro message after a short delay
       const timer = setTimeout(() => {
@@ -526,13 +486,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const layoutValues = useMemo(() => {
     const dynamicWidth = Math.min(300 + query.length * 8, 700);
     const isExpanded = suggestions.length > 0 || response || isLoading;
-    
-    // Mobile-responsive width calculations
-    const isMobile = window.innerWidth <= 640;
-    const maxWidth = isMobile ? window.innerWidth - 32 : 700;
-    const expandedWidth = Math.min(maxWidth, isExpanded ? 700 : dynamicWidth);
-    
-    const targetWidth = `${expandedWidth}px`;
+    const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
     
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
@@ -542,12 +496,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   return (
     <div
       ref={searchBarRef}
-      className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 px-2 sm:px-4 z-50 w-full max-w-[100vw] flex flex-col items-center gap-3"
-      style={{
-        /* Mobile viewport fix */
-        bottom: 'max(16px, env(safe-area-inset-bottom))',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-      }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
       {/* ── Typewriter bubble (with fade) ── */}
       <Fade show={showTypewriter} duration={800}>
@@ -569,8 +518,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }`}
         style={{
           width: layoutValues.targetWidth,
-          maxWidth: "min(90vw, calc(100vw - 16px))",
-          minWidth: "280px",
+          maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
           transitionProperty: "width, border-radius, background-color, box-shadow",
           transitionDuration: "1200ms",

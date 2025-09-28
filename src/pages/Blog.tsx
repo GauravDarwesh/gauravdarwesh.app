@@ -83,13 +83,6 @@ const Blog = () => {
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
-          minHeight: '100vh',
-          minWidth: '100vw',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: -1
         }}
       />
 
@@ -242,15 +235,10 @@ const Blog = () => {
         <div
           className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={() => setActiveNotion(null)}
-          onTouchStart={(e) => {
-            // Prevent scroll on background touch
-            e.preventDefault();
-          }}
         >
           <div
             className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 w-full max-w-7xl h-[85vh] border border-white/20 shadow-xl relative"
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
           >
             <iframe
               src={activeNotion}
@@ -258,8 +246,6 @@ const Blog = () => {
               height="100%"
               frameBorder="0"
               allowFullScreen
-              loading="lazy"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
               className="rounded-xl w-full h-full"
             />
           </div>
