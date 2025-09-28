@@ -103,6 +103,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Load persisted state ----- */
   const loadPersistedState = useCallback(() => {
     try {
+      // Check if this is a fresh session (page refresh) or route navigation
+      const isNewSession = !sessionStorage.getItem('searchbar_session');
+      
+      if (isNewSession) {
+        // Fresh page load/refresh - clear any persisted state
+        localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.setItem('searchbar_session', 'active');
+        return {
+          response: null,
+          suggestions: [],
+          hasInteracted: false,
+          showExpandedSuggestions: false,
+          lastActivityTime: Date.now(),
+        };
+      }
+      
+      // Route navigation - load persisted state
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
