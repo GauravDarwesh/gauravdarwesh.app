@@ -48,8 +48,14 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
 
     // Run once on mount/route change, then on scroll/resize
     update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    
+    // Use passive listeners for better performance
+    const scrollOptions = { passive: true };
+    const resizeOptions = { passive: true };
+    
+    window.addEventListener("scroll", update, scrollOptions);
+    window.addEventListener("resize", update, resizeOptions);
+    
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
@@ -57,7 +63,13 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
   }, [enabledOnThisPath]);
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Use smooth scrolling with fallback
+    if ('scrollBehavior' in document.documentElement.style) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      // Fallback for older browsers
+      window.scrollTo(0, 0);
+    }
   };
 
   return (
@@ -100,6 +112,11 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
       {/* Floating round translucent ball (scroll to top or close modal) */}
       <button
         onClick={isModalOpen ? onCloseModal : scrollToTop}
+        onTouchStart={(e) => {
+          // Prevent 300ms delay on mobile
+          e.preventDefault();
+          (e.target as HTMLButtonElement).click();
+        }}
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
         className={`
           fixed bottom-6 right-6 z-50 
@@ -109,6 +126,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
           text-white shadow-lg
           transition-all duration-1000 ease-in-out
           hover:bg-white/20
+          touch-manipulation
           ${(enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
         `}
       >

@@ -62,18 +62,35 @@ export default function Visuals() {
   new Promise<void>((resolve) => {
     if (!src) return resolve();
     if (cacheRef.current.has(src)) return resolve();
+    
     const img = new Image();
     let done = false;
+    let timeoutId: number | null = null;
+    
     const finish = () => {
       if (done) return;
       done = true;
       cacheRef.current.add(src);
+      if (timeoutId && window.clearTimeout) {
+        window.clearTimeout(timeoutId);
+      }
       resolve();
     };
+    
     img.onload = finish;
     img.onerror = finish;
+    
+    // Add crossorigin for better CORS support
+    if (src.startsWith('http') && !src.includes(window.location.hostname)) {
+      img.crossOrigin = 'anonymous';
+    }
+    
     img.src = src;
-    setTimeout(finish, timeout);
+    
+    // Use setTimeout with fallback for older browsers
+    if (window.setTimeout) {
+      timeoutId = window.setTimeout(finish, timeout) as any;
+    }
   });
 
 
@@ -158,15 +175,22 @@ export default function Visuals() {
     inactiveNode.style.backgroundImage = `url("${nextSrc}")`;
 
     // double rAF to ensure paint, then swap opacities
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    const safeRequestAnimationFrame = (callback: () => void) => {
+      if (window.requestAnimationFrame) {
+        return window.requestAnimationFrame(callback);
+      }
+      return window.setTimeout(callback, 16) as any;
+    };
+
+    safeRequestAnimationFrame(() => {
+      safeRequestAnimationFrame(() => {
         inactiveNode.style.opacity = "1";
         activeNode.style.opacity = "0";
         // after fade completes, flip active layer and update indexRef
-        setTimeout(() => {
+        const timeoutId = window.setTimeout ? window.setTimeout(() => {
           activeLayerRef.current = inactive;
           indexRef.current = nextIndex;
-        }, FADE_MS + 8);
+        }, FADE_MS + 8) : null;
       });
     });
   };
@@ -223,7 +247,11 @@ export default function Visuals() {
               <div className="flex gap-2">
                 <button
                   onClick={prevCollection}
-                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    (e.target as HTMLButtonElement).click();
+                  }}
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0 touch-manipulation"
                   aria-label="Previous collection"
                 >
                   <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
@@ -231,7 +259,11 @@ export default function Visuals() {
                 
                 <button
                   onClick={nextCollection}
-                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    (e.target as HTMLButtonElement).click();
+                  }}
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0 touch-manipulation"
                   aria-label="Next collection"
                 >
                   <ChevronRight size={14} className="sm:w-4 sm:h-4" />

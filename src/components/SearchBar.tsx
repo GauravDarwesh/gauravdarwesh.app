@@ -103,14 +103,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Load persisted state ----- */
   const loadPersistedState = useCallback(() => {
     try {
-      // Detect if this is a page refresh vs route navigation
-      // Check performance navigation type for page refresh
-      const isPageRefresh = (window.performance as any)?.navigation?.type === 1 || 
-                           ((window.performance?.getEntriesByType('navigation')?.[0] as any)?.type === 'reload');
+      // Detect if this is a page refresh vs route navigation with fallbacks
+      let isPageRefresh = false;
+      
+      // Modern browsers
+      if (window.performance?.navigation?.type === 1) {
+        isPageRefresh = true;
+      }
+      // Fallback for older browsers
+      else if (window.performance?.getEntriesByType) {
+        const navEntry = window.performance.getEntriesByType('navigation')?.[0] as any;
+        isPageRefresh = navEntry?.type === 'reload';
+      }
+      // Ultimate fallback - check if page was loaded from cache
+      else if (window.performance?.navigation?.type === undefined) {
+        // If performance API not available, assume navigation
+        isPageRefresh = false;
+      }
       
       if (isPageRefresh) {
         // Page refresh - clear any persisted state and return to normal
-        localStorage.removeItem(STORAGE_KEY);
+        try {
+          if (typeof Storage !== 'undefined' && localStorage) {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        } catch (e) {
+          // localStorage not available
+        }
         return {
           response: null,
           suggestions: [],
@@ -121,16 +140,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       
       // Route navigation - load persisted state
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          response: parsed.response || null,
-          suggestions: parsed.suggestions || [],
-          hasInteracted: parsed.hasInteracted || false,
-          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
-          lastActivityTime: parsed.lastActivityTime || Date.now(),
-        };
+      if (typeof Storage !== 'undefined' && localStorage) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return {
+            response: parsed.response || null,
+            suggestions: parsed.suggestions || [],
+            hasInteracted: parsed.hasInteracted || false,
+            showExpandedSuggestions: parsed.showExpandedSuggestions || false,
+            lastActivityTime: parsed.lastActivityTime || Date.now(),
+          };
+        }
       }
     } catch (error) {
       console.warn('Failed to load persisted search state:', error);
@@ -153,7 +174,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     lastActivityTime: number;
   }) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (typeof Storage !== 'undefined' && localStorage) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
     } catch (error) {
       console.warn('Failed to save search state:', error);
     }
@@ -194,7 +217,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Clear persisted state when manually reset ----- */
   const clearPersistedState = useCallback(() => {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      if (typeof Storage !== 'undefined' && localStorage) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
     } catch (error) {
       console.warn('Failed to clear persisted search state:', error);
     }
@@ -262,11 +287,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- 5️⃣ Auto-submit intro for first-time users ----- */
   useEffect(() => {
     const FIRST_VISIT_KEY = 'gd_ai_first_visit';
-    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
+    let isFirstVisit = false;
+    
+    try {
+      if (typeof Storage !== 'undefined' && localStorage) {
+        isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
+      }
+    } catch (e) {
+      // localStorage not available, treat as first visit
+      isFirstVisit = true;
+    }
     
     if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
       // Mark as visited immediately to prevent multiple submissions
-      localStorage.setItem(FIRST_VISIT_KEY, 'true');
+      try {
+        if (typeof Storage !== 'undefined' && localStorage) {
+          localStorage.setItem(FIRST_VISIT_KEY, 'true');
+        }
+      } catch (e) {
+        // localStorage not available
+      }
       
       // Auto-submit the intro message after a short delay
       const timer = setTimeout(() => {
