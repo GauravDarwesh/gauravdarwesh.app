@@ -526,7 +526,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const layoutValues = useMemo(() => {
     const dynamicWidth = Math.min(300 + query.length * 8, 700);
     const isExpanded = suggestions.length > 0 || response || isLoading;
-    const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
+    
+    // Mobile-responsive width calculations
+    const isMobile = window.innerWidth <= 640;
+    const maxWidth = isMobile ? window.innerWidth - 32 : 700;
+    const expandedWidth = Math.min(maxWidth, isExpanded ? 700 : dynamicWidth);
+    
+    const targetWidth = `${expandedWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
     
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
@@ -536,7 +542,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   return (
     <div
       ref={searchBarRef}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
+      className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 px-2 sm:px-4 z-50 w-full max-w-[100vw] flex flex-col items-center gap-3"
+      style={{
+        /* Mobile viewport fix */
+        bottom: 'max(16px, env(safe-area-inset-bottom))',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
     >
       {/* ── Typewriter bubble (with fade) ── */}
       <Fade show={showTypewriter} duration={800}>
@@ -558,7 +569,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }`}
         style={{
           width: layoutValues.targetWidth,
-          maxWidth: "90vw",
+          maxWidth: "min(90vw, calc(100vw - 16px))",
+          minWidth: "280px",
           borderRadius: layoutValues.targetRadius,
           transitionProperty: "width, border-radius, background-color, box-shadow",
           transitionDuration: "1200ms",

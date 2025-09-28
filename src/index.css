@@ -286,6 +286,21 @@ All colors MUST be HSL.
       background-attachment: scroll !important;
     }
   }
+  
+  /* Mobile search bar positioning fixes */
+  @supports (bottom: env(safe-area-inset-bottom)) {
+    .fixed[style*="safe-area-inset-bottom"] {
+      bottom: max(16px, env(safe-area-inset-bottom)) !important;
+      padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+  }
+  
+  /* Ensure proper touch interaction on mobile */
+  @media (max-width: 640px) {
+    .fixed {
+      touch-action: manipulation;
+    }
+  }
 }
 
 @keyframes slowFadeIn {
