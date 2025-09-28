@@ -42,140 +42,287 @@ All colors MUST be HSL.
     --gradient-blue-1: 220 100% 60%;
     --gradient-blue-2: 240 100% 70%;
     --gradient-blue-3: 200 100% 50%;
+    
+    /* Browser compatibility fallbacks */
+    --popover: var(--card);
+    --popover-foreground: var(--card-foreground);
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+  }
+  
+  /* Light mode support for better browser compatibility */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 0 0% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 0 0% 3.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 0 0% 3.9%;
+      --primary: 220 100% 60%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 0 0% 96.1%;
+      --secondary-foreground: 0 0% 9%;
+      --muted: 0 0% 96.1%;
+      --muted-foreground: 0 0% 45.1%;
+      --accent: 0 0% 96.1%;
+      --accent-foreground: 0 0% 9%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 0 0% 89.8%;
+      --input: 0 0% 89.8%;
+      --ring: 0 0% 3.9%;
+    }
   }
 }
 
 @layer base {
-  * {
+  /* Enhanced browser compatibility */
+  *,
+  *::before,
+  *::after {
     @apply border-border;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+    /* Fix for iOS Safari viewport units */
+    height: -webkit-fill-available;
   }
 
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+    /* Fix for iOS Safari */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+  }
+
+  /* Better focus styles for accessibility */
+  *:focus {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Improved button styles for touch devices */
+  button,
+  [role="button"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    /* Better touch targets */
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better input styles */
+  input,
+  textarea,
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  /* Fix for Chrome autofill styles */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px hsl(var(--background)) inset !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
   }
 }
 
 /* Custom Animation for Spinning Asterisk */
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from { 
+    transform: rotate(0deg); 
+    -webkit-transform: rotate(0deg);
+  }
+  to { 
+    transform: rotate(360deg);
+    -webkit-transform: rotate(360deg);
+  }
 }
 
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
+  -webkit-animation: spin-slow 3s linear infinite;
 }
 
 @keyframes fadeInSlow {
   0% {
     opacity: 0;
-    transform: scale(1.05); /* start slightly zoomed */
+    transform: scale(1.05);
+    -webkit-transform: scale(1.05);
+    -moz-transform: scale(1.05);
+    -ms-transform: scale(1.05);
   }
   100% {
     opacity: 1;
-    transform: scale(1); /* settle to normal */
+    transform: scale(1);
+    -webkit-transform: scale(1);
+    -moz-transform: scale(1);
+    -ms-transform: scale(1);
   }
 }
 
 .animate-fadeInSlow {
   animation: fadeInSlow 3s ease-in-out forwards;
+  -webkit-animation: fadeInSlow 3s ease-in-out forwards;
 }
 
 @keyframes droplet-flow {
   0% {
     transform: scaleX(1);
+    -webkit-transform: scaleX(1);
   }
   40% {
-    transform: scaleX(1.3); /* stretch while moving */
+    transform: scaleX(1.3);
+    -webkit-transform: scaleX(1.3);
   }
   70% {
-    transform: scaleX(0.9); /* compress before settling */
+    transform: scaleX(0.9);
+    -webkit-transform: scaleX(0.9);
   }
   100% {
     transform: scaleX(1);
+    -webkit-transform: scaleX(1);
   }
 }
 
 .animate-droplet {
   transition: transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
+  -webkit-transition: -webkit-transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
+  -moz-transition: -moz-transform 0.8s cubic-bezier(0.25, 1, 0.3, 1);
 }
 
 .animate-droplet:active,
 .animate-droplet[style] {
   animation: droplet-flow 0.8s cubic-bezier(0.25, 1, 0.3, 1);
+  -webkit-animation: droplet-flow 0.8s cubic-bezier(0.25, 1, 0.3, 1);
 }
 
+/* Enhanced scrollbar hiding for all browsers */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;     /* Firefox */
+  overflow: -moz-scrollbars-none; /* Older Firefox */
 }
 
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
     transform: translateY(6px);
+    -webkit-transform: translateY(6px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+    -webkit-transform: translateY(0);
   }
 }
 
-/* Grainy Gradient Background */
+/* Grainy Gradient Background with browser prefixes */
 .bg-grainy-gradient {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--gradient-blue-1)),
-    hsl(var(--gradient-blue-2)),
-    hsl(var(--gradient-blue-3))
-  );
+  background: linear-gradient(135deg, hsl(var(--gradient-blue-1)), hsl(var(--gradient-blue-2)), hsl(var(--gradient-blue-3)));
+  background: -webkit-linear-gradient(135deg, hsl(var(--gradient-blue-1)), hsl(var(--gradient-blue-2)), hsl(var(--gradient-blue-3)));
+  background: -moz-linear-gradient(135deg, hsl(var(--gradient-blue-1)), hsl(var(--gradient-blue-2)), hsl(var(--gradient-blue-3)));
+  background: -o-linear-gradient(135deg, hsl(var(--gradient-blue-1)), hsl(var(--gradient-blue-2)), hsl(var(--gradient-blue-3)));
   position: relative;
   overflow: hidden;
 }
 
-/* Grain overlay (using base64 noise texture instead of inline SVG for safety) */
+/* Grain overlay with browser compatibility */
 .bg-grainy-gradient::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
   mix-blend-mode: overlay;
-  opacity: 0.15; /* adjust grain intensity */
+  -webkit-mix-blend-mode: overlay;
+  opacity: 0.15;
   pointer-events: none;
   animation: wave-shift 20s linear infinite;
+  -webkit-animation: wave-shift 20s linear infinite;
   background-size: 200px 200px;
 }
 
-/* Subtle wavy horizontal shift */
+/* Subtle wavy horizontal shift with prefixes */
 @keyframes wave-shift {
   0% { background-position: 0 0; }
   100% { background-position: 1000px 0; }
 }
 
-html {
-  scrollbar-gutter: stable;
+@-webkit-keyframes wave-shift {
+  0% { background-position: 0 0; }
+  100% { background-position: 1000px 0; }
 }
 
 @keyframes slowFadeIn {
   0% {
     opacity: 0;
     filter: blur(8px);
+    -webkit-filter: blur(8px);
   }
   100% {
     opacity: 1;
     filter: blur(0);
+    -webkit-filter: blur(0);
   }
 }
 
-/* Tailwind-safe helper class name */
-.animate-slowFadeIn {
-  animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+@-webkit-keyframes slowFadeIn {
+  0% {
+    opacity: 0;
+    -webkit-filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    -webkit-filter: blur(0);
+  }
 }
 
-/* Keyframes for waves */
+.animate-slowFadeIn {
+  animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  -webkit-animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Wave animations with browser prefixes */
 @keyframes wave1 {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@-webkit-keyframes wave1 {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
@@ -187,11 +334,21 @@ html {
   100% { background-position: 100% 0%; }
 }
 
+@-webkit-keyframes wave2 {
+  0% { background-position: 100% 0%; }
+  50% { background-position: 0% 100%; }
+  100% { background-position: 100% 0%; }
+}
+
 .wave {
   position: absolute;
-  inset: 0;
-  background-size: 400% 400%; /* necessary for motion */
-  mix-blend-mode: screen; /* creates overlapping glow effect */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: 400% 400%;
+  mix-blend-mode: screen;
+  -webkit-mix-blend-mode: screen;
   opacity: 0.6;
   animation-iteration-count: infinite;
   animation-timing-function: ease-in-out;
@@ -199,21 +356,199 @@ html {
 
 .wave1 {
   background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
+  background: -webkit-linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
   animation: wave1 20s ease-in-out infinite;
+  -webkit-animation: wave1 20s ease-in-out infinite;
 }
 
 .wave2 {
   background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
+  background: -webkit-linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
   animation: wave2 25s ease-in-out infinite;
+  -webkit-animation: wave2 25s ease-in-out infinite;
   opacity: 0.5;
 }
 
 .typewriter-fade-out {
   opacity: 0;
   transition: opacity 0.5s ease;
+  -webkit-transition: opacity 0.5s ease;
 }
+
 .typewriter-fade-in {
   opacity: 1;
   transition: opacity 0.5s ease;
+  -webkit-transition: opacity 0.5s ease;
+}
+
+/* Mobile-specific improvements */
+@media screen and (max-width: 768px) {
+  /* Improve touch targets on mobile */
+  button, 
+  [role="button"],
+  a[href] {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 8px;
+  }
+  
+  /* Better text rendering on mobile */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* Tablet-specific improvements */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  /* Better spacing for tablets */
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* High DPI display support */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi), (min-resolution: 2dppx) {
+  /* Enhanced rendering for high DPI displays */
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Dark mode media query support */
+@media (prefers-color-scheme: dark) {
+  /* Enhanced dark mode styles if needed */
+  img {
+    filter: brightness(0.9);
+    -webkit-filter: brightness(0.9);
+  }
+}
+
+/* iOS-specific fixes */
+.ios {
+  /* Fix iOS Safari viewport units */
+  height: calc(var(--vh, 1vh) * 100) !important;
+  min-height: calc(var(--vh, 1vh) * 100) !important;
+}
+
+.ios .h-screen,
+.ios .min-h-screen {
+  height: calc(var(--vh, 1vh) * 100) !important;
+  min-height: calc(var(--vh, 1vh) * 100) !important;
+}
+
+.ios input,
+.ios textarea,
+.ios select {
+  /* Prevent zoom on input focus in iOS */
+  font-size: 16px !important;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Chrome-specific optimizations */
+.chrome {
+  scroll-behavior: smooth;
+}
+
+/* Firefox-specific fixes */
+.firefox {
+  /* Fix scrollbar in Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted)) transparent;
+}
+
+/* Safari-specific fixes */
+.safari {
+  /* Better text rendering in Safari */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.safari input {
+  /* Fix Safari input styling */
+  -webkit-appearance: none;
+  border-radius: 0;
+}
+
+/* Edge-specific fixes */
+.edge {
+  /* Fix Edge-specific issues */
+  -ms-text-size-adjust: 100%;
+}
+
+/* Opera-specific fixes */
+.opera {
+  /* Opera-specific optimizations */
+  text-rendering: optimizeLegibility;
+}
+
+/* Utility classes for cross-browser compatibility */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-area-inset {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Better touch interactions */
+.touch-manipulation {
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+}
+
+/* Prevent text selection for better UX */
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* GPU acceleration for smoother animations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000;
+  -webkit-perspective: 1000;
+}
+
+/* Smooth scrolling for all browsers */
+@supports (scroll-behavior: smooth) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Fallback for browsers that don't support CSS custom properties */
+@supports not (color: hsl(var(--primary))) {
+  :root {
+    --primary: #3b82f6;
+    --background: #0f0f0f;
+    --foreground: #f3f4f6;
+  }
 }
 
