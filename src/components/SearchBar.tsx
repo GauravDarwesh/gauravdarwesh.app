@@ -331,9 +331,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only trigger on Shift key press
       if (e.key === 'Shift') {
-        // Prevent default shift behavior to avoid typing issues
-        e.preventDefault();
-        
         // Check if user is not already focused on an input/textarea
         const activeElement = document.activeElement as HTMLElement;
         const isInputFocused = activeElement && (
@@ -342,8 +339,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           activeElement.contentEditable === 'true'
         );
 
-        // Only focus if not already focused on any input
+        // Focus search bar if not already focused on an input
         if (!isInputFocused && inputRef.current) {
+          e.preventDefault();
           inputRef.current.focus();
           setShowTypewriter(false);
           setHasInteracted(true);
