@@ -200,6 +200,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
+  const inputRef = useRef<HTMLInputElement>(null); // 🔹 Ref for input focus
 
   /* ----- type-writer configuration ----- */
   const rotatingSuggestions = [
@@ -317,6 +318,34 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 1000); // Reduced frequency from 500ms to 1000ms
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
+
+  /* ----- Keyboard shortcut to focus search bar ----- */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger on Shift key press
+      if (e.key === 'Shift') {
+        // Check if user is not already focused on an input/textarea
+        const activeElement = document.activeElement as HTMLElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' || 
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.contentEditable === 'true'
+        );
+
+        // Focus search bar if not already focused on an input
+        if (!isInputFocused && inputRef.current) {
+          e.preventDefault();
+          inputRef.current.focus();
+          setShowIntroBubble(false);
+          setShowTypewriter(false);
+          setHasInteracted(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   /* ----- 7️⃣ Typewriter effect ----- */
   useEffect(() => {
@@ -570,6 +599,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             <div className="relative flex-1">
               <Input
+                ref={inputRef}
                 type="text"
                 placeholder={isLoading ? "Thinking…" : "Ask anything…"}
                 value={query}
