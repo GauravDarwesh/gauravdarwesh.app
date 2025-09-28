@@ -259,7 +259,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [debouncedSetActivity]);
 
-  /* ----- 5️⃣ Show typewriter after delay ----- */
+  /* ----- 5️⃣ Auto-submit intro for first-time users ----- */
+  useEffect(() => {
+    const FIRST_VISIT_KEY = 'gd_ai_first_visit';
+    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
+    
+    if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
+      // Mark as visited immediately to prevent multiple submissions
+      localStorage.setItem(FIRST_VISIT_KEY, 'true');
+      
+      // Auto-submit the intro message after a short delay
+      const timer = setTimeout(() => {
+        handleSubmit(undefined, "introduce the website to the new user");
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []); // Run only once on mount
+
+  /* ----- 6️⃣ Show typewriter after delay ----- */
   useEffect(() => {
     // Don't show typewriter if we have persisted content
     if (response || suggestions.length > 0) {
