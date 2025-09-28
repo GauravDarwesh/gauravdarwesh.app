@@ -122,7 +122,7 @@ const Blog = () => {
                       setFilterOpen(true);
                     }
                   }}
-                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? 'relative z-40' : ''}`}
+                  className={`h-9 px-4 text-[12px] rounded-full bg-white/20 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 ease-out ${filterOpen ? 'relative z-40' : ''}`}
                   aria-expanded={filterOpen}
                   aria-controls="blog-filter-dropdown"
                 >
@@ -131,7 +131,7 @@ const Blog = () => {
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => setSelectedTags([])}
-                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-40' : ''}`}
+                    className={`h-9 px-4 text-[12px] rounded-full bg-white/20 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm hover:bg-white/30 transition-all duration-700 ease-out ${filterOpen ? 'relative z-40' : ''}`}
                   >
                     Clear All
                   </button>
@@ -140,7 +140,7 @@ const Blog = () => {
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className={`flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm ${filterOpen ? 'relative z-40' : ''}`}
+                    className={`flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/20 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 ease-out ${filterOpen ? 'relative z-40' : ''}`}
                   >
                     {tag}
                     <button
@@ -183,10 +183,10 @@ const Blog = () => {
                         <button
                           key={tag}
                           onClick={() => toggleTag(tag)}
-                          className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
+                            className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
                             selectedTags.includes(tag)
-                              ? "bg-white/30 text-white border-white/30"
-                              : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
+                              ? "bg-white/30 text-white border-white/30 hover:border-white/40"
+                              : "bg-white/20 text-white/80 hover:text-white/90 border-white/20 hover:border-white/30 hover:bg-white/30"
                           }`}
                         >
                           {tag}
@@ -254,7 +254,7 @@ const Blog = () => {
               href={activeNotion}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
+              className="flex items-center gap-2 h-9 px-4 text-[12px] rounded-full bg-white/20 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 ease-out"
             >
               Visit Notion Page
               <ExternalLink size={14} />
