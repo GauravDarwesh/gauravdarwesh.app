@@ -23,7 +23,7 @@ const Portfolio = () => {
           <div className="flex flex-wrap gap-3 mt-4">
             <a 
               href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com"
-              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white/60 hover:text-white/80 border border-white/20"
               aria-label="Email"
             >
               <Mail size={18} />
@@ -32,7 +32,7 @@ const Portfolio = () => {
               href="https://linkedin.com/in/gauravdarwesh" 
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white/60 hover:text-white/80 border border-white/20"
               aria-label="LinkedIn"
             >
               <Linkedin size={18} />
@@ -41,7 +41,7 @@ const Portfolio = () => {
               href="https://twitter.com/gaurav11darwesh" 
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white/60 hover:text-white/80 border border-white/20"
               aria-label="Twitter"
             >
               <Twitter size={18} />
@@ -50,7 +50,7 @@ const Portfolio = () => {
               href="https://www.threads.com/@allaboutgaurav" 
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white/60 hover:text-white/80 border border-white/20"
               aria-label="Threads"
             >
               <AtSign size={18} />
@@ -59,7 +59,7 @@ const Portfolio = () => {
               href="https://instagram.com/allaboutgaurav" 
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white/60 hover:text-white/80 border border-white/20"
               aria-label="Instagram"
             >
               <Instagram size={18} />
