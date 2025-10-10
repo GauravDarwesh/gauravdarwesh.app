@@ -1,4 +1,5 @@
 import NavigationToggle from "@/components/NavigationToggle";
+import { Mail, Linkedin, Twitter, Instagram, AtSign } from "lucide-react";
 
 const Portfolio = () => {
   return (
@@ -19,12 +20,50 @@ const Portfolio = () => {
         {/* Header */}
         <div>
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold">Gaurav Darwesh</h1>
-          <div className="flex flex-wrap gap-4 text-white mt-2">
-            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
-            <a href="https://linkedin.com/in/gauravdarwesh" target="_blank">in/</a>
-            <a href="https://twitter.com/gaurav11darwesh" target="_blank">twitter/</a>
-            <a href="https://www.threads.com/@allaboutgaurav" target="_blank">threads/</a>
-            <a href="https://instagram.com/allaboutgaurav" target="_blank">instagram/</a>
+          <div className="flex flex-wrap gap-3 mt-4">
+            <a 
+              href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              aria-label="Email"
+            >
+              <Mail size={18} />
+            </a>
+            <a 
+              href="https://linkedin.com/in/gauravdarwesh" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              aria-label="LinkedIn"
+            >
+              <Linkedin size={18} />
+            </a>
+            <a 
+              href="https://twitter.com/gaurav11darwesh" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              aria-label="Twitter"
+            >
+              <Twitter size={18} />
+            </a>
+            <a 
+              href="https://www.threads.com/@allaboutgaurav" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              aria-label="Threads"
+            >
+              <AtSign size={18} />
+            </a>
+            <a 
+              href="https://instagram.com/allaboutgaurav" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center text-white border border-white/20"
+              aria-label="Instagram"
+            >
+              <Instagram size={18} />
+            </a>
           </div>
         </div>
 
