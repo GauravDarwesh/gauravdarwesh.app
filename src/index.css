@@ -169,17 +169,18 @@ html {
   }
 }
 
-@keyframes scroll-left-right {
-  0%, 100% {
-    transform: translateX(0);
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(-100%);
   }
-  50% {
-    transform: translateX(20px);
+  100% {
+    transform: translateX(100vw);
   }
 }
 
-.animate-scroll-lr {
-  animation: scroll-left-right 3s ease-in-out infinite;
+.animate-marquee {
+  animation: marquee-scroll 8s linear infinite;
+  white-space: nowrap;
 }
 
 /* Tailwind-safe helper class name */
