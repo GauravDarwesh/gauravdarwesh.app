@@ -178,7 +178,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
-  const [isContracting, setIsContracting] = useState(false);
 
   /* ----- Save state changes to localStorage ----- */
   useEffect(() => {
@@ -401,19 +400,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
-    // Start contracting animation
-    setIsContracting(true);
+    setIsLoading(true);
     setResponse(null);
-    setSuggestions([]);
     setHasInteracted(true);
     setShowTypewriter(false);
     if (!customQuery) setQuery("");
-
-    // Wait for contraction to complete before loading
-    await new Promise(resolve => setTimeout(resolve, 400));
-    
-    setIsContracting(false);
-    setIsLoading(true);
 
     try {
       const result = await sendChatMessage(text);
@@ -421,14 +412,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
       setSuggestions(suggs);
-      setIsRestoredFromStorage(false);
+      setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(String(answer));
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
-      setIsRestoredFromStorage(false);
+      setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -494,13 +485,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- 🔟 Layout calculations (memoized for performance) ----- */
   const layoutValues = useMemo(() => {
     const dynamicWidth = Math.min(300 + query.length * 8, 700);
-    // Contract to compact size during contraction phase
-    const isExpanded = (suggestions.length > 0 || response || isLoading) && !isContracting;
-    const targetWidth = isExpanded ? "700px" : (isContracting ? "300px" : `${dynamicWidth}px`);
+    const isExpanded = suggestions.length > 0 || response || isLoading;
+    const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
     
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
-  }, [query.length, suggestions.length, response, isLoading, isContracting]);
+  }, [query.length, suggestions.length, response, isLoading]);
 
   /* ----- 🔒 Render ----- */
   return (
@@ -531,7 +521,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
           transitionProperty: "width, border-radius, background-color, box-shadow",
-          transitionDuration: isContracting ? "400ms" : "1200ms",
+          transitionDuration: "1200ms",
           transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
           transitionDelay: "0ms",
           willChange: "width, border-radius",
