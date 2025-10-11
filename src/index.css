@@ -169,6 +169,19 @@ html {
   }
 }
 
+@keyframes scroll-left-right {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(20px);
+  }
+}
+
+.animate-scroll-lr {
+  animation: scroll-left-right 3s ease-in-out infinite;
+}
+
 /* Tailwind-safe helper class name */
 .animate-slowFadeIn {
   animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
