@@ -178,9 +178,32 @@ html {
   }
 }
 
+@keyframes text-shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 .animate-marquee {
-  animation: marquee-scroll 8s linear infinite;
+  animation: marquee-scroll 15s linear infinite;
   white-space: nowrap;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffd700 25%,
+    #ffffff 50%,
+    #ffd700 75%,
+    #ffffff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: marquee-scroll 15s linear infinite, text-shimmer 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
 }
 
 /* Tailwind-safe helper class name */
