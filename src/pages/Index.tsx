@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
-import orangeBg from "@/assets/orange-bg.webp";
 
 const ANIM_MS = 3000; // same duration for all
 
@@ -26,11 +25,9 @@ const Index = () => {
       {/* Background */}
       <div className="fixed inset-0 z-0">
         <img
-          src={orangeBg}
+          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt="background"
           className="w-full h-full object-cover"
-          loading="eager"
-          fetchPriority="high"
         />
       </div>
 
