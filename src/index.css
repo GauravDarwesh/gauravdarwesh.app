@@ -179,7 +179,7 @@ html {
 }
 
 .animate-marquee {
-  animation: marquee-scroll 15s linear infinite;
+  animation: marquee-scroll 6s linear infinite;
   white-space: nowrap;
 }
 
