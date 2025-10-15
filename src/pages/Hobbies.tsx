@@ -14,12 +14,25 @@ const Portfolio = () => {
       {/* Navigation Toggle */}
       <NavigationToggle />
 
-      {/* Main Content with invisible scroll */}
-      <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
-        {/* Header */}
-        <div className="overflow-hidden w-full mb-8">
-          <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold animate-marquee inline-block">Gaurav Darwesh</h1>
-        </div>
+     {/* Main Content with invisible scroll */}
+<div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
+  {/* Header */}
+  <div className="relative w-full mb-8 overflow-hidden">
+    {/* Fade effect (left + right) */}
+    <div className="pointer-events-none absolute top-0 left-0 h-full w-20 bg-gradient-to-r from-white to-transparent z-20"></div>
+    <div className="pointer-events-none absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-white to-transparent z-20"></div>
+
+    {/* Scrolling marquee text */}
+    <div className="animate-marquee whitespace-nowrap">
+      <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold inline-block px-4">
+        Gaurav Darwesh
+      </h1>
+      <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold inline-block px-4">
+        Gaurav Darwesh
+      </h1>
+    </div>
+  </div>
+</div>
         <div>
           <div className="flex flex-wrap gap-4 text-white mt-2">
             <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
