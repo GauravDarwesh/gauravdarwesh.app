@@ -18,9 +18,13 @@ const Portfolio = () => {
 <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
   {/* Header */}
   <div className="relative w-full mb-8 overflow-hidden">
-    {/* Fade effect (left + right) */}
-    <div className="pointer-events-none absolute top-0 left-0 h-full w-32 bg-gradient-to-r from-background via-background/60 to-transparent z-20"></div>
-    <div className="pointer-events-none absolute top-0 right-0 h-full w-32 bg-gradient-to-l from-background via-background/60 to-transparent z-20"></div>
+    {/* Fade effect (left + right) - using orange tint to match background */}
+    <div className="pointer-events-none absolute top-0 left-0 h-full w-32 z-20" style={{
+      background: 'linear-gradient(to right, rgba(255, 140, 0, 0.9), rgba(255, 140, 0, 0.5), transparent)'
+    }}></div>
+    <div className="pointer-events-none absolute top-0 right-0 h-full w-32 z-20" style={{
+      background: 'linear-gradient(to left, rgba(255, 140, 0, 0.9), rgba(255, 140, 0, 0.5), transparent)'
+    }}></div>
 
     {/* Scrolling marquee text */}
     <div className="animate-[marquee_15s_linear_infinite] whitespace-nowrap">
