@@ -107,9 +107,9 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
           w-12 h-12 rounded-full backdrop-blur-md
           bg-white/10 border border-white/20
           text-white shadow-lg
-          transition-all duration-1000 ease-in-out
+          transition-opacity duration-700 ease-in-out
           hover:bg-white/20
-          ${(enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-0 translate-y-2 pointer-events-none"}
+          ${(enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
         `}
       >
         <div className="relative w-5 h-5">
