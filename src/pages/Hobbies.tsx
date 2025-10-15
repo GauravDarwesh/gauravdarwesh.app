@@ -14,8 +14,27 @@ const Portfolio = () => {
       {/* Navigation Toggle */}
       <NavigationToggle />
 
+      {/* Marquee Text with Fade Edges */}
+      <div className="relative z-10 w-full overflow-hidden py-6 mt-16">
+        <div className="relative">
+          {/* Gradient fade masks */}
+          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+          
+          {/* Scrolling text */}
+          <div className="flex animate-marquee-scroll whitespace-nowrap">
+            <span className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground px-8">
+              Product Manager • Strategic Thinker • Problem Solver • Innovation Driver • 
+            </span>
+            <span className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground px-8">
+              Product Manager • Strategic Thinker • Problem Solver • Innovation Driver • 
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content with invisible scroll */}
-      <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
+      <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-8 pb-20 sm:pb-24">
         {/* Header */}
         <div className="overflow-hidden w-full mb-8">
           <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold animate-marquee inline-block">Gaurav Darwesh</h1>
