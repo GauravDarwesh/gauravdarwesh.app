@@ -1,14 +1,6 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-  ChangeEvent,
-  FormEvent,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
@@ -17,58 +9,55 @@ import { sendChatMessage } from "@/lib/api";
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
   let result = text;
-  
+
   // Process inline formatting
   const processInline = (str: string): string => {
     const rules = [
-      { pattern: /\*\*(.*?)\*\*/g, replacement: '<strong>$1</strong>' },
-      { pattern: /\*(.*?)\*/g, replacement: '<em>$1</em>' },
+      { pattern: /\*\*(.*?)\*\*/g, replacement: "<strong>$1</strong>" },
+      { pattern: /\*(.*?)\*/g, replacement: "<em>$1</em>" },
       { pattern: /`([^`]+)`/g, replacement: '<code class="inline-code">$1</code>' },
-      { pattern: /\[([^\]]+)\]\(([^)]+)\)/g, replacement: '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>' }
+      {
+        pattern: /\[([^\]]+)\]\(([^)]+)\)/g,
+        replacement:
+          '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>',
+      },
     ];
-    
-    rules.forEach(rule => {
+
+    rules.forEach((rule) => {
       str = str.replace(rule.pattern, rule.replacement);
     });
-    
+
     return str;
   };
 
   // Convert line breaks and process markdown
   result = result
-    .split('\n')
-    .map(line => {
+    .split("\n")
+    .map((line) => {
       line = line.trim();
-      if (!line) return '<br>';
-      
+      if (!line) return "<br>";
+
       // Headers
-      if (line.startsWith('### ')) return `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
-      if (line.startsWith('## ')) return `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
-      if (line.startsWith('# ')) return `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
-      
+      if (line.startsWith("### "))
+        return `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
+      if (line.startsWith("## ")) return `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
+      if (line.startsWith("# ")) return `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
+
       // Lists
-      if (line.startsWith('- ') || line.startsWith('* ')) {
+      if (line.startsWith("- ") || line.startsWith("* ")) {
         return `<li class="ml-4 list-disc">${processInline(line.slice(2))}</li>`;
       }
-      
+
       // Regular paragraphs
       return `<p class="mb-2">${processInline(line)}</p>`;
     })
-    .join('');
+    .join("");
 
   return result;
 };
 
 /* ---------- 2️⃣ Fade helper (see above) ---------- */
-function Fade({
-  show,
-  duration = 300,
-  children,
-}: {
-  show: boolean;
-  duration?: number;
-  children: React.ReactNode;
-}) {
+function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
   const [visible, setVisible] = useState(show);
   useEffect(() => {
     if (show) setVisible(true);
@@ -81,9 +70,7 @@ function Fade({
   if (!visible && !show) return null;
   return (
     <div
-      className={`transition-opacity ${
-        show ? "opacity-100" : "opacity-0"
-      }`}
+      className={`transition-opacity ${show ? "opacity-100" : "opacity-0"}`}
       style={{ transitionDuration: `${duration}ms` }}
     >
       {children}
@@ -98,16 +85,17 @@ interface SearchBarProps {
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Persistent state keys ----- */
-  const STORAGE_KEY = 'searchbar_state';
+  const STORAGE_KEY = "searchbar_state";
 
   /* ----- Load persisted state ----- */
   const loadPersistedState = useCallback(() => {
     try {
       // Detect if this is a page refresh vs route navigation
       // Check performance navigation type for page refresh
-      const isPageRefresh = (window.performance as any)?.navigation?.type === 1 || 
-                           ((window.performance?.getEntriesByType('navigation')?.[0] as any)?.type === 'reload');
-      
+      const isPageRefresh =
+        (window.performance as any)?.navigation?.type === 1 ||
+        (window.performance?.getEntriesByType("navigation")?.[0] as any)?.type === "reload";
+
       if (isPageRefresh) {
         // Page refresh - clear any persisted state and return to normal
         localStorage.removeItem(STORAGE_KEY);
@@ -119,7 +107,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           lastActivityTime: Date.now(),
         };
       }
-      
+
       // Route navigation - load persisted state
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -133,7 +121,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         };
       }
     } catch (error) {
-      console.warn('Failed to load persisted search state:', error);
+      console.warn("Failed to load persisted search state:", error);
     }
     return {
       response: null,
@@ -145,19 +133,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   /* ----- Save state to localStorage ----- */
-  const saveState = useCallback((state: {
-    response: string | null;
-    suggestions: string[];
-    hasInteracted: boolean;
-    showExpandedSuggestions: boolean;
-    lastActivityTime: number;
-  }) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (error) {
-      console.warn('Failed to save search state:', error);
-    }
-  }, []);
+  const saveState = useCallback(
+    (state: {
+      response: string | null;
+      suggestions: string[];
+      hasInteracted: boolean;
+      showExpandedSuggestions: boolean;
+      lastActivityTime: number;
+    }) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (error) {
+        console.warn("Failed to save search state:", error);
+      }
+    },
+    [],
+  );
 
   /* ----- Initialize with persisted state ----- */
   const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
@@ -167,7 +158,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(persistedState.response);
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
-  
+
   const [showTypewriter, setShowTypewriter] = useState(false);
   const [typewriterText, setTypewriterText] = useState("");
   const [fullText, setFullText] = useState("");
@@ -196,7 +187,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.warn('Failed to clear persisted search state:', error);
+      console.warn("Failed to clear persisted search state:", error);
     }
   }, []);
 
@@ -208,17 +199,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ Tell me about Gaurav's Experience",
     "✨ What is Gaurav's Education?",
     "✨ What are Gaurav's Skills?",
-    "✨ Can you share Recommendations?",
-    "✨ Show me Achievements",
-    "✨ List Certifications",
+    "✨ Can you share Gaurav's Recommendations?",
+    "✨ Show me Gaurav's Achievements",
+    "✨ List Gaurav's Certifications",
     "✨ What Projects has Gaurav done?",
-    "✨ Any Hobbies?",
+    "✨ Does Gaurav have any Hobbies?",
     "✨ How to Contact Gaurav?",
   ];
 
   /* ----- 4️⃣ Activity tracking with debouncing ----- */
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
-  
+
   const debouncedSetActivity = useCallback(() => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -231,28 +222,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const handleActivity = () => {
       // For critical events like clicks, update immediately
-      if (event?.type === 'click' || event?.type === 'keypress') {
+      if (event?.type === "click" || event?.type === "keypress") {
         setLastActivityTime(Date.now());
       } else {
         // For mouse movements, use debounced version
         debouncedSetActivity();
       }
     };
-    
+
     const handleMouseMove = debouncedSetActivity;
     const handleImmediate = () => setLastActivityTime(Date.now());
-    
+
     // Use debounced handler for mousemove only
-    window.addEventListener('mousemove', handleMouseMove);
-    ["keypress", "click", "scroll"].forEach((e) =>
-      window.addEventListener(e, handleImmediate)
-    );
-    
+    window.addEventListener("mousemove", handleMouseMove);
+    ["keypress", "click", "scroll"].forEach((e) => window.addEventListener(e, handleImmediate));
+
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      ["keypress", "click", "scroll"].forEach((e) =>
-        window.removeEventListener(e, handleImmediate)
-      );
+      window.removeEventListener("mousemove", handleMouseMove);
+      ["keypress", "click", "scroll"].forEach((e) => window.removeEventListener(e, handleImmediate));
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
       }
@@ -261,18 +248,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 5️⃣ Auto-submit intro for first-time users ----- */
   useEffect(() => {
-    const FIRST_VISIT_KEY = 'gd_ai_first_visit';
+    const FIRST_VISIT_KEY = "gd_ai_first_visit";
     const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
-    
+
     if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
       // Mark as visited immediately to prevent multiple submissions
-      localStorage.setItem(FIRST_VISIT_KEY, 'true');
-      
+      localStorage.setItem(FIRST_VISIT_KEY, "true");
+
       // Auto-submit the intro message after a short delay
       const timer = setTimeout(() => {
         handleSubmit(undefined, "introduce the website to the new user");
       }, 1500);
-      
+
       return () => clearTimeout(timer);
     }
   }, []); // Run only once on mount
@@ -283,7 +270,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (response || suggestions.length > 0) {
       return;
     }
-    
+
     const timer = setTimeout(() => {
       if (!hasInteracted) setShowTypewriter(true);
     }, 2000);
@@ -294,17 +281,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      
+
       // Don't show typewriter if we have persisted content
       if (response || suggestions.length > 0) {
         return;
       }
-      
-      if (
-        idle > 10000 &&
-        hasInteracted &&
-        !isLoading
-      ) {
+
+      if (idle > 10000 && hasInteracted && !isLoading) {
         setShowTypewriter(true);
       }
     }, 2000); // Reduced frequency from 1000ms to 2000ms
@@ -330,14 +313,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only trigger on Shift key press
-      if (e.key === 'Shift') {
+      if (e.key === "Shift") {
         // Check if user is not already focused on an input/textarea
         const activeElement = document.activeElement as HTMLElement;
-        const isInputFocused = activeElement && (
-          activeElement.tagName === 'INPUT' || 
-          activeElement.tagName === 'TEXTAREA' ||
-          activeElement.contentEditable === 'true'
-        );
+        const isInputFocused =
+          activeElement &&
+          (activeElement.tagName === "INPUT" ||
+            activeElement.tagName === "TEXTAREA" ||
+            activeElement.contentEditable === "true");
 
         // Focus search bar if not already focused on an input
         if (!isInputFocused && inputRef.current) {
@@ -349,8 +332,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   /* ----- 7️⃣ Typewriter effect ----- */
@@ -377,22 +360,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       timeout = setTimeout(() => setTypewriterText((p) => p.slice(0, -1)), deletingSpeed);
     } else {
       if (fullText === "") setFullText(rotatingSuggestions[currentSuggestionIndex]);
-      else
-        timeout = setTimeout(
-          () => setTypewriterText((p) => fullText.slice(0, p.length + 1)),
-          typingSpeed
-        );
+      else timeout = setTimeout(() => setTypewriterText((p) => fullText.slice(0, p.length + 1)), typingSpeed);
     }
 
     return () => clearTimeout(timeout);
-  }, [
-    typewriterText,
-    isDeleting,
-    fullText,
-    currentSuggestionIndex,
-    rotatingSuggestions,
-    showTypewriter,
-  ]);
+  }, [typewriterText, isDeleting, fullText, currentSuggestionIndex, rotatingSuggestions, showTypewriter]);
 
   /* ----- 8️⃣ Submit handler ----- */
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
@@ -415,8 +387,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(String(answer));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Something went wrong. Try again.";
+      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
       setIsRestoredFromStorage(false); // Mark as fresh content
@@ -458,12 +429,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       // Exclude navigation UI from collapsing
       const el = target as Element;
-      const isNavigationClick = !!el?.closest && (
-        el.closest('[class*="fixed top-6"]') ||
-        el.closest('[class*="fixed bottom-6 right-6"]') ||
-        el.closest('button[aria-label*="Scroll to top"]') ||
-        el.closest('button[aria-label*="Close modal"]')
-      );
+      const isNavigationClick =
+        !!el?.closest &&
+        (el.closest('[class*="fixed top-6"]') ||
+          el.closest('[class*="fixed bottom-6 right-6"]') ||
+          el.closest('button[aria-label*="Scroll to top"]') ||
+          el.closest('button[aria-label*="Close modal"]'));
 
       if (!isNavigationClick && (response || suggestions.length > 0)) {
         const COLLAPSE_MS = 1400; // Slower, matching container and content transitions for calm collapse
@@ -488,7 +459,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const isExpanded = suggestions.length > 0 || response || isLoading;
     const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
-    
+
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
   }, [query.length, suggestions.length, response, isLoading]);
 
@@ -528,9 +499,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-            layoutValues.isExpanded ? "p-5 pt-6" : "p-2"
-          }`}
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
             transitionDuration: "800ms",
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
@@ -561,7 +530,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing ? "0px" : (response ? "384px" : "0px"),
+              maxHeight: isCollapsing ? "0px" : response ? "384px" : "0px",
               transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
@@ -581,11 +550,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </div>
 
           {/* ── Input form ── */}
-          <form
-            onSubmit={(e) => handleSubmit(e)}
-            className="flex items-center gap-3"
-            onFocus={handleInputFocus}
-          >
+          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3" onFocus={handleInputFocus}>
             <div className="relative flex-1">
               <Input
                 ref={inputRef}
