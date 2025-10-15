@@ -25,22 +25,24 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    // Smooth progress animation
-    const interval = setInterval(() => {
-      setLoadingProgress((prev) => {
-        if (imageLoaded && isReady) return 100;
-        if (prev >= 90) return 90;
-        return prev + 2;
-      });
-    }, 50);
+    // Phase 1: 0 to 33% (1 second)
+    const phase1 = setTimeout(() => setLoadingProgress(33), 1000);
+    
+    // Phase 2: 33 to 66% (2 seconds)
+    const phase2 = setTimeout(() => setLoadingProgress(66), 2000);
+    
+    // Phase 3: Wait for image and animation to complete
+    const checkComplete = setInterval(() => {
+      if (imageLoaded && isReady) {
+        setLoadingProgress(100);
+      }
+    }, 100);
 
-    return () => clearInterval(interval);
-  }, [imageLoaded, isReady]);
-
-  useEffect(() => {
-    if (imageLoaded && isReady) {
-      setLoadingProgress(100);
-    }
+    return () => {
+      clearTimeout(phase1);
+      clearTimeout(phase2);
+      clearInterval(checkComplete);
+    };
   }, [imageLoaded, isReady]);
 
   const showLoading = loadingProgress < 100;
@@ -53,9 +55,9 @@ const Index = () => {
     >
       {/* Loading Bar */}
       {showLoading && (
-        <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-transparent">
+        <div className="fixed top-0 left-0 right-0 z-50 h-1.5 bg-transparent">
           <div
-            className="h-full bg-white/40 transition-all duration-300 ease-out"
+            className="h-full bg-white transition-all duration-1000 ease-in-out"
             style={{ width: `${loadingProgress}%` }}
           />
         </div>
