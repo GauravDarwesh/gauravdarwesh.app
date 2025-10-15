@@ -8,13 +8,19 @@ const ANIM_MS = 3000; // same duration for all
 const Index = () => {
   const [animate, setAnimate] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (!(window as any).__indexAnimationPlayed) {
       setAnimate(true);
       (window as any).__indexAnimationPlayed = true;
-      const t = setTimeout(() => setAnimate(false), ANIM_MS);
+      const t = setTimeout(() => {
+        setAnimate(false);
+        setIsReady(true);
+      }, ANIM_MS);
       return () => clearTimeout(t);
+    } else {
+      setIsReady(true);
     }
   }, []);
 
@@ -35,7 +41,7 @@ const Index = () => {
       </div>
 
       {/* Loading Icon */}
-      {!imageLoaded && (
+      {(!imageLoaded || !isReady) && (
         <div className="fixed bottom-6 right-6 z-30 animate-in fade-in duration-500">
           <div className="w-16 h-16 rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center">
             <Loader2 className="w-8 h-8 text-white animate-spin" />
