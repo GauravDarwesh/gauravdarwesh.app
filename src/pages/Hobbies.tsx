@@ -31,8 +31,8 @@ const Portfolio = () => {
         Gaurav Darwesh
       </h1>
     </div>
-  </div>
-</div>
+    </div>
+
         <div>
           <div className="flex flex-wrap gap-4 text-white mt-2">
             <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
