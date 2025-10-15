@@ -9,6 +9,7 @@ const Index = () => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [showLoading, setShowLoading] = useState(true);
 
   useEffect(() => {
     if (!(window as any).__indexAnimationPlayed) {
@@ -45,7 +46,13 @@ const Index = () => {
     };
   }, [imageLoaded, isReady]);
 
-  const showLoading = loadingProgress < 100;
+  useEffect(() => {
+    if (loadingProgress === 100) {
+      // Keep the bar visible at 100% for a moment before hiding
+      const hideTimeout = setTimeout(() => setShowLoading(false), 500);
+      return () => clearTimeout(hideTimeout);
+    }
+  }, [loadingProgress]);
 
   return (
     <div
@@ -64,7 +71,7 @@ const Index = () => {
       )}
 
       {/* Background */}
-      <div className="fixed inset-0 z-0">
+      <div className={`fixed inset-0 z-0 transition-all duration-500 ${showLoading ? 'blur-md' : 'blur-0'}`}>
         <img
           src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt="background"
@@ -74,12 +81,12 @@ const Index = () => {
       </div>
 
       {/* Navigation Toggle */}
-      <div className="relative z-20">
+      <div className={`relative z-20 transition-all duration-500 ${showLoading ? 'blur-md' : 'blur-0'}`}>
         <NavigationToggle />
       </div>
 
       {/* Search Bar */}
-      <div className="fixed top-6 inset-x-0 flex justify-center z-10">
+      <div className={`fixed top-6 inset-x-0 flex justify-center z-10 transition-all duration-500 ${showLoading ? 'blur-md' : 'blur-0'}`}>
         <SearchBar />
       </div>
     </div>
