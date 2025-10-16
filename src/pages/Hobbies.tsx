@@ -20,18 +20,24 @@ const Portfolio = () => {
         <div className="relative w-full mb-8 overflow-hidden">
           {/* Accessible single H1 for SEO */}
           <h1 className="sr-only">Hobbies – Gaurav Darwesh</h1>
-          {/* Seamless marquee: duplicate content inside a single animated track */}
-          <div className="flex animate-marquee">
-            {/* Group 1 */}
-            <h2 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h2>
-            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
-            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
-            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
-            {/* Group 2 (duplicate for seamless loop) */}
-            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
-            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
-            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
-            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
+          {/* Seamless marquee: two identical groups inside a single animated track */}
+          <div className="overflow-hidden marquee-fade-edges">
+            <div className="animate-marquee flex items-center">
+              {/* Group A */}
+              <div className="flex items-center shrink-0">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+              </div>
+              {/* Group B (duplicate) */}
+              <div className="flex items-center shrink-0" aria-hidden="true">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">Gaurav Darwesh</span>
+              </div>
+            </div>
           </div>
         </div>
 
