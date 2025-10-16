@@ -19,9 +19,11 @@ const Portfolio = () => {
         {/* Header */}
         <div className="relative w-full mb-8 overflow-hidden">
           {/* Scrolling marquee text */}
-          <div className="animate-marquee whitespace-nowrap">
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold inline-block px-4">Gaurav Darwesh</h1>
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold inline-block px-4">Gaurav Darwesh</h1>
+          <div className="flex animate-marquee-scroll">
+            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
+            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
+            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
+            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
           </div>
         </div>
 
