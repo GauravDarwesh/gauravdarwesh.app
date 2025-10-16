@@ -18,12 +18,20 @@ const Portfolio = () => {
       <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
         {/* Header */}
         <div className="relative w-full mb-8 overflow-hidden">
-          {/* Scrolling marquee text */}
-          <div className="flex animate-marquee-scroll">
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h1>
+          {/* Accessible single H1 for SEO */}
+          <h1 className="sr-only">Hobbies – Gaurav Darwesh</h1>
+          {/* Seamless marquee: duplicate content inside a single animated track */}
+          <div className="flex animate-marquee">
+            {/* Group 1 */}
+            <h2 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4">Gaurav Darwesh</h2>
+            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
+            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
+            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
+            {/* Group 2 (duplicate for seamless loop) */}
+            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
+            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
+            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
+            <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-4" aria-hidden="true">Gaurav Darwesh</span>
           </div>
         </div>
 

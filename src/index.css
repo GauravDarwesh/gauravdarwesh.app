@@ -186,10 +186,7 @@ html {
   }
 }
 
-.animate-marquee {
-  animation: marquee-scroll 8s linear infinite;
-  white-space: nowrap;
-}
+/* consolidated .animate-marquee definition lives below */
 
 /* Tailwind-safe helper class name */
 .animate-slowFadeIn {
@@ -263,5 +260,6 @@ html {
 .animate-marquee {
   display: flex;
   width: max-content;
-  animation: marquee 8s linear infinite;
+  animation: marquee 18s linear infinite;
+  will-change: transform;
 }
