@@ -13,6 +13,23 @@ const isSafari = typeof navigator !== 'undefined'
 const ResponseRenderer = ({ response, className = "" }: ResponseRendererProps) => {
   const parsed = parseResponseLinks(response);
 
+  // Convert markdown formatting in text
+  const formatText = (text: string) => {
+    let formatted = text;
+    
+    // Bold: **text** or __text__
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/__(.*?)__/g, '<strong>$1</strong>');
+    
+    // Italic: *text* or _text_ (but not within URLs or already processed)
+    formatted = formatted.replace(/(?<!\*)\*(?!\*)([^\*]+)\*(?!\*)/g, '<em>$1</em>');
+    formatted = formatted.replace(/(?<!_)_(?!_)([^_]+)_(?!_)/g, '<em>$1</em>');
+    
+    // Inline code: `code`
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code bg-white/5 px-1 py-0.5 rounded text-sm font-mono">$1</code>');
+    
+    return formatted;
+  };
 
   // Handler for Safari warning on problematic links
   const handleLinkClick = (url: string, e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -34,9 +51,11 @@ const ResponseRenderer = ({ response, className = "" }: ResponseRendererProps) =
       {parsed.parts.map((part, index) => {
         if (part.type === 'text') {
           return (
-            <span key={index} className="whitespace-pre-wrap">
-              {part.content}
-            </span>
+            <span 
+              key={index} 
+              className="whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ __html: formatText(part.content) }}
+            />
           );
         }
 
