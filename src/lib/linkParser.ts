@@ -15,16 +15,53 @@ export interface ParsedResponse {
 }
 
 export function parseResponseLinks(response: string): ParsedResponse {
-  // Regex to match markdown-style links: [text](url)
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
   const parts: ParsedResponse['parts'] = [];
+  
+  // Combined regex to match both markdown links and plain URLs
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const plainUrlRegex = /https?:\/\/[^\s<]+[^\s<.,;:!?'")\]]/g;
+  
   let lastIndex = 0;
+  const allMatches: Array<{ type: 'markdown' | 'plain'; match: RegExpExecArray; index: number }> = [];
+  
+  // Find all markdown links
   let match;
-
-  while ((match = linkRegex.exec(response)) !== null) {
+  while ((match = markdownLinkRegex.exec(response)) !== null) {
+    allMatches.push({ type: 'markdown', match, index: match.index });
+  }
+  
+  // Find all plain URLs
+  while ((match = plainUrlRegex.exec(response)) !== null) {
+    allMatches.push({ type: 'plain', match, index: match.index });
+  }
+  
+  // Sort matches by position
+  allMatches.sort((a, b) => a.index - b.index);
+  
+  // Remove overlapping matches (markdown takes precedence)
+  const filteredMatches = [];
+  for (let i = 0; i < allMatches.length; i++) {
+    const current = allMatches[i];
+    const next = allMatches[i + 1];
+    
+    if (!next || current.index + current.match[0].length <= next.index) {
+      filteredMatches.push(current);
+    } else if (current.type === 'markdown') {
+      filteredMatches.push(current);
+      // Skip the next match if it overlaps
+      if (next && next.index < current.index + current.match[0].length) {
+        i++;
+      }
+    }
+  }
+  
+  // Build parts array
+  filteredMatches.forEach((item) => {
+    const { type, match, index } = item;
+    
     // Add text before the link
-    if (match.index > lastIndex) {
-      const textBefore = response.slice(lastIndex, match.index);
+    if (index > lastIndex) {
+      const textBefore = response.slice(lastIndex, index);
       if (textBefore.trim()) {
         parts.push({
           type: 'text',
@@ -32,21 +69,34 @@ export function parseResponseLinks(response: string): ParsedResponse {
         });
       }
     }
-
+    
     // Add the link
-    parts.push({
-      type: 'link',
-      content: match[0], // The full match
-      linkData: {
-        text: match[1],
-        url: match[2],
-        index: match.index
-      }
-    });
-
-    lastIndex = linkRegex.lastIndex;
-  }
-
+    if (type === 'markdown') {
+      parts.push({
+        type: 'link',
+        content: match[0],
+        linkData: {
+          text: match[1],
+          url: match[2],
+          index: index
+        }
+      });
+    } else {
+      // Plain URL
+      parts.push({
+        type: 'link',
+        content: match[0],
+        linkData: {
+          text: match[0],
+          url: match[0],
+          index: index
+        }
+      });
+    }
+    
+    lastIndex = index + match[0].length;
+  });
+  
   // Add remaining text after the last link
   if (lastIndex < response.length) {
     const remainingText = response.slice(lastIndex);
@@ -57,7 +107,7 @@ export function parseResponseLinks(response: string): ParsedResponse {
       });
     }
   }
-
+  
   // If no links found, return the entire response as text
   if (parts.length === 0) {
     parts.push({
@@ -65,6 +115,6 @@ export function parseResponseLinks(response: string): ParsedResponse {
       content: response
     });
   }
-
+  
   return { parts };
 }
