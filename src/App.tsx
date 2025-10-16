@@ -16,16 +16,6 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      {/* Persistent background to prevent flicker between routes */}
-      <div className="fixed inset-0 -z-10 pointer-events-none">
-        <img
-          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
-          alt="abstract orange gradient background"
-          className="w-full h-full object-cover"
-          decoding="async"
-          loading="eager"
-        />
-      </div>
       <Toaster />
       <Sonner />
       <BrowserRouter>
