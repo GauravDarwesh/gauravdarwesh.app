@@ -21,9 +21,7 @@ const Portfolio = () => {
           {/* Scrolling marquee text */}
           <div className="animate-marquee whitespace-nowrap">
             <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold inline-block px-4">Gaurav Darwesh</h1>
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold inline-block px-4">
-              Gaurav Darwesh Gaurav Darwesh
-            </h1>
+            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold inline-block px-4">Gaurav Darwesh</h1>
           </div>
         </div>
 
