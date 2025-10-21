@@ -566,13 +566,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           {/* ── Assistant response ── */}
           <div
             className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
+              (response || isLoading) ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing ? "0px" : response ? "384px" : "0px",
+              maxHeight: isCollapsing ? "0px" : (response || isLoading) ? "384px" : "0px",
               transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
+            {!response && isLoading && (
+              <div className="text-foreground/80 text-sm leading-relaxed px-4">
+                <div className="h-[300px] rounded-md bg-white/10 animate-pulse" />
+              </div>
+            )}
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
