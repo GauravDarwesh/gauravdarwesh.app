@@ -44,12 +44,16 @@ const convertMarkdownToHtml = (text: string): string => {
       },
     ];
 
-    rules.forEach((rule) => {
-      str = str.replace(
-        rule.pattern as RegExp,
-        rule.replacement as string | ((match: string, ...args: string[]) => string),
-      );
-    });
+    for (const rule of rules) {
+      if (typeof rule.replacement === "function") {
+        // Narrow to function overload of String.replace when using a RegExp
+        const replacer = rule.replacement as (substring: string, ...args: any[]) => string;
+        str = str.replace(rule.pattern, replacer);
+      } else {
+        // Use simple string replacement
+        str = str.replace(rule.pattern, rule.replacement);
+      }
+    }
 
     return str;
   };
