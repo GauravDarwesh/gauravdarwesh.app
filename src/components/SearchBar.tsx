@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
-import ResponseRenderer from "@/components/ResponseRenderer";
+// ResponseRenderer removed - using convertMarkdownToHtml instead
 
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
@@ -563,9 +563,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
                   maxHeight: "300px",
                 }}
-              >
-                <ResponseRenderer response={response} />
-              </div>
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+              />
             )}
           </div>
 
