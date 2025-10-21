@@ -194,37 +194,46 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const inputRef = useRef<HTMLInputElement>(null); // 🔹 Ref for input focus
 
   /* ----- type-writer configuration ----- */
-  const rotatingSuggestions = [
-    "✨ Tell me about Gaurav's Experience",
-    "✨ What is Gaurav's Education?",
-    "✨ What are Gaurav's Skills?",
-    "✨ Can you share Gaurav's Recommendations?",
-    "✨ Show me Gaurav's Achievements",
-    "✨ List Gaurav's Certifications",
-    "✨ What Projects has Gaurav done?",
-    "✨ Does Gaurav have any Hobbies?",
-    "✨ How to Contact Gaurav?",
-    "✨ What roles has Gaurav worked in?",
-    "✨ Can you share Gaurav's Career Highlights?",
-    "✨ What is Gaurav passionate about?",
-    "✨ Which Companies has Gaurav worked at?",
-    "✨ What is Gaurav's Current Role?",
-    "✨ Can you share Gaurav's Career Timeline?",
-    "✨ What Technologies does Gaurav use?",
-    "✨ Who has Gaurav collaborated with?",
-    "✨ What are Gaurav's Strengths?",
-    "✨ What are Gaurav's Future Goals?",
-    "✨ What Languages does Gaurav know?",
-    "✨ Has Gaurav contributed to Open Source?",
-    "✨ What Awards has Gaurav received?",
-    "✨ Has Gaurav done any Volunteering?",
-    "✨ Can you share Gaurav's Leadership Experience?",
-    "✨ What Publications has Gaurav written?",
-    "✨ What Conferences has Gaurav attended?",
-    "✨ Has Gaurav delivered any Talks?",
-    "✨ What is Gaurav’s Work Philosophy?",
-    "✨ Can you share a Fun Fact about Gaurav?",
-  ];
+  const rotatingSuggestions = useMemo(() => {
+    const suggestions = [
+      "✨ Tell me about Gaurav's Experience",
+      "✨ What is Gaurav's Education?",
+      "✨ What are Gaurav's Skills?",
+      "✨ Can you share Gaurav's Recommendations?",
+      "✨ Show me Gaurav's Achievements",
+      "✨ List Gaurav's Certifications",
+      "✨ What Projects has Gaurav done?",
+      "✨ Does Gaurav have any Hobbies?",
+      "✨ How to Contact Gaurav?",
+      "✨ What roles has Gaurav worked in?",
+      "✨ Can you share Gaurav's Career Highlights?",
+      "✨ What is Gaurav passionate about?",
+      "✨ Which Companies has Gaurav worked at?",
+      "✨ What is Gaurav's Current Role?",
+      "✨ Can you share Gaurav's Career Timeline?",
+      "✨ What Technologies does Gaurav use?",
+      "✨ Who has Gaurav collaborated with?",
+      "✨ What are Gaurav's Strengths?",
+      "✨ What are Gaurav's Future Goals?",
+      "✨ What Languages does Gaurav know?",
+      "✨ Has Gaurav contributed to Open Source?",
+      "✨ What Awards has Gaurav received?",
+      "✨ Has Gaurav done any Volunteering?",
+      "✨ Can you share Gaurav's Leadership Experience?",
+      "✨ What Publications has Gaurav written?",
+      "✨ What Conferences has Gaurav attended?",
+      "✨ Has Gaurav delivered any Talks?",
+      "✨ What is Gaurav's Work Philosophy?",
+      "✨ Can you share a Fun Fact about Gaurav?",
+    ];
+    // Shuffle using Fisher-Yates algorithm
+    const shuffled = [...suggestions];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, []);
 
   /* ----- 4️⃣ Activity tracking with debouncing ----- */
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
