@@ -406,21 +406,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowTypewriter(false);
     if (!customQuery) setQuery("");
 
-    // Smoothly clear response after loading starts
-    setTimeout(() => {
-      setResponse(null);
-    }, 100);
-
     try {
       const result = await sendChatMessage(text);
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
+      
+      // Clear old response before setting new one for smooth transition
+      setResponse(null);
+      setSuggestions([]);
+      
+      // Small delay to allow collapse animation
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
       setResponse(String(answer));
       setSuggestions(suggs);
       setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
+      setResponse(null);
+      setSuggestions([]);
+      await new Promise(resolve => setTimeout(resolve, 400));
       setResponse(msg);
       setSuggestions([]);
       setIsRestoredFromStorage(false); // Mark as fresh content
