@@ -92,12 +92,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const loadPersistedState = useCallback(() => {
     try {
       // Detect if this is a page refresh vs route navigation
+      // Check performance navigation type for page refresh
       const isPageRefresh =
         (window.performance as any)?.navigation?.type === 1 ||
         (window.performance?.getEntriesByType("navigation")?.[0] as any)?.type === "reload";
 
       if (isPageRefresh) {
-        // Page refresh - clear any persisted state
+        // Page refresh - clear any persisted state and return to normal
         localStorage.removeItem(STORAGE_KEY);
         return {
           response: null,
@@ -168,6 +169,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
   const [isCollapsing, setIsCollapsing] = useState(false);
+  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
 
   /* ----- Save state changes to localStorage ----- */
   useEffect(() => {
@@ -403,11 +405,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
       setSuggestions(suggs);
+      setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
+      setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
@@ -454,7 +458,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           el.closest('button[aria-label*="Close modal"]'));
 
       if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 1400;
+        const COLLAPSE_MS = 1400; // Slower, matching container and content transitions for calm collapse
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
         window.setTimeout(() => {
@@ -519,7 +523,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
             transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded ? "600ms" : "0ms",
+            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
           }}
         >
           {/* ── Suggestion list (with fade) ── */}
@@ -548,15 +552,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }`}
             style={{
               maxHeight: isCollapsing ? "0px" : response ? "384px" : "0px",
-              transitionDelay: response && !isCollapsing ? "900ms" : "0ms",
+              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: "1000ms",
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
                   maxHeight: "300px",
                 }}
               >
