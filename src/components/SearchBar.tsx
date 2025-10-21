@@ -91,14 +91,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Load persisted state ----- */
   const loadPersistedState = useCallback(() => {
     try {
-      // Detect if this is a page refresh vs route navigation
-      // Check performance navigation type for page refresh
-      const isPageRefresh =
-        (window.performance as any)?.navigation?.type === 1 ||
-        (window.performance?.getEntriesByType("navigation")?.[0] as any)?.type === "reload";
+      // Detect page refresh using performance API
+      const perfNav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      const isPageRefresh = perfNav?.type === 'reload';
 
       if (isPageRefresh) {
-        // Page refresh - clear any persisted state and return to normal
+        // Clear localStorage on page refresh
         localStorage.removeItem(STORAGE_KEY);
         return {
           response: null,
@@ -109,7 +107,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         };
       }
 
-      // Route navigation - load persisted state
+      // Load persisted state on route navigation
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
