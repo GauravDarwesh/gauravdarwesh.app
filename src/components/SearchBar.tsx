@@ -49,10 +49,11 @@ const convertMarkdownToHtml = (text: string): string => {
     ];
 
     rules.forEach((rule) => {
-      str = str.replace(
-        rule.pattern as RegExp,
-        rule.replacement as string | ((match: string, ...args: string[]) => string),
-      );
+      if (typeof rule.replacement === 'function') {
+        str = str.replace(rule.pattern as RegExp, rule.replacement);
+      } else {
+        str = str.replace(rule.pattern as RegExp, rule.replacement);
+      }
     });
 
     return str;
