@@ -394,7 +394,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null);
+    // Don't clear response immediately - let it stay visible during loading for smooth transition
     setHasInteracted(true);
     setShowTypewriter(false);
     if (!customQuery) setQuery("");
