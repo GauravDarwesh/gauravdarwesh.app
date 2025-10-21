@@ -85,21 +85,110 @@ interface SearchBarProps {
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  /* ----- UI state (no localStorage persistence for privacy) ----- */
+  /* ----- Persistent state keys ----- */
+  const STORAGE_KEY = "searchbar_state";
+
+  /* ----- Load persisted state ----- */
+  const loadPersistedState = useCallback(() => {
+    try {
+      // Detect if this is a page refresh vs route navigation
+      const isPageRefresh =
+        (window.performance as any)?.navigation?.type === 1 ||
+        (window.performance?.getEntriesByType("navigation")?.[0] as any)?.type === "reload";
+
+      if (isPageRefresh) {
+        // Page refresh - clear any persisted state
+        localStorage.removeItem(STORAGE_KEY);
+        return {
+          response: null,
+          suggestions: [],
+          hasInteracted: false,
+          showExpandedSuggestions: false,
+          lastActivityTime: Date.now(),
+        };
+      }
+
+      // Route navigation - load persisted state
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          response: parsed.response || null,
+          suggestions: parsed.suggestions || [],
+          hasInteracted: parsed.hasInteracted || false,
+          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
+          lastActivityTime: parsed.lastActivityTime || Date.now(),
+        };
+      }
+    } catch (error) {
+      console.warn("Failed to load persisted search state:", error);
+    }
+    return {
+      response: null,
+      suggestions: [],
+      hasInteracted: false,
+      showExpandedSuggestions: false,
+      lastActivityTime: Date.now(),
+    };
+  }, []);
+
+  /* ----- Save state to localStorage ----- */
+  const saveState = useCallback(
+    (state: {
+      response: string | null;
+      suggestions: string[];
+      hasInteracted: boolean;
+      showExpandedSuggestions: boolean;
+      lastActivityTime: number;
+    }) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (error) {
+        console.warn("Failed to save search state:", error);
+      }
+    },
+    [],
+  );
+
+  /* ----- Initialize with persisted state ----- */
+  const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
+
+  /* ----- UI state ----- */
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [response, setResponse] = useState<string | null>(persistedState.response);
+  const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
 
   const [showTypewriter, setShowTypewriter] = useState(false);
   const [typewriterText, setTypewriterText] = useState("");
   const [fullText, setFullText] = useState("");
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
+  const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
+  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
   const [isCollapsing, setIsCollapsing] = useState(false);
+
+  /* ----- Save state changes to localStorage ----- */
+  useEffect(() => {
+    const stateToSave = {
+      response,
+      suggestions,
+      hasInteracted,
+      showExpandedSuggestions,
+      lastActivityTime,
+    };
+    saveState(stateToSave);
+  }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime, saveState]);
+
+  /* ----- Clear persisted state when manually reset ----- */
+  const clearPersistedState = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn("Failed to clear persisted search state:", error);
+    }
+  }, []);
 
   const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
   const inputRef = useRef<HTMLInputElement>(null); // 🔹 Ref for input focus
@@ -365,20 +454,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           el.closest('button[aria-label*="Close modal"]'));
 
       if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 1400; // Slower, matching container and content transitions for calm collapse
+        const COLLAPSE_MS = 1400;
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
         window.setTimeout(() => {
           setResponse(null);
           setSuggestions([]);
           setIsCollapsing(false);
+          clearPersistedState();
         }, COLLAPSE_MS);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [response, suggestions]);
+  }, [response, suggestions, clearPersistedState]);
 
   /* ----- 🔟 Layout calculations (memoized for performance) ----- */
   const layoutValues = useMemo(() => {
