@@ -402,10 +402,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    setResponse(null);
     setHasInteracted(true);
     setShowTypewriter(false);
     if (!customQuery) setQuery("");
+
+    // Smoothly clear response after loading starts
+    setTimeout(() => {
+      setResponse(null);
+    }, 100);
 
     try {
       const result = await sendChatMessage(text);
