@@ -394,7 +394,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setIsLoading(true);
-    // Don't clear response immediately - let it stay visible during loading for smooth transition
+    // Clear response and suggestions smoothly for collapse effect during thinking
+    setResponse(null);
+    setSuggestions([]);
     setHasInteracted(true);
     setShowTypewriter(false);
     if (!customQuery) setQuery("");
