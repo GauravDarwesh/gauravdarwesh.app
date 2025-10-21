@@ -1,618 +1,178 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
-// import ResponseRenderer from "@/components/ResponseRenderer"; // ❌ Removed: Replaced with new HTML parser
 
-/* ---------- 1️⃣ MARKDOWN → HTML (IMPROVED) ---------- */
-
-// 🔹 Helper from inspiration code
+// Function to get shortened link text based on domain
 const getShortenedLinkText = (url: string): string => {
   try {
     const domain = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace("www.", "");
+
     const domainMap: { [key: string]: string } = {
       "linkedin.com": "LinkedIn",
       "twitter.com": "Twitter",
       "x.com": "Twitter",
+      "facebook.com": "Facebook",
+      "instagram.com": "Instagram",
+      "youtube.com": "YouTube",
       "github.com": "GitHub",
+      "google.com": "Google",
+      "microsoft.com": "Microsoft",
+      "apple.com": "Apple",
+      "amazon.com": "Amazon",
+      "netflix.com": "Netflix",
     };
-    if (domainMap[domain]) return domainMap[domain];
+
+    if (domainMap[domain]) {
+      return domainMap[domain];
+    }
+
     const parts = domain.split(".");
     return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
   } catch {
-    return "Link"; // Fallback
+    return "Link";
   }
 };
 
+// Convert markdown to clean HTML with clickable links
 const convertMarkdownToHtml = (text: string): string => {
-  // 🔹 processInline helper from your original code (updated link rule)
-  const processInline = (str: string): string => {
-    const rules = [
-      { pattern: /\*\*(.*?)\*\*/g, replacement: "<strong>$1</strong>" }, // Bold
-      { pattern: /\*(.*?)\*/g, replacement: "<em>$1</em>" }, // Italic
-      {
-        pattern: /`([^`]+)`/g,
-        replacement: '<code class="inline-code">$1</code>',
-      }, // Code
-      {
-        // 🔹 Updated Link Rule (using getShortenedLinkText)
-        pattern: /\[([^\]]+)\]\(([^)]+)\)/g,
-        replacement: (match: string, text: string, url: string) => {
-          const linkText = text.toLowerCase() === "link" ? getShortenedLinkText(url) : text;
-          const icon = `<svg class="w-3 h-3 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>`;
-          return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}${icon}</a>`;
-        },
-      },
-    ];
+  let html = text;
 
-    rules.forEach((rule) => {
-      if (typeof rule.replacement === 'function') {
-        str = str.replace(rule.pattern as RegExp, rule.replacement);
-      } else {
-        str = str.replace(rule.pattern as RegExp, rule.replacement);
-      }
-    });
+  html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
 
-    return str;
-  };
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
+  html = html.replace(urlRegex, (match) => {
+    const url = match.startsWith("http") ? match : `https://${match}`;
+    const linkText = getShortenedLinkText(match);
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+  });
 
-  // 🔹 Improved block-level processing (inspired by Component 2's list logic)
-  const lines = text.split("\n");
-  let html = "";
+  const lines = html.split("\n");
   let inList = false;
+  const processedLines: string[] = [];
 
-  for (const line of lines) {
-    const trimmedLine = line.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const bulletMatch = line.match(/^\s*\*\s+(.+)$/);
 
-    // Check for list items
-    if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+    if (bulletMatch) {
       if (!inList) {
-        html += '<ul class="list-disc pl-5 space-y-1 my-2">';
+        processedLines.push('<ul class="list-disc pl-5 space-y-1 my-2">');
         inList = true;
       }
-      // Process inline markdown *within* the list item
-      html += `<li class="list-disc list-inside">${processInline(trimmedLine.slice(2))}</li>`;
-    }
-    // Check for headers
-    else if (trimmedLine.startsWith("### ")) {
+      processedLines.push(`<li class="list-disc list-inside">${bulletMatch[1]}</li>`);
+    } else {
       if (inList) {
-        html += "</ul>";
+        processedLines.push("</ul>");
         inList = false;
       }
-      html += `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(trimmedLine.slice(4))}</h3>`;
-    } else if (trimmedLine.startsWith("## ")) {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
-      }
-      html += `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(trimmedLine.slice(3))}</h2>`;
-    } else if (trimmedLine.startsWith("# ")) {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
-      }
-      html += `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(trimmedLine.slice(2))}</h2>`;
-    }
-    // Handle paragraphs and blank lines
-    else {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
-      }
-      if (trimmedLine === "") {
-        html += "<br>";
-      } else {
-        html += `<p class="mb-2">${processInline(trimmedLine)}</p>`;
-      }
+      processedLines.push(line);
     }
   }
 
-  // Close any open list
   if (inList) {
-    html += "</ul>";
+    processedLines.push("</ul>");
   }
 
-  return html;
+  return processedLines.join("\n");
 };
 
-/* ---------- 2️⃣ Fade helper (unchanged) ---------- */
-function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
-  const [visible, setVisible] = useState(show);
-  useEffect(() => {
-    if (show) setVisible(true);
-    else {
-      const t = setTimeout(() => setVisible(false), duration);
-      return () => clearTimeout(t);
-    }
-  }, [show, duration]);
-
-  if (!visible && !show) return null;
-  return (
-    <div
-      className={`transition-opacity ${show ? "opacity-100" : "opacity-0"}`}
-      style={{ transitionDuration: `${duration}ms` }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/* ---------- 3️⃣ SearchBar component ---------- */
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  /* ----- Persistent state keys ----- */
-  const STORAGE_KEY = "searchbar_state";
-
-  /* ----- Load persisted state ----- */
-  const loadPersistedState = useCallback(() => {
-    try {
-      // Detect page refresh using performance API
-      const perfNav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;
-      const isPageRefresh = perfNav?.type === "reload";
-
-      if (isPageRefresh) {
-        // Clear localStorage on page refresh
-        localStorage.removeItem(STORAGE_KEY);
-        return {
-          response: null,
-          suggestions: [],
-          hasInteracted: false,
-          showExpandedSuggestions: false,
-          lastActivityTime: Date.now(),
-        };
-      }
-
-      // Load persisted state on route navigation
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          response: parsed.response || null,
-          suggestions: parsed.suggestions || [],
-          hasInteracted: parsed.hasInteracted || false,
-          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
-          lastActivityTime: parsed.lastActivityTime || Date.now(),
-        };
-      }
-    } catch (error) {
-      console.warn("Failed to load persisted search state:", error);
-    }
-    return {
-      response: null,
-      suggestions: [],
-      hasInteracted: false,
-      showExpandedSuggestions: false,
-      lastActivityTime: Date.now(),
-    };
-  }, []);
-
-  /* ----- Save state to localStorage ----- */
-  const saveState = useCallback(
-    (state: {
-      response: string | null;
-      suggestions: string[];
-      hasInteracted: boolean;
-      showExpandedSuggestions: boolean;
-      lastActivityTime: number;
-    }) => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (error) {
-        console.warn("Failed to save search state:", error);
-      }
-    },
-    [],
-  );
-
-  /* ----- Initialize with persisted state ----- */
-  const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
-
-  /* ----- UI state ----- */
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(persistedState.response);
-  const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
-
-  const [showTypewriter, setShowTypewriter] = useState(false);
-  const [typewriterText, setTypewriterText] = useState("");
-  const [fullText, setFullText] = useState("");
-  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
-  const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
-  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
-  const [isCollapsing, setIsCollapsing] = useState(false);
-  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
-
-  /* ----- Save state changes to localStorage ----- */
-  useEffect(() => {
-    const stateToSave = {
-      response,
-      suggestions,
-      hasInteracted,
-      showExpandedSuggestions,
-      lastActivityTime,
-    };
-    saveState(stateToSave);
-  }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime, saveState]);
-
-  /* ----- Clear persisted state when manually reset ----- */
-  const clearPersistedState = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.warn("Failed to clear persisted search state:", error);
-    }
-  }, []);
-
-  const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
-  const inputRef = useRef<HTMLInputElement>(null); // 🔹 Ref for input focus
-
-  /* ----- type-writer configuration ----- */
-  const rotatingSuggestions = useMemo(() => {
-    const suggestions = [
-      "✨ Tell me about Gaurav's Experience",
-      "✨ What is Gaurav's Education?",
-      "✨ What are Gaurav's Skills?",
-      "✨ Can you share Gaurav's Recommendations?",
-      "✨ Show me Gaurav's Achievements",
-      "✨ List Gaurav's Certifications",
-      "✨ What Projects has Gaurav done?",
-      "✨ Does Gaurav have any Hobbies?",
-      "✨ How to Contact Gaurav?",
-      "✨ What roles has Gaurav worked in?",
-      "✨ Can you share Gaurav's Career Highlights?",
-      "✨ What is Gaurav passionate about?",
-      "✨ Which Companies has Gaurav worked at?",
-      "✨ What is Gaurav's Current Role?",
-      "✨ Can you share Gaurav's Career Timeline?",
-      "✨ What Technologies does Gaurav use?",
-      "✨ Who has Gaurav collaborated with?",
-      "✨ What are Gaurav's Strengths?",
-      "✨ What are Gaurav's Future Goals?",
-      "✨ What Languages does Gaurav know?",
-      "✨ Has Gaurav contributed to Open Source?",
-      "✨ What Awards has Gaurav received?",
-      "✨ Has Gaurav done any Volunteering?",
-      "✨ Can you share Gaurav's Leadership Experience?",
-      "✨ What Publications has Gaurav written?",
-      "✨ What Conferences has Gaurav attended?",
-      "✨ Has Gaurav delivered any Talks?",
-      "✨ What is Gaurav's Work Philosophy?",
-      "✨ Can you share a Fun Fact about Gaurav?",
-    ];
-
-    // Fisher-Yates shuffle
-    const shuffled = [...suggestions];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }, []);
-
-  /* ----- 4️⃣ Activity tracking with debouncing ----- */
-  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
-
-  const debouncedSetActivity = useCallback(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    debounceTimeoutRef.current = setTimeout(() => {
-      setLastActivityTime(Date.now());
-    }, 100); // Debounce mouse movements to reduce frequent updates
-  }, []);
+  const [response, setResponse] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showIntroBubble, setShowIntroBubble] = useState(false);
 
   useEffect(() => {
-    const handleActivity = () => {
-      // For critical events like clicks, update immediately
-      if (event?.type === "click" || event?.type === "keypress") {
-        setLastActivityTime(Date.now());
-      } else {
-        // For mouse movements, use debounced version
-        debouncedSetActivity();
-      }
-    };
-
-    const handleMouseMove = debouncedSetActivity;
-    const handleImmediate = () => setLastActivityTime(Date.now());
-
-    // Use debounced handler for mousemove only
-    window.addEventListener("mousemove", handleMouseMove);
-    ["keypress", "click", "scroll"].forEach((e) => window.addEventListener(e, handleImmediate));
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      ["keypress", "click", "scroll"].forEach((e) => window.removeEventListener(e, handleImmediate));
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, [debouncedSetActivity]);
-
-  /* ----- 5️⃣ Auto-submit intro for first-time users ----- */
-  useEffect(() => {
-    const FIRST_VISIT_KEY = "gd_ai_first_visit";
-    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
-
-    if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
-      // Mark as visited immediately to prevent multiple submissions
-      localStorage.setItem(FIRST_VISIT_KEY, "true");
-
-      // Auto-submit the intro message after a short delay
+    // Track visits with localStorage
+    const visitCount = parseInt(localStorage.getItem("introBubbleVisits") || "0", 10);
+    if (visitCount < 3) {
       const timer = setTimeout(() => {
-        handleSubmit(undefined, "introduce the website to the new user");
-      }, 1500);
-
+        setShowIntroBubble(true);
+      }, 3000); // delay 3s before showing
+      localStorage.setItem("introBubbleVisits", String(visitCount + 1));
       return () => clearTimeout(timer);
     }
-  }, []); // Run only once on mount
-
-  /* ----- 6️⃣ Show typewriter after delay ----- */
-  useEffect(() => {
-    // Don't show typewriter if we have persisted content
-    if (response || suggestions.length > 0) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      if (!hasInteracted) setShowTypewriter(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [hasInteracted, response, suggestions]);
-
-  /* ----- 6️⃣ Re-show typewriter after inactivity (optimized) - respect persisted state ----- */
-  useEffect(() => {
-    const idleTimer = setInterval(() => {
-      const idle = Date.now() - lastActivityTime;
-
-      // Don't show typewriter if we have persisted content
-      if (response || suggestions.length > 0) {
-        return;
-      }
-
-      if (idle > 10000 && hasInteracted && !isLoading) {
-        setShowTypewriter(true);
-      }
-    }, 2000); // Reduced frequency from 1000ms to 2000ms
-    return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions]);
-
-  /* Delay expanded suggestions until 10s inactivity (optimized) */
-  const shouldShowExpandedSuggestions = useMemo(() => {
-    const idle = Date.now() - lastActivityTime;
-    return (response || suggestions.length > 0) && !isLoading && idle > 10000;
-  }, [lastActivityTime, response, suggestions, isLoading]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const idle = Date.now() - lastActivityTime;
-      const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000;
-      setShowExpandedSuggestions(shouldShow);
-    }, 1000); // Reduced frequency from 500ms to 1000ms
-    return () => clearInterval(interval);
-  }, [lastActivityTime, response, suggestions, isLoading]);
-
-  /* ----- Keyboard shortcut to focus search bar ----- */
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only trigger on Shift key press
-      if (e.key === "Shift") {
-        // Check if user is not already focused on an input/textarea
-        const activeElement = document.activeElement as HTMLElement;
-        const isInputFocused =
-          activeElement &&
-          (activeElement.tagName === "INPUT" ||
-            activeElement.tagName === "TEXTAREA" ||
-            activeElement.contentEditable === "true");
-
-        // Focus search bar if not already focused on an input
-        if (!isInputFocused && inputRef.current) {
-          e.preventDefault();
-          inputRef.current.focus();
-          setShowTypewriter(false);
-          setHasInteracted(true);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  /* ----- 7️⃣ Typewriter effect ----- */
-  useEffect(() => {
-    if (!showTypewriter) return;
-
-    const typingSpeed = 40;
-    const deletingSpeed = 20;
-    const pauseBeforeDelete = 3000;
-    const pauseAfterDelete = 500;
-
-    let timeout: NodeJS.Timeout;
-
-    if (!isDeleting && typewriterText === fullText && fullText !== "") {
-      timeout = setTimeout(() => setIsDeleting(true), pauseBeforeDelete);
-    } else if (isDeleting && typewriterText === "") {
-      timeout = setTimeout(() => {
-        const next = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
-        setCurrentSuggestionIndex(next);
-        setFullText(rotatingSuggestions[next]);
-        setIsDeleting(false);
-      }, pauseAfterDelete);
-    } else if (isDeleting) {
-      timeout = setTimeout(() => setTypewriterText((p) => p.slice(0, -1)), deletingSpeed);
-    } else {
-      if (fullText === "") setFullText(rotatingSuggestions[currentSuggestionIndex]);
-      else timeout = setTimeout(() => setTypewriterText((p) => fullText.slice(0, p.length + 1)), typingSpeed);
-    }
-
-    return () => clearTimeout(timeout);
-  }, [typewriterText, isDeleting, fullText, currentSuggestionIndex, rotatingSuggestions, showTypewriter]);
-
-  /* ----- 8️⃣ Submit handler ----- */
-  const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
+  const handleSubmit = async (e?: React.FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
     setIsLoading(true);
-    setHasInteracted(true);
-    setShowTypewriter(false);
+    setResponse(null);
+
+    // Clear query only if it's user-typed, not a suggestion
     if (!customQuery) setQuery("");
 
     try {
       const result = await sendChatMessage(text);
-      const answer = (result as any)?.response ?? "";
+      const assistant = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
 
-      // Clear old response before setting new one for smooth transition
-      setResponse(null);
-      setSuggestions([]);
-
-      // Small delay to allow collapse animation
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      setResponse(String(answer));
+      setResponse(String(assistant));
       setSuggestions(suggs);
-      setIsRestoredFromStorage(false); // Mark as fresh content
-      onSearch?.(String(answer));
+      onSearch?.(String(assistant));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
-      setResponse(null);
-      setSuggestions([]);
-      await new Promise((resolve) => setTimeout(resolve, 400));
       setResponse(msg);
       setSuggestions([]);
-      setIsRestoredFromStorage(false); // Mark as fresh content
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  /* ----- 9️⃣ Interaction helpers (optimized with useCallback) ----- */
-  const handleSuggestionClick = useCallback((s: string) => {
+  const handleSuggestionClick = (s: string) => {
+    // When clicking bubble or suggestion → run query but keep box empty
     setQuery("");
-    setHasInteracted(true);
-    setShowTypewriter(false);
-    setShowExpandedSuggestions(false);
     handleSubmit(undefined, s);
-  }, []); // ❗ Fixed dependency array, was missing handleSubmit
+    setShowIntroBubble(false);
+  };
 
-  const handleInputFocus = useCallback(() => {
-    setShowTypewriter(false);
-    setShowExpandedSuggestions(false);
-    setHasInteracted(true);
-  }, []);
+  const dynamicWidth = Math.min(300 + query.length * 8, 700);
+  const isExpanded = suggestions.length > 0 || response;
+  const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
+  const targetRadius = isExpanded ? "16px" : "999px";
 
-  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
-    setHasInteracted(true);
-    setShowTypewriter(false);
-    setShowExpandedSuggestions(false);
-  }, []);
-
-  /* 🔹 Outside click handler to collapse smoothly (exclude navigation) */
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-
-      // Inside the search bar → ignore
-      if (searchBarRef.current && searchBarRef.current.contains(target)) return;
-
-      // Exclude navigation UI from collapsing
-      const el = target as Element;
-      const isNavigationClick =
-        !!el?.closest &&
-        (el.closest('[class*="fixed top-6"]') ||
-          el.closest('[class*="fixed bottom-6 right-6"]') ||
-          el.closest('button[aria-label*="Scroll to top"]') ||
-          el.closest('button[aria-label*="Close modal"]'));
-
-      if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 1400; // Slower, matching container and content transitions for calm collapse
-        setIsCollapsing(true);
-        setShowExpandedSuggestions(false);
-        window.setTimeout(() => {
-          setResponse(null);
-          setSuggestions([]);
-          setIsCollapsing(false);
-          clearPersistedState();
-        }, COLLAPSE_MS);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [response, suggestions, clearPersistedState]);
-
-  /* ----- 🔟 Layout calculations (memoized for performance) ----- */
-  const layoutValues = useMemo(() => {
-    const dynamicWidth = Math.min(300 + query.length * 8, 700);
-    const isExpanded = suggestions.length > 0 || response || isLoading;
-    const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
-    const targetRadius = isExpanded ? "16px" : "999px";
-
-    return { dynamicWidth, isExpanded, targetWidth, targetRadius };
-  }, [query.length, suggestions.length, response, isLoading]);
-
-  /* ----- 🔒 Render ----- */
   return (
-    <div
-      ref={searchBarRef}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
-    >
-      {/* ── Typewriter bubble (with fade) ── */}
-      <Fade show={showTypewriter} duration={800}>
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3">
+      {/* Intro Bubble (first 3 visits only, delayed) */}
+      {showIntroBubble && (
         <div
-          onClick={() => handleSuggestionClick(fullText)}
+          onClick={() => handleSuggestionClick("✨ What are these sections on the website?")}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
-          <span className="typewriter-text">
-            {typewriterText}
-            <span className="typewriter-cursor">|</span>
-          </span>
+          ✨ What are these sections on the website?
         </div>
-      </Fade>
+      )}
 
-      {/* ── Search bar container ── */}
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden ${
-          isLoading ? "thinking-container" : ""
-        }`}
+        className="mx-auto shadow-lg border border-white/20 bg-white/10 backdrop-blur-xl"
         style={{
-          width: layoutValues.targetWidth,
+          width: targetWidth,
           maxWidth: "90vw",
-          borderRadius: layoutValues.targetRadius,
-          transitionProperty: "width, border-radius, background-color, box-shadow",
-          transitionDuration: "800ms", // ✅ ANIMATION FIX: Was 1200ms
-          transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
-          transitionDelay: "0ms",
-          willChange: "width, border-radius",
+          borderRadius: targetRadius,
+          transition: "all 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
-          style={{
-            transitionDuration: "700ms", // ✅ ANIMATION FIX: Was 800ms
-            transitionDelay: "0ms", // ✅ ANIMATION FIX: Removed complex delay
-          }}
+          className={`transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${isExpanded ? "p-5 pt-6" : "p-2"}`}
         >
-          {/* ── Suggestion list (with fade) ── */}
-          <Fade
-            show={showExpandedSuggestions && suggestions.length > 0}
-            duration={500} // ✅ ANIMATION FIX: Was 800ms
-          >
+          {/* Suggestions */}
+          {suggestions.length > 0 && (
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.5s ease forwards" }} // ✅ ANIMATION FIX: Was 0.8s
+              style={{ animation: "fadeIn 0.4s ease forwards" }}
             >
               {suggestions.map((s, i) => (
                 <button
@@ -625,132 +185,79 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 </button>
               ))}
             </div>
-          </Fade>
+          )}
 
-          {/* ── Assistant response ── */}
+          {/* AI Response */}
           <div
             className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              // ✅ ANIMATION FIX: Was 1000ms
-              response || isLoading ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
+              response ? "opacity-100 mb-5" : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing ? "0px" : response || isLoading ? "384px" : "0px",
-              transitionDelay: response ? "300ms" : "0ms", // ✅ ANIMATION FIX: Was 900ms
+              maxHeight: response ? "384px" : "0px",
+              transitionDelay: response ? "300ms" : "0ms",
             }}
           >
-            {!response && isLoading && (
-              <div className="text-foreground/80 text-sm leading-relaxed px-4">
-                <div className="h-[300px] rounded-md bg-white/10 animate-pulse" />
-              </div>
-            )}
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both", // ✅ ANIMATION FIX: Was 800ms
-                  animationDelay: "0ms", // ✅ ANIMATION FIX: Was 1000ms (now handled by parent delay)
+                  animation: "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both",
                   maxHeight: "300px",
                 }}
-              >
-                {/* ✅ RENDERING FIX: Replaced ResponseRenderer with parser */}
-                <div dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }} />
-              </div>
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+              />
             )}
           </div>
 
-          {/* ── Input form ── */}
-          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3" onFocus={handleInputFocus}>
-            <div className="relative flex-1">
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder={isLoading ? "Thinking…" : "Ask anything…"}
-                value={query}
-                onChange={handleInputChange}
-                className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                                  text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                                    isLoading ? "thinking-placeholder" : ""
-                                  }`}
-                disabled={isLoading}
-                aria-label="Ask anything"
-              />
-            </div>
+          {/* Input */}
+          <form
+            onSubmit={(e) => handleSubmit(e)}
+            className="flex items-center gap-3"
+            onFocus={() => setShowIntroBubble(false)} // Hide bubble if search bar clicked
+          >
+            <Input
+              type="text"
+              placeholder={isLoading ? "Thinking…" : "Ask anything…"}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (showIntroBubble) setShowIntroBubble(false); // Hide bubble when typing
+              }}
+              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+                         text-foreground placeholder:text-muted-foreground text-base px-4 h-10"
+              disabled={isLoading}
+              aria-label="Ask anything"
+            />
             <Button
               type="submit"
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                                  ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
-              <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
+              <Search className="h-4 w-4" />
             </Button>
           </form>
         </div>
       </div>
 
-      {/* ── Shared CSS ── */}
       <style>{`
-        @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes delayedFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        .animate-fadeIn { animation: fadeIn 0.8s ease forwards; }
-        .animate-delayedFadeIn { animation: delayedFadeIn 1s ease forwards; animation-delay: 0.1s; }
-
-        .thinking-container{
-          border: 1px solid rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.05);
-          animation: glowPulse 2s infinite ease-in-out;
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes glowPulse {
-          0%, 100% { 
-            box-shadow: 0 0 5px rgba(255,255,255,0.1), inset 0 0 10px rgba(255,255,255,0.05);
-          }
-          50% { 
-            box-shadow: 0 0 20px rgba(255,255,255,0.3), inset 0 0 20px rgba(255,255,255,0.15);
-          }
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes textGlow {
-          0%, 100% { 
-            color: rgba(255,255,255,0.3);
-            text-shadow: 0 0 1px rgba(255,255,255,0.2);
-          }
-          50% { 
-            color: rgba(255,255,255,0.8);
-            text-shadow: 0 0 3px rgba(255,255,255,0.6);
-          }
+        @keyframes delayedFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .thinking-placeholder::placeholder{
-          color: rgba(255,255,255,0.6);
-          animation: textGlow 2s infinite ease-in-out;
-        }
-        .thinking-placeholder[disabled]{caret-color:transparent;}
-        .thinking-icon {
-          stroke: rgba(255,255,255,0.5);
-          filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: iconGlow 4s infinite ease-in-out;
-        }
-        @keyframes iconGlow {
-          0%, 100% { 
-            stroke: rgba(255,255,255,0.3);
-            filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
-          }
-          50% { 
-            stroke: rgba(255,255,255,0.8);
-            filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
-          }
-        }
-
-        /* ✅ RENDERING FIX: Styles for new parser */
-        .inline-code{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:.05rem .25rem;border-radius:4px;
-                      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
-                      font-size:.9em;}
-
-        /* Typewriter cursor */
-        @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
-        .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
-        .typewriter-text{display:inline-block;min-height:1.2em;}
+        .animate-fadeIn { animation: fadeIn 0.5s ease forwards; }
+        .animate-delayedFadeIn { animation: delayedFadeIn 0.8s ease forwards; animation-delay: 0.1s; }
       `}</style>
     </div>
   );
