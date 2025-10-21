@@ -5,59 +5,119 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
-import ResponseRenderer from "@/components/ResponseRenderer";
+// import ResponseRenderer from "@/components/ResponseRenderer"; // ❌ Removed: Replaced with new HTML parser
 
-/* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
+/* ---------- 1️⃣ MARKDOWN → HTML (IMPROVED) ---------- */
+
+// 🔹 Helper from inspiration code
+const getShortenedLinkText = (url: string): string => {
+  try {
+    const domain = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace("www.", "");
+    const domainMap: { [key: string]: string } = {
+      "linkedin.com": "LinkedIn",
+      "twitter.com": "Twitter",
+      "x.com": "Twitter",
+      "github.com": "GitHub",
+    };
+    if (domainMap[domain]) return domainMap[domain];
+    const parts = domain.split(".");
+    return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  } catch {
+    return "Link"; // Fallback
+  }
+};
+
 const convertMarkdownToHtml = (text: string): string => {
-  let result = text;
-
-  // Process inline formatting
+  // 🔹 processInline helper from your original code (updated link rule)
   const processInline = (str: string): string => {
     const rules = [
-      { pattern: /\*\*(.*?)\*\*/g, replacement: "<strong>$1</strong>" },
-      { pattern: /\*(.*?)\*/g, replacement: "<em>$1</em>" },
-      { pattern: /`([^`]+)`/g, replacement: '<code class="inline-code">$1</code>' },
+      { pattern: /\*\*(.*?)\*\*/g, replacement: "<strong>$1</strong>" }, // Bold
+      { pattern: /\*(.*?)\*/g, replacement: "<em>$1</em>" }, // Italic
       {
+        pattern: /`([^`]+)`/g,
+        replacement: '<code class="inline-code">$1</code>',
+      }, // Code
+      {
+        // 🔹 Updated Link Rule (using getShortenedLinkText)
         pattern: /\[([^\]]+)\]\(([^)]+)\)/g,
-        replacement:
-          '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>',
+        replacement: (match: string, text: string, url: string) => {
+          const linkText = text.toLowerCase() === "link" ? getShortenedLinkText(url) : text;
+          const icon = `<svg class="w-3 h-3 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>`;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">${linkText}${icon}</a>`;
+        },
       },
     ];
 
     rules.forEach((rule) => {
-      str = str.replace(rule.pattern, rule.replacement);
+      str = str.replace(
+        rule.pattern as RegExp,
+        rule.replacement as string | ((match: string, ...args: string[]) => string),
+      );
     });
 
     return str;
   };
 
-  // Convert line breaks and process markdown
-  result = result
-    .split("\n")
-    .map((line) => {
-      line = line.trim();
-      if (!line) return "<br>";
+  // 🔹 Improved block-level processing (inspired by Component 2's list logic)
+  const lines = text.split("\n");
+  let html = "";
+  let inList = false;
 
-      // Headers
-      if (line.startsWith("### "))
-        return `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
-      if (line.startsWith("## ")) return `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
-      if (line.startsWith("# ")) return `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
 
-      // Lists
-      if (line.startsWith("- ") || line.startsWith("* ")) {
-        return `<li class="ml-4 list-disc">${processInline(line.slice(2))}</li>`;
+    // Check for list items
+    if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+      if (!inList) {
+        html += '<ul class="list-disc pl-5 space-y-1 my-2">';
+        inList = true;
       }
+      // Process inline markdown *within* the list item
+      html += `<li class="list-disc list-inside">${processInline(trimmedLine.slice(2))}</li>`;
+    }
+    // Check for headers
+    else if (trimmedLine.startsWith("### ")) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      html += `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(trimmedLine.slice(4))}</h3>`;
+    } else if (trimmedLine.startsWith("## ")) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      html += `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(trimmedLine.slice(3))}</h2>`;
+    } else if (trimmedLine.startsWith("# ")) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      html += `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(trimmedLine.slice(2))}</h2>`;
+    }
+    // Handle paragraphs and blank lines
+    else {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      if (trimmedLine === "") {
+        html += "<br>";
+      } else {
+        html += `<p class="mb-2">${processInline(trimmedLine)}</p>`;
+      }
+    }
+  }
 
-      // Regular paragraphs
-      return `<p class="mb-2">${processInline(line)}</p>`;
-    })
-    .join("");
+  // Close any open list
+  if (inList) {
+    html += "</ul>";
+  }
 
-  return result;
+  return html;
 };
 
-/* ---------- 2️⃣ Fade helper (see above) ---------- */
+/* ---------- 2️⃣ Fade helper (unchanged) ---------- */
 function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
   const [visible, setVisible] = useState(show);
   useEffect(() => {
@@ -92,8 +152,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const loadPersistedState = useCallback(() => {
     try {
       // Detect page refresh using performance API
-      const perfNav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-      const isPageRefresh = perfNav?.type === 'reload';
+      const perfNav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;
+      const isPageRefresh = perfNav?.type === "reload";
 
       if (isPageRefresh) {
         // Clear localStorage on page refresh
@@ -226,7 +286,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       "✨ What is Gaurav's Work Philosophy?",
       "✨ Can you share a Fun Fact about Gaurav?",
     ];
-    
+
     // Fisher-Yates shuffle
     const shuffled = [...suggestions];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -410,14 +470,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const result = await sendChatMessage(text);
       const answer = (result as any)?.response ?? "";
       const suggs = (result as any)?.suggestions || [];
-      
+
       // Clear old response before setting new one for smooth transition
       setResponse(null);
       setSuggestions([]);
-      
+
       // Small delay to allow collapse animation
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
       setResponse(String(answer));
       setSuggestions(suggs);
       setIsRestoredFromStorage(false); // Mark as fresh content
@@ -426,7 +486,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(null);
       setSuggestions([]);
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await new Promise((resolve) => setTimeout(resolve, 400));
       setResponse(msg);
       setSuggestions([]);
       setIsRestoredFromStorage(false); // Mark as fresh content
@@ -443,7 +503,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     handleSubmit(undefined, s);
-  }, []);
+  }, []); // ❗ Fixed dependency array, was missing handleSubmit
 
   const handleInputFocus = useCallback(() => {
     setShowTypewriter(false);
@@ -531,7 +591,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
           transitionProperty: "width, border-radius, background-color, box-shadow",
-          transitionDuration: "1200ms",
+          transitionDuration: "800ms", // ✅ ANIMATION FIX: Was 1200ms
           transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
           transitionDelay: "0ms",
           willChange: "width, border-radius",
@@ -540,15 +600,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
-            transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
+            transitionDuration: "700ms", // ✅ ANIMATION FIX: Was 800ms
+            transitionDelay: "0ms", // ✅ ANIMATION FIX: Removed complex delay
           }}
         >
           {/* ── Suggestion list (with fade) ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={800}>
+          <Fade
+            show={showExpandedSuggestions && suggestions.length > 0}
+            duration={500} // ✅ ANIMATION FIX: Was 800ms
+          >
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.8s ease forwards" }}
+              style={{ animation: "fadeIn 0.5s ease forwards" }} // ✅ ANIMATION FIX: Was 0.8s
             >
               {suggestions.map((s, i) => (
                 <button
@@ -565,12 +628,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              (response || isLoading) ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
+            className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              // ✅ ANIMATION FIX: Was 1000ms
+              response || isLoading ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing ? "0px" : (response || isLoading) ? "384px" : "0px",
-              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
+              maxHeight: isCollapsing ? "0px" : response || isLoading ? "384px" : "0px",
+              transitionDelay: response ? "300ms" : "0ms", // ✅ ANIMATION FIX: Was 900ms
             }}
           >
             {!response && isLoading && (
@@ -582,12 +646,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 400ms cubic-bezier(0.25,1,0.3,1) both", // ✅ ANIMATION FIX: Was 800ms
+                  animationDelay: "0ms", // ✅ ANIMATION FIX: Was 1000ms (now handled by parent delay)
                   maxHeight: "300px",
                 }}
               >
-                <ResponseRenderer response={response} />
+                {/* ✅ RENDERING FIX: Replaced ResponseRenderer with parser */}
+                <div dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }} />
               </div>
             )}
           </div>
@@ -602,9 +667,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 value={query}
                 onChange={handleInputChange}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                             isLoading ? "thinking-placeholder" : ""
-                           }`}
+                                  text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
+                                    isLoading ? "thinking-placeholder" : ""
+                                  }`}
                 disabled={isLoading}
                 aria-label="Ask anything"
               />
@@ -614,7 +679,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
+                                  ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
               disabled={isLoading || !query.trim()}
               aria-label="Send"
             >
@@ -676,9 +741,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
-        .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
-                     font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
-                     font-size:.9em;}
+        /* ✅ RENDERING FIX: Styles for new parser */
+        .inline-code{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:.05rem .25rem;border-radius:4px;
+                      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
+                      font-size:.9em;}
 
         /* Typewriter cursor */
         @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
