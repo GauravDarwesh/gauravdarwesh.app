@@ -8,9 +8,9 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Yellow background with noise design system */
-    --background: 45 100% 75%;
-    --foreground: 0 0% 10%;
+    /* Dark orange background with noise design system */
+    --background: 25 90% 35%;
+    --foreground: 0 0% 95%;
 
     /* Blue gradient system */
     --primary-blue: 220 100% 60%;
