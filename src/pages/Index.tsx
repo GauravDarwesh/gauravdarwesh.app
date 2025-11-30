@@ -18,10 +18,18 @@ const Index = () => {
 
   return (
     <div
-      className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden bg-yellow-noise ${
+      className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
+      {/* Background */}
+      <div className="fixed inset-0 z-0">
+        <img
+          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
+          alt="background"
+          className="w-full h-full object-cover"
+        />
+      </div>
 
       {/* Navigation Toggle */}
       <div className="relative z-20">

@@ -77,7 +77,14 @@ const Blog = () => {
         );
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden bg-yellow-noise">
+    <div className="min-h-screen w-full relative overflow-hidden">
+      {/* Background */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+        }}
+      />
 
       {/* Navigation Toggle */}
       <NavigationToggle 

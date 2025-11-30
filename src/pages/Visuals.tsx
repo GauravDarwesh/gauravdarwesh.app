@@ -189,7 +189,15 @@ export default function Visuals() {
   };
 
   return (
-    <div className="h-screen w-full relative overflow-hidden bg-yellow-noise">
+    <div className="h-screen w-full relative overflow-hidden">
+      {/* Background */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage:
+            "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
+        }}
+      />
 
       {/* Navigation */}
       <NavigationToggle />
