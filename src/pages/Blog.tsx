@@ -201,7 +201,7 @@ const Blog = () => {
               {filteredPosts.map((post, idx) => (
                 <article
                   key={idx}
-                  onClick={() => setActiveNotion(post.notionUrl)}
+                  onClick={() => window.open(post.notionUrl, '_blank', 'noopener,noreferrer')}
                   className="cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
                 >
                   <div className="mb-4">
