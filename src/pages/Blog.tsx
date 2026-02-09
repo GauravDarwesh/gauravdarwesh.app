@@ -24,20 +24,20 @@ const Blog = () => {
 
   const blogPosts = [
     {
-      date: "March 15, 2024",
-      title: "Building AI-Powered Solutions: Lessons from My Internship",
+      date: "August 8, 2020",
+      title: "How to Study",
       description:
-        "During my time at Jio Platforms, I had the opportunity to work on cutting-edge AI systems for improving wireless network coverage. Here are the key insights I gained about implementing machine learning in real-world scenarios...",
-      tags: ["AI", "Machine Learning", "Internship"],
-      notionUrl: "https://olive-zircon-d34.notion.site/placeholder1",
+        "Studying effectively is not about spending more hours, but about learning with intention and clarity.\n\nThis piece breaks down how to focus deeply, understand concepts instead of memorizing, and build systems that actually work.\n\nIf you want to study smarter, retain more, and feel less overwhelmed, this is a practical starting point.",
+      tags: ["Learning", "Study", "Focus", "Growth"],
+      notionUrl: "https://www.notion.so/HOW-TO-STUDY-6b8a309db3634687a0fba21a678002f3?source=copy_link",
     },
     {
-      date: "February 28, 2024",
-      title: "From Engineering to Data Science: My Career Transition",
+      date: "July 30, 2020",
+      title: "How to Make Time for What Matters",
       description:
-        "Making the leap from traditional engineering to data science wasn't easy, but it's been one of the most rewarding decisions of my career. In this post, I share the challenges I faced and the strategies that helped me succeed...",
-      tags: ["Career", "Data Science", "Transition"],
-      notionUrl: "https://olive-zircon-d34.notion.site/placeholder2",
+        "Time is rarely found — it is deliberately created through choices and priorities.\n\nThis post explores how to cut noise, say no without guilt, and align daily actions with what truly matters.\n\nA guide for building a life where your time reflects your values, not your distractions.",
+      tags: ["Life", "Time Management", "Priorities", "Growth"],
+      notionUrl: "https://www.notion.so/HOW-TO-MAKE-TIME-FOR-WHAT-MATTERS-a8c9599f63d44bc39bfa1eb2bcd4fef4?source=copy_link",
     },
     {
       date: "December 29, 2020",
