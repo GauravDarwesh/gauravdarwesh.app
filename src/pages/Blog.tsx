@@ -29,7 +29,7 @@ const Blog = () => {
       description:
         "Studying effectively is not about spending more hours, but about learning with intention and clarity.\n\nThis piece breaks down how to focus deeply, understand concepts instead of memorizing, and build systems that actually work.\n\nIf you want to study smarter, retain more, and feel less overwhelmed, this is a practical starting point.",
       tags: ["Learning", "Study", "Focus", "Growth"],
-      notionUrl: "https://www.notion.so/HOW-TO-STUDY-6b8a309db3634687a0fba21a678002f3?source=copy_link",
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd/6b8a309db3634687a0fba21a678002f3",
     },
     {
       date: "July 30, 2020",
@@ -37,7 +37,7 @@ const Blog = () => {
       description:
         "Time is rarely found — it is deliberately created through choices and priorities.\n\nThis post explores how to cut noise, say no without guilt, and align daily actions with what truly matters.\n\nA guide for building a life where your time reflects your values, not your distractions.",
       tags: ["Life", "Time Management", "Priorities", "Growth"],
-      notionUrl: "https://www.notion.so/HOW-TO-MAKE-TIME-FOR-WHAT-MATTERS-a8c9599f63d44bc39bfa1eb2bcd4fef4?source=copy_link",
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd/a8c9599f63d44bc39bfa1eb2bcd4fef4",
     },
     {
       date: "December 29, 2020",
@@ -201,7 +201,7 @@ const Blog = () => {
               {filteredPosts.map((post, idx) => (
                 <article
                   key={idx}
-                  onClick={() => window.open(post.notionUrl, '_blank', 'noopener,noreferrer')}
+                  onClick={() => setActiveNotion(post.notionUrl)}
                   className="cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
                 >
                   <div className="mb-4">
