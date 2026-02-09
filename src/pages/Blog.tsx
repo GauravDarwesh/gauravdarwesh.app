@@ -233,7 +233,7 @@ const Blog = () => {
       {/* Glassmorphism Modal for Notion */}
       {activeNotion && (
         <div
-          className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/50 backdrop-blur-md p-4"
           onClick={() => setActiveNotion(null)}
         >
           <div
