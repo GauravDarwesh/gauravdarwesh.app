@@ -102,7 +102,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal }: NavigationToggl
         onClick={isModalOpen ? onCloseModal : scrollToTop}
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
         className={`
-          fixed bottom-6 right-6 z-50 
+          fixed bottom-6 right-6 ${isModalOpen ? 'z-[70]' : 'z-50'} 
           flex items-center justify-center
           w-12 h-12 rounded-full backdrop-blur-md
           bg-white/10 border border-white/20
