@@ -29,7 +29,7 @@ const Blog = () => {
       description:
         "Studying effectively is not about spending more hours, but about learning with intention and clarity.\n\nThis piece breaks down how to focus deeply, understand concepts instead of memorizing, and build systems that actually work.\n\nIf you want to study smarter, retain more, and feel less overwhelmed, this is a practical starting point.",
       tags: ["Learning", "Study", "Focus", "Growth"],
-      notionUrl: "https://olive-zircon-d34.notion.site/ebd/6b8a309db3634687a0fba21a678002f3",
+      notionUrl: "https://olive-zircon-d34.notion.site/HOW-TO-STUDY-6b8a309db3634687a0fba21a678002f3",
     },
     {
       date: "July 30, 2020",
@@ -37,7 +37,7 @@ const Blog = () => {
       description:
         "Time is rarely found — it is deliberately created through choices and priorities.\n\nThis post explores how to cut noise, say no without guilt, and align daily actions with what truly matters.\n\nA guide for building a life where your time reflects your values, not your distractions.",
       tags: ["Life", "Time Management", "Priorities", "Growth"],
-      notionUrl: "https://olive-zircon-d34.notion.site/ebd/a8c9599f63d44bc39bfa1eb2bcd4fef4",
+      notionUrl: "https://olive-zircon-d34.notion.site/HOW-TO-MAKE-TIME-FOR-WHAT-MATTERS-a8c9599f63d44bc39bfa1eb2bcd4fef4",
     },
     {
       date: "December 29, 2020",
@@ -46,7 +46,7 @@ const Blog = () => {
         "In today’s world of endless social media and distractions, finding time to read books feels harder than ever. Yet, with the right habits, anyone can finish multiple books a year without feeling overwhelmed. In this post, I’ll share practical tips to read more, enjoy the process, and make books a powerful part of your growth.",
       tags: ["Life", "Books", "Growth"],
       notionUrl:
-        "https://olive-zircon-d34.notion.site/ebd/af37b2ddb019405c873004b8a91a9137",
+        "https://olive-zircon-d34.notion.site/HOW-TO-READ-MORE-BOOKS-IN-THE-GOLDEN-AGE-OF-CONTENT-af37b2ddb019405c873004b8a91a9137",
     },
     {
       date: "July 26, 2020",
@@ -55,7 +55,7 @@ const Blog = () => {
         "Learning any new skill starts with the courage to try, the patience to practice, and the mindset to embrace mistakes. In this post, I share how taking small opportunities, staying consistent, and welcoming discomfort can shape your growth. These lessons will guide you to build confidence and carve your own career path.",
       tags: ["Career", "Learning", "Growth"],
       notionUrl:
-        "https://olive-zircon-d34.notion.site/ebd/b4225891b21343bf8328dfce2ba7bd10",
+        "https://olive-zircon-d34.notion.site/LEARN-TO-DO-ANYTHING-b4225891b21343bf8328dfce2ba7bd10",
     },
   ];
 
