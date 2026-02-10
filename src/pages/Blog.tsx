@@ -57,6 +57,15 @@ const Blog = () => {
       notionUrl:
         "https://olive-zircon-d34.notion.site/ebd//b4225891b21343bf8328dfce2ba7bd10",
     },
+    {
+      date: "January 2, 2021",
+      title: "How to Set Goals Properly",
+      description:
+        "Setting goals isn't about ambition alone — it's about clarity, systems, and alignment with who you want to become.\n\nThis post breaks down how to define meaningful goals, turn them into daily actions, and stay flexible without losing direction.\n\nA practical guide to building goals that actually guide your life, not just your intentions.",
+      tags: ["Life", "Growth", "Learning"],
+      notionUrl:
+        "https://olive-zircon-d34.notion.site/ebd//dac76e5b23be436c8d730c6e33fcde44",
+    },
   ];
 
   const allTags = Array.from(new Set(blogPosts.flatMap((post) => post.tags)));
