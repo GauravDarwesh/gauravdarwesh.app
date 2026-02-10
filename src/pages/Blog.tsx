@@ -37,7 +37,7 @@ const Blog = () => {
       description:
         "Time is rarely found — it is deliberately created through choices and priorities.\n\nThis post explores how to cut noise, say no without guilt, and align daily actions with what truly matters.\n\nA guide for building a life where your time reflects your values, not your distractions.",
       tags: ["Life", "Time Management", "Priorities", "Growth"],
-      notionUrl: "https://www.notion.so/HOW-TO-MAKE-TIME-FOR-WHAT-MATTERS-a8c9599f63d44bc39bfa1eb2bcd4fef4?source=copy_link",
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd/a8c9599f63d44bc39bfa1eb2bcd4fef4",
     },
     {
       date: "December 29, 2020",
