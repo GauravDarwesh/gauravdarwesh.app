@@ -7,6 +7,9 @@ const Blog = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [sortOrder, setSortOrder] = useState<"newer" | "older">("newer");
+  const [sortOpen, setSortOpen] = useState(false);
+  const [isSortAnimating, setIsSortAnimating] = useState(false);
 
   // Prevent background scrolling when modal is open
   useEffect(() => {
@@ -78,12 +81,17 @@ const Blog = () => {
     }
   };
 
-  const filteredPosts =
+  const filteredPosts = (
     selectedTags.length === 0
       ? blogPosts
       : blogPosts.filter((post) =>
           selectedTags.every((tag) => post.tags.includes(tag))
-        );
+        )
+  ).sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return sortOrder === "newer" ? dateB - dateA : dateA - dateB;
+  });
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -160,50 +168,114 @@ const Blog = () => {
                     </button>
                   </span>
                 ))}
+
+                {/* Sort Button */}
+                <button
+                  onClick={() => {
+                    if (sortOpen) {
+                      setIsSortAnimating(true);
+                      setTimeout(() => {
+                        setSortOpen(false);
+                        setIsSortAnimating(false);
+                      }, 300);
+                    } else {
+                      setSortOpen(true);
+                    }
+                  }}
+                  className={`ml-auto h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${sortOpen ? 'relative z-40' : ''}`}
+                  aria-expanded={sortOpen}
+                  aria-controls="blog-sort-dropdown"
+                >
+                  Sort by
+                </button>
               </div>
 
-              {filterOpen && (
-                <>
-                  {/* Blur overlay */}
-                  <div
-                    className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-20 transition-all duration-300 ease-out ${
-                      isAnimating ? 'opacity-0' : 'opacity-100'
-                    }`}
-                    onClick={() => {
+              {/* Shared overlay for filter or sort */}
+              {(filterOpen || sortOpen) && (
+                <div
+                  className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-20 transition-all duration-300 ease-out ${
+                    (isAnimating || isSortAnimating) ? 'opacity-0' : 'opacity-100'
+                  }`}
+                  onClick={() => {
+                    if (filterOpen) {
                       setIsAnimating(true);
                       setTimeout(() => {
                         setFilterOpen(false);
                         setIsAnimating(false);
                       }, 300);
-                    }}
-                  />
+                    }
+                    if (sortOpen) {
+                      setIsSortAnimating(true);
+                      setTimeout(() => {
+                        setSortOpen(false);
+                        setIsSortAnimating(false);
+                      }, 300);
+                    }
+                  }}
+                />
+              )}
 
-                  {/* Dropdown */}
-                  <div 
-                    id="blog-filter-dropdown" 
-                    className={`absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
-                      isAnimating 
-                        ? 'opacity-0 scale-95 translate-y-2' 
-                        : 'opacity-100 scale-100 translate-y-0'
-                    }`}
-                  >
-                    <div className="flex flex-wrap gap-2">
-                      {allTags.map((tag) => (
-                        <button
-                          key={tag}
-                          onClick={() => toggleTag(tag)}
-                          className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
-                            selectedTags.includes(tag)
-                              ? "bg-white/30 text-white border-white/30"
-                              : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
-                          }`}
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
+              {/* Filter Dropdown */}
+              {filterOpen && (
+                <div 
+                  id="blog-filter-dropdown" 
+                  className={`absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
+                    isAnimating 
+                      ? 'opacity-0 scale-95 translate-y-2' 
+                      : 'opacity-100 scale-100 translate-y-0'
+                  }`}
+                >
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
+                          selectedTags.includes(tag)
+                            ? "bg-white/30 text-white border-white/30"
+                            : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
                   </div>
-                </>
+                </div>
+              )}
+
+              {/* Sort Dropdown */}
+              {sortOpen && (
+                <div 
+                  id="blog-sort-dropdown" 
+                  className={`absolute mt-3 right-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg transition-all duration-300 ease-out ${
+                    isSortAnimating 
+                      ? 'opacity-0 scale-95 translate-y-2' 
+                      : 'opacity-100 scale-100 translate-y-0'
+                  }`}
+                >
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setSortOrder("newer"); setIsSortAnimating(true); setTimeout(() => { setSortOpen(false); setIsSortAnimating(false); }, 300); }}
+                      className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
+                        sortOrder === "newer"
+                          ? "bg-white/30 text-white border-white/30"
+                          : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
+                      }`}
+                    >
+                      Newer
+                    </button>
+                    <button
+                      onClick={() => { setSortOrder("older"); setIsSortAnimating(true); setTimeout(() => { setSortOpen(false); setIsSortAnimating(false); }, 300); }}
+                      className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
+                        sortOrder === "older"
+                          ? "bg-white/30 text-white border-white/30"
+                          : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
+                      }`}
+                    >
+                      Older
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
             <div className="space-y-12">
