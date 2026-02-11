@@ -107,7 +107,7 @@ const Blog = () => {
       <NavigationToggle 
         isModalOpen={!!activeNotion} 
         onCloseModal={() => setActiveNotion(null)}
-        isBlurred={filterOpen || sortOpen}
+        isBlurred={filterOpen || sortOpen || !!activeNotion}
       />
 
       {/* Main Content */}
