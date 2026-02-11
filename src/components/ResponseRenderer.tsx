@@ -1,5 +1,6 @@
 // src/components/ResponseRenderer.tsx
 import { parseResponseLinks } from '@/lib/linkParser';
+import DOMPurify from 'dompurify';
 
 interface ResponseRendererProps {
   response: string;
@@ -54,7 +55,7 @@ const ResponseRenderer = ({ response, className = "" }: ResponseRendererProps) =
             <span 
               key={index} 
               className="whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: formatText(part.content) }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formatText(part.content), { ALLOWED_TAGS: ['strong', 'em', 'code', 'span'], ALLOWED_ATTR: ['class'] }) }}
             />
           );
         }
