@@ -139,7 +139,7 @@ const Blog = () => {
                       setFilterOpen(true);
                     }
                   }}
-                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? 'relative z-40' : ''}`}
+                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? 'relative z-[57]' : ''}`}
                   aria-expanded={filterOpen}
                   aria-controls="blog-filter-dropdown"
                 >
@@ -148,7 +148,7 @@ const Blog = () => {
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => setSelectedTags([])}
-                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-40' : ''}`}
+                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-[57]' : ''}`}
                   >
                     Clear All
                   </button>
@@ -157,7 +157,7 @@ const Blog = () => {
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className={`flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm ${filterOpen ? 'relative z-40' : ''}`}
+                    className={`flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm ${filterOpen ? 'relative z-[57]' : ''}`}
                   >
                     {tag}
                     <button
@@ -182,7 +182,7 @@ const Blog = () => {
                       setSortOpen(true);
                     }
                   }}
-                  className={`ml-auto h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${sortOpen ? 'relative z-40' : ''}`}
+                  className={`ml-auto h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${sortOpen ? 'relative z-[57]' : ''}`}
                   aria-expanded={sortOpen}
                   aria-controls="blog-sort-dropdown"
                 >
@@ -193,7 +193,7 @@ const Blog = () => {
               {/* Shared overlay for filter or sort */}
               {(filterOpen || sortOpen) && (
                 <div
-                  className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-20 transition-all duration-300 ease-out ${
+                  className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[55] transition-all duration-300 ease-out ${
                     (isAnimating || isSortAnimating) ? 'opacity-0' : 'opacity-100'
                   }`}
                   onClick={() => {
@@ -219,7 +219,7 @@ const Blog = () => {
               {filterOpen && (
                 <div 
                   id="blog-filter-dropdown" 
-                  className={`absolute mt-3 left-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
+                  className={`absolute mt-3 left-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
                     isAnimating 
                       ? 'opacity-0 scale-95 translate-y-2' 
                       : 'opacity-100 scale-100 translate-y-0'
@@ -247,7 +247,7 @@ const Blog = () => {
               {sortOpen && (
                 <div 
                   id="blog-sort-dropdown" 
-                  className={`absolute mt-3 right-0 z-30 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg transition-all duration-300 ease-out ${
+                  className={`absolute mt-3 right-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg transition-all duration-300 ease-out ${
                     isSortAnimating 
                       ? 'opacity-0 scale-95 translate-y-2' 
                       : 'opacity-100 scale-100 translate-y-0'
