@@ -6,23 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Simple in-memory rate limiter
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 15;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-
-function checkRateLimit(key: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  entry.count++;
-  return entry.count <= RATE_LIMIT_MAX;
-}
-
-// Knowledge Base: fetch and cache raw Markdown from GitHub (pinned commit)
+// Knowledge Base: fetch and cache raw Markdown from GitHub
 const KB_URL =
   'https://raw.githubusercontent.com/GauravDarwesh/Personal-Brand-Website/8e1b306cd60428694c9657135f320f1c3873e5c0/GauravDarwesh.md';
 let KB_CACHE: { text: string; fetchedAt: number } | null = null;
@@ -36,6 +20,7 @@ async function getKnowledgeBase(): Promise<string> {
   const res = await fetch(KB_URL, { headers: { 'Accept': 'text/plain' } });
   if (!res.ok) {
     console.error('Failed to fetch knowledge base:', res.status, await res.text());
+    // Fallback to previous cache if available
     return KB_CACHE?.text ?? '';
   }
   const text = await res.text();
@@ -58,15 +43,6 @@ serve(async (req) => {
   try {
     const { message } = await req.json();
 
-    // Rate limiting by IP
-    const rateLimitKey = req.headers.get('x-forwarded-for') || 'anonymous';
-    if (!checkRateLimit(rateLimitKey)) {
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please wait.' }), {
-        status: 429,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      });
-    }
-
     if (!message || typeof message !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid message' }),
@@ -76,20 +52,6 @@ serve(async (req) => {
         }
       );
     }
-
-    // Validate message length
-    if (message.length > 5000) {
-      return new Response(
-        JSON.stringify({ error: 'Message too long. Please keep it under 5000 characters.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
-        }
-      );
-    }
-
-    // Sanitize message
-    const sanitizedMessage = message.trim().replace(/[\x00-\x1F\x7F]/g, '');
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
@@ -131,7 +93,7 @@ Maintain a respectful and approachable tone, with warmth and professionalism. Av
           role: 'user',
           parts: [
             {
-              text: 'QUESTION:\n' + sanitizedMessage,
+              text: 'QUESTION:\n' + message,
             },
           ],
         },

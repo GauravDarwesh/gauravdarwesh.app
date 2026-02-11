@@ -6,22 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Simple in-memory rate limiter
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 15; // max requests per window
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-
-function checkRateLimit(key: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  entry.count++;
-  return entry.count <= RATE_LIMIT_MAX;
-}
-
 // Cache for knowledge base with TTL
 let knowledgeBaseCache: { content: string; timestamp: number } | null = null;
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -35,8 +19,7 @@ async function getKnowledgeBase(): Promise<string> {
 
   try {
     console.log('Fetching fresh knowledge base from GitHub');
-    // Pinned to specific commit for supply chain security
-    const response = await fetch('https://raw.githubusercontent.com/gauravdarwesh/Info-Gaurav-Darwesh/c05e9dce7fac43f3d0b10e4ab3f26f41a7cc2abb/README.md');
+    const response = await fetch('https://raw.githubusercontent.com/gauravdarwesh/Info-Gaurav-Darwesh/refs/heads/main/README.md');
     
     if (!response.ok) {
       console.error('Failed to fetch knowledge base:', response.status, response.statusText);
@@ -79,15 +62,6 @@ serve(async (req) => {
     const { message, sessionId } = await req.json();
     console.log('Received request:', { message: message?.substring(0, 100), sessionId });
 
-    // Rate limiting by session or IP
-    const rateLimitKey = sessionId || req.headers.get('x-forwarded-for') || 'anonymous';
-    if (!checkRateLimit(rateLimitKey)) {
-      return new Response(
-        JSON.stringify({ response: 'Too many requests. Please wait a moment and try again.', success: false }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
-      );
-    }
-
     if (!message || typeof message !== 'string') {
       console.error('Invalid message provided');
       return new Response(
@@ -95,22 +69,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
-
-    // Validate message length
-    if (message.length > 5000) {
-      return new Response(
-        JSON.stringify({ response: 'Message too long. Please keep it under 5000 characters.', success: false }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
-    }
-
-    // Validate sessionId format if provided
-    if (sessionId && typeof sessionId === 'string' && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(sessionId)) {
-      console.warn('Invalid sessionId format, ignoring');
-    }
-
-    // Sanitize message - remove control characters
-    const sanitizedMessage = message.trim().replace(/[\x00-\x1F\x7F]/g, '');
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
@@ -143,7 +101,7 @@ Remember to:
 - If you don't have specific information about Gaurav in the knowledge base, say so honestly
 - Focus on helping people learn about Gaurav's professional background, projects, and expertise`;
 
-    const prompt = `${systemInstruction}\n\nUser question: ${sanitizedMessage}`;
+    const prompt = `${systemInstruction}\n\nUser question: ${message}`;
 
     console.log('Calling Gemini API with prompt length:', prompt.length);
 
