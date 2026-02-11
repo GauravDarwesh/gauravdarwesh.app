@@ -71,7 +71,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
       ? "opacity-0 scale-98 pointer-events-none"
       : "opacity-100 scale-100 pointer-events-auto"
     }
-    ${isBlurred ? "blur-sm pointer-events-none" : ""}
+    ${isBlurred ? "blur-sm pointer-events-none" : "blur-0"}
   `}
 >
   {options.map((option) => {
