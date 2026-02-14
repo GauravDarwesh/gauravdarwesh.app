@@ -97,7 +97,7 @@ const Blog = () => {
     <div className="min-h-screen w-full relative overflow-hidden">
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat scale-110"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}

@@ -27,7 +27,7 @@ const Index = () => {
         <img
           src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt="background"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover scale-110"
         />
       </div>
 
