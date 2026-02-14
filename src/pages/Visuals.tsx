@@ -27,11 +27,17 @@ const collections = [
     ],
   },
   {
-    title: "Switzerland 2016 Collection",
+    title: "Europe 2016 Collection",
     items: [
-      "https://picsum.photos/1000/600?random=10",
-      "https://picsum.photos/1000/600?random=11",
-      "https://picsum.photos/1000/600?random=12",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160614_135031.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160616_115817.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160616_124214.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160617_171820.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160617_172510.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160618_143958.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160618_145139.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160618_152220.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160619_121351.jpg",
     ],
   },
 ];
