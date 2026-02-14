@@ -1,12 +1,23 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-/* Change this to adjust speed */
+/* Change this to adjust speed for images */
 const SLIDE_INTERVAL = 2000; // 2000 ms = 2 seconds
 
-// Collections (kept from your input)
+const VIDEO_EXTENSIONS = [".mov", ".mp4", ".webm", ".ogg"];
+
+const isVideo = (url: string) =>
+  VIDEO_EXTENSIONS.some((ext) => url.toLowerCase().endsWith(ext));
+
+// Collections
 const collections = [
+  {
+    title: "Japan 2025 Collection",
+    items: [
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/dji_export_20260212_144239_1770887559451_compose_0.mov",
+    ],
+  },
   {
     title: "Japan 2024 Collection",
     items: [
@@ -48,15 +59,22 @@ export default function Visuals() {
   const items = collections[currentCollection].items;
   const title = collections[currentCollection].title;
 
-  // layer refs
-  const layerARef = useRef(null);
-  const layerBRef = useRef(null);
+  // Current visible index (state-driven for video/image rendering)
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // layer refs (for image crossfade)
+  const layerARef = useRef<HTMLDivElement | null>(null);
+  const layerBRef = useRef<HTMLDivElement | null>(null);
 
   // refs to hold state without re-rendering
-  const indexRef = useRef(0); // which index is currently shown
-  const activeLayerRef = useRef("A"); // "A" or "B"
-  const timerRef = useRef(null);
-  const cacheRef = useRef(new Set());
+  const activeLayerRef = useRef<"A" | "B">("A");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cacheRef = useRef(new Set<string>());
+  const indexRef = useRef(0);
+  const isVideoPlayingRef = useRef(false);
+
+  // video ref
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // small piece of state used only for title update render
   const [collectionTitle, setCollectionTitle] = useState(title);
@@ -64,40 +82,149 @@ export default function Visuals() {
   // dynamic fade: 20% of interval but clamped
   const FADE_MS = Math.max(80, Math.min(500, Math.round(SLIDE_INTERVAL * 0.2)));
 
-  // Preload helper (returns promise that resolves when loaded or on timeout)
-  const preload = (src: string, timeout = 3000): Promise<void> =>
-  new Promise<void>((resolve) => {
-    if (!src) return resolve();
-    if (cacheRef.current.has(src)) return resolve();
-    const img = new Image();
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      cacheRef.current.add(src);
-      resolve();
-    };
-    img.onload = finish;
-    img.onerror = finish;
-    img.src = src;
-    setTimeout(finish, timeout);
-  });
+  // Preload helper
+  const preload = useCallback(
+    (src: string, timeout = 3000): Promise<void> =>
+      new Promise<void>((resolve) => {
+        if (!src || isVideo(src)) return resolve();
+        if (cacheRef.current.has(src)) return resolve();
+        const img = new Image();
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          cacheRef.current.add(src);
+          resolve();
+        };
+        img.onload = finish;
+        img.onerror = finish;
+        img.src = src;
+        setTimeout(finish, timeout);
+      }),
+    []
+  );
 
+  // Preload all images in background
+  const preloadAll = useCallback(
+    (list: string[]) => {
+      list.forEach((s) => {
+        if (!isVideo(s)) preload(s, 5000);
+      });
+    },
+    [preload]
+  );
 
-  // Preload all images in background (non-blocking)
-  const preloadAll = (list) => {
-    list.forEach((s) => preload(s, 5000));
-  };
+  // Clear timer helper
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
-  // Initialize tile when collection changes
+  // Start the image slideshow interval
+  const startImageInterval = useCallback(() => {
+    clearTimer();
+    timerRef.current = setInterval(() => {
+      slideToNext();
+    }, SLIDE_INTERVAL);
+  }, [clearTimer]);
+
+  // Advance to the next item
+  const slideToNext = useCallback(() => {
+    if (!items || items.length === 0) return;
+    const nextIndex = (indexRef.current + 1) % items.length;
+    const nextSrc = items[nextIndex];
+
+    if (isVideo(nextSrc)) {
+      // Pause interval, show video via state
+      clearTimer();
+      isVideoPlayingRef.current = true;
+      indexRef.current = nextIndex;
+      setCurrentIndex(nextIndex);
+      return;
+    }
+
+    // Image transition using layers
+    const active = activeLayerRef.current;
+    const inactive = active === "A" ? "B" : "A";
+    const activeNode = active === "A" ? layerARef.current : layerBRef.current;
+    const inactiveNode =
+      inactive === "A" ? layerARef.current : layerBRef.current;
+
+    if (!inactiveNode || !activeNode) return;
+
+    // Set background on inactive layer
+    inactiveNode.style.backgroundImage = `url("${nextSrc}")`;
+
+    // Crossfade
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        inactiveNode.style.opacity = "1";
+        activeNode.style.opacity = "0";
+        setTimeout(() => {
+          activeLayerRef.current = inactive;
+          indexRef.current = nextIndex;
+          setCurrentIndex(nextIndex);
+        }, FADE_MS + 8);
+      });
+    });
+  }, [items, clearTimer, FADE_MS]);
+
+  // Handle video ended — advance to next
+  const handleVideoEnded = useCallback(() => {
+    isVideoPlayingRef.current = false;
+    const nextIndex = (indexRef.current + 1) % items.length;
+    const nextSrc = items[nextIndex];
+
+    if (isVideo(nextSrc)) {
+      // Next is also a video
+      indexRef.current = nextIndex;
+      setCurrentIndex(nextIndex);
+      return;
+    }
+
+    // Next is an image — set it on the active layer and start interval
+    indexRef.current = nextIndex;
+    activeLayerRef.current = "A";
+    setCurrentIndex(nextIndex);
+
+    if (layerARef.current) {
+      layerARef.current.style.backgroundImage = `url("${nextSrc}")`;
+      layerARef.current.style.opacity = "1";
+    }
+    if (layerBRef.current) {
+      layerBRef.current.style.opacity = "0";
+      const afterNext = items[(nextIndex + 1) % items.length];
+      if (!isVideo(afterNext)) {
+        layerBRef.current.style.backgroundImage = `url("${afterNext}")`;
+      }
+    }
+
+    startImageInterval();
+  }, [items, startImageInterval]);
+
+  // Initialize when collection changes
   useEffect(() => {
-    // reset index + active layer
     indexRef.current = 0;
     activeLayerRef.current = "A";
+    isVideoPlayingRef.current = false;
     setCollectionTitle(title);
+    setCurrentIndex(0);
 
-    // set both layers' styles and immediate backgrounds (first & second if present)
     const first = items[0] || "";
+
+    if (isVideo(first)) {
+      // First item is a video — show it via state, no interval
+      clearTimer();
+      isVideoPlayingRef.current = true;
+      // Hide image layers
+      if (layerARef.current) layerARef.current.style.opacity = "0";
+      if (layerBRef.current) layerBRef.current.style.opacity = "0";
+      return () => clearTimer();
+    }
+
+    // First item is an image
     const second = items.length > 1 ? items[1] : first;
 
     if (layerARef.current) {
@@ -109,7 +236,9 @@ export default function Visuals() {
       layerARef.current.style.backgroundPosition = "center";
     }
     if (layerBRef.current) {
-      layerBRef.current.style.backgroundImage = `url("${second}")`;
+      layerBRef.current.style.backgroundImage = isVideo(second)
+        ? ""
+        : `url("${second}")`;
       layerBRef.current.style.opacity = "0";
       layerBRef.current.style.transition = `opacity ${FADE_MS}ms linear`;
       layerBRef.current.style.willChange = "opacity";
@@ -117,83 +246,36 @@ export default function Visuals() {
       layerBRef.current.style.backgroundPosition = "center";
     }
 
-    // preload first two (so swap is immediate) then start the timer;
-    // also continue preloading the rest in the background
-    Promise.all<void>([preload(first, 3000), preload(second, 3000)]).finally(() => {
-      // ensure any previous timer cleared
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      // start interval
+    Promise.all<void>([
+      preload(first, 3000),
+      isVideo(second) ? Promise.resolve() : preload(second, 3000),
+    ]).finally(() => {
+      clearTimer();
       timerRef.current = setInterval(() => {
         slideToNext();
       }, SLIDE_INTERVAL);
-
-      // keep preloading everything in background (non-blocking)
       preloadAll(items);
     });
 
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
+    return () => clearTimer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentCollection]); // re-run when collection changes
+  }, [currentCollection]);
 
-  // slide function: sets the inactive layer's background then crossfades
-  const slideToNext = async () => {
-    if (!items || items.length === 0) return;
-    const nextIndex = (indexRef.current + 1) % items.length;
-    const nextSrc = items[nextIndex];
-
-    const active = activeLayerRef.current;
-    const inactive = active === "A" ? "B" : "A";
-    const activeNode = active === "A" ? layerARef.current : layerBRef.current;
-    const inactiveNode = inactive === "A" ? layerARef.current : layerBRef.current;
-
-    if (!inactiveNode || !activeNode) return;
-
-    // ensure next image is preloaded (but fallback after short wait so we never stall)
-    const preloadPromise = preload(nextSrc, 2000);
-    await Promise.race<void>([preload(nextSrc, 2000), new Promise<void>((res) => setTimeout(res, 350))]);
-
-
-    // set background on inactive
-    inactiveNode.style.backgroundImage = `url("${nextSrc}")`;
-
-    // double rAF to ensure paint, then swap opacities
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        inactiveNode.style.opacity = "1";
-        activeNode.style.opacity = "0";
-        // after fade completes, flip active layer and update indexRef
-        setTimeout(() => {
-          activeLayerRef.current = inactive;
-          indexRef.current = nextIndex;
-        }, FADE_MS + 8);
-      });
-    });
-  };
-
-  // arrow handlers — change collections only (reset timer handled in useEffect)
+  // Collection navigation
   const nextCollection = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    clearTimer();
     setCurrentCollection((c) => (c + 1) % collections.length);
   };
 
   const prevCollection = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setCurrentCollection((c) => (c === 0 ? collections.length - 1 : c - 1));
+    clearTimer();
+    setCurrentCollection((c) =>
+      c === 0 ? collections.length - 1 : c - 1
+    );
   };
+
+  const currentSrc = items[currentIndex] || "";
+  const showVideo = isVideo(currentSrc);
 
   return (
     <div className="h-screen w-full relative overflow-hidden">
@@ -213,20 +295,17 @@ export default function Visuals() {
       <div className="relative z-10 h-screen flex flex-col">
         {/* Reduced top spacer to move content up */}
         <div className="h-16 sm:h-18 flex-shrink-0"></div>
-        
+
         {/* Main content container - fixed height, no scroll */}
         <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-4 min-h-0">
           {/* Container for tile with text and navigation */}
           <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[65vw] flex flex-col h-full max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
-            
             {/* Top row: Title (left) and Navigation Buttons (right) */}
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              {/* Collection title - styled like filter button, with hover effect */}
               <div className="h-9 px-4 text-[12px] rounded-full bg-white/20 hover:bg-white/30 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm transition-all duration-300 ease-out flex items-center cursor-default">
                 {collectionTitle}
               </div>
-              
-              {/* Left and right buttons - top right, smaller size */}
+
               <div className="flex gap-2">
                 <button
                   onClick={prevCollection}
@@ -235,7 +314,7 @@ export default function Visuals() {
                 >
                   <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
                 </button>
-                
+
                 <button
                   onClick={nextCollection}
                   className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
@@ -246,25 +325,23 @@ export default function Visuals() {
               </div>
             </div>
 
-            {/* Tile container - takes remaining space with aspect ratio constraint */}
+            {/* Tile container */}
             <div className="flex-1 min-h-0 max-h-[60vh] sm:max-h-none">
-              {/* Glassmorphic tile */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/20 hover:bg-white/20 transition w-full h-full flex items-center justify-center overflow-hidden relative">
-                {/* Image container */}
                 <div className="relative w-full h-full">
-                  {/* Layer A */}
+                  {/* Layer A (images) */}
                   <div
                     ref={layerARef}
                     className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
                     style={{
-                      opacity: 1,
+                      opacity: showVideo ? 0 : 1,
                       transition: `opacity ${FADE_MS}ms linear`,
                       willChange: "opacity",
                     }}
                     aria-hidden="true"
                   />
 
-                  {/* Layer B */}
+                  {/* Layer B (images) */}
                   <div
                     ref={layerBRef}
                     className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
@@ -275,6 +352,20 @@ export default function Visuals() {
                     }}
                     aria-hidden="true"
                   />
+
+                  {/* Video layer */}
+                  {showVideo && (
+                    <video
+                      ref={videoRef}
+                      key={currentSrc}
+                      className="absolute inset-0 w-full h-full object-cover rounded-xl shadow-lg"
+                      src={currentSrc}
+                      autoPlay
+                      muted
+                      playsInline
+                      onEnded={handleVideoEnded}
+                    />
+                  )}
                 </div>
               </div>
             </div>
