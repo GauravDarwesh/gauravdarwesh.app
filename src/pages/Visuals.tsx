@@ -286,7 +286,7 @@ export default function Visuals() {
     <div className="h-screen w-full relative overflow-hidden">
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat scale-110"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage:
             "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
