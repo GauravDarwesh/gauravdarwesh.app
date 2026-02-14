@@ -21,7 +21,6 @@ const collections = [
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6513.jpg",
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6529.jpg",
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6530.jpg",
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6548.mov",
     ],
   },
   {
