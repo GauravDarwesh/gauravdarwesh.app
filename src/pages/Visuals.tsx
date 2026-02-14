@@ -15,7 +15,13 @@ const collections = [
   {
     title: "Japan 2025 Collection",
     items: [
-      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/dji_export_20260212_144239_1770887559451_compose_0.mov",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/A6AE9E26-5645-4F8A-BC54-E8A5B6311D7C.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/D3FD6C99-BF7F-4001-9E8A-3F1F3B25666D.JPG",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6477.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6513.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6529.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6530.jpg",
+      "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6548.mov",
     ],
   },
   {
