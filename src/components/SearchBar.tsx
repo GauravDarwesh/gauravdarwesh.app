@@ -388,16 +388,35 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [typewriterText, isDeleting, fullText, currentSuggestionIndex, rotatingSuggestions, showTypewriter]);
 
   /* ----- 8️⃣ Submit handler ----- */
+  /* ----- Track "collapsing to think" state ----- */
+  const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
-    setIsLoading(true);
-    setResponse(null);
     setHasInteracted(true);
     setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
     if (!customQuery) setQuery("");
+
+    // If there's existing content, fade it out first before collapsing
+    if (response || suggestions.length > 0) {
+      setIsCollapsingToThink(true);
+      // Wait for content to fade out, then clear and start loading
+      await new Promise((r) => setTimeout(r, 500));
+      setResponse(null);
+      setSuggestions([]);
+      // Small pause for container to start shrinking
+      await new Promise((r) => setTimeout(r, 200));
+      setIsCollapsingToThink(false);
+    } else {
+      setResponse(null);
+      setSuggestions([]);
+    }
+
+    setIsLoading(true);
 
     try {
       const result = await sendChatMessage(text);
@@ -549,12 +568,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
+            className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              response ? (isCollapsing || isCollapsingToThink ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing ? "0px" : response ? "384px" : "0px",
-              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
+              maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response ? "384px" : "0px",
+              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
+              transitionDelay: response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
             {response && (
