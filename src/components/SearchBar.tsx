@@ -476,11 +476,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   /* ----- 🔟 Layout calculations (memoized for performance) ----- */
   const layoutValues = useMemo(() => {
-    const dynamicWidth = Math.min(300 + query.length * 8, 550);
+    const dynamicWidth = Math.min(300 + query.length * 8, 700);
     // During loading, keep collapsed; expand only when response/suggestions arrive
     const hasContent = suggestions.length > 0 || response;
     const isExpanded = hasContent && !isLoading;
-    const targetWidth = isExpanded ? "550px" : `${dynamicWidth}px`;
+    const targetWidth = isExpanded ? "700px" : `${dynamicWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
