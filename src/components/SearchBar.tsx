@@ -524,8 +524,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
-            transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
+            transitionDuration: "1200ms",
+            transitionDelay: "0ms",
           }}
         >
           {/* ── Suggestion list (with fade) ── */}
@@ -554,7 +554,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }`}
             style={{
               maxHeight: isCollapsing ? "0px" : response ? "384px" : "0px",
-              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "900ms" : "0ms",
+              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "200ms" : "0ms",
             }}
           >
             {response && (
@@ -562,7 +562,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "400ms",
                   maxHeight: "300px",
                 }}
                 dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
