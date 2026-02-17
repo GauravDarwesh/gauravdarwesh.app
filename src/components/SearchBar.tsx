@@ -515,16 +515,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
           transitionProperty: "width, border-radius, background-color, box-shadow",
-          transitionDuration: "1200ms",
-          transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
+          transitionDuration: "1600ms",
+          transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
           transitionDelay: "0ms",
           willChange: "width, border-radius",
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
+          className={`transition-all ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
-            transitionDuration: "1200ms",
+            transitionDuration: "1600ms",
+            transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
             transitionDelay: "0ms",
           }}
         >
@@ -549,20 +550,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className={`overflow-hidden transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            className={`overflow-hidden transition-all ease-[cubic-bezier(0.22,1,0.36,1)] ${
               response ? (isCollapsing ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
             }`}
             style={{
               maxHeight: isCollapsing ? "0px" : response ? "384px" : "0px",
-              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "200ms" : "0ms",
+              transitionDuration: "1400ms",
+              transitionDelay: response && !isCollapsing && !isRestoredFromStorage ? "400ms" : "0ms",
             }}
           >
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "400ms",
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 1000ms cubic-bezier(0.22,1,0.36,1) both",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "700ms",
                   maxHeight: "300px",
                 }}
                 dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
