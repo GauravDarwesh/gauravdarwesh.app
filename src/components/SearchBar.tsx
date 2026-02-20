@@ -404,12 +404,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     // If there's existing content, fade it out first before collapsing
     if (response || suggestions.length > 0) {
       setIsCollapsingToThink(true);
-      // Fade out content smoothly
-      await new Promise((r) => setTimeout(r, 350));
+      // Wait for content to fade out, then clear and start loading
+      await new Promise((r) => setTimeout(r, 500));
       setResponse(null);
       setSuggestions([]);
-      // Let container shrink gracefully
-      await new Promise((r) => setTimeout(r, 150));
+      // Small pause for container to start shrinking
+      await new Promise((r) => setTimeout(r, 200));
       setIsCollapsingToThink(false);
     } else {
       setResponse(null);
@@ -534,20 +534,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
           transitionProperty: "width, border-radius, background-color, box-shadow",
-          transitionDuration: layoutValues.isExpanded ? "1000ms" : "800ms",
-          transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-          transitionDelay: layoutValues.isExpanded ? "100ms" : "0ms",
+          transitionDuration: "1200ms",
+          transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
+          transitionDelay: "0ms",
           willChange: "width, border-radius",
-          transform: "translateZ(0)", // GPU acceleration
         }}
       >
         <div
-          className={`ease-[cubic-bezier(0.4,0,0.2,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
-            transitionProperty: "padding",
-            transitionDuration: layoutValues.isExpanded ? "600ms" : "500ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "400ms" : "0ms",
-            transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
+            transitionDuration: "800ms",
+            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
           }}
         >
           {/* ── Suggestion list (with fade) ── */}
@@ -571,26 +568,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Assistant response ── */}
           <div
-            className="overflow-hidden"
+            className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              response ? (isCollapsing || isCollapsingToThink ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
+            }`}
             style={{
               maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response ? "384px" : "0px",
-              opacity: response ? (isCollapsing || isCollapsingToThink ? 0 : 1) : 0,
-              marginBottom: response && !isCollapsing && !isCollapsingToThink ? "20px" : "0px",
-              transitionProperty: "max-height, opacity, margin-bottom",
-              transitionDuration: isCollapsingToThink ? "350ms, 250ms, 350ms" : "1400ms, 900ms, 1200ms",
-              transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
-              transitionDelay: response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "500ms, 800ms, 500ms" : "0ms",
-              transform: "translateZ(0)",
+              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
+              transitionDelay: response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
             {response && (
               <div
                 className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 700ms cubic-bezier(0.4, 0, 0.2, 1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "700ms",
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
                   maxHeight: "300px",
-                  transform: "translateZ(0)",
                 }}
                 dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
@@ -640,14 +633,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-container{
           border: 1px solid rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.05);
-          animation: glowPulse 2.5s infinite ease-in-out;
+          animation: glowPulse 2s infinite ease-in-out;
         }
         @keyframes glowPulse {
           0%, 100% { 
-            box-shadow: 0 0 5px rgba(255,255,255,0.08), inset 0 0 8px rgba(255,255,255,0.03);
+            box-shadow: 0 0 5px rgba(255,255,255,0.1), inset 0 0 10px rgba(255,255,255,0.05);
           }
           50% { 
-            box-shadow: 0 0 18px rgba(255,255,255,0.25), inset 0 0 16px rgba(255,255,255,0.1);
+            box-shadow: 0 0 20px rgba(255,255,255,0.3), inset 0 0 20px rgba(255,255,255,0.15);
           }
         }
         @keyframes textGlow {
