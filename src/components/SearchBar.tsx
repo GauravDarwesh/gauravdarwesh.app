@@ -577,9 +577,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               opacity: response ? (isCollapsing || isCollapsingToThink ? 0 : 1) : 0,
               marginBottom: response && !isCollapsing && !isCollapsingToThink ? "20px" : "0px",
               transitionProperty: "max-height, opacity, margin-bottom",
-              transitionDuration: isCollapsingToThink ? "350ms, 250ms, 350ms" : "800ms, 600ms, 800ms",
-              transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-              transitionDelay: response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "600ms" : "0ms",
+              transitionDuration: isCollapsingToThink ? "350ms, 250ms, 350ms" : "1400ms, 900ms, 1200ms",
+              transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+              transitionDelay: response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "500ms, 800ms, 500ms" : "0ms",
               transform: "translateZ(0)",
             }}
           >
