@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, Mic } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 // ResponseRenderer removed - using convertMarkdownToHtml instead
 
@@ -390,6 +390,65 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- 8️⃣ Submit handler ----- */
   /* ----- Track "collapsing to think" state ----- */
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const startListening = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("Speech recognition not supported");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setHasInteracted(true);
+      setShowTypewriter(false);
+      setShowExpandedSuggestions(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((r: any) => r[0].transcript)
+        .join("");
+      setQuery(transcript);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      // Auto-submit after speech ends if there's text
+      setQuery((currentQuery) => {
+        const trimmed = currentQuery.trim();
+        if (trimmed) {
+          // Use setTimeout to let state settle before submitting
+          setTimeout(() => {
+            handleSubmit(undefined, trimmed);
+          }, 100);
+        }
+        return currentQuery;
+      });
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.start();
+  }, []);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  }, []);
 
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
@@ -528,7 +587,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       <div
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden ${
           isLoading ? "thinking-container" : ""
-        }`}
+        } ${isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
@@ -596,17 +655,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder={isLoading ? "Thinking…" : "Ask anything…"}
+                placeholder={isListening ? "Listening…" : isLoading ? "Thinking…" : "Ask anything…"}
                 value={query}
                 onChange={handleInputChange}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                            text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
                              isLoading ? "thinking-placeholder" : ""
-                           }`}
-                disabled={isLoading}
+                           } ${isListening ? "listening-placeholder" : ""}`}
+                disabled={isLoading || isListening}
                 aria-label="Ask anything"
               />
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={`h-8 w-8 p-0 rounded-full transition-all duration-300 
+                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0 ${
+                           isListening ? "listening-mic" : "hover:bg-white/20"
+                         }`}
+              onClick={isListening ? stopListening : startListening}
+              disabled={isLoading}
+              aria-label={isListening ? "Stop listening" : "Voice search"}
+            >
+              <Mic className={`h-4 w-4 ${isListening ? "listening-icon" : ""}`} />
+            </Button>
             <Button
               type="submit"
               variant="ghost"
@@ -682,6 +755,42 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
         .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
         .typewriter-text{display:inline-block;min-height:1.2em;}
+
+        /* Listening / voice search styles */
+        .listening-container{
+          border: 1px solid rgba(255,255,255,0.3);
+          animation: listeningGlow 1.5s infinite ease-in-out;
+        }
+        @keyframes listeningGlow {
+          0%, 100% { 
+            box-shadow: 0 0 8px rgba(255,255,255,0.15), inset 0 0 12px rgba(255,255,255,0.08);
+          }
+          50% { 
+            box-shadow: 0 0 25px rgba(255,255,255,0.4), inset 0 0 25px rgba(255,255,255,0.2);
+          }
+        }
+        .listening-placeholder::placeholder{
+          color: rgba(255,255,255,0.7);
+          animation: textGlow 1.5s infinite ease-in-out;
+        }
+        .listening-mic{
+          background: rgba(255,255,255,0.15);
+          animation: micPulse 1.5s infinite ease-in-out;
+        }
+        @keyframes micPulse {
+          0%, 100% { 
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 0 4px rgba(255,255,255,0.1);
+          }
+          50% { 
+            background: rgba(255,255,255,0.25);
+            box-shadow: 0 0 12px rgba(255,255,255,0.3);
+          }
+        }
+        .listening-icon {
+          stroke: rgba(255,255,255,0.9);
+          filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
+        }
       `}</style>
     </div>
   );
