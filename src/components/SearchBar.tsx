@@ -3,15 +3,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Mic } from "lucide-react";
+import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
-// ResponseRenderer removed - using convertMarkdownToHtml instead
 
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
   let result = text;
 
-  // Process inline formatting
   const processInline = (str: string): string => {
     const rules = [
       { pattern: /\*\*(.*?)\*\*/g, replacement: "<strong>$1</strong>" },
@@ -31,25 +29,18 @@ const convertMarkdownToHtml = (text: string): string => {
     return str;
   };
 
-  // Convert line breaks and process markdown
   result = result
     .split("\n")
     .map((line) => {
       line = line.trim();
       if (!line) return "<br>";
-
-      // Headers
       if (line.startsWith("### "))
         return `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
       if (line.startsWith("## ")) return `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
       if (line.startsWith("# ")) return `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
-
-      // Lists
       if (line.startsWith("- ") || line.startsWith("* ")) {
         return `<li class="ml-4 list-disc">${processInline(line.slice(2))}</li>`;
       }
-
-      // Regular paragraphs
       return `<p class="mb-2">${processInline(line)}</p>`;
     })
     .join("");
@@ -57,7 +48,7 @@ const convertMarkdownToHtml = (text: string): string => {
   return result;
 };
 
-/* ---------- 2️⃣ Fade helper (see above) ---------- */
+/* ---------- 2️⃣ Fade helper ---------- */
 function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
   const [visible, setVisible] = useState(show);
   useEffect(() => {
@@ -79,26 +70,105 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
   );
 }
 
-/* ---------- 3️⃣ SearchBar component ---------- */
+/* ---------- 3️⃣ Waveform Canvas Component ---------- */
+const WaveformCanvas: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animFrameRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!isActive || !analyser || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      animFrameRef.current = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw waveform
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.beginPath();
+
+      const sliceWidth = w / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * h) / 2;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+
+        x += sliceWidth;
+      }
+
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+
+      // Draw a softer glow line on top
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      x = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * h) / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [analyser, isActive]);
+
+  if (!isActive) return null;
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={400}
+      height={40}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ opacity: 0.9 }}
+    />
+  );
+};
+
+/* ---------- 4️⃣ SearchBar component ---------- */
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  /* ----- Persistent state keys ----- */
   const STORAGE_KEY = "searchbar_state";
 
   /* ----- Load persisted state ----- */
   const loadPersistedState = useCallback(() => {
     try {
-      // Detect if this is a page refresh vs route navigation
-      // Check performance navigation type for page refresh
       const isPageRefresh =
         (window.performance as any)?.navigation?.type === 1 ||
         (window.performance?.getEntriesByType("navigation")?.[0] as any)?.type === "reload";
 
       if (isPageRefresh) {
-        // Page refresh - clear any persisted state and return to normal
         localStorage.removeItem(STORAGE_KEY);
         return {
           response: null,
@@ -109,7 +179,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         };
       }
 
-      // Route navigation - load persisted state
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -133,7 +202,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, []);
 
-  /* ----- Save state to localStorage ----- */
   const saveState = useCallback(
     (state: {
       response: string | null;
@@ -151,7 +219,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [],
   );
 
-  /* ----- Initialize with persisted state ----- */
   const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
 
   /* ----- UI state ----- */
@@ -170,8 +237,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
+  const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
-  /* ----- Save state changes to localStorage ----- */
+  /* ----- Rotating placeholder state ----- */
+  const [placeholderText, setPlaceholderText] = useState("Ask anything...");
+  const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
+  const [placeholderTarget, setPlaceholderTarget] = useState(0); // 0 = "Ask anything...", 1 = "Hold to speak"
+  const placeholderTexts = useMemo(() => ["Ask anything...", "Hold to speak"], []);
+
+  /* ----- Audio/waveform refs ----- */
+  const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+
+  /* ----- Hold-to-speak refs ----- */
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isHoldingRef = useRef(false);
+
+  // Save state to localStorage
   useEffect(() => {
     const stateToSave = {
       response,
@@ -183,7 +269,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     saveState(stateToSave);
   }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime, saveState]);
 
-  /* ----- Clear persisted state when manually reset ----- */
   const clearPersistedState = useCallback(() => {
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -192,10 +277,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, []);
 
-  const searchBarRef = useRef<HTMLDivElement>(null); // 🔹 Ref for outside click detection
-  const inputRef = useRef<HTMLInputElement>(null); // 🔹 Ref for input focus
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  /* ----- type-writer configuration ----- */
+  /* ----- Typewriter suggestions ----- */
   const rotatingSuggestions = [
     "✨ Tell me about Gaurav's Experience",
     "✨ What is Gaurav's Education?",
@@ -224,11 +309,42 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ What Publications has Gaurav written?",
     "✨ What Conferences has Gaurav attended?",
     "✨ Has Gaurav delivered any Talks?",
-    "✨ What is Gaurav’s Work Philosophy?",
+    "✨ What is Gaurav's Work Philosophy?",
     "✨ Can you share a Fun Fact about Gaurav?",
   ];
 
-  /* ----- 4️⃣ Activity tracking with debouncing ----- */
+  /* ----- Rotating placeholder effect ----- */
+  useEffect(() => {
+    if (isLoading || isListening || query) return;
+
+    const currentTarget = placeholderTexts[placeholderTarget];
+
+    if (placeholderPhase === "pause") {
+      const t = setTimeout(() => setPlaceholderPhase("deleting"), 2500);
+      return () => clearTimeout(t);
+    }
+
+    if (placeholderPhase === "deleting") {
+      if (placeholderText.length === 0) {
+        setPlaceholderTarget((prev) => (prev + 1) % placeholderTexts.length);
+        setPlaceholderPhase("typing");
+        return;
+      }
+      const t = setTimeout(() => setPlaceholderText((p) => p.slice(0, -1)), 30);
+      return () => clearTimeout(t);
+    }
+
+    if (placeholderPhase === "typing") {
+      if (placeholderText === currentTarget) {
+        setPlaceholderPhase("pause");
+        return;
+      }
+      const t = setTimeout(() => setPlaceholderText(currentTarget.slice(0, placeholderText.length + 1)), 50);
+      return () => clearTimeout(t);
+    }
+  }, [placeholderText, placeholderPhase, placeholderTarget, placeholderTexts, isLoading, isListening, query]);
+
+  /* ----- Activity tracking ----- */
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
 
   const debouncedSetActivity = useCallback(() => {
@@ -237,24 +353,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
     debounceTimeoutRef.current = setTimeout(() => {
       setLastActivityTime(Date.now());
-    }, 100); // Debounce mouse movements to reduce frequent updates
+    }, 100);
   }, []);
 
   useEffect(() => {
-    const handleActivity = () => {
-      // For critical events like clicks, update immediately
-      if (event?.type === "click" || event?.type === "keypress") {
-        setLastActivityTime(Date.now());
-      } else {
-        // For mouse movements, use debounced version
-        debouncedSetActivity();
-      }
-    };
-
     const handleMouseMove = debouncedSetActivity;
     const handleImmediate = () => setLastActivityTime(Date.now());
 
-    // Use debounced handler for mousemove only
     window.addEventListener("mousemove", handleMouseMove);
     ["keypress", "click", "scroll"].forEach((e) => window.addEventListener(e, handleImmediate));
 
@@ -267,75 +372,55 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [debouncedSetActivity]);
 
-  /* ----- 5️⃣ Auto-submit intro for first-time users ----- */
+  /* ----- Auto-submit intro for first-time users ----- */
   useEffect(() => {
     const FIRST_VISIT_KEY = "gd_ai_first_visit";
     const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
 
     if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
-      // Mark as visited immediately to prevent multiple submissions
       localStorage.setItem(FIRST_VISIT_KEY, "true");
-
-      // Auto-submit the intro message after a short delay
       const timer = setTimeout(() => {
         handleSubmit(undefined, "introduce the website to the new user");
       }, 1500);
-
       return () => clearTimeout(timer);
     }
-  }, []); // Run only once on mount
+  }, []);
 
-  /* ----- 6️⃣ Show typewriter after delay ----- */
+  /* ----- Show typewriter after delay ----- */
   useEffect(() => {
-    // Don't show typewriter if we have persisted content
-    if (response || suggestions.length > 0) {
-      return;
-    }
-
+    if (response || suggestions.length > 0) return;
     const timer = setTimeout(() => {
       if (!hasInteracted) setShowTypewriter(true);
     }, 2000);
     return () => clearTimeout(timer);
   }, [hasInteracted, response, suggestions]);
 
-  /* ----- 6️⃣ Re-show typewriter after inactivity (optimized) - respect persisted state ----- */
+  /* ----- Re-show typewriter after inactivity ----- */
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-
-      // Don't show typewriter if we have persisted content
-      if (response || suggestions.length > 0) {
-        return;
-      }
-
+      if (response || suggestions.length > 0) return;
       if (idle > 10000 && hasInteracted && !isLoading) {
         setShowTypewriter(true);
       }
-    }, 2000); // Reduced frequency from 1000ms to 2000ms
+    }, 2000);
     return () => clearInterval(idleTimer);
   }, [lastActivityTime, hasInteracted, isLoading, response, suggestions]);
 
-  /* Delay expanded suggestions until 10s inactivity (optimized) */
-  const shouldShowExpandedSuggestions = useMemo(() => {
-    const idle = Date.now() - lastActivityTime;
-    return (response || suggestions.length > 0) && !isLoading && idle > 10000;
-  }, [lastActivityTime, response, suggestions, isLoading]);
-
+  /* Delay expanded suggestions until 10s inactivity */
   useEffect(() => {
     const interval = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
       const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000;
       setShowExpandedSuggestions(shouldShow);
-    }, 1000); // Reduced frequency from 500ms to 1000ms
+    }, 1000);
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
 
   /* ----- Keyboard shortcut to focus search bar ----- */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only trigger on Shift key press
       if (e.key === "Shift") {
-        // Check if user is not already focused on an input/textarea
         const activeElement = document.activeElement as HTMLElement;
         const isInputFocused =
           activeElement &&
@@ -343,7 +428,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             activeElement.tagName === "TEXTAREA" ||
             activeElement.contentEditable === "true");
 
-        // Focus search bar if not already focused on an input
         if (!isInputFocused && inputRef.current) {
           e.preventDefault();
           inputRef.current.focus();
@@ -357,7 +441,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  /* ----- 7️⃣ Typewriter effect ----- */
+  /* ----- Typewriter effect ----- */
   useEffect(() => {
     if (!showTypewriter) return;
 
@@ -387,12 +471,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => clearTimeout(timeout);
   }, [typewriterText, isDeleting, fullText, currentSuggestionIndex, rotatingSuggestions, showTypewriter]);
 
-  /* ----- 8️⃣ Submit handler ----- */
-  /* ----- Track "collapsing to think" state ----- */
-  const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
+  /* ----- Hold-to-speak: start listening ----- */
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -403,14 +482,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognitionRef.current = recognition;
+
+    // Set up audio context for waveform
+    const setupAudio = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        const audioCtx = new AudioContext();
+        audioContextRef.current = audioCtx;
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+        setAnalyserNode(analyser);
+      } catch (err) {
+        console.warn("Could not access microphone for waveform:", err);
+      }
+    };
 
     recognition.onstart = () => {
       setIsListening(true);
       setHasInteracted(true);
       setShowTypewriter(false);
       setShowExpandedSuggestions(false);
+      setupAudio();
     };
 
     recognition.onresult = (event: any) => {
@@ -423,11 +521,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
-      // Auto-submit after speech ends if there's text
+      // Cleanup audio
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      analyserRef.current = null;
+      setAnalyserNode(null);
+
+      // Auto-submit
       setQuery((currentQuery) => {
         const trimmed = currentQuery.trim();
         if (trimmed) {
-          // Use setTimeout to let state settle before submitting
           setTimeout(() => {
             handleSubmit(undefined, trimmed);
           }, 100);
@@ -439,6 +548,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     recognition.onerror = () => {
       setIsListening(false);
       recognitionRef.current = null;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      analyserRef.current = null;
+      setAnalyserNode(null);
     };
 
     recognition.start();
@@ -450,6 +569,52 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, []);
 
+  /* ----- Hold-to-speak handlers ----- */
+  const handleHoldStart = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      // Don't activate if clicking on input, button, or if loading
+      const target = e.target as HTMLElement;
+      if (
+        isLoading ||
+        target.tagName === "INPUT" ||
+        target.tagName === "BUTTON" ||
+        target.closest("button") ||
+        target.closest("input")
+      )
+        return;
+
+      isHoldingRef.current = true;
+      holdTimerRef.current = setTimeout(() => {
+        if (isHoldingRef.current) {
+          startListening();
+        }
+      }, 300); // 300ms hold threshold
+    },
+    [isLoading, startListening],
+  );
+
+  const handleHoldEnd = useCallback(() => {
+    isHoldingRef.current = false;
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (isListening) {
+      stopListening();
+    }
+  }, [isListening, stopListening]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (recognitionRef.current) recognitionRef.current.stop();
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      if (audioContextRef.current) audioContextRef.current.close();
+    };
+  }, []);
+
+  /* ----- Submit handler ----- */
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
@@ -460,14 +625,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowExpandedSuggestions(false);
     if (!customQuery) setQuery("");
 
-    // If there's existing content, fade it out first before collapsing
     if (response || suggestions.length > 0) {
       setIsCollapsingToThink(true);
-      // Wait for content to fade out, then clear and start loading
       await new Promise((r) => setTimeout(r, 500));
       setResponse(null);
       setSuggestions([]);
-      // Small pause for container to start shrinking
       await new Promise((r) => setTimeout(r, 200));
       setIsCollapsingToThink(false);
     } else {
@@ -483,20 +645,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const suggs = (result as any)?.suggestions || [];
       setResponse(String(answer));
       setSuggestions(suggs);
-      setIsRestoredFromStorage(false); // Mark as fresh content
+      setIsRestoredFromStorage(false);
       onSearch?.(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
       setSuggestions([]);
-      setIsRestoredFromStorage(false); // Mark as fresh content
+      setIsRestoredFromStorage(false);
       onSearch?.(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  /* ----- 9️⃣ Interaction helpers (optimized with useCallback) ----- */
+  /* ----- Interaction helpers ----- */
   const handleSuggestionClick = useCallback((s: string) => {
     setQuery("");
     setHasInteracted(true);
@@ -518,15 +680,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowExpandedSuggestions(false);
   }, []);
 
-  /* 🔹 Outside click handler to collapse smoothly (exclude navigation) */
+  /* Outside click handler */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-
-      // Inside the search bar → ignore
       if (searchBarRef.current && searchBarRef.current.contains(target)) return;
 
-      // Exclude navigation UI from collapsing
       const el = target as Element;
       const isNavigationClick =
         !!el?.closest &&
@@ -536,7 +695,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           el.closest('button[aria-label*="Close modal"]'));
 
       if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 1400; // Slower, matching container and content transitions for calm collapse
+        const COLLAPSE_MS = 1400;
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
         window.setTimeout(() => {
@@ -552,10 +711,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [response, suggestions, clearPersistedState]);
 
-  /* ----- 🔟 Layout calculations (memoized for performance) ----- */
+  /* ----- Layout calculations ----- */
   const layoutValues = useMemo(() => {
     const dynamicWidth = Math.min(300 + query.length * 8, 580);
-    // During loading, keep collapsed; expand only when response/suggestions arrive
     const hasContent = suggestions.length > 0 || response;
     const isExpanded = hasContent && !isLoading;
     const targetWidth = isExpanded ? "580px" : `${dynamicWidth}px`;
@@ -564,13 +722,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
   }, [query.length, suggestions.length, response, isLoading]);
 
-  /* ----- 🔒 Render ----- */
+  /* ----- Render ----- */
   return (
     <div
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {/* ── Typewriter bubble (with fade) ── */}
+      {/* ── Typewriter bubble ── */}
       <Fade show={showTypewriter} duration={800}>
         <div
           onClick={() => handleSuggestionClick(fullText)}
@@ -585,7 +743,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       {/* ── Search bar container ── */}
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden ${
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
         } ${isListening ? "listening-container" : ""}`}
         style={{
@@ -597,7 +755,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
           transitionDelay: "0ms",
           willChange: "width, border-radius",
+          cursor: isListening ? "default" : undefined,
         }}
+        onMouseDown={handleHoldStart}
+        onMouseUp={handleHoldEnd}
+        onMouseLeave={handleHoldEnd}
+        onTouchStart={handleHoldStart}
+        onTouchEnd={handleHoldEnd}
       >
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
@@ -606,7 +770,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
           }}
         >
-          {/* ── Suggestion list (with fade) ── */}
+          {/* ── Suggestion list ── */}
           <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={800}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
@@ -650,36 +814,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </div>
 
           {/* ── Input form ── */}
-          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3" onFocus={handleInputFocus}>
+          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 relative" onFocus={handleInputFocus}>
             <div className="relative flex-1">
+              {/* Waveform overlay when listening */}
+              {isListening && (
+                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                  <WaveformCanvas analyser={analyserNode} isActive={isListening} />
+                </div>
+              )}
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder={isListening ? "Listening…" : isLoading ? "Thinking…" : "Ask anything…"}
+                placeholder={isListening ? "Listening…" : isLoading ? "Thinking…" : placeholderText}
                 value={query}
                 onChange={handleInputChange}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                            text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
                              isLoading ? "thinking-placeholder" : ""
-                           } ${isListening ? "listening-placeholder" : ""}`}
+                           } ${isListening ? "listening-input" : ""}`}
                 disabled={isLoading || isListening}
                 aria-label="Ask anything"
               />
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={`h-8 w-8 p-0 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0 ${
-                           isListening ? "listening-mic" : "hover:bg-white/20"
-                         }`}
-              onClick={isListening ? stopListening : startListening}
-              disabled={isLoading}
-              aria-label={isListening ? "Stop listening" : "Voice search"}
-            >
-              <Mic className={`h-4 w-4 ${isListening ? "listening-icon" : ""}`} />
-            </Button>
             <Button
               type="submit"
               variant="ghost"
@@ -756,7 +912,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
         .typewriter-text{display:inline-block;min-height:1.2em;}
 
-        /* Listening / voice search styles */
+        /* Listening styles */
         .listening-container{
           border: 1px solid rgba(255,255,255,0.3);
           animation: listeningGlow 1.5s infinite ease-in-out;
@@ -769,27 +925,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             box-shadow: 0 0 25px rgba(255,255,255,0.4), inset 0 0 25px rgba(255,255,255,0.2);
           }
         }
-        .listening-placeholder::placeholder{
+        .listening-input::placeholder{
           color: rgba(255,255,255,0.7);
           animation: textGlow 1.5s infinite ease-in-out;
         }
-        .listening-mic{
-          background: rgba(255,255,255,0.15);
-          animation: micPulse 1.5s infinite ease-in-out;
-        }
-        @keyframes micPulse {
-          0%, 100% { 
-            background: rgba(255,255,255,0.1);
-            box-shadow: 0 0 4px rgba(255,255,255,0.1);
-          }
-          50% { 
-            background: rgba(255,255,255,0.25);
-            box-shadow: 0 0 12px rgba(255,255,255,0.3);
-          }
-        }
-        .listening-icon {
-          stroke: rgba(255,255,255,0.9);
-          filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
+        .listening-input{
+          color: transparent;
         }
       `}</style>
     </div>
