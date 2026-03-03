@@ -274,6 +274,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  const transcriptRef = useRef<string>(""); // hold transcript during listening
 
   /* ----- Hold-to-speak refs ----- */
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -530,6 +531,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setHasInteracted(true);
       setShowTypewriter(false);
       setShowExpandedSuggestions(false);
+      setQuery(""); // clear any existing text
+      transcriptRef.current = "";
       setupAudio();
     };
 
@@ -537,12 +540,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const transcript = Array.from(event.results)
         .map((r: any) => r[0].transcript)
         .join("");
-      setQuery(transcript);
+      transcriptRef.current = transcript; // store in ref, don't show yet
     };
 
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
+      // Show the transcribed text now
+      if (transcriptRef.current.trim()) {
+        setQuery(transcriptRef.current);
+      }
+      transcriptRef.current = "";
       // Cleanup audio
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -554,7 +562,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       analyserRef.current = null;
       setAnalyserNode(null);
-      // Don't auto-submit — let the user click the search icon
     };
 
     recognition.onerror = () => {
@@ -584,23 +591,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Hold-to-speak handlers ----- */
   const handleHoldStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      // Don't activate if clicking on input, button, or if loading
+      // Don't activate if clicking on the submit button or if loading
       const target = e.target as HTMLElement;
       if (
         isLoading ||
-        target.tagName === "INPUT" ||
         target.tagName === "BUTTON" ||
-        target.closest("button") ||
-        target.closest("input")
+        target.closest("button")
       )
         return;
+
+      // Prevent default to avoid text selection/cursor on input
+      e.preventDefault();
 
       isHoldingRef.current = true;
       holdTimerRef.current = setTimeout(() => {
         if (isHoldingRef.current) {
           startListening();
         }
-      }, 300); // 300ms hold threshold
+      }, 300);
     },
     [isLoading, startListening],
   );
