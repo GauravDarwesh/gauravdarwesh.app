@@ -70,8 +70,8 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
   );
 }
 
-/* ---------- 3️⃣ Waveform Canvas Component ---------- */
-const WaveformCanvas: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
+/* ---------- 3️⃣ ChatGPT-style Vertical Bars Waveform ---------- */
+const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
 
@@ -82,55 +82,41 @@ const WaveformCanvas: React.FC<{ analyser: AnalyserNode | null; isActive: boolea
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    analyser.fftSize = 256;
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
+    const BAR_COUNT = 24;
+    const BAR_WIDTH = 2;
+    const BAR_GAP = 2;
+    const MIN_HEIGHT = 3;
+
     const draw = () => {
       animFrameRef.current = requestAnimationFrame(draw);
-      analyser.getByteTimeDomainData(dataArray);
+      analyser.getByteFrequencyData(dataArray);
 
-      const w = canvas.width;
-      const h = canvas.height;
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
-      // Draw waveform
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-      ctx.beginPath();
+      const totalBarWidth = BAR_COUNT * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
+      const startX = (w - totalBarWidth) / 2;
 
-      const sliceWidth = w / bufferLength;
-      let x = 0;
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const dataIndex = Math.floor((i / BAR_COUNT) * bufferLength);
+        const value = dataArray[dataIndex] / 255;
+        const barHeight = Math.max(MIN_HEIGHT, value * (h * 0.85));
 
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * h) / 2;
+        const x = startX + i * (BAR_WIDTH + BAR_GAP);
+        const y = (h - barHeight) / 2;
 
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-
-        x += sliceWidth;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + value * 0.5})`;
+        ctx.beginPath();
+        ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1);
+        ctx.fill();
       }
-
-      ctx.lineTo(w, h / 2);
-      ctx.stroke();
-
-      // Draw a softer glow line on top
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-      ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      x = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * h) / 2;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-        x += sliceWidth;
-      }
-      ctx.lineTo(w, h / 2);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
     };
 
     draw();
@@ -140,16 +126,52 @@ const WaveformCanvas: React.FC<{ analyser: AnalyserNode | null; isActive: boolea
     };
   }, [analyser, isActive]);
 
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = canvasRef.current;
+    canvas.width = 120 * dpr;
+    canvas.height = 32 * dpr;
+    canvas.style.width = "120px";
+    canvas.style.height = "32px";
+  }, []);
+
   if (!isActive) return null;
 
   return (
     <canvas
       ref={canvasRef}
-      width={400}
-      height={40}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ opacity: 0.9 }}
+      className="pointer-events-none"
     />
+  );
+};
+
+/* ---------- 3️⃣b Timer Component ---------- */
+const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
+  const [seconds, setSeconds] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isActive) {
+      setSeconds(0);
+      intervalRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isActive]);
+
+  if (!isActive) return null;
+
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  return (
+    <span className="text-sm font-mono text-white/70 tabular-nums shrink-0">
+      {mins}:{secs.toString().padStart(2, "0")}
+    </span>
   );
 };
 
@@ -532,17 +554,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       analyserRef.current = null;
       setAnalyserNode(null);
-
-      // Auto-submit
-      setQuery((currentQuery) => {
-        const trimmed = currentQuery.trim();
-        if (trimmed) {
-          setTimeout(() => {
-            handleSubmit(undefined, trimmed);
-          }, 100);
-        }
-        return currentQuery;
-      });
+      // Don't auto-submit — let the user click the search icon
     };
 
     recognition.onerror = () => {
@@ -815,38 +827,45 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Input form ── */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 relative" onFocus={handleInputFocus}>
+            {/* Waveform on the left when listening */}
+            {isListening && (
+              <div className="flex items-center shrink-0">
+                <BarWaveform analyser={analyserNode} isActive={isListening} />
+              </div>
+            )}
             <div className="relative flex-1">
-              {/* Waveform overlay when listening */}
-              {isListening && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                  <WaveformCanvas analyser={analyserNode} isActive={isListening} />
-                </div>
-              )}
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder={isListening ? "Listening…" : isLoading ? "Thinking…" : placeholderText}
+                placeholder={isLoading ? "Thinking…" : placeholderText}
                 value={query}
                 onChange={handleInputChange}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
                            text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
                              isLoading ? "thinking-placeholder" : ""
-                           } ${isListening ? "listening-input" : ""}`}
+                           } ${isListening ? "opacity-0" : ""}`}
                 disabled={isLoading || isListening}
                 aria-label="Ask anything"
               />
             </div>
-            <Button
-              type="submit"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                         ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
-              disabled={isLoading || !query.trim()}
-              aria-label="Send"
-            >
-              <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
-            </Button>
+            {/* Timer on right when listening, search icon otherwise */}
+            {isListening ? (
+              <div className="flex items-center shrink-0 pr-1">
+                <RecordingTimer isActive={isListening} />
+              </div>
+            ) : (
+              <Button
+                type="submit"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
+                           ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
+                disabled={isLoading || !query.trim()}
+                aria-label="Send"
+              >
+                <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
+              </Button>
+            )}
           </form>
         </div>
       </div>
@@ -924,10 +943,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           50% { 
             box-shadow: 0 0 25px rgba(255,255,255,0.4), inset 0 0 25px rgba(255,255,255,0.2);
           }
-        }
-        .listening-input::placeholder{
-          color: rgba(255,255,255,0.7);
-          animation: textGlow 1.5s infinite ease-in-out;
         }
         .listening-input{
           color: transparent;
