@@ -591,7 +591,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Hold-to-speak handlers ----- */
   const handleHoldStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      // Don't activate if clicking on the submit button or if loading
       const target = e.target as HTMLElement;
       if (
         isLoading ||
@@ -600,20 +599,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )
         return;
 
-      // Prevent default to avoid text selection/cursor on input
-      e.preventDefault();
-
       isHoldingRef.current = true;
       holdTimerRef.current = setTimeout(() => {
         if (isHoldingRef.current) {
+          // It's a hold — start listening
           startListening();
         }
-      }, 300);
+      }, 400); // 400ms to distinguish from click
     },
     [isLoading, startListening],
   );
 
   const handleHoldEnd = useCallback(() => {
+    const wasHolding = isHoldingRef.current;
     isHoldingRef.current = false;
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
@@ -621,6 +619,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
     if (isListening) {
       stopListening();
+    } else if (wasHolding && !isListening) {
+      // It was a short tap (< 400ms) — focus the input for typing
+      inputRef.current?.focus();
     }
   }, [isListening, stopListening]);
 
@@ -845,7 +846,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder={isLoading ? "Thinking…" : placeholderText}
+                placeholder={isLoading ? "Thinking…" : isListening ? "" : placeholderText}
                 value={query}
                 onChange={handleInputChange}
                 className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
