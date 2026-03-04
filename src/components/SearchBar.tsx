@@ -250,10 +250,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
 
   const [showTypewriter, setShowTypewriter] = useState(false);
-  const [typewriterText, setTypewriterText] = useState("");
+  const [suggestionVisible, setSuggestionVisible] = useState(true);
   const [fullText, setFullText] = useState("");
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const suggestionIndexRef = useRef(0);
   const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
   const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
@@ -468,14 +468,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     if (!showTypewriter) return;
 
-    if (fullText === "") setFullText(rotatingSuggestions[currentSuggestionIndex]);
+    // Set initial text
+    if (!fullText) {
+      setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+      setSuggestionVisible(true);
+    }
 
     const interval = setInterval(() => {
-      setCurrentSuggestionIndex((prev) => {
-        const next = (prev + 1) % rotatingSuggestions.length;
-        setFullText(rotatingSuggestions[next]);
-        return next;
-      });
+      // Fade out
+      setSuggestionVisible(false);
+
+      // After fade out, swap text and fade in
+      setTimeout(() => {
+        suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
+        setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+        setCurrentSuggestionIndex(suggestionIndexRef.current);
+        setSuggestionVisible(true);
+      }, 500);
     }, 4000);
 
     return () => clearInterval(interval);
@@ -770,7 +779,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
-          <span className="transition-opacity duration-500">
+          <span className={`transition-opacity duration-500 ${suggestionVisible ? 'opacity-100' : 'opacity-0'}`}>
             {fullText}
           </span>
         </div>
