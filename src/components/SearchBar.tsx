@@ -464,35 +464,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  /* ----- Typewriter effect ----- */
+  /* ----- Suggestion fade cycle (no typewriter) ----- */
   useEffect(() => {
     if (!showTypewriter) return;
 
-    const typingSpeed = 40;
-    const deletingSpeed = 20;
-    const pauseBeforeDelete = 3000;
-    const pauseAfterDelete = 500;
+    if (fullText === "") setFullText(rotatingSuggestions[currentSuggestionIndex]);
 
-    let timeout: NodeJS.Timeout;
-
-    if (!isDeleting && typewriterText === fullText && fullText !== "") {
-      timeout = setTimeout(() => setIsDeleting(true), pauseBeforeDelete);
-    } else if (isDeleting && typewriterText === "") {
-      timeout = setTimeout(() => {
-        const next = (currentSuggestionIndex + 1) % rotatingSuggestions.length;
-        setCurrentSuggestionIndex(next);
+    const interval = setInterval(() => {
+      setCurrentSuggestionIndex((prev) => {
+        const next = (prev + 1) % rotatingSuggestions.length;
         setFullText(rotatingSuggestions[next]);
-        setIsDeleting(false);
-      }, pauseAfterDelete);
-    } else if (isDeleting) {
-      timeout = setTimeout(() => setTypewriterText((p) => p.slice(0, -1)), deletingSpeed);
-    } else {
-      if (fullText === "") setFullText(rotatingSuggestions[currentSuggestionIndex]);
-      else timeout = setTimeout(() => setTypewriterText((p) => fullText.slice(0, p.length + 1)), typingSpeed);
-    }
+        return next;
+      });
+    }, 4000);
 
-    return () => clearTimeout(timeout);
-  }, [typewriterText, isDeleting, fullText, currentSuggestionIndex, rotatingSuggestions, showTypewriter]);
+    return () => clearInterval(interval);
+  }, [showTypewriter, rotatingSuggestions]);
 
   /* ----- Hold-to-speak: start listening ----- */
   const startListening = useCallback(() => {
@@ -777,15 +764,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {/* ── Typewriter bubble ── */}
+      {/* ── Suggestion bubble (fade cycle) ── */}
       <Fade show={showTypewriter} duration={800}>
         <div
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
         >
-          <span className="typewriter-text">
-            {typewriterText}
-            <span className="typewriter-cursor">|</span>
+          <span className="transition-opacity duration-500">
+            {fullText}
           </span>
         </div>
       </Fade>

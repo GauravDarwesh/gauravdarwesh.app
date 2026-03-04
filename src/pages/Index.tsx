@@ -27,7 +27,9 @@ const Index = () => {
         <img
           src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt="background"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover pointer-events-none select-none"
+          draggable={false}
+          onContextMenu={(e) => e.preventDefault()}
         />
       </div>
 
