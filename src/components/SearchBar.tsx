@@ -551,6 +551,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         setQuery(transcriptRef.current);
       }
       transcriptRef.current = "";
+      // Blur input to prevent cursor showing
+      inputRef.current?.blur();
       // Cleanup audio
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -584,8 +586,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Already stopped
+      }
     }
+    // Force cleanup in case onend doesn't fire
+    isHoldingRef.current = false;
   }, []);
 
   /* ----- Hold-to-speak handlers ----- */
@@ -599,13 +607,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )
         return;
 
+      // Prevent iOS magnifying glass / text selection on long press
+      if ('touches' in e) {
+        e.preventDefault();
+      }
+
       isHoldingRef.current = true;
       holdTimerRef.current = setTimeout(() => {
         if (isHoldingRef.current) {
-          // It's a hold — start listening
+          // Blur the input to prevent cursor from showing
+          inputRef.current?.blur();
           startListening();
         }
-      }, 400); // 400ms to distinguish from click
+      }, 400);
     },
     [isLoading, startListening],
   );
@@ -715,22 +729,36 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           el.closest('button[aria-label*="Scroll to top"]') ||
           el.closest('button[aria-label*="Close modal"]'));
 
-      if (!isNavigationClick && (response || suggestions.length > 0)) {
-        const COLLAPSE_MS = 1400;
-        setIsCollapsing(true);
-        setShowExpandedSuggestions(false);
-        window.setTimeout(() => {
-          setResponse(null);
-          setSuggestions([]);
-          setIsCollapsing(false);
-          clearPersistedState();
-        }, COLLAPSE_MS);
+      if (!isNavigationClick) {
+        // If there's a query in the bar (after voice input), clear it and reset
+        if (query.trim() && !response && suggestions.length === 0) {
+          setQuery("");
+          inputRef.current?.blur();
+          return;
+        }
+
+        // If there's a response/suggestions, collapse them
+        if (response || suggestions.length > 0) {
+          const COLLAPSE_MS = 1400;
+          setIsCollapsing(true);
+          setShowExpandedSuggestions(false);
+          window.setTimeout(() => {
+            setResponse(null);
+            setSuggestions([]);
+            setIsCollapsing(false);
+            clearPersistedState();
+          }, COLLAPSE_MS);
+        }
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [response, suggestions, clearPersistedState]);
+    document.addEventListener("touchstart", handleClickOutside as any);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside as any);
+    };
+  }, [response, suggestions, query, clearPersistedState]);
 
   /* ----- Layout calculations ----- */
   const layoutValues = useMemo(() => {
@@ -777,6 +805,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           transitionDelay: "0ms",
           willChange: "width, border-radius",
           cursor: isListening ? "default" : undefined,
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
         }}
         onMouseDown={handleHoldStart}
         onMouseUp={handleHoldEnd}
