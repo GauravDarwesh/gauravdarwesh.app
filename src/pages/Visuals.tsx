@@ -283,13 +283,14 @@ export default function Visuals() {
   const showVideo = isVideo(currentSrc);
 
   return (
-    <div className="h-screen w-full relative overflow-hidden">
+    <div className="h-screen w-full relative overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none select-none"
         style={{
           backgroundImage:
             "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
+          WebkitTouchCallout: "none",
         }}
       />
 
@@ -337,11 +338,12 @@ export default function Visuals() {
                   {/* Layer A (images) */}
                   <div
                     ref={layerARef}
-                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
+                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover pointer-events-none select-none"
                     style={{
                       opacity: showVideo ? 0 : 1,
                       transition: `opacity ${FADE_MS}ms linear`,
                       willChange: "opacity",
+                      WebkitTouchCallout: "none",
                     }}
                     aria-hidden="true"
                   />
@@ -349,11 +351,12 @@ export default function Visuals() {
                   {/* Layer B (images) */}
                   <div
                     ref={layerBRef}
-                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover"
+                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover pointer-events-none select-none"
                     style={{
                       opacity: 0,
                       transition: `opacity ${FADE_MS}ms linear`,
                       willChange: "opacity",
+                      WebkitTouchCallout: "none",
                     }}
                     aria-hidden="true"
                   />
