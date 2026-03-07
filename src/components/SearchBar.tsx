@@ -304,7 +304,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   /* ----- Typewriter suggestions ----- */
-  const rotatingSuggestions = [
+  const rotatingSuggestions = useMemo(() => [
     "✨ Tell me about Gaurav's Experience",
     "✨ What is Gaurav's Education?",
     "✨ What are Gaurav's Skills?",
@@ -334,7 +334,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ Has Gaurav delivered any Talks?",
     "✨ What is Gaurav's Work Philosophy?",
     "✨ Can you share a Fun Fact about Gaurav?",
-  ];
+  ], []);
 
   /* ----- Rotating placeholder effect ----- */
   useEffect(() => {
