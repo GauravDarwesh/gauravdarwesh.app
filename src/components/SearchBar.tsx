@@ -850,12 +850,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Input form ── */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 relative" onFocus={handleInputFocus}>
-            {/* Waveform on the left when listening */}
-            {isListening && (
-              <div className="flex items-center shrink-0">
-                <BarWaveform analyser={analyserNode} isActive={isListening} />
-              </div>
-            )}
             <div className="relative flex-1">
               <Input
                 ref={inputRef}
@@ -871,24 +865,30 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 aria-label="Ask anything"
               />
             </div>
-            {/* Timer on right when listening, search icon otherwise */}
-            {isListening ? (
-              <div className="flex items-center shrink-0 pr-1">
-                <RecordingTimer isActive={isListening} />
-              </div>
-            ) : (
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                           ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
-                disabled={isLoading || !query.trim()}
-                aria-label="Send"
+            {/* Search icon / hold-to-speak target + waveform & timer when listening */}
+            <div
+              className="flex items-center gap-2 shrink-0 select-none"
+              onMouseDown={handleHoldStart}
+              onMouseUp={handleHoldEnd}
+              onMouseLeave={handleHoldEnd}
+              onTouchStart={handleHoldStart}
+              onTouchEnd={handleHoldEnd}
+              style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+            >
+              {isListening && (
+                <>
+                  <BarWaveform analyser={analyserNode} isActive={isListening} />
+                  <RecordingTimer isActive={isListening} />
+                </>
+              )}
+              <div
+                className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 
+                           ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
+                           ${isListening ? "bg-white/30" : "hover:bg-white/20"}`}
               >
-                <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
-              </Button>
-            )}
+                <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""} ${isListening ? "text-white" : ""}`} />
+              </div>
+            </div>
           </form>
         </div>
       </div>
