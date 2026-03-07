@@ -251,6 +251,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const [showTypewriter, setShowTypewriter] = useState(false);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
+  const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
   const [fullText, setFullText] = useState("");
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
   const suggestionIndexRef = useRef(0);
