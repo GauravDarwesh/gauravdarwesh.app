@@ -784,16 +784,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {showTypewriter && fullText && suggestionPhase !== "hidden" && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className={`cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
-                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis
-                     transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]
-                     ${suggestionPhase === "emerging" ? "opacity-100 translate-y-0 scale-100" : ""}
-                     ${suggestionPhase === "visible" ? "opacity-100 translate-y-0 scale-100" : ""}
-                     ${suggestionPhase === "retreating" ? "opacity-0 translate-y-6 scale-95" : ""}
-                     `}
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
+                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
           style={{
-            ...(suggestionPhase === "emerging" ? { animation: "suggestionEmerge 0.5s cubic-bezier(0.25,1,0.3,1) forwards" } : {}),
-            ...(suggestionPhase === "retreating" ? { animation: "suggestionRetreat 0.4s cubic-bezier(0.5,0,0.75,0) forwards" } : {}),
+            animation: suggestionPhase === "emerging"
+              ? "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+              : suggestionPhase === "retreating"
+              ? "suggestionRetreat 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+              : undefined,
           }}
         >
           {fullText}
