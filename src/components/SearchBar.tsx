@@ -906,7 +906,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                            ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
                            ${isListening ? "bg-white/30" : "hover:bg-white/20"}`}
               >
-                <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""} ${isListening ? "text-white" : ""}`} />
+                <Search className={`h-4 w-4 text-white/50 ${isLoading ? "thinking-icon" : ""} ${isListening ? "!text-white" : ""}`} />
               </div>
             </div>
           </form>
