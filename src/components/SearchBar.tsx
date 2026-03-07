@@ -465,30 +465,41 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  /* ----- Suggestion fade cycle (no typewriter) ----- */
+  /* ----- Suggestion emerge/retreat cycle ----- */
   useEffect(() => {
-    if (!showTypewriter) return;
-
-    // Set initial text
-    if (!fullText) {
-      setFullText(rotatingSuggestions[suggestionIndexRef.current]);
-      setSuggestionVisible(true);
+    if (!showTypewriter) {
+      setSuggestionPhase("hidden");
+      return;
     }
 
-    const interval = setInterval(() => {
-      // Fade out
-      setSuggestionVisible(false);
+    // Set initial text and emerge
+    if (!fullText) {
+      setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+    }
+    setSuggestionPhase("emerging");
 
-      // After fade out, swap text and fade in
+    // After emerge animation, mark as visible
+    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 600);
+
+    const interval = setInterval(() => {
+      // Retreat back into search bar
+      setSuggestionPhase("retreating");
+
+      // After retreat, swap text and emerge again
       setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
         setFullText(rotatingSuggestions[suggestionIndexRef.current]);
         setCurrentSuggestionIndex(suggestionIndexRef.current);
-        setSuggestionVisible(true);
+        setSuggestionPhase("emerging");
+
+        setTimeout(() => setSuggestionPhase("visible"), 600);
       }, 500);
     }, 4000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(emergeTimer);
+    };
   }, [showTypewriter, rotatingSuggestions]);
 
   /* ----- Hold-to-speak: start listening ----- */
