@@ -990,6 +990,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .listening-input{
           color: transparent;
         }
+
+        @keyframes suggestionEmerge {
+          0% {
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+            filter: blur(4px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        @keyframes suggestionRetreat {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+            filter: blur(4px);
+          }
+        }
       `}</style>
     </div>
   );
