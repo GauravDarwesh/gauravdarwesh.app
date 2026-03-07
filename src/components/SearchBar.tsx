@@ -592,26 +592,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     isHoldingRef.current = false;
   }, []);
 
-  /* ----- Hold-to-speak handlers ----- */
+  /* ----- Hold-to-speak handlers (on magnifying glass) ----- */
   const handleHoldStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        isLoading ||
-        target.tagName === "BUTTON" ||
-        target.closest("button")
-      )
-        return;
+      if (isLoading) return;
 
-      // Prevent iOS magnifying glass / text selection on long press
-      if ('touches' in e) {
-        e.preventDefault();
-      }
+      // Prevent default to avoid iOS magnifying glass and form submission
+      e.preventDefault();
 
       isHoldingRef.current = true;
       holdTimerRef.current = setTimeout(() => {
         if (isHoldingRef.current) {
-          // Blur the input to prevent cursor from showing
           inputRef.current?.blur();
           startListening();
         }
@@ -620,7 +611,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [isLoading, startListening],
   );
 
-  const handleHoldEnd = useCallback(() => {
+  const handleHoldEnd = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
+    e?.preventDefault();
     const wasHolding = isHoldingRef.current;
     isHoldingRef.current = false;
     if (holdTimerRef.current) {
@@ -630,10 +622,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (isListening) {
       stopListening();
     } else if (wasHolding && !isListening) {
-      // It was a short tap (< 400ms) — focus the input for typing
-      inputRef.current?.focus();
+      // Short tap on search icon — submit if there's a query
+      if (query.trim()) {
+        handleSubmit(undefined);
+      }
     }
-  }, [isListening, stopListening]);
+  }, [isListening, stopListening, query]);
 
   // Cleanup on unmount
   useEffect(() => {
