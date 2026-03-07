@@ -779,17 +779,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {/* ── Suggestion bubble (fade cycle) ── */}
-      <Fade show={showTypewriter} duration={800}>
+      {/* ── Suggestion bubble (emerge/retreat from search bar) ── */}
+      {showTypewriter && fullText && suggestionPhase !== "hidden" && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+          className={`cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
+                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis
+                     transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]
+                     ${suggestionPhase === "emerging" ? "opacity-100 translate-y-0 scale-100" : ""}
+                     ${suggestionPhase === "visible" ? "opacity-100 translate-y-0 scale-100" : ""}
+                     ${suggestionPhase === "retreating" ? "opacity-0 translate-y-6 scale-95" : ""}
+                     `}
+          style={{
+            ...(suggestionPhase === "emerging" ? { animation: "suggestionEmerge 0.5s cubic-bezier(0.25,1,0.3,1) forwards" } : {}),
+            ...(suggestionPhase === "retreating" ? { animation: "suggestionRetreat 0.4s cubic-bezier(0.5,0,0.75,0) forwards" } : {}),
+          }}
         >
-          <span className={`transition-opacity duration-500 ${suggestionVisible ? 'opacity-100' : 'opacity-0'}`}>
-            {fullText}
-          </span>
+          {fullText}
         </div>
-      </Fade>
+      )}
 
       {/* ── Search bar container ── */}
       <div
