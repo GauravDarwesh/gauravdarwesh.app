@@ -266,7 +266,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [placeholderText, setPlaceholderText] = useState("Ask anything...");
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
   const [placeholderTarget, setPlaceholderTarget] = useState(0); // 0 = "Ask anything...", 1 = "Hold to speak"
-  const placeholderTexts = useMemo(() => ["Ask anything...", "Hold to speak"], []);
+  const placeholderTexts = useMemo(() => ["Ask anything...", "Hold search to speak"], []);
 
   /* ----- Audio/waveform refs ----- */
   const recognitionRef = useRef<any>(null);
@@ -304,7 +304,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   /* ----- Typewriter suggestions ----- */
-  const rotatingSuggestions = [
+  const rotatingSuggestions = useMemo(() => [
     "✨ Tell me about Gaurav's Experience",
     "✨ What is Gaurav's Education?",
     "✨ What are Gaurav's Skills?",
@@ -334,7 +334,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     "✨ Has Gaurav delivered any Talks?",
     "✨ What is Gaurav's Work Philosophy?",
     "✨ Can you share a Fun Fact about Gaurav?",
-  ];
+  ], []);
 
   /* ----- Rotating placeholder effect ----- */
   useEffect(() => {
@@ -592,26 +592,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     isHoldingRef.current = false;
   }, []);
 
-  /* ----- Hold-to-speak handlers ----- */
+  /* ----- Hold-to-speak handlers (on magnifying glass) ----- */
   const handleHoldStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        isLoading ||
-        target.tagName === "BUTTON" ||
-        target.closest("button")
-      )
-        return;
+      if (isLoading) return;
 
-      // Prevent iOS magnifying glass / text selection on long press
-      if ('touches' in e) {
-        e.preventDefault();
-      }
+      // Prevent default to avoid iOS magnifying glass and form submission
+      e.preventDefault();
 
       isHoldingRef.current = true;
       holdTimerRef.current = setTimeout(() => {
         if (isHoldingRef.current) {
-          // Blur the input to prevent cursor from showing
           inputRef.current?.blur();
           startListening();
         }
@@ -620,7 +611,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [isLoading, startListening],
   );
 
-  const handleHoldEnd = useCallback(() => {
+  const handleHoldEnd = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
+    e?.preventDefault();
     const wasHolding = isHoldingRef.current;
     isHoldingRef.current = false;
     if (holdTimerRef.current) {
@@ -630,10 +622,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (isListening) {
       stopListening();
     } else if (wasHolding && !isListening) {
-      // It was a short tap (< 400ms) — focus the input for typing
-      inputRef.current?.focus();
+      // Short tap on search icon — submit if there's a query
+      if (query.trim()) {
+        handleSubmit(undefined);
+      }
     }
-  }, [isListening, stopListening]);
+  }, [isListening, stopListening, query]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -803,11 +797,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
         }}
-        onMouseDown={handleHoldStart}
-        onMouseUp={handleHoldEnd}
-        onMouseLeave={handleHoldEnd}
-        onTouchStart={handleHoldStart}
-        onTouchEnd={handleHoldEnd}
       >
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
@@ -861,12 +850,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Input form ── */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 relative" onFocus={handleInputFocus}>
-            {/* Waveform on the left when listening */}
-            {isListening && (
-              <div className="flex items-center shrink-0">
-                <BarWaveform analyser={analyserNode} isActive={isListening} />
-              </div>
-            )}
             <div className="relative flex-1">
               <Input
                 ref={inputRef}
@@ -882,24 +865,30 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 aria-label="Ask anything"
               />
             </div>
-            {/* Timer on right when listening, search icon otherwise */}
-            {isListening ? (
-              <div className="flex items-center shrink-0 pr-1">
-                <RecordingTimer isActive={isListening} />
-              </div>
-            ) : (
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-white/20 rounded-full transition-all duration-300 
-                           ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 shrink-0"
-                disabled={isLoading || !query.trim()}
-                aria-label="Send"
+            {/* Search icon / hold-to-speak target + waveform & timer when listening */}
+            <div
+              className="flex items-center gap-2 shrink-0 select-none"
+              onMouseDown={handleHoldStart}
+              onMouseUp={handleHoldEnd}
+              onMouseLeave={handleHoldEnd}
+              onTouchStart={handleHoldStart}
+              onTouchEnd={handleHoldEnd}
+              style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+            >
+              {isListening && (
+                <>
+                  <BarWaveform analyser={analyserNode} isActive={isListening} />
+                  <RecordingTimer isActive={isListening} />
+                </>
+              )}
+              <div
+                className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 
+                           ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
+                           ${isListening ? "bg-white/30" : "hover:bg-white/20"}`}
               >
-                <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""}`} />
-              </Button>
-            )}
+                <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""} ${isListening ? "text-white" : ""}`} />
+              </div>
+            </div>
           </form>
         </div>
       </div>
