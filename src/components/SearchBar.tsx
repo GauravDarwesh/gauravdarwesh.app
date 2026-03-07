@@ -251,6 +251,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const [showTypewriter, setShowTypewriter] = useState(false);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
+  const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
   const [fullText, setFullText] = useState("");
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
   const suggestionIndexRef = useRef(0);
@@ -409,12 +410,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, []);
 
-  /* ----- Show typewriter after delay ----- */
+  /* ----- Show typewriter after 10s inactivity (first visit too) ----- */
   useEffect(() => {
     if (response || suggestions.length > 0) return;
     const timer = setTimeout(() => {
       if (!hasInteracted) setShowTypewriter(true);
-    }, 2000);
+    }, 10000);
     return () => clearTimeout(timer);
   }, [hasInteracted, response, suggestions]);
 
@@ -464,30 +465,41 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  /* ----- Suggestion fade cycle (no typewriter) ----- */
+  /* ----- Suggestion emerge/retreat cycle ----- */
   useEffect(() => {
-    if (!showTypewriter) return;
-
-    // Set initial text
-    if (!fullText) {
-      setFullText(rotatingSuggestions[suggestionIndexRef.current]);
-      setSuggestionVisible(true);
+    if (!showTypewriter) {
+      setSuggestionPhase("hidden");
+      return;
     }
 
-    const interval = setInterval(() => {
-      // Fade out
-      setSuggestionVisible(false);
+    // Set initial text and emerge
+    if (!fullText) {
+      setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+    }
+    setSuggestionPhase("emerging");
 
-      // After fade out, swap text and fade in
+    // After emerge animation, mark as visible
+    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 600);
+
+    const interval = setInterval(() => {
+      // Retreat back into search bar
+      setSuggestionPhase("retreating");
+
+      // After retreat, swap text and emerge again
       setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
         setFullText(rotatingSuggestions[suggestionIndexRef.current]);
         setCurrentSuggestionIndex(suggestionIndexRef.current);
-        setSuggestionVisible(true);
+        setSuggestionPhase("emerging");
+
+        setTimeout(() => setSuggestionPhase("visible"), 600);
       }, 500);
     }, 4000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(emergeTimer);
+    };
   }, [showTypewriter, rotatingSuggestions]);
 
   /* ----- Hold-to-speak: start listening ----- */
@@ -767,17 +779,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {/* ── Suggestion bubble (fade cycle) ── */}
-      <Fade show={showTypewriter} duration={800}>
+      {/* ── Suggestion bubble (emerge/retreat from search bar) ── */}
+      {showTypewriter && fullText && suggestionPhase !== "hidden" && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md opacity-0 animate-delayedFadeIn"
+          className={`cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
+                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis
+                     transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]
+                     ${suggestionPhase === "emerging" ? "opacity-100 translate-y-0 scale-100" : ""}
+                     ${suggestionPhase === "visible" ? "opacity-100 translate-y-0 scale-100" : ""}
+                     ${suggestionPhase === "retreating" ? "opacity-0 translate-y-6 scale-95" : ""}
+                     `}
+          style={{
+            ...(suggestionPhase === "emerging" ? { animation: "suggestionEmerge 0.5s cubic-bezier(0.25,1,0.3,1) forwards" } : {}),
+            ...(suggestionPhase === "retreating" ? { animation: "suggestionRetreat 0.4s cubic-bezier(0.5,0,0.75,0) forwards" } : {}),
+          }}
         >
-          <span className={`transition-opacity duration-500 ${suggestionVisible ? 'opacity-100' : 'opacity-0'}`}>
-            {fullText}
-          </span>
+          {fullText}
         </div>
-      </Fade>
+      )}
 
       {/* ── Search bar container ── */}
       <div
@@ -886,7 +906,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                            ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
                            ${isListening ? "bg-white/30" : "hover:bg-white/20"}`}
               >
-                <Search className={`h-4 w-4 ${isLoading ? "thinking-icon" : ""} ${isListening ? "text-white" : ""}`} />
+                <Search className={`h-4 w-4 text-white/50 ${isLoading ? "thinking-icon" : ""} ${isListening ? "!text-white" : ""}`} />
               </div>
             </div>
           </form>
@@ -969,6 +989,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         .listening-input{
           color: transparent;
+        }
+
+        @keyframes suggestionEmerge {
+          0% {
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+            filter: blur(4px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        @keyframes suggestionRetreat {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+            filter: blur(4px);
+          }
         }
       `}</style>
     </div>
