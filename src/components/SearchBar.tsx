@@ -410,12 +410,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, []);
 
-  /* ----- Show typewriter after delay ----- */
+  /* ----- Show typewriter after 10s inactivity (first visit too) ----- */
   useEffect(() => {
     if (response || suggestions.length > 0) return;
     const timer = setTimeout(() => {
       if (!hasInteracted) setShowTypewriter(true);
-    }, 2000);
+    }, 10000);
     return () => clearTimeout(timer);
   }, [hasInteracted, response, suggestions]);
 
