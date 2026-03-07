@@ -797,11 +797,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
         }}
-        onMouseDown={handleHoldStart}
-        onMouseUp={handleHoldEnd}
-        onMouseLeave={handleHoldEnd}
-        onTouchStart={handleHoldStart}
-        onTouchEnd={handleHoldEnd}
       >
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
