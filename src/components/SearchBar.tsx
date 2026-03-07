@@ -993,13 +993,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes suggestionEmerge {
           0% {
             opacity: 0;
-            transform: translateY(20px) scale(0.9);
-            filter: blur(4px);
+            transform: translateY(12px) scale(0.97);
           }
           100% {
             opacity: 1;
             transform: translateY(0) scale(1);
-            filter: blur(0);
           }
         }
 
@@ -1007,12 +1005,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           0% {
             opacity: 1;
             transform: translateY(0) scale(1);
-            filter: blur(0);
           }
           100% {
             opacity: 0;
-            transform: translateY(20px) scale(0.9);
-            filter: blur(4px);
+            transform: translateY(12px) scale(0.97);
           }
         }
       `}</style>
