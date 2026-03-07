@@ -478,23 +478,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
     setSuggestionPhase("emerging");
 
-    // After emerge animation, mark as visible
-    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 600);
+    // After emerge animation completes, mark as visible
+    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 800);
 
+    // Total cycle: 800ms emerge + 4000ms visible + 700ms retreat = ~5500ms
     const interval = setInterval(() => {
       // Retreat back into search bar
       setSuggestionPhase("retreating");
 
-      // After retreat, swap text and emerge again
+      // After retreat animation, swap text and emerge again
       setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
         setFullText(rotatingSuggestions[suggestionIndexRef.current]);
         setCurrentSuggestionIndex(suggestionIndexRef.current);
         setSuggestionPhase("emerging");
 
-        setTimeout(() => setSuggestionPhase("visible"), 600);
-      }, 500);
-    }, 4000);
+        setTimeout(() => setSuggestionPhase("visible"), 800);
+      }, 700);
+    }, 5500);
 
     return () => {
       clearInterval(interval);
