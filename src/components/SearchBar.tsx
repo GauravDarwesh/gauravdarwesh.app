@@ -478,23 +478,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
     setSuggestionPhase("emerging");
 
-    // After emerge animation, mark as visible
-    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 600);
+    // After emerge animation completes, mark as visible
+    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 800);
 
+    // Total cycle: 800ms emerge + 4000ms visible + 700ms retreat = ~5500ms
     const interval = setInterval(() => {
       // Retreat back into search bar
       setSuggestionPhase("retreating");
 
-      // After retreat, swap text and emerge again
+      // After retreat animation, swap text and emerge again
       setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
         setFullText(rotatingSuggestions[suggestionIndexRef.current]);
         setCurrentSuggestionIndex(suggestionIndexRef.current);
         setSuggestionPhase("emerging");
 
-        setTimeout(() => setSuggestionPhase("visible"), 600);
-      }, 500);
-    }, 4000);
+        setTimeout(() => setSuggestionPhase("visible"), 800);
+      }, 700);
+    }, 5500);
 
     return () => {
       clearInterval(interval);
@@ -783,16 +784,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {showTypewriter && fullText && suggestionPhase !== "hidden" && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className={`cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
-                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis
-                     transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)]
-                     ${suggestionPhase === "emerging" ? "opacity-100 translate-y-0 scale-100" : ""}
-                     ${suggestionPhase === "visible" ? "opacity-100 translate-y-0 scale-100" : ""}
-                     ${suggestionPhase === "retreating" ? "opacity-0 translate-y-6 scale-95" : ""}
-                     `}
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
+                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
           style={{
-            ...(suggestionPhase === "emerging" ? { animation: "suggestionEmerge 0.5s cubic-bezier(0.25,1,0.3,1) forwards" } : {}),
-            ...(suggestionPhase === "retreating" ? { animation: "suggestionRetreat 0.4s cubic-bezier(0.5,0,0.75,0) forwards" } : {}),
+            animation: suggestionPhase === "emerging"
+              ? "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+              : suggestionPhase === "retreating"
+              ? "suggestionRetreat 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+              : undefined,
           }}
         >
           {fullText}
@@ -994,13 +993,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes suggestionEmerge {
           0% {
             opacity: 0;
-            transform: translateY(20px) scale(0.9);
-            filter: blur(4px);
+            transform: translateY(12px) scale(0.97);
           }
           100% {
             opacity: 1;
             transform: translateY(0) scale(1);
-            filter: blur(0);
           }
         }
 
@@ -1008,12 +1005,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           0% {
             opacity: 1;
             transform: translateY(0) scale(1);
-            filter: blur(0);
           }
           100% {
             opacity: 0;
-            transform: translateY(20px) scale(0.9);
-            filter: blur(4px);
+            transform: translateY(12px) scale(0.97);
           }
         }
       `}</style>
