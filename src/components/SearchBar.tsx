@@ -74,9 +74,10 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
 const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isActive || !analyser || !canvasRef.current) return;
+    if (!isActive || !analyser || !canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -86,7 +87,6 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    const BAR_COUNT = 24;
     const BAR_WIDTH = 2;
     const BAR_GAP = 2;
     const MIN_HEIGHT = 3;
@@ -96,23 +96,32 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
       analyser.getByteFrequencyData(dataArray);
 
       const dpr = window.devicePixelRatio || 1;
+      // Resize canvas to match container
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+      }
+
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
-      const totalBarWidth = BAR_COUNT * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
-      const startX = (w - totalBarWidth) / 2;
+      // Calculate bar count based on available width
+      const barCount = Math.max(8, Math.floor(w / (BAR_WIDTH + BAR_GAP)));
 
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const dataIndex = Math.floor((i / BAR_COUNT) * bufferLength);
+      for (let i = 0; i < barCount; i++) {
+        const dataIndex = Math.floor((i / barCount) * bufferLength);
         const value = dataArray[dataIndex] / 255;
         const barHeight = Math.max(MIN_HEIGHT, value * (h * 0.85));
 
-        const x = startX + i * (BAR_WIDTH + BAR_GAP);
+        const x = i * (BAR_WIDTH + BAR_GAP);
         const y = (h - barHeight) / 2;
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + value * 0.5})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + value * 0.5})`;
         ctx.beginPath();
         ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1);
         ctx.fill();
@@ -126,23 +135,12 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
     };
   }, [analyser, isActive]);
 
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const dpr = window.devicePixelRatio || 1;
-    const canvas = canvasRef.current;
-    canvas.width = 120 * dpr;
-    canvas.height = 32 * dpr;
-    canvas.style.width = "120px";
-    canvas.style.height = "32px";
-  }, []);
-
   if (!isActive) return null;
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="pointer-events-none"
-    />
+    <div ref={containerRef} className="flex-1 h-8 min-w-0">
+      <canvas ref={canvasRef} className="pointer-events-none w-full h-full" />
+    </div>
   );
 };
 
