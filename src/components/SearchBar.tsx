@@ -502,7 +502,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [showTypewriter, rotatingSuggestions]);
 
   /* ----- Hold-to-speak: start listening ----- */
-  const startListening = useCallback(() => {
+  const startListening = useCallback((stream?: MediaStream) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.warn("Speech recognition not supported");
@@ -515,10 +515,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     recognition.continuous = true;
     recognitionRef.current = recognition;
 
-    // Set up audio context for waveform
-    const setupAudio = async () => {
+    // Set up audio context for waveform using the already-acquired stream
+    if (stream) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
         const audioCtx = new AudioContext();
         audioContextRef.current = audioCtx;
@@ -529,18 +528,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         analyserRef.current = analyser;
         setAnalyserNode(analyser);
       } catch (err) {
-        console.warn("Could not access microphone for waveform:", err);
+        console.warn("Could not set up audio analyser:", err);
       }
-    };
+    }
 
     recognition.onstart = () => {
       setIsListening(true);
       setHasInteracted(true);
       setShowTypewriter(false);
       setShowExpandedSuggestions(false);
-      // Don't clear query here — preserve existing text to avoid search bar collapse
       transcriptRef.current = "";
-      setupAudio();
     };
 
     recognition.onresult = (event: any) => {
