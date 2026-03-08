@@ -130,9 +130,9 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
     if (!canvasRef.current) return;
     const dpr = window.devicePixelRatio || 1;
     const canvas = canvasRef.current;
-    canvas.width = 120 * dpr;
+    canvas.width = 200 * dpr;
     canvas.height = 32 * dpr;
-    canvas.style.width = "120px";
+    canvas.style.width = "100%";
     canvas.style.height = "32px";
   }, []);
 
