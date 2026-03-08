@@ -540,7 +540,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setHasInteracted(true);
       setShowTypewriter(false);
       setShowExpandedSuggestions(false);
-      setQuery(""); // clear any existing text
+      // Don't clear query here — preserve existing text to avoid search bar collapse
       transcriptRef.current = "";
       setupAudio();
     };
