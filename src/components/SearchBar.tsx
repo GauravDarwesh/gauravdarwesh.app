@@ -869,24 +869,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Input form ── */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 relative" onFocus={handleInputFocus}>
-            <div className="relative flex-1">
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder={isLoading ? "Thinking…" : isListening ? "" : placeholderText}
-                value={query}
-                onChange={handleInputChange}
-                className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                             isLoading ? "thinking-placeholder" : ""
-                           } ${isListening ? "opacity-0" : ""}`}
-                disabled={isLoading || isListening}
-                aria-label="Ask anything"
-              />
-            </div>
+            {!isListening && (
+              <div className="relative flex-1">
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  placeholder={isLoading ? "Thinking…" : placeholderText}
+                  value={query}
+                  onChange={handleInputChange}
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+                             text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
+                               isLoading ? "thinking-placeholder" : ""
+                             }`}
+                  disabled={isLoading}
+                  aria-label="Ask anything"
+                />
+              </div>
+            )}
             {/* Search icon / hold-to-speak target + waveform & timer when listening */}
             <div
-              className="flex items-center gap-2 shrink-0 select-none"
+              className={`flex items-center gap-2 select-none ${isListening ? "flex-1" : "shrink-0"}`}
               onMouseDown={handleHoldStart}
               onMouseUp={handleHoldEnd}
               onMouseLeave={handleHoldEnd}
