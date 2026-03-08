@@ -141,7 +141,7 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
   return (
     <canvas
       ref={canvasRef}
-      className="pointer-events-none"
+      className="pointer-events-none flex-1 min-w-0"
     />
   );
 };
