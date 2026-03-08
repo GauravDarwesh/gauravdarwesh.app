@@ -502,7 +502,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [showTypewriter, rotatingSuggestions]);
 
   /* ----- Hold-to-speak: start listening ----- */
-  const startListening = useCallback(() => {
+  const startListening = useCallback((stream?: MediaStream) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.warn("Speech recognition not supported");
@@ -515,10 +515,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     recognition.continuous = true;
     recognitionRef.current = recognition;
 
-    // Set up audio context for waveform
-    const setupAudio = async () => {
+    // Set up audio context for waveform using the already-acquired stream
+    if (stream) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
         const audioCtx = new AudioContext();
         audioContextRef.current = audioCtx;
@@ -529,18 +528,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         analyserRef.current = analyser;
         setAnalyserNode(analyser);
       } catch (err) {
-        console.warn("Could not access microphone for waveform:", err);
+        console.warn("Could not set up audio analyser:", err);
       }
-    };
+    }
 
     recognition.onstart = () => {
       setIsListening(true);
       setHasInteracted(true);
       setShowTypewriter(false);
       setShowExpandedSuggestions(false);
-      // Don't clear query here — preserve existing text to avoid search bar collapse
       transcriptRef.current = "";
-      setupAudio();
     };
 
     recognition.onresult = (event: any) => {
@@ -612,10 +609,36 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       e.preventDefault();
 
       isHoldingRef.current = true;
-      holdTimerRef.current = setTimeout(() => {
+
+      // CRITICAL: Acquire microphone directly from user gesture context
+      // to satisfy browser security policies, then wait for hold threshold
+      let micStream: MediaStream | null = null;
+      const micPromise = navigator.mediaDevices
+        .getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+        })
+        .then((stream) => {
+          micStream = stream;
+        })
+        .catch((err) => {
+          console.warn("Microphone access denied:", err);
+        });
+
+      holdTimerRef.current = setTimeout(async () => {
         if (isHoldingRef.current) {
           inputRef.current?.blur();
-          startListening();
+          await micPromise; // ensure mic is ready
+          if (micStream) {
+            startListening(micStream);
+          } else {
+            // Fallback: try without stream (waveform won't work but speech might)
+            startListening();
+          }
+        } else {
+          // User released before threshold — clean up mic
+          if (micStream) {
+            micStream.getTracks().forEach((t) => t.stop());
+          }
         }
       }, 400);
     },
@@ -807,11 +830,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transitionProperty: "width, border-radius, background-color, box-shadow",
-          transitionDuration: "1200ms",
-          transitionTimingFunction: "cubic-bezier(0.25, 1, 0.3, 1)",
-          transitionDelay: "0ms",
-          willChange: "width, border-radius",
+          transition: "width 0.6s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.6s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.3s, box-shadow 0.3s",
+          contain: "layout style",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
