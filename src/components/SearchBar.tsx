@@ -609,10 +609,36 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       e.preventDefault();
 
       isHoldingRef.current = true;
-      holdTimerRef.current = setTimeout(() => {
+
+      // CRITICAL: Acquire microphone directly from user gesture context
+      // to satisfy browser security policies, then wait for hold threshold
+      let micStream: MediaStream | null = null;
+      const micPromise = navigator.mediaDevices
+        .getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+        })
+        .then((stream) => {
+          micStream = stream;
+        })
+        .catch((err) => {
+          console.warn("Microphone access denied:", err);
+        });
+
+      holdTimerRef.current = setTimeout(async () => {
         if (isHoldingRef.current) {
           inputRef.current?.blur();
-          startListening();
+          await micPromise; // ensure mic is ready
+          if (micStream) {
+            startListening(micStream);
+          } else {
+            // Fallback: try without stream (waveform won't work but speech might)
+            startListening();
+          }
+        } else {
+          // User released before threshold — clean up mic
+          if (micStream) {
+            micStream.getTracks().forEach((t) => t.stop());
+          }
         }
       }, 400);
     },
