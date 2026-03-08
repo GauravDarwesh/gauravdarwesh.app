@@ -768,7 +768,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const dynamicWidth = Math.min(300 + query.length * 8, 580);
     const hasContent = suggestions.length > 0 || response;
     const isExpanded = hasContent && !isLoading;
-    const targetWidth = isExpanded ? "580px" : `${dynamicWidth}px`;
+    // Ensure enough width for waveform + timer + icon when listening
+    const listeningWidth = isListening ? Math.max(dynamicWidth, 380) : dynamicWidth;
+    const targetWidth = isExpanded ? "580px" : `${listeningWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { dynamicWidth, isExpanded, targetWidth, targetRadius };
