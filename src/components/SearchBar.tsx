@@ -868,25 +868,34 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </div>
 
           {/* ── Input form ── */}
-          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-3 relative" onFocus={handleInputFocus}>
-            <div className="relative flex-1">
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder={isLoading ? "Thinking…" : isListening ? "" : placeholderText}
-                value={query}
-                onChange={handleInputChange}
-                className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                           text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                             isLoading ? "thinking-placeholder" : ""
-                           } ${isListening ? "opacity-0" : ""}`}
-                disabled={isLoading || isListening}
-                aria-label="Ask anything"
-              />
-            </div>
-            {/* Search icon / hold-to-speak target + waveform & timer when listening */}
+          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-2 relative" onFocus={handleInputFocus}>
+            {!isListening && (
+              <div className="relative flex-1">
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  placeholder={isLoading ? "Thinking…" : placeholderText}
+                  value={query}
+                  onChange={handleInputChange}
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
+                             text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
+                               isLoading ? "thinking-placeholder" : ""
+                             }`}
+                  disabled={isLoading}
+                  aria-label="Ask anything"
+                />
+              </div>
+            )}
+            {/* Waveform + timer fill available space when listening */}
+            {isListening && (
+              <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
+                <BarWaveform analyser={analyserNode} isActive={isListening} />
+                <RecordingTimer isActive={isListening} />
+              </div>
+            )}
+            {/* Search icon / hold-to-speak target */}
             <div
-              className="flex items-center gap-2 shrink-0 select-none"
+              className="shrink-0 select-none"
               onMouseDown={handleHoldStart}
               onMouseUp={handleHoldEnd}
               onMouseLeave={handleHoldEnd}
@@ -894,12 +903,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               onTouchEnd={handleHoldEnd}
               style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
             >
-              {isListening && (
-                <>
-                  <BarWaveform analyser={analyserNode} isActive={isListening} />
-                  <RecordingTimer isActive={isListening} />
-                </>
-              )}
               <div
                 className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 
                            ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
