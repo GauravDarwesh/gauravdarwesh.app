@@ -234,8 +234,8 @@ const Portfolio = () => {
 
         {/* Skills */}
         <section>
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Languages / Skills / Awards / Extracurriculars</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Languages / Skills / Platforms / Certifications / Extracurriculars</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 text-sm -mx-4 sm:-mx-6 md:-mx-12 px-4 sm:px-6 md:px-12">
             <div>
               <h3 className="font-semibold mb-2">Languages</h3>
               <ul className="list-disc pl-5 space-y-1">
@@ -250,7 +250,7 @@ const Portfolio = () => {
               <h3 className="font-semibold mb-2">Skills</h3>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Business Strategy</li>
-                <li>Data Analytics & Visualization</li>
+                <li>Data Analytics and Visualization</li>
                 <li>Project Management</li>
                 <li>Technical Leadership</li>
                 <li>Strategic Planning</li>
@@ -259,19 +259,37 @@ const Portfolio = () => {
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2">Awards</h3>
+              <h3 className="font-semibold mb-2">Platforms</h3>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Student of The Year (2020-2021)</li>
+                <li>Salesforce</li>
+                <li>ServiceNOW</li>
+                <li>JIRA, Confluence</li>
+                <li>Planhat</li>
+                <li>PowerBI, Tableau</li>
+                <li>O365</li>
+                <li>Qualtrics</li>
+                <li>Workday</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-2">Certifications</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Forward Program – McKinsey and Company</li>
+                <li>Power User Certification – Planhat</li>
+                <li>Six Sigma White Belt – AIGPE</li>
+                <li>Sustainable Software Engineering – Hasso Plattner Institute</li>
+                <li>Project Management – Saylor Academy</li>
               </ul>
             </div>
 
             <div>
               <h3 className="font-semibold mb-2">Extracurriculars</h3>
               <ul className="list-disc pl-5 space-y-1">
-                <li>President – CSI (2024–2025)</li>
-                <li>Technical Lead – AIMSA (2024–2025)</li>
-                <li>Media Head – AIMSA (2023–2024)</li>
-                <li>Core Team – GDSC (2023–2024)</li>
+                <li>Photography Lead – NASDAQ Mumbai (2026 – 2027)</li>
+                <li>President – Computer Society of India (2024 – 2025)</li>
+                <li>Technical Lead – AIMSA (2024 – 2025)</li>
+                <li>Media Head – AIMSA (2023 – 2024)</li>
               </ul>
             </div>
           </div>
