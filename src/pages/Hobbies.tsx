@@ -235,7 +235,7 @@ const Portfolio = () => {
         {/* Skills */}
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Languages / Skills / Platforms / Certifications / Extracurriculars</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 text-sm -mx-16 sm:-mx-24 md:-mx-48 lg:-mx-64 px-4 sm:px-6 md:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 text-sm -mx-4 sm:-mx-6 md:-mx-12 px-4 sm:px-6 md:px-12">
             <div>
               <h3 className="font-semibold mb-2">Languages</h3>
               <ul className="list-disc pl-5 space-y-1">
