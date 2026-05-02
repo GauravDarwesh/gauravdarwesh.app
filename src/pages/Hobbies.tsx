@@ -60,7 +60,7 @@ const Portfolio = () => {
         </div>
 
         {/* About Section */}
-        <p className="text-base sm:text-lg leading-relaxed mt-4 text-justify">
+        <p className="text-base sm:text-lg leading-relaxed mt-4">
           I am a Cambridge University graduate in Strategic Business and Management, with a Bachelor of Engineering in
           Computer Science (AIML) from the University of Mumbai. Currently working at Nasdaq, with prior experience at
           notable MNC like Jio. Proficient in Jira, Salesforce, ServiceNow, Planhat, Power BI, and Excel, I specialize
