@@ -644,6 +644,39 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, [isListening, stopListening, query]);
 
+  /* ----- Desktop: hold Shift to speak ----- */
+  useEffect(() => {
+    const handleShiftDown = (e: KeyboardEvent) => {
+      if (e.key !== "Shift" || isListening || isLoading) return;
+
+      const activeElement = document.activeElement as HTMLElement;
+      const isInputFocused =
+        activeElement &&
+        (activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          activeElement.contentEditable === "true");
+
+      if (isInputFocused) return;
+
+      e.preventDefault();
+      setShowTypewriter(false);
+      setHasInteracted(true);
+      startHold();
+    };
+
+    const handleShiftUp = (e: KeyboardEvent) => {
+      if (e.key !== "Shift") return;
+      handleHoldEnd();
+    };
+
+    window.addEventListener("keydown", handleShiftDown);
+    window.addEventListener("keyup", handleShiftUp);
+    return () => {
+      window.removeEventListener("keydown", handleShiftDown);
+      window.removeEventListener("keyup", handleShiftUp);
+    };
+  }, [isListening, isLoading, startHold, handleHoldEnd]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
