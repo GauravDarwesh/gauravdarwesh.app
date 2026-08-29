@@ -439,29 +439,38 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
 
-  /* ----- Keyboard shortcut to focus search bar ----- */
+  /* ----- Desktop: hold Shift to speak ----- */
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Shift") {
-        const activeElement = document.activeElement as HTMLElement;
-        const isInputFocused =
-          activeElement &&
-          (activeElement.tagName === "INPUT" ||
-            activeElement.tagName === "TEXTAREA" ||
-            activeElement.contentEditable === "true");
+    const handleShiftDown = (e: KeyboardEvent) => {
+      if (e.key !== "Shift" || isListening || isLoading) return;
 
-        if (!isInputFocused && inputRef.current) {
-          e.preventDefault();
-          inputRef.current.focus();
-          setShowTypewriter(false);
-          setHasInteracted(true);
-        }
-      }
+      const activeElement = document.activeElement as HTMLElement;
+      const isInputFocused =
+        activeElement &&
+        (activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          activeElement.contentEditable === "true");
+
+      if (isInputFocused) return;
+
+      e.preventDefault();
+      setShowTypewriter(false);
+      setHasInteracted(true);
+      startHold();
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+    const handleShiftUp = (e: KeyboardEvent) => {
+      if (e.key !== "Shift") return;
+      handleHoldEnd();
+    };
+
+    window.addEventListener("keydown", handleShiftDown);
+    window.addEventListener("keyup", handleShiftUp);
+    return () => {
+      window.removeEventListener("keydown", handleShiftDown);
+      window.removeEventListener("keyup", handleShiftUp);
+    };
+  }, [isListening, isLoading, startHold, handleHoldEnd]);
 
   /* ----- Suggestion emerge/retreat cycle ----- */
   useEffect(() => {
@@ -600,53 +609,57 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     isHoldingRef.current = false;
   }, []);
 
+  /* ----- Shared hold-to-speak logic ----- */
+  const startHold = useCallback(() => {
+    if (isLoading) return;
+
+    isHoldingRef.current = true;
+
+    // CRITICAL: Acquire microphone directly from user gesture context
+    // to satisfy browser security policies, then wait for hold threshold
+    let micStream: MediaStream | null = null;
+    const micPromise = navigator.mediaDevices
+      .getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      })
+      .then((stream) => {
+        micStream = stream;
+      })
+      .catch((err) => {
+        console.warn("Microphone access denied:", err);
+      });
+
+    holdTimerRef.current = setTimeout(async () => {
+      if (isHoldingRef.current) {
+        inputRef.current?.blur();
+        await micPromise; // ensure mic is ready
+        if (micStream) {
+          startListening(micStream);
+        } else {
+          // Fallback: try without stream (waveform won't work but speech might)
+          startListening();
+        }
+      } else {
+        // User released before threshold — clean up mic
+        if (micStream) {
+          micStream.getTracks().forEach((t) => t.stop());
+        }
+      }
+    }, 400);
+  }, [isLoading, startListening]);
+
   /* ----- Hold-to-speak handlers (on magnifying glass) ----- */
   const handleHoldStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      if (isLoading) return;
-
       // Prevent default to avoid iOS magnifying glass and form submission
       e.preventDefault();
-
-      isHoldingRef.current = true;
-
-      // CRITICAL: Acquire microphone directly from user gesture context
-      // to satisfy browser security policies, then wait for hold threshold
-      let micStream: MediaStream | null = null;
-      const micPromise = navigator.mediaDevices
-        .getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
-        })
-        .then((stream) => {
-          micStream = stream;
-        })
-        .catch((err) => {
-          console.warn("Microphone access denied:", err);
-        });
-
-      holdTimerRef.current = setTimeout(async () => {
-        if (isHoldingRef.current) {
-          inputRef.current?.blur();
-          await micPromise; // ensure mic is ready
-          if (micStream) {
-            startListening(micStream);
-          } else {
-            // Fallback: try without stream (waveform won't work but speech might)
-            startListening();
-          }
-        } else {
-          // User released before threshold — clean up mic
-          if (micStream) {
-            micStream.getTracks().forEach((t) => t.stop());
-          }
-        }
-      }, 400);
+      startHold();
     },
-    [isLoading, startListening],
+    [startHold],
   );
 
-  const handleHoldEnd = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
-    e?.preventDefault();
+  const handleHoldEnd = useCallback((e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
+    e?.preventDefault?.();
     const wasHolding = isHoldingRef.current;
     isHoldingRef.current = false;
     if (holdTimerRef.current) {
