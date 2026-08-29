@@ -265,7 +265,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [placeholderText, setPlaceholderText] = useState("Ask anything...");
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
   const [placeholderTarget, setPlaceholderTarget] = useState(0); // 0 = "Ask anything...", 1 = "Hold to speak"
-  const placeholderTexts = useMemo(() => ["Ask anything...", "Hold search to speak"], []);
+  const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to speak"], []);
 
   /* ----- Audio/waveform refs ----- */
   const recognitionRef = useRef<any>(null);
