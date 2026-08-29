@@ -1,4 +1,212 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
+
+const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
+type Category = (typeof CATEGORIES)[number];
+
+const CATEGORY_DATA: Record<Category, string[]> = {
+  Languages: ["English", "Marathi", "Hindi", "Japanese"],
+  Skills: [
+    "Business Strategy",
+    "Data Analytics and Visualization",
+    "Project Management",
+    "Technical Leadership",
+    "Strategic Planning",
+    "AI Dev Solutions",
+  ],
+  Platforms: ["Salesforce", "ServiceNOW", "JIRA, Confluence", "Planhat", "PowerBI, Tableau", "O365", "Qualtrics", "Workday"],
+  Certifications: [
+    "Forward Program – McKinsey and Company",
+    "Power User Certification – Planhat",
+    "Six Sigma White Belt – AIGPE",
+    "Sustainable Software Engineering – Hasso Plattner Institute",
+    "Project Management – Saylor Academy",
+  ],
+  Extracurriculars: [
+    "Photography Lead – NASDAQ Mumbai (2026 – 2027)",
+    "President – Computer Society of India (2024 – 2025)",
+    "Technical Lead – AIMSA (2024 – 2025)",
+    "Media Head – AIMSA (2023 – 2024)",
+  ],
+};
+
+// Auto-rotation dwell time per category (ms)
+const DURATIONS: Record<Category, number> = {
+  Languages: 7000,
+  Skills: 7000,
+  Platforms: 7000,
+  Certifications: 11000,
+  Extracurriculars: 11000,
+};
+
+const chipClass =
+  "rounded-2xl border border-white/15 bg-black/25 backdrop-blur-md text-white/90 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)]";
+
+const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
+  const items = CATEGORY_DATA[category];
+  const stagger = (i: number) => ({ animationDelay: `${i * 70}ms` });
+
+  if (category === "Languages") {
+    return (
+      <div key={animKey} className="grid grid-cols-2 gap-4 sm:gap-6">
+        {items.map((item, i) => (
+          <div
+            key={item}
+            style={stagger(i)}
+            className={`spotlight-item ${chipClass} flex items-center justify-center px-6 py-8 sm:py-12 text-lg sm:text-2xl font-medium tracking-wide`}
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (category === "Skills") {
+    return (
+      <div key={animKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {items.map((item, i) => (
+          <div
+            key={item}
+            style={stagger(i)}
+            className={`spotlight-item ${chipClass} flex items-center px-6 py-6 sm:py-8 text-base sm:text-lg leading-snug`}
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (category === "Platforms") {
+    return (
+      <div key={animKey} className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        {items.map((item, i) => (
+          <div
+            key={item}
+            style={stagger(i)}
+            className={`spotlight-item ${chipClass} flex items-center justify-center text-center px-5 py-5 sm:py-6 text-sm sm:text-base`}
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (category === "Certifications") {
+    return (
+      <div key={animKey} className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
+        {items.map((item, i) => (
+          <div
+            key={item}
+            style={stagger(i)}
+            className={`spotlight-item ${chipClass} px-7 py-8 sm:px-9 sm:py-10 ${
+              i === items.length - 1 ? "md:col-span-2" : ""
+            }`}
+          >
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-white/50 mb-3">Credential</p>
+            <p className="text-base sm:text-xl font-medium leading-relaxed">{item}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Extracurriculars — "Role – Organisation (Years)"
+  return (
+    <div key={animKey} className="flex flex-col gap-5 sm:gap-7">
+      {items.map((item, i) => {
+        const [role, rest] = item.split(" – ", 2);
+        return (
+          <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass} flex items-start gap-5 px-7 py-7 sm:px-9 sm:py-8`}>
+            <span className="text-xs sm:text-sm text-white/40 font-mono pt-1">{String(i + 1).padStart(2, "0")}</span>
+            <div>
+              <p className="text-base sm:text-xl font-medium leading-snug">{role}</p>
+              <p className="text-sm text-white/60 mt-1.5">{rest}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const CategorySpotlight = () => {
+  const [active, setActive] = useState<Category>("Languages");
+  const [paused, setPaused] = useState(false);
+  const [progressKey, setProgressKey] = useState(0);
+  const reducedMotion = useRef(false);
+
+  useEffect(() => {
+    reducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  const advance = useCallback(() => {
+    setActive((prev) => {
+      const idx = CATEGORIES.indexOf(prev);
+      return CATEGORIES[(idx + 1) % CATEGORIES.length];
+    });
+    setProgressKey((k) => k + 1);
+  }, []);
+
+  useEffect(() => {
+    if (paused || reducedMotion.current) return;
+    const t = setTimeout(advance, DURATIONS[active]);
+    return () => clearTimeout(t);
+  }, [active, paused, advance, progressKey]);
+
+  const select = (cat: Category) => {
+    setActive(cat);
+    setProgressKey((k) => k + 1); // restart this category's timer
+  };
+
+  return (
+    <section
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      {/* Animated category navigation heading */}
+      <h2 className="text-xl sm:text-2xl font-semibold mb-6 flex flex-wrap items-baseline gap-x-2 gap-y-2">
+        {CATEGORIES.map((cat, i) => (
+          <span key={cat} className="flex items-baseline gap-x-2">
+            <button
+              type="button"
+              onClick={() => select(cat)}
+              className={`relative pb-1 transition-all duration-500 focus:outline-none ${
+                active === cat
+                  ? "text-white [text-shadow:0_0_18px_rgba(255,255,255,0.55)]"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              {cat}
+              {active === cat && (
+                <span className="absolute left-0 right-0 -bottom-0.5 h-[2px] rounded-full bg-white/30 overflow-hidden">
+                  <span
+                    key={progressKey}
+                    className="spotlight-progress block h-full bg-white"
+                    style={{ animationDuration: `${DURATIONS[cat]}ms`, animationPlayState: paused ? "paused" : "running" }}
+                  />
+                </span>
+              )}
+            </button>
+            {i < CATEGORIES.length - 1 && <span className="text-white/30 select-none">/</span>}
+          </span>
+        ))}
+      </h2>
+
+      {/* Glass content panel */}
+      <div className="rounded-3xl border border-white/15 bg-black/25 backdrop-blur-md p-5 sm:p-8 md:p-10 max-w-4xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)]">
+        <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/45 mb-6">
+          {String(CATEGORIES.indexOf(active) + 1).padStart(2, "0")} / {active}
+        </p>
+        <SpotlightContent category={active} animKey={progressKey} />
+      </div>
+    </section>
+  );
+};
 
 const Portfolio = () => {
   return (
@@ -232,68 +440,8 @@ const Portfolio = () => {
           </div>
         </section>
 
-        {/* Skills */}
-        <section>
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Languages / Skills / Platforms / Certifications / Extracurriculars</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 text-sm -mx-4 sm:-mx-6 md:-mx-12 px-4 sm:px-6 md:px-12">
-            <div>
-              <h3 className="font-semibold mb-2">Languages</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>English</li>
-                <li>Marathi</li>
-                <li>Hindi</li>
-                <li>Japanese</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-2">Skills</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Business Strategy</li>
-                <li>Data Analytics and Visualization</li>
-                <li>Project Management</li>
-                <li>Technical Leadership</li>
-                <li>Strategic Planning</li>
-                <li>AI Dev Solutions</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-2">Platforms</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Salesforce</li>
-                <li>ServiceNOW</li>
-                <li>JIRA, Confluence</li>
-                <li>Planhat</li>
-                <li>PowerBI, Tableau</li>
-                <li>O365</li>
-                <li>Qualtrics</li>
-                <li>Workday</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-2">Certifications</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Forward Program – McKinsey and Company</li>
-                <li>Power User Certification – Planhat</li>
-                <li>Six Sigma White Belt – AIGPE</li>
-                <li>Sustainable Software Engineering – Hasso Plattner Institute</li>
-                <li>Project Management – Saylor Academy</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-2">Extracurriculars</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Photography Lead – NASDAQ Mumbai (2026 – 2027)</li>
-                <li>President – Computer Society of India (2024 – 2025)</li>
-                <li>Technical Lead – AIMSA (2024 – 2025)</li>
-                <li>Media Head – AIMSA (2023 – 2024)</li>
-              </ul>
-            </div>
-          </div>
-        </section>
+        {/* Category Spotlight */}
+        <CategorySpotlight />
       </div>
 
       {/* Invisible scrollbar styling */}
