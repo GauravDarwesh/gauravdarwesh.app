@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
-import Footer from "@/components/Footer";
 
 const ANIM_MS = 3000; // same duration for all
 
@@ -42,11 +41,6 @@ const Index = () => {
       {/* Search Bar */}
       <div className="fixed top-6 inset-x-0 flex justify-center z-10">
         <SearchBar />
-      </div>
-
-      {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 z-10">
-        <Footer />
       </div>
     </div>
   );
