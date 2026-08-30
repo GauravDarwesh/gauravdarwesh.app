@@ -7,6 +7,7 @@ const SessionTest = () => {
       <div className="container mx-auto py-8">
         <SessionTester />
       </div>
+      <Footer />
     </div>
   );
 };

@@ -20,6 +20,11 @@ const Others = () => {
       <div className="relative z-10">
         <SearchBar />
       </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <Footer />
+      </div>
     </div>
   );
 };

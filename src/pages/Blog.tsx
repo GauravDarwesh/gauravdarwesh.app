@@ -310,6 +310,9 @@ const Blog = () => {
               ))}
             </div>
           </div>
+
+          {/* Footer */}
+          <Footer />
         </div>
       </div>
 

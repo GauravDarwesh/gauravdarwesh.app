@@ -381,6 +381,11 @@ export default function Visuals() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <Footer />
+      </div>
     </div>
   );
 }

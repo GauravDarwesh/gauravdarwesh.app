@@ -43,6 +43,11 @@ const Index = () => {
       <div className="fixed top-6 inset-x-0 flex justify-center z-10">
         <SearchBar />
       </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <Footer />
+      </div>
     </div>
   );
 };

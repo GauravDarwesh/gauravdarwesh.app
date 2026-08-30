@@ -363,6 +363,9 @@ const Portfolio = () => {
 
         {/* Category Spotlight */}
         <CategorySpotlight />
+
+        {/* Footer */}
+        <Footer />
       </div>
 
       {/* Invisible scrollbar styling */}
