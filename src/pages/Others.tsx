@@ -1,5 +1,6 @@
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
+import Footer from "@/components/Footer";
 
 const Others = () => {
   return (
@@ -18,6 +19,11 @@ const Others = () => {
       {/* Search Bar */}
       <div className="relative z-10">
         <SearchBar />
+      </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <Footer />
       </div>
     </div>
   );
