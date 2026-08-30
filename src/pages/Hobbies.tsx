@@ -39,93 +39,21 @@ const DURATIONS: Record<Category, number> = {
   Extracurriculars: 11000,
 };
 
+// Uniform squircle chip — same size as the filter/sort-by buttons on the Notion page
 const chipClass =
-  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-all duration-300 ease-out";
+  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-out px-4 py-2 text-sm";
 
 const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
   const items = CATEGORY_DATA[category];
-  const stagger = (i: number) => ({ animationDelay: `${i * 70}ms` });
+  const stagger = (i: number) => ({ animationDelay: `${i * 90}ms` });
 
-  if (category === "Languages") {
-    return (
-      <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
-        {items.map((item, i) => (
-          <div
-            key={item}
-            style={stagger(i)}
-            className={`spotlight-item ${chipClass} px-7 py-3 sm:px-9 sm:py-4 text-lg sm:text-2xl font-medium tracking-wide`}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (category === "Skills") {
-    return (
-      <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
-        {items.map((item, i) => (
-          <div
-            key={item}
-            style={stagger(i)}
-            className={`spotlight-item ${chipClass} px-6 py-3 sm:px-7 sm:py-3.5 text-base sm:text-lg leading-snug`}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (category === "Platforms") {
-    return (
-      <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
-        {items.map((item, i) => (
-          <div
-            key={item}
-            style={stagger(i)}
-            className={`spotlight-item ${chipClass} px-5 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base`}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (category === "Certifications") {
-    return (
-      <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
-        {items.map((item, i) => (
-          <div
-            key={item}
-            style={stagger(i)}
-            className={`spotlight-item ${chipClass} flex items-center gap-3 px-6 py-3 sm:px-7 sm:py-3.5`}
-          >
-            <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.25em] text-white/50">Credential</span>
-            <span className="text-sm sm:text-base font-medium leading-relaxed">{item}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Extracurriculars — "Role – Organisation (Years)"
   return (
-    <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
-      {items.map((item, i) => {
-        const [role, rest] = item.split(" – ", 2);
-        return (
-          <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass} flex items-center gap-3 sm:gap-4 px-6 py-3 sm:px-7 sm:py-3.5`}>
-            <span className="text-xs sm:text-sm text-white/40 font-mono">{String(i + 1).padStart(2, "0")}</span>
-            <div>
-              <p className="text-sm sm:text-base font-medium leading-snug">{role}</p>
-              <p className="text-xs sm:text-sm text-white/60 mt-0.5">{rest}</p>
-            </div>
-          </div>
-        );
-      })}
+    <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
+      {items.map((item, i) => (
+        <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass}`}>
+          {item}
+        </div>
+      ))}
     </div>
   );
 };
@@ -197,9 +125,6 @@ const CategorySpotlight = () => {
 
       {/* Content — squircle pills only */}
       <div className="pt-2 max-w-4xl">
-        <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/45 mb-6">
-          {String(CATEGORIES.indexOf(active) + 1).padStart(2, "0")} / {active}
-        </p>
         <SpotlightContent category={active} animKey={progressKey} />
       </div>
     </section>
