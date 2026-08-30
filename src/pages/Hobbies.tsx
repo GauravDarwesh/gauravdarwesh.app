@@ -125,9 +125,6 @@ const CategorySpotlight = () => {
 
       {/* Content — squircle pills only */}
       <div className="pt-2 max-w-4xl">
-        <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/45 mb-6">
-          {String(CATEGORIES.indexOf(active) + 1).padStart(2, "0")} / {active}
-        </p>
         <SpotlightContent category={active} animKey={progressKey} />
       </div>
     </section>
