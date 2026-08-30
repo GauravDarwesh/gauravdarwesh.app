@@ -1,0 +1,14 @@
+REVOKE EXECUTE ON FUNCTION public.claim_gdx_chat_turn(text, text, boolean) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.complete_gdx_chat_turn(text, text, boolean, text, text, boolean) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.mark_gdx_notification_sent(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.match_user_messages(text, vector, integer) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.insert_session_message(text, text, text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_session_info(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_session_messages(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_gdx_chat_turn(text, text, boolean) TO service_role;
+GRANT EXECUTE ON FUNCTION public.complete_gdx_chat_turn(text, text, boolean, text, text, boolean) TO service_role;
+GRANT EXECUTE ON FUNCTION public.mark_gdx_notification_sent(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.match_user_messages(text, vector, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.insert_session_message(text, text, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_session_info(text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_session_messages(text) TO service_role;
