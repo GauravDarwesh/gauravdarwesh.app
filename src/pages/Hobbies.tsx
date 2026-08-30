@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
+import Footer from "@/components/Footer";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
 type Category = (typeof CATEGORIES)[number];

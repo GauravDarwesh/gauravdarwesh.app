@@ -1,5 +1,6 @@
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
+import Footer from "@/components/Footer";
 
 const Others = () => {
   return (

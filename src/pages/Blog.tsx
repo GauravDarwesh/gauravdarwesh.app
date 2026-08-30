@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
+import Footer from "@/components/Footer";
 import { ExternalLink } from "lucide-react";
 
 const Blog = () => {

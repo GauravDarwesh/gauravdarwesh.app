@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
+import Footer from "@/components/Footer";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /* Change this to adjust speed for images */

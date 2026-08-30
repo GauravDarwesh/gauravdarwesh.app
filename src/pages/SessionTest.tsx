@@ -1,4 +1,5 @@
 import SessionTester from '@/components/SessionTester';
+import Footer from "@/components/Footer";
 
 const SessionTest = () => {
   return (
