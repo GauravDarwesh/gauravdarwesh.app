@@ -40,7 +40,7 @@ const DURATIONS: Record<Category, number> = {
 };
 
 const chipClass =
-  "rounded-2xl border border-white/15 bg-black/25 backdrop-blur-md text-white/90 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)]";
+  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-all duration-300 ease-out";
 
 const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
   const items = CATEGORY_DATA[category];
