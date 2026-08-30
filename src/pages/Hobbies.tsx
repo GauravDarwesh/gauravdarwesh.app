@@ -40,7 +40,7 @@ const DURATIONS: Record<Category, number> = {
 };
 
 const chipClass =
-  "rounded-2xl border border-white/15 bg-black/25 backdrop-blur-md text-white/90 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)]";
+  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-all duration-300 ease-out";
 
 const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
   const items = CATEGORY_DATA[category];
@@ -48,12 +48,12 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
 
   if (category === "Languages") {
     return (
-      <div key={animKey} className="grid grid-cols-2 gap-4 sm:gap-6">
+      <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
         {items.map((item, i) => (
           <div
             key={item}
             style={stagger(i)}
-            className={`spotlight-item ${chipClass} flex items-center justify-center px-6 py-8 sm:py-12 text-lg sm:text-2xl font-medium tracking-wide`}
+            className={`spotlight-item ${chipClass} px-7 py-3 sm:px-9 sm:py-4 text-lg sm:text-2xl font-medium tracking-wide`}
           >
             {item}
           </div>
@@ -64,12 +64,12 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
 
   if (category === "Skills") {
     return (
-      <div key={animKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
         {items.map((item, i) => (
           <div
             key={item}
             style={stagger(i)}
-            className={`spotlight-item ${chipClass} flex items-center px-6 py-6 sm:py-8 text-base sm:text-lg leading-snug`}
+            className={`spotlight-item ${chipClass} px-6 py-3 sm:px-7 sm:py-3.5 text-base sm:text-lg leading-snug`}
           >
             {item}
           </div>
@@ -80,12 +80,12 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
 
   if (category === "Platforms") {
     return (
-      <div key={animKey} className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
         {items.map((item, i) => (
           <div
             key={item}
             style={stagger(i)}
-            className={`spotlight-item ${chipClass} flex items-center justify-center text-center px-5 py-5 sm:py-6 text-sm sm:text-base`}
+            className={`spotlight-item ${chipClass} px-5 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base`}
           >
             {item}
           </div>
@@ -96,17 +96,15 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
 
   if (category === "Certifications") {
     return (
-      <div key={animKey} className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
+      <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
         {items.map((item, i) => (
           <div
             key={item}
             style={stagger(i)}
-            className={`spotlight-item ${chipClass} px-7 py-8 sm:px-9 sm:py-10 ${
-              i === items.length - 1 ? "md:col-span-2" : ""
-            }`}
+            className={`spotlight-item ${chipClass} flex items-center gap-3 px-6 py-3 sm:px-7 sm:py-3.5`}
           >
-            <p className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-white/50 mb-3">Credential</p>
-            <p className="text-base sm:text-xl font-medium leading-relaxed">{item}</p>
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.25em] text-white/50">Credential</span>
+            <span className="text-sm sm:text-base font-medium leading-relaxed">{item}</span>
           </div>
         ))}
       </div>
@@ -115,15 +113,15 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
 
   // Extracurriculars — "Role – Organisation (Years)"
   return (
-    <div key={animKey} className="flex flex-col gap-5 sm:gap-7">
+    <div key={animKey} className="flex flex-wrap gap-3 sm:gap-4">
       {items.map((item, i) => {
         const [role, rest] = item.split(" – ", 2);
         return (
-          <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass} flex items-start gap-5 px-7 py-7 sm:px-9 sm:py-8`}>
-            <span className="text-xs sm:text-sm text-white/40 font-mono pt-1">{String(i + 1).padStart(2, "0")}</span>
+          <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass} flex items-center gap-3 sm:gap-4 px-6 py-3 sm:px-7 sm:py-3.5`}>
+            <span className="text-xs sm:text-sm text-white/40 font-mono">{String(i + 1).padStart(2, "0")}</span>
             <div>
-              <p className="text-base sm:text-xl font-medium leading-snug">{role}</p>
-              <p className="text-sm text-white/60 mt-1.5">{rest}</p>
+              <p className="text-sm sm:text-base font-medium leading-snug">{role}</p>
+              <p className="text-xs sm:text-sm text-white/60 mt-0.5">{rest}</p>
             </div>
           </div>
         );
@@ -197,8 +195,8 @@ const CategorySpotlight = () => {
         ))}
       </h2>
 
-      {/* Glass content panel */}
-      <div className="rounded-3xl border border-white/15 bg-black/25 backdrop-blur-md p-5 sm:p-8 md:p-10 max-w-4xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)]">
+      {/* Content — squircle pills only */}
+      <div className="pt-2 max-w-4xl">
         <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/45 mb-6">
           {String(CATEGORIES.indexOf(active) + 1).padStart(2, "0")} / {active}
         </p>
@@ -257,9 +255,6 @@ const Portfolio = () => {
             </a>
             <a href="https://twitter.com/gaurav11darwesh" target="_blank">
               twitter/
-            </a>
-            <a href="https://www.threads.com/@allaboutgaurav" target="_blank">
-              threads/
             </a>
             <a href="https://instagram.com/allaboutgaurav" target="_blank">
               instagram/

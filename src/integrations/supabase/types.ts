@@ -43,33 +43,141 @@ export type Database = {
       }
       gd_ai_sessions: {
         Row: {
+          blocked_until: string | null
           introduced: boolean | null
           last_updated: string | null
+          recent_timestamps: Json | null
           session_id: string
+          strikes: number | null
           total_messages: number | null
+          user_id: string | null
           user_name: string | null
         }
         Insert: {
+          blocked_until?: string | null
           introduced?: boolean | null
           last_updated?: string | null
+          recent_timestamps?: Json | null
           session_id: string
+          strikes?: number | null
           total_messages?: number | null
+          user_id?: string | null
           user_name?: string | null
         }
         Update: {
+          blocked_until?: string | null
           introduced?: boolean | null
           last_updated?: string | null
+          recent_timestamps?: Json | null
           session_id?: string
+          strikes?: number | null
           total_messages?: number | null
+          user_id?: string | null
           user_name?: string | null
         }
         Relationships: []
+      }
+      gd_leads: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          intent_note: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          intent_note: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          intent_note?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gd_leads_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "gd_ai_sessions"
+            referencedColumns: ["session_id"]
+          },
+        ]
+      }
+      gd_notification_outbox: {
+        Row: {
+          attempts: number
+          created_at: string
+          email: string | null
+          id: string
+          sent_at: string | null
+          session_id: string
+          summary: string
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          email?: string | null
+          id?: string
+          sent_at?: string | null
+          session_id: string
+          summary: string
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          email?: string | null
+          id?: string
+          sent_at?: string | null
+          session_id?: string
+          summary?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gd_notification_outbox_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "gd_ai_sessions"
+            referencedColumns: ["session_id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      claim_gdx_chat_turn: {
+        Args: {
+          p_is_policy_violation: boolean
+          p_message: string
+          p_session_id: string
+        }
+        Returns: {
+          status: string
+        }[]
+      }
+      complete_gdx_chat_turn: {
+        Args: {
+          p_assistant_message: string
+          p_create_notification: boolean
+          p_intent_note: string
+          p_lead_email: string
+          p_mark_introduced: boolean
+          p_session_id: string
+        }
+        Returns: {
+          notification_id: string
+        }[]
+      }
       get_session_info: {
         Args: { p_session_id: string }
         Returns: {
@@ -98,6 +206,10 @@ export type Database = {
           p_source?: string
         }
         Returns: number
+      }
+      mark_gdx_notification_sent: {
+        Args: { p_notification_id: string }
+        Returns: undefined
       }
       match_user_messages: {
         Args: {
