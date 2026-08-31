@@ -265,7 +265,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [placeholderText, setPlaceholderText] = useState("Ask anything...");
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
   const [placeholderTarget, setPlaceholderTarget] = useState(0); // 0 = "Ask anything...", 1 = "Hold to speak"
-  const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to speak"], []);
+  const placeholderTexts = useMemo(() => ["Ask anything...", "Hold Shift or search icon to talk with GDx"], []);
 
   /* ----- Audio/waveform refs ----- */
   const recognitionRef = useRef<any>(null);
@@ -275,9 +275,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const transcriptRef = useRef<string>(""); // hold transcript during listening
 
+  /* ----- TTS playback refs/state ----- */
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speechTokenRef = useRef(0);
+  const submitRef = useRef<(e?: FormEvent, customQuery?: string) => void>(() => {});
+
   /* ----- Hold-to-speak refs ----- */
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHoldingRef = useRef(false);
+
 
   // Save state to localStorage
   useEffect(() => {
