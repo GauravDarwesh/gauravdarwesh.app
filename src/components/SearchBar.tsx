@@ -697,7 +697,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const startHold = useCallback(() => {
     if (isLoading) return;
 
+    // Cancel any in-flight response audio the moment a new recording starts
+    stopSpeaking();
+
     isHoldingRef.current = true;
+
 
     // CRITICAL: Acquire microphone directly from user gesture context
     // to satisfy browser security policies, then wait for hold threshold
