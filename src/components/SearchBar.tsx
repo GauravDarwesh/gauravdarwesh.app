@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
+const SUPABASE_FUNCTIONS_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co/functions/v1";
+
+
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
   let result = text;
