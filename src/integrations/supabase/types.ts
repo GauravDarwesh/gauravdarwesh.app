@@ -77,30 +77,6 @@ export type Database = {
         }
         Relationships: []
       }
-      gd_knowledge_base: {
-        Row: {
-          content: string
-          created_at: string
-          embedding: string | null
-          id: number
-          source: string
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          embedding?: string | null
-          id?: never
-          source: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          embedding?: string | null
-          id?: never
-          source?: string
-        }
-        Relationships: []
-      }
       gd_leads: {
         Row: {
           created_at: string
@@ -234,19 +210,6 @@ export type Database = {
       mark_gdx_notification_sent: {
         Args: { p_notification_id: string }
         Returns: undefined
-      }
-      match_knowledge_base: {
-        Args: {
-          match_count?: number
-          match_threshold?: number
-          query_embedding: string
-        }
-        Returns: {
-          content: string
-          id: number
-          similarity: number
-          source: string
-        }[]
       }
       match_user_messages: {
         Args: {

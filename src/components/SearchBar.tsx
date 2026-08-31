@@ -6,9 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-const SUPABASE_FUNCTIONS_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co/functions/v1";
-
-
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
   let result = text;
@@ -147,22 +144,6 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
   );
 };
 
-/* ---------- 3️⃣a Static waveform (playback indicator) ---------- */
-const StaticWaveform: React.FC = () => {
-  const heights = [6, 12, 18, 22, 16, 24, 14, 20, 10, 16, 8, 14];
-  return (
-    <div className="flex items-center gap-[2px] h-8 shrink-0 pr-1" aria-label="Speaking">
-      {heights.map((h, i) => (
-        <span
-          key={i}
-          className="w-[2px] rounded-full bg-white/80"
-          style={{ height: `${h}px` }}
-        />
-      ))}
-    </div>
-  );
-};
-
 /* ---------- 3️⃣b Timer Component ---------- */
 const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const [seconds, setSeconds] = useState(0);
@@ -284,7 +265,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [placeholderText, setPlaceholderText] = useState("Ask anything...");
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
   const [placeholderTarget, setPlaceholderTarget] = useState(0); // 0 = "Ask anything...", 1 = "Hold to speak"
-  const placeholderTexts = useMemo(() => ["Ask anything...", "Hold Shift or search icon to talk with GDx"], []);
+  const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to speak"], []);
 
   /* ----- Audio/waveform refs ----- */
   const recognitionRef = useRef<any>(null);
@@ -294,16 +275,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const transcriptRef = useRef<string>(""); // hold transcript during listening
 
-  /* ----- TTS playback refs/state ----- */
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const speechTokenRef = useRef(0);
-  const submitRef = useRef<(e?: FormEvent, customQuery?: string) => void>(() => {});
-
   /* ----- Hold-to-speak refs ----- */
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHoldingRef = useRef(false);
-
 
   // Save state to localStorage
   useEffect(() => {
@@ -504,109 +478,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [showTypewriter, rotatingSuggestions]);
 
-  /* ----- Response audio engine (edge TTS + speechSynthesis fallback) ----- */
-  const stripMarkdown = useCallback((text: string) => {
-    return text
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/`([^`]+)`/g, "$1")
-      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-      .replace(/^\s{0,3}#{1,6}\s+/gm, "")
-      .replace(/^\s{0,3}>\s?/gm, "")
-      .replace(/^\s*[-*+]\s+/gm, "")
-      .replace(/(\*\*|__)(.*?)\1/g, "$2")
-      .replace(/(\*|_)(.*?)\1/g, "$2")
-      .replace(/^\s*[-*_]{3,}\s*$/gm, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }, []);
-
-  const stopSpeaking = useCallback(() => {
-    speechTokenRef.current += 1;
-    try {
-      window.speechSynthesis?.cancel();
-    } catch {
-      /* noop */
-    }
-    if (currentAudioRef.current) {
-      try {
-        currentAudioRef.current.pause();
-        currentAudioRef.current.src = "";
-      } catch {
-        /* noop */
-      }
-      currentAudioRef.current = null;
-    }
-    setIsSpeaking(false);
-  }, []);
-
-  const speakResponse = useCallback(
-    async (raw: string) => {
-      const clean = stripMarkdown(raw || "");
-      if (!clean) return;
-
-      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean])
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (!sentences.length) return;
-
-      stopSpeaking();
-      const token = speechTokenRef.current;
-      setIsSpeaking(true);
-
-      const speakWithBrowser = (sentence: string) =>
-        new Promise<void>((resolve) => {
-          if (!("speechSynthesis" in window)) return resolve();
-          const utterance = new SpeechSynthesisUtterance(sentence);
-          utterance.onend = () => resolve();
-          utterance.onerror = () => resolve();
-          window.speechSynthesis.speak(utterance);
-        });
-
-      const playUrl = (url: string) =>
-        new Promise<void>((resolve, reject) => {
-          const audio = new Audio(url);
-          currentAudioRef.current = audio;
-          audio.onended = () => resolve();
-          audio.onerror = () => reject(new Error("audio playback failed"));
-          audio.play().catch(reject);
-        });
-
-      try {
-        for (const sentence of sentences) {
-          if (speechTokenRef.current !== token) return;
-
-          let objectUrl: string | null = null;
-          try {
-            const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/gdx-tts`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: sentence }),
-            });
-            if (!res.ok) throw new Error(`tts ${res.status}`);
-            const blob = await res.blob();
-            if (!blob.size) throw new Error("empty audio");
-            if (speechTokenRef.current !== token) return;
-            objectUrl = URL.createObjectURL(blob);
-            await playUrl(objectUrl);
-          } catch {
-            if (speechTokenRef.current !== token) return;
-            await speakWithBrowser(sentence);
-          } finally {
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-          }
-        }
-      } finally {
-        if (speechTokenRef.current === token) {
-          currentAudioRef.current = null;
-          setIsSpeaking(false);
-        }
-      }
-    },
-    [stripMarkdown, stopSpeaking],
-  );
-
-
   /* ----- Hold-to-speak: start listening ----- */
   const startListening = useCallback((stream?: MediaStream) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -656,16 +527,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
-      const finalTranscript = transcriptRef.current.trim();
-      transcriptRef.current = "";
-      // Show the transcribed text, then auto-submit
-      if (finalTranscript) {
-        setQuery(finalTranscript);
-        submitRef.current(undefined, finalTranscript);
+      // Show the transcribed text now
+      if (transcriptRef.current.trim()) {
+        setQuery(transcriptRef.current);
       }
+      transcriptRef.current = "";
       // Blur input to prevent cursor showing
       inputRef.current?.blur();
-
       // Cleanup audio
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -713,11 +581,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const startHold = useCallback(() => {
     if (isLoading) return;
 
-    // Cancel any in-flight response audio the moment a new recording starts
-    stopSpeaking();
-
     isHoldingRef.current = true;
-
 
     // CRITICAL: Acquire microphone directly from user gesture context
     // to satisfy browser security policies, then wait for hold threshold
@@ -750,7 +614,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       }
     }, 400);
-  }, [isLoading, startListening, stopSpeaking]);
+  }, [isLoading, startListening]);
 
   /* ----- Hold-to-speak handlers (on magnifying glass) ----- */
   const handleHoldStart = useCallback(
@@ -829,9 +693,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
-    // Any new message cancels in-flight response audio
-    stopSpeaking();
-
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
@@ -859,7 +720,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
       onSearch?.(String(answer));
-      void speakResponse(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
@@ -870,16 +730,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    submitRef.current = (e?: FormEvent, customQuery?: string) => {
-      void handleSubmit(e, customQuery);
-    };
-  });
-
-  // Stop playback when the component unmounts
-  useEffect(() => stopSpeaking, [stopSpeaking]);
-
 
   /* ----- Interaction helpers ----- */
   const handleSuggestionClick = useCallback((s: string) => {
@@ -1076,9 +926,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <RecordingTimer isActive={isListening} />
               </div>
             )}
-            {/* Static illuminated waveform while the response is being spoken */}
-            {!isListening && isSpeaking && <StaticWaveform />}
-
             {/* Search icon / hold-to-speak target */}
             <div
               className="shrink-0 select-none"
