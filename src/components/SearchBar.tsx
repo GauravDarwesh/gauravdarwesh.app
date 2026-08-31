@@ -1060,6 +1060,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <RecordingTimer isActive={isListening} />
               </div>
             )}
+            {/* Static illuminated waveform while the response is being spoken */}
+            {!isListening && isSpeaking && <StaticWaveform />}
+
             {/* Search icon / hold-to-speak target */}
             <div
               className="shrink-0 select-none"
