@@ -485,6 +485,109 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [showTypewriter, rotatingSuggestions]);
 
+  /* ----- Response audio engine (edge TTS + speechSynthesis fallback) ----- */
+  const stripMarkdown = useCallback((text: string) => {
+    return text
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+      .replace(/^\s{0,3}>\s?/gm, "")
+      .replace(/^\s*[-*+]\s+/gm, "")
+      .replace(/(\*\*|__)(.*?)\1/g, "$2")
+      .replace(/(\*|_)(.*?)\1/g, "$2")
+      .replace(/^\s*[-*_]{3,}\s*$/gm, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, []);
+
+  const stopSpeaking = useCallback(() => {
+    speechTokenRef.current += 1;
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* noop */
+    }
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+      } catch {
+        /* noop */
+      }
+      currentAudioRef.current = null;
+    }
+    setIsSpeaking(false);
+  }, []);
+
+  const speakResponse = useCallback(
+    async (raw: string) => {
+      const clean = stripMarkdown(raw || "");
+      if (!clean) return;
+
+      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean])
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!sentences.length) return;
+
+      stopSpeaking();
+      const token = speechTokenRef.current;
+      setIsSpeaking(true);
+
+      const speakWithBrowser = (sentence: string) =>
+        new Promise<void>((resolve) => {
+          if (!("speechSynthesis" in window)) return resolve();
+          const utterance = new SpeechSynthesisUtterance(sentence);
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          window.speechSynthesis.speak(utterance);
+        });
+
+      const playUrl = (url: string) =>
+        new Promise<void>((resolve, reject) => {
+          const audio = new Audio(url);
+          currentAudioRef.current = audio;
+          audio.onended = () => resolve();
+          audio.onerror = () => reject(new Error("audio playback failed"));
+          audio.play().catch(reject);
+        });
+
+      try {
+        for (const sentence of sentences) {
+          if (speechTokenRef.current !== token) return;
+
+          let objectUrl: string | null = null;
+          try {
+            const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/gdx-tts`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: sentence }),
+            });
+            if (!res.ok) throw new Error(`tts ${res.status}`);
+            const blob = await res.blob();
+            if (!blob.size) throw new Error("empty audio");
+            if (speechTokenRef.current !== token) return;
+            objectUrl = URL.createObjectURL(blob);
+            await playUrl(objectUrl);
+          } catch {
+            if (speechTokenRef.current !== token) return;
+            await speakWithBrowser(sentence);
+          } finally {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+          }
+        }
+      } finally {
+        if (speechTokenRef.current === token) {
+          currentAudioRef.current = null;
+          setIsSpeaking(false);
+        }
+      }
+    },
+    [stripMarkdown, stopSpeaking],
+  );
+
+
   /* ----- Hold-to-speak: start listening ----- */
   const startListening = useCallback((stream?: MediaStream) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
