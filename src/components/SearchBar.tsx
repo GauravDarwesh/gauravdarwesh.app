@@ -734,7 +734,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       }
     }, 400);
-  }, [isLoading, startListening]);
+  }, [isLoading, startListening, stopSpeaking]);
 
   /* ----- Hold-to-speak handlers (on magnifying glass) ----- */
   const handleHoldStart = useCallback(
