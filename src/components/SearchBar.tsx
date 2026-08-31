@@ -640,13 +640,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
-      // Show the transcribed text now
-      if (transcriptRef.current.trim()) {
-        setQuery(transcriptRef.current);
-      }
+      const finalTranscript = transcriptRef.current.trim();
       transcriptRef.current = "";
+      // Show the transcribed text, then auto-submit
+      if (finalTranscript) {
+        setQuery(finalTranscript);
+        submitRef.current(undefined, finalTranscript);
+      }
       // Blur input to prevent cursor showing
       inputRef.current?.blur();
+
       // Cleanup audio
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
