@@ -147,6 +147,22 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
   );
 };
 
+/* ---------- 3️⃣a Static waveform (playback indicator) ---------- */
+const StaticWaveform: React.FC = () => {
+  const heights = [6, 12, 18, 22, 16, 24, 14, 20, 10, 16, 8, 14];
+  return (
+    <div className="flex items-center gap-[2px] h-8 shrink-0 pr-1" aria-label="Speaking">
+      {heights.map((h, i) => (
+        <span
+          key={i}
+          className="w-[2px] rounded-full bg-white/80"
+          style={{ height: `${h}px` }}
+        />
+      ))}
+    </div>
+  );
+};
+
 /* ---------- 3️⃣b Timer Component ---------- */
 const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const [seconds, setSeconds] = useState(0);
