@@ -813,6 +813,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
+    // Any new message cancels in-flight response audio
+    stopSpeaking();
+
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
@@ -840,6 +843,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
       onSearch?.(String(answer));
+      void speakResponse(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
@@ -850,6 +854,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    submitRef.current = (e?: FormEvent, customQuery?: string) => {
+      void handleSubmit(e, customQuery);
+    };
+  });
+
+  // Stop playback when the component unmounts
+  useEffect(() => stopSpeaking, [stopSpeaking]);
+
 
   /* ----- Interaction helpers ----- */
   const handleSuggestionClick = useCallback((s: string) => {
