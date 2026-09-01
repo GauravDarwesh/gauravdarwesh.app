@@ -13,6 +13,8 @@ const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
 const STORAGE_KEY = "searchbar_state";
 const FIRST_VISIT_KEY = "gd_ai_first_visit";
+const TTS_QUOTA_BLOCKED_UNTIL_KEY = "gdx_tts_quota_blocked_until";
+const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
 
 const HOLD_THRESHOLD_MS = 350;
 const SILENCE_MS = 1400;
@@ -870,6 +872,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       .trim();
   }, []);
 
+  const speakWithBrowser = useCallback((sentence: string, token: number) => {
+    return new Promise<void>((resolve) => {
+      if (!("speechSynthesis" in window) || token !== speakTokenRef.current) {
+        resolve();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(sentence);
+      utterance.rate = 1.02;
+      utterance.onend = () => resolve();
+      utterance.onerror = () => resolve();
+      window.speechSynthesis.speak(utterance);
+    });
+  }, []);
+
   const speakVoiceResponse = useCallback(
     async (raw: string) => {
       stopAudioOnly();
@@ -896,7 +913,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       isSpeakingRef.current = true;
       setWaveformAnalyser(playbackAnalyser);
 
+      let quotaBlockedUntil = Number(sessionStorage.getItem(TTS_QUOTA_BLOCKED_UNTIL_KEY) ?? 0);
+
+      if (!Number.isFinite(quotaBlockedUntil) || quotaBlockedUntil <= Date.now()) {
+        quotaBlockedUntil = 0;
+        sessionStorage.removeItem(TTS_QUOTA_BLOCKED_UNTIL_KEY);
+      }
+
       const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
+        if (quotaBlockedUntil > Date.now()) return null;
+
         try {
           const res = await fetch(TTS_ENDPOINT, {
             method: "POST",
@@ -908,7 +934,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             body: JSON.stringify({ text: sentence }),
           });
 
-          if (!res.ok) throw new Error(`TTS status ${res.status}`);
+          if (!res.ok) {
+            if (res.status === 429) {
+              quotaBlockedUntil = Date.now() + TTS_QUOTA_FALLBACK_MS;
+              sessionStorage.setItem(TTS_QUOTA_BLOCKED_UNTIL_KEY, String(quotaBlockedUntil));
+            }
+
+            throw new Error(`TTS status ${res.status}`);
+          }
 
           const bytes = await res.arrayBuffer();
           return await ctx.decodeAudioData(bytes);
@@ -918,19 +951,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       };
 
-      /*
-       * Prefetch in parallel. Playback itself remains sequential, so the
-       * voice never overlaps sentences.
-       */
-      const buffers = await Promise.all(sentences.map((sentence) => fetchAudioBuffer(sentence)));
-
       try {
-        for (const buffer of buffers) {
+        for (const sentence of sentences) {
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
             return;
           }
 
-          if (!buffer) continue;
+          const buffer = await fetchAudioBuffer(sentence);
+
+          if (!buffer) {
+            await speakWithBrowser(sentence, token);
+            continue;
+          }
 
           await new Promise<void>((resolve) => {
             const source = ctx.createBufferSource();
@@ -965,7 +997,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       }
     },
-    [cleanForSpeech, getAudioContext, stopAudioOnly],
+    [cleanForSpeech, getAudioContext, speakWithBrowser, stopAudioOnly],
   );
 
   /* ---------- Continuous speech recognition ---------- */
