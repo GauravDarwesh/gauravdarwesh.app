@@ -718,7 +718,129 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, []);
 
+  /* ----- Text-to-speech engine (gdx-tts + Web Speech fallback) ----- */
+  const stopSpeaking = useCallback(() => {
+    speakTokenRef.current += 1;
+    try {
+      window.speechSynthesis?.cancel();
+    } catch (e) {
+      /* noop */
+    }
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+      } catch (e) {
+        /* noop */
+      }
+      currentAudioRef.current = null;
+    }
+    setIsSpeaking(false);
+  }, []);
+
+  const speakResponse = useCallback(
+    async (raw: string) => {
+      stopSpeaking();
+      const token = speakTokenRef.current;
+
+      // Strip markdown
+      const clean = raw
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+        .replace(/^\s{0,3}>\s?/gm, "")
+        .replace(/^\s*[-*+]\s+/gm, "")
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        .replace(/\*(.*?)\*/g, "$1")
+        .replace(/__(.*?)__/g, "$1")
+        .replace(/_(.*?)_/g, "$1")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!clean) return;
+
+      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean])
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      setIsSpeaking(true);
+
+      const speakWithSynthesis = (from: number) =>
+        new Promise<void>((resolve) => {
+          const synth = window.speechSynthesis;
+          if (!synth) return resolve();
+          let i = from;
+          const next = () => {
+            if (token !== speakTokenRef.current || i >= sentences.length) return resolve();
+            const utter = new SpeechSynthesisUtterance(sentences[i]);
+            i += 1;
+            utter.onend = next;
+            utter.onerror = () => resolve();
+            synth.speak(utter);
+          };
+          next();
+        });
+
+      try {
+        for (let i = 0; i < sentences.length; i++) {
+          if (token !== speakTokenRef.current) return;
+          let url: string;
+          try {
+            const res = await fetch(`${TTS_ENDPOINT}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                apikey: SUPABASE_ANON_KEY,
+              },
+              body: JSON.stringify({ text: sentences[i] }),
+            });
+            if (!res.ok) throw new Error(`tts ${res.status}`);
+            const blob = await res.blob();
+            if (!blob.size) throw new Error("empty audio");
+            url = URL.createObjectURL(blob);
+          } catch (err) {
+            console.warn("gdx-tts failed, falling back to speechSynthesis:", err);
+            await speakWithSynthesis(i);
+            return;
+          }
+
+          if (token !== speakTokenRef.current) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+
+          await new Promise<void>((resolve) => {
+            const audio = new Audio(url);
+            currentAudioRef.current = audio;
+            audio.onended = () => {
+              URL.revokeObjectURL(url);
+              resolve();
+            };
+            audio.onerror = () => {
+              URL.revokeObjectURL(url);
+              resolve();
+            };
+            audio.play().catch(() => {
+              URL.revokeObjectURL(url);
+              resolve();
+            });
+          });
+        }
+      } finally {
+        if (token === speakTokenRef.current) {
+          currentAudioRef.current = null;
+          setIsSpeaking(false);
+        }
+      }
+    },
+    [stopSpeaking],
+  );
+
   /* ----- Submit handler ----- */
+
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
