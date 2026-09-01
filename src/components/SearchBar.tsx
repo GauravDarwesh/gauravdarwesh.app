@@ -410,7 +410,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       setIsSpeaking(true);
 
+      let ttsUnavailable = false;
+
+      const speakWithSynthesis = (sentence: string) =>
+        new Promise<void>((resolve) => {
+          const synth = window.speechSynthesis;
+          if (!synth) return resolve();
+          const utterance = new SpeechSynthesisUtterance(sentence);
+          utterance.rate = 1.05;
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          synth.speak(utterance);
+        });
+
       const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
+        if (ttsUnavailable) return null;
         try {
           const res = await fetch(TTS_ENDPOINT, {
             method: "POST",
@@ -421,7 +435,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             },
             body: JSON.stringify({ text: sentence }),
           });
-          if (!res.ok) throw new Error(`TTS status ${res.status}`);
+          if (!res.ok) {
+            // 429 (rate limit) / 5xx: stop hammering the endpoint for this response
+            if (res.status === 429 || res.status >= 500) ttsUnavailable = true;
+            throw new Error(`TTS status ${res.status}`);
+          }
           const arrayBuffer = await res.arrayBuffer();
           return await ctx.decodeAudioData(arrayBuffer);
         } catch (err) {
@@ -437,7 +455,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
 
           const buffer = await bufferPromises[i];
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current || !buffer) continue;
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
+          if (!buffer) {
+            // Fallback to the browser's built-in voice so playback never goes silent
+            await speakWithSynthesis(sentences[i]);
+            continue;
+          }
+
 
           await new Promise<void>((resolve) => {
             const source = ctx.createBufferSource();
