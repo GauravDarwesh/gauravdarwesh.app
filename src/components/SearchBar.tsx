@@ -77,23 +77,28 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isActive || !analyser || !canvasRef.current || !containerRef.current) return;
+    if (!isActive || !canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    let bufferLength = 0;
+    let dataArray: Uint8Array | null = null;
+    if (analyser) {
+      analyser.fftSize = 256;
+      bufferLength = analyser.frequencyBinCount;
+      dataArray = new Uint8Array(bufferLength);
+    }
 
     const BAR_WIDTH = 2;
     const BAR_GAP = 2;
     const MIN_HEIGHT = 3;
+    const start = performance.now();
 
     const draw = () => {
       animFrameRef.current = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
+      if (analyser && dataArray) analyser.getByteFrequencyData(dataArray);
 
       const dpr = window.devicePixelRatio || 1;
       // Resize canvas to match container
@@ -112,10 +117,20 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
 
       // Calculate bar count based on available width
       const barCount = Math.max(8, Math.floor(w / (BAR_WIDTH + BAR_GAP)));
+      const t = (performance.now() - start) / 1000;
 
       for (let i = 0; i < barCount; i++) {
-        const dataIndex = Math.floor((i / barCount) * bufferLength);
-        const value = dataArray[dataIndex] / 255;
+        let value: number;
+        if (analyser && dataArray) {
+          const dataIndex = Math.floor((i / barCount) * bufferLength);
+          value = dataArray[dataIndex] / 255;
+        } else {
+          // Synthetic "speaking" pulse when no analyser is available
+          value =
+            0.18 +
+            0.32 * Math.abs(Math.sin(t * 3.1 + i * 0.35)) +
+            0.2 * Math.abs(Math.sin(t * 5.7 + i * 0.13));
+        }
         const barHeight = Math.max(MIN_HEIGHT, value * (h * 0.85));
 
         const x = i * (BAR_WIDTH + BAR_GAP);
@@ -134,6 +149,7 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
       cancelAnimationFrame(animFrameRef.current);
     };
   }, [analyser, isActive]);
+
 
   if (!isActive) return null;
 
