@@ -1,220 +1,535 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
+import React, { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, X, Mic } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-/* ---------- Configuration & Endpoints ---------- */
+/* ---------- Configuration ---------- */
+
 const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
-/* ---------- Markdown Formatter ---------- */
-const formatMarkdown = (text: string): string => {
-  if (!text) return "";
+const STORAGE_KEY = "searchbar_state";
+const FIRST_VISIT_KEY = "gd_ai_first_visit";
 
-  const processInline = (str: string): string => {
-    return str
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em class="italic text-neutral-300">$1</em>')
-      .replace(
-        /`([^`]+)`/g,
-        '<code class="bg-white/10 text-neutral-200 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>',
-      )
-      .replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:text-sky-300 underline underline-offset-2">$1</a>',
-      );
-  };
+const HOLD_THRESHOLD_MS = 350;
+const SILENCE_MS = 1400;
+const RESPONSE_MAX_HEIGHT = 340;
 
-  return text
-    .split("\n")
-    .map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return '<div class="h-2"></div>';
-      if (trimmed.startsWith("### ")) {
-        return `<h3 class="text-sm font-semibold text-white mt-3 mb-1 tracking-wide">${processInline(trimmed.slice(4))}</h3>`;
-      }
-      if (trimmed.startsWith("## ")) {
-        return `<h2 class="text-base font-bold text-white mt-3 mb-1.5 tracking-wide">${processInline(trimmed.slice(3))}</h2>`;
-      }
-      if (trimmed.startsWith("# ")) {
-        return `<h1 class="text-lg font-bold text-white mt-4 mb-2 tracking-wide">${processInline(trimmed.slice(2))}</h1>`;
-      }
-      if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-        return `<li class="ml-4 list-disc text-neutral-300 leading-relaxed">${processInline(trimmed.slice(2))}</li>`;
-      }
-      return `<p class="text-neutral-300 leading-relaxed mb-1.5">${processInline(trimmed)}</p>`;
-    })
-    .join("");
+/* ---------- Safe Markdown -> HTML ---------- */
+/*
+ * The original implementation put raw model output directly into
+ * dangerouslySetInnerHTML. Escape first, then add only the formatting
+ * we explicitly support.
+ */
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const safeHref = (value: string) => {
+  try {
+    const url = new URL(value, window.location.origin);
+    return /^(https?:|mailto:|tel:)$/.test(url.protocol) ? url.href : "#";
+  } catch {
+    return "#";
+  }
 };
 
-/* ---------- Ultra-Smooth 60FPS Reactive Waveform ---------- */
-const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
+const convertMarkdownToHtml = (text: string): string => {
+  const escaped = escapeHtml(text);
+
+  const processInline = (input: string) => {
+    let str = input;
+
+    str = str.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    str = str.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    str = str.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    str = str.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (_, label: string, href: string) =>
+        `<a href="${safeHref(href)}" target="_blank" rel="noopener noreferrer" class="response-link">${label}</a>`,
+    );
+
+    return str;
+  };
+
+  const lines = escaped.split("\n");
+  const html: string[] = [];
+  let inCodeBlock = false;
+  let codeLines: string[] = [];
+  let inList = false;
+
+  const closeList = () => {
+    if (inList) {
+      html.push("</ul>");
+      inList = false;
+    }
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (line.startsWith("```")) {
+      if (inCodeBlock) {
+        html.push(`<pre class="code-block"><code>${codeLines.join("\n")}</code></pre>`);
+        codeLines = [];
+        inCodeBlock = false;
+      } else {
+        closeList();
+        inCodeBlock = true;
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeLines.push(rawLine);
+      continue;
+    }
+
+    if (!line) {
+      closeList();
+      html.push('<div class="response-spacer"></div>');
+      continue;
+    }
+
+    if (line.startsWith("### ")) {
+      closeList();
+      html.push(`<h3>${processInline(line.slice(4))}</h3>`);
+      continue;
+    }
+
+    if (line.startsWith("## ")) {
+      closeList();
+      html.push(`<h2>${processInline(line.slice(3))}</h2>`);
+      continue;
+    }
+
+    if (line.startsWith("# ")) {
+      closeList();
+      html.push(`<h1>${processInline(line.slice(2))}</h1>`);
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      if (!inList) {
+        html.push("<ul>");
+        inList = true;
+      }
+      html.push(`<li>${processInline(line.slice(2))}</li>`);
+      continue;
+    }
+
+    closeList();
+    html.push(`<p>${processInline(line)}</p>`);
+  }
+
+  if (inCodeBlock) {
+    html.push(`<pre class="code-block"><code>${codeLines.join("\n")}</code></pre>`);
+  }
+
+  closeList();
+  return html.join("");
+};
+
+/* ---------- Shared fade / collapse primitive ---------- */
+
+function Fade({ show, duration = 350, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(show);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    if (show) {
+      setMounted(true);
+    } else {
+      timer = setTimeout(() => setMounted(false), duration);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [show, duration]);
+
+  if (!mounted) return null;
+
+  return (
+    <div
+      className={`fade-shell ${show ? "fade-shell-visible" : "fade-shell-hidden"}`}
+      style={{ "--fade-duration": `${duration}ms` } as React.CSSProperties}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ---------- Smooth audio waveform ---------- */
+/*
+ * Important fixes over the old canvas:
+ * - canvas dimensions are NOT rewritten every animation frame
+ * - ResizeObserver handles size changes
+ * - values are interpolated instead of jumping directly between FFT frames
+ * - mic and playback analysers are independent, so mic audio is never sent
+ *   back to the speakers
+ */
+const BarWaveform: React.FC<{
+  analyser: AnalyserNode | null;
+  isActive: boolean;
+  mode: "listening" | "speaking";
+}> = ({ analyser, isActive, mode }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const animFrameRef = useRef<number>(0);
+  const frameRef = useRef<number | null>(null);
   const dimensionsRef = useRef({ width: 0, height: 0, dpr: 1 });
-
-  // Handle resizing outside of draw loop to prevent layout thrashing
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const updateSize = () => {
-      if (!containerRef.current || !canvasRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      dimensionsRef.current = { width: rect.width, height: rect.height, dpr };
-
-      canvasRef.current.width = rect.width * dpr;
-      canvasRef.current.height = rect.height * dpr;
-      canvasRef.current.style.width = `${rect.width}px`;
-      canvasRef.current.style.height = `${rect.height}px`;
-    };
-
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(containerRef.current);
-
-    return () => observer.disconnect();
-  }, [isActive]);
+  const valuesRef = useRef<number[]>([]);
+  const phaseRef = useRef(0);
 
   useEffect(() => {
-    if (!isActive || !canvasRef.current) return;
-
+    const container = containerRef.current;
     const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const bufferLength = analyser ? analyser.frequencyBinCount : 0;
-    const dataArray = analyser ? new Uint8Array(bufferLength) : null;
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
 
-    const BAR_WIDTH = 3;
-    const BAR_GAP = 3;
-    const MIN_HEIGHT = 4;
-    const TOTAL_BAR_SPACE = BAR_WIDTH + BAR_GAP;
-
-    const draw = () => {
-      animFrameRef.current = requestAnimationFrame(draw);
-
-      const { width, height, dpr } = dimensionsRef.current;
-      if (width === 0 || height === 0) return;
-
-      if (analyser && dataArray) {
-        analyser.getByteFrequencyData(dataArray);
+      if (
+        dimensionsRef.current.width === width &&
+        dimensionsRef.current.height === height &&
+        dimensionsRef.current.dpr === dpr
+      ) {
+        return;
       }
 
+      dimensionsRef.current = { width, height, dpr };
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-
-      const barCount = Math.floor(width / TOTAL_BAR_SPACE);
-      const totalUsedWidth = barCount * TOTAL_BAR_SPACE - BAR_GAP;
-      const startX = (width - totalUsedWidth) / 2;
-
-      for (let i = 0; i < barCount; i++) {
-        let value = 0;
-        if (analyser && dataArray) {
-          // Focus sampling on human voice range (lower-to-mid frequencies)
-          const freqIndex = Math.floor((i / barCount) * (bufferLength * 0.65));
-          value = dataArray[freqIndex] / 255;
-        }
-
-        const barHeight = Math.max(MIN_HEIGHT, value * (height * 0.9));
-        const x = startX + i * TOTAL_BAR_SPACE;
-        const y = (height - barHeight) / 2;
-
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + value * 0.6})`;
-        ctx.beginPath();
-        ctx.roundRect(x, y, BAR_WIDTH, barHeight, 2);
-        ctx.fill();
-      }
     };
 
-    draw();
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
 
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, [analyser, isActive]);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isActive) {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      valuesRef.current = [];
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const data = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
+
+    if (analyser) {
+      analyser.smoothingTimeConstant = 0.88;
+      analyser.minDecibels = -85;
+      analyser.maxDecibels = -15;
+    }
+
+    let lastTime = performance.now();
+
+    const draw = (now: number) => {
+      const { width: w, height: h, dpr } = dimensionsRef.current;
+
+      if (!w || !h) {
+        frameRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
+      const delta = Math.min(40, now - lastTime);
+      lastTime = now;
+      const dt = delta / 1000;
+
+      phaseRef.current += dt;
+
+      if (analyser && data) {
+        analyser.getByteFrequencyData(data);
+      }
+
+      const barWidth = 2;
+      const gap = 2.3;
+      const barCount = Math.max(10, Math.floor(w / (barWidth + gap)));
+      const previous = valuesRef.current;
+
+      if (previous.length !== barCount) {
+        valuesRef.current = Array.from({ length: barCount }, (_, i) => previous[i] ?? 0.12);
+      }
+
+      const values = valuesRef.current;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      const center = h / 2;
+      const maxHeight = h * 0.82;
+
+      for (let i = 0; i < barCount; i++) {
+        let target = 0.08;
+
+        if (analyser && data) {
+          /*
+           * Bias towards speech-relevant lower/mid frequencies rather than
+           * letting a single high-frequency spike dominate the waveform.
+           */
+          const normalized = i / Math.max(1, barCount - 1);
+          const sourceIndex = Math.min(data.length - 1, Math.floor(Math.pow(normalized, 1.55) * data.length * 0.72));
+
+          target = data[sourceIndex] / 255;
+
+          // Give the center a little more presence.
+          const centerWeight = 0.72 + 0.28 * Math.sin(Math.PI * normalized);
+          target *= centerWeight;
+        } else {
+          const t = phaseRef.current;
+          const waveA = Math.sin(t * (mode === "speaking" ? 3.1 : 2.5) + i * 0.34);
+          const waveB = Math.sin(t * 5.2 + i * 0.12);
+          target = 0.12 + Math.abs(waveA) * (mode === "speaking" ? 0.25 : 0.16) + Math.abs(waveB) * 0.08;
+        }
+
+        // Smoothly approach the new FFT value.
+        const smoothing = 1 - Math.exp(-dt * 14);
+        values[i] += (target - values[i]) * smoothing;
+
+        // Gentle falloff at both edges keeps the waveform visually centered.
+        const edge = Math.sin((Math.PI * (i + 1)) / (barCount + 1));
+        const value = Math.max(0.07, Math.min(1, values[i] * (0.72 + edge * 0.28)));
+
+        const barHeight = Math.max(3, value * maxHeight);
+        const x = i * (barWidth + gap);
+        const y = center - barHeight / 2;
+
+        ctx.fillStyle = `rgba(255,255,255,${0.22 + value * 0.58})`;
+        ctx.beginPath();
+        ctx.roundRect(x, y, barWidth, barHeight, 1.25);
+        ctx.fill();
+      }
+
+      frameRef.current = requestAnimationFrame(draw);
+    };
+
+    frameRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    };
+  }, [analyser, isActive, mode]);
 
   if (!isActive) return null;
 
   return (
-    <div ref={containerRef} className="flex-1 h-6 min-w-0 flex items-center overflow-hidden">
-      <canvas ref={canvasRef} className="w-full h-full pointer-events-none" />
+    <div ref={containerRef} className="waveform-container" aria-hidden="true">
+      <canvas ref={canvasRef} className="pointer-events-none block h-full w-full" />
     </div>
   );
 };
 
-/* ---------- SearchBar Component ---------- */
+/* ---------- Recording timer ---------- */
+
+const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
+  const [elapsed, setElapsed] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isActive) {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      startedAtRef.current = null;
+      setElapsed(0);
+      return;
+    }
+
+    startedAtRef.current = performance.now();
+
+    const tick = () => {
+      const started = startedAtRef.current;
+      if (started !== null) {
+        setElapsed(Math.floor((performance.now() - started) / 1000));
+      }
+      frameRef.current = requestAnimationFrame(tick);
+    };
+
+    frameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    };
+  }, [isActive]);
+
+  if (!isActive) return null;
+
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+
+  return (
+    <span className="recording-timer">
+      {mins}:{secs.toString().padStart(2, "0")}
+    </span>
+  );
+};
+
+/* ---------- SearchBar ---------- */
+
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
 
+type PersistedState = {
+  response: string | null;
+  suggestions: string[];
+  hasInteracted: boolean;
+  showExpandedSuggestions: boolean;
+  lastActivityTime: number;
+};
+
+const EMPTY_PERSISTED_STATE = (): PersistedState => ({
+  response: null,
+  suggestions: [],
+  hasInteracted: false,
+  showExpandedSuggestions: false,
+  lastActivityTime: Date.now(),
+});
+
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  const STORAGE_KEY = "gdx_searchbar_state";
+  const loadPersistedState = useCallback((): PersistedState => {
+    if (typeof window === "undefined") return EMPTY_PERSISTED_STATE();
 
-  /* Persistent State */
-  const [response, setResponse] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved).response : null;
-    } catch {
-      return null;
-    }
-  });
+      const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
 
-  const [suggestions, setSuggestions] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved).suggestions || [] : [];
-    } catch {
-      return [];
-    }
-  });
+      const isReload =
+        navigation?.type === "reload" ||
+        (performance as Performance & { navigation?: { type?: number } }).navigation?.type === 1;
 
-  /* Interaction States */
+      /*
+       * Do not resurrect an old conversation after a hard refresh.
+       * This matches the original intended behavior while remaining robust
+       * when PerformanceNavigationTiming is unavailable.
+       */
+      if (isReload) {
+        localStorage.removeItem(STORAGE_KEY);
+        return EMPTY_PERSISTED_STATE();
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return EMPTY_PERSISTED_STATE();
+
+      const parsed = JSON.parse(saved);
+      return {
+        response: typeof parsed.response === "string" ? parsed.response : null,
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+        hasInteracted: Boolean(parsed.hasInteracted),
+        showExpandedSuggestions: Boolean(parsed.showExpandedSuggestions),
+        lastActivityTime: typeof parsed.lastActivityTime === "number" ? parsed.lastActivityTime : Date.now(),
+      };
+    } catch {
+      return EMPTY_PERSISTED_STATE();
+    }
+  }, []);
+
+  const persisted = useMemo(loadPersistedState, [loadPersistedState]);
+
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showTypewriter, setShowTypewriter] = useState(false);
-  const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
-  const [currentSuggestion, setCurrentSuggestion] = useState("");
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [isCollapsing, setIsCollapsing] = useState(false);
+  const [response, setResponse] = useState<string | null>(persisted.response);
+  const [suggestions, setSuggestions] = useState<string[]>(persisted.suggestions);
 
-  /* Continuous Voice Session States */
+  const [hasInteracted, setHasInteracted] = useState(persisted.hasInteracted);
+  const [lastActivityTime, setLastActivityTime] = useState(persisted.lastActivityTime);
+
+  const [showTypewriter, setShowTypewriter] = useState(false);
+  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persisted.showExpandedSuggestions);
+
+  const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
+  const [fullText, setFullText] = useState("");
+  const suggestionIndexRef = useRef(0);
+
+  const [placeholderText, setPlaceholderText] = useState("Ask anything...");
+  const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
+  const [placeholderTarget, setPlaceholderTarget] = useState(0);
+
+  const [isCollapsing, setIsCollapsing] = useState(false);
+  const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(Boolean(persisted.response));
+
+  /* Voice state */
   const [isVoiceSession, setIsVoiceSession] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+
   const isVoiceSessionRef = useRef(false);
-  isVoiceSessionRef.current = isVoiceSession;
+  const isLoadingRef = useRef(false);
+  const isSpeakingRef = useRef(false);
 
-  /* Rotating Placeholder */
-  const placeholderOptions = useMemo(() => ["Ask anything about Gaurav...", "Hold search or Shift to talk"], []);
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const [placeholderText, setPlaceholderText] = useState(placeholderOptions[0]);
-  const [isDeleting, setIsDeleting] = useState(false);
+  useEffect(() => {
+    isVoiceSessionRef.current = isVoiceSession;
+  }, [isVoiceSession]);
 
-  /* Audio & Recognition Refs */
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
+
+  /* DOM / timer refs */
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const outsideCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isHoldingRef = useRef(false);
+  const wasVoiceGestureRef = useRef(false);
+
+  /* Recognition / audio refs */
   const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef("");
   const micStreamRef = useRef<MediaStream | null>(null);
-  const transcriptRef = useRef<string>("");
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const playbackAnalyserRef = useRef<AnalyserNode | null>(null);
+
+  const [waveformAnalyser, setWaveformAnalyser] = useState<AnalyserNode | null>(null);
+
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const speakTokenRef = useRef(0);
 
-  /* Input & Gesture Refs */
-  const searchBarRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isHoldingRef = useRef(false);
-  const suggestionIndexRef = useRef(0);
-  const lastActivityTimeRef = useRef(Date.now());
+  const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
+  const startListeningContinuousRef = useRef<() => void>();
+
+  const placeholderTexts = useMemo(() => ["Ask anything...", "hold shift/search to talk with GDx"], []);
 
   const rotatingSuggestions = useMemo(
     () => [
@@ -224,53 +539,179 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       "✨ Can you share Gaurav's Recommendations?",
       "✨ Show me Gaurav's Achievements",
       "✨ List Gaurav's Certifications",
-      "✨ What Projects has Gaurav built?",
+      "✨ What Projects has Gaurav done?",
+      "✨ Does Gaurav have any Hobbies?",
+      "✨ How to Contact Gaurav?",
+      "✨ What roles has Gaurav worked in?",
+      "✨ Can you share Gaurav's Career Highlights?",
+      "✨ What is Gaurav passionate about?",
+      "✨ Which Companies has Gaurav worked at?",
       "✨ What is Gaurav's Current Role?",
+      "✨ What Technologies does Gaurav use?",
       "✨ What is Gaurav's Work Philosophy?",
     ],
     [],
   );
 
-  /* Sync LocalStorage */
+  /* ---------- Persistence ---------- */
+
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ response, suggestions }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          response,
+          suggestions,
+          hasInteracted,
+          showExpandedSuggestions,
+          lastActivityTime,
+        }),
+      );
     } catch {
-      /* ignore */
+      /* localStorage can be unavailable in privacy modes */
     }
-  }, [response, suggestions]);
+  }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime]);
 
-  /* Lazy Shared Audio Context */
-  const getAudioContext = useCallback(() => {
-    if (!audioContextRef.current) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioCtx();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.82;
-      audioContextRef.current = ctx;
-      analyserRef.current = analyser;
-      setAnalyserNode(analyser);
+  const clearPersistedState = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* noop */
     }
-    if (audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
-    }
-    return { ctx: audioContextRef.current, analyser: analyserRef.current! };
   }, []);
 
-  /* Typewriter Suggestion Cycle */
+  /* ---------- Audio context ---------- */
+
+  const getAudioContext = useCallback(() => {
+    if (typeof window === "undefined") return null;
+
+    if (!audioContextRef.current) {
+      const AudioContextClass =
+        window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+      if (!AudioContextClass) return null;
+
+      const ctx = new AudioContextClass();
+      const micAnalyser = ctx.createAnalyser();
+      const playbackAnalyser = ctx.createAnalyser();
+
+      micAnalyser.fftSize = 512;
+      micAnalyser.smoothingTimeConstant = 0.9;
+
+      playbackAnalyser.fftSize = 512;
+      playbackAnalyser.smoothingTimeConstant = 0.9;
+
+      /*
+       * Each analyser has its own graph. Playback analyser connects to the
+       * speakers; mic analyser intentionally does NOT.
+       */
+      playbackAnalyser.connect(ctx.destination);
+
+      audioContextRef.current = ctx;
+      micAnalyserRef.current = micAnalyser;
+      playbackAnalyserRef.current = playbackAnalyser;
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      void audioContextRef.current.resume();
+    }
+
+    return {
+      ctx: audioContextRef.current,
+      micAnalyser: micAnalyserRef.current,
+      playbackAnalyser: playbackAnalyserRef.current,
+    };
+  }, []);
+
+  /* ---------- Placeholder animation ---------- */
+
   useEffect(() => {
-    if (response || isVoiceSession || hasInteracted) {
+    if (isLoading || isListening || isVoiceSession || query) return;
+
+    const target = placeholderTexts[placeholderTarget];
+
+    if (placeholderPhase === "pause") {
+      const timer = setTimeout(() => setPlaceholderPhase("deleting"), 2800);
+      return () => clearTimeout(timer);
+    }
+
+    if (placeholderPhase === "deleting") {
+      if (placeholderText.length === 0) {
+        setPlaceholderTarget((prev) => (prev + 1) % placeholderTexts.length);
+        setPlaceholderPhase("typing");
+        return;
+      }
+
+      const timer = setTimeout(() => setPlaceholderText((value) => value.slice(0, -1)), 24);
+      return () => clearTimeout(timer);
+    }
+
+    if (placeholderPhase === "typing") {
+      if (placeholderText === target) {
+        setPlaceholderPhase("pause");
+        return;
+      }
+
+      const timer = setTimeout(() => setPlaceholderText(target.slice(0, placeholderText.length + 1)), 38);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    placeholderPhase,
+    placeholderTarget,
+    placeholderText,
+    placeholderTexts,
+    isLoading,
+    isListening,
+    isVoiceSession,
+    query,
+  ]);
+
+  /* ---------- Activity tracking ---------- */
+
+  const markActivity = useCallback(() => {
+    if (activityDebounceRef.current) {
+      clearTimeout(activityDebounceRef.current);
+    }
+
+    activityDebounceRef.current = setTimeout(() => {
+      setLastActivityTime(Date.now());
+    }, 120);
+  }, []);
+
+  useEffect(() => {
+    const immediateActivity = () => setLastActivityTime(Date.now());
+
+    window.addEventListener("mousemove", markActivity, { passive: true });
+    window.addEventListener("pointerdown", immediateActivity, { passive: true });
+    window.addEventListener("keydown", immediateActivity, { passive: true });
+    window.addEventListener("scroll", immediateActivity, { passive: true });
+
+    return () => {
+      window.removeEventListener("mousemove", markActivity);
+      window.removeEventListener("pointerdown", immediateActivity);
+      window.removeEventListener("keydown", immediateActivity);
+      window.removeEventListener("scroll", immediateActivity);
+
+      if (activityDebounceRef.current) {
+        clearTimeout(activityDebounceRef.current);
+      }
+    };
+  }, [markActivity]);
+
+  /* ---------- Typewriter suggestion lifecycle ---------- */
+
+  useEffect(() => {
+    if (response || suggestions.length || isVoiceSession || isLoading) {
       setShowTypewriter(false);
       return;
     }
 
     const timer = setTimeout(() => {
-      setShowTypewriter(true);
-    }, 8000);
+      if (!hasInteracted) setShowTypewriter(true);
+    }, 10000);
 
     return () => clearTimeout(timer);
-  }, [response, isVoiceSession, hasInteracted]);
+  }, [hasInteracted, response, suggestions.length, isVoiceSession, isLoading]);
 
   useEffect(() => {
     if (!showTypewriter || isVoiceSession) {
@@ -278,159 +719,185 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return;
     }
 
-    if (!currentSuggestion) {
-      setCurrentSuggestion(rotatingSuggestions[suggestionIndexRef.current]);
-    }
-    setSuggestionPhase("emerging");
-    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 600);
+    let retreatTimer: ReturnType<typeof setTimeout> | undefined;
+    let visibleTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const interval = setInterval(() => {
+    setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+    setSuggestionPhase("emerging");
+
+    visibleTimer = setTimeout(() => setSuggestionPhase("visible"), 650);
+
+    const cycle = setTimeout(() => {
       setSuggestionPhase("retreating");
-      setTimeout(() => {
+
+      retreatTimer = setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
-        setCurrentSuggestion(rotatingSuggestions[suggestionIndexRef.current]);
+        setFullText(rotatingSuggestions[suggestionIndexRef.current]);
         setSuggestionPhase("emerging");
-        setTimeout(() => setSuggestionPhase("visible"), 600);
+
+        visibleTimer = setTimeout(() => setSuggestionPhase("visible"), 650);
       }, 500);
-    }, 6000);
+    }, 4500);
 
     return () => {
-      clearInterval(interval);
-      clearTimeout(emergeTimer);
+      clearTimeout(cycle);
+      if (retreatTimer) clearTimeout(retreatTimer);
+      if (visibleTimer) clearTimeout(visibleTimer);
     };
-  }, [showTypewriter, rotatingSuggestions, currentSuggestion, isVoiceSession]);
+  }, [showTypewriter, rotatingSuggestions, isVoiceSession]);
 
-  /* Placeholder Typing Animation */
+  /* ---------- Expanded suggestions after idle ---------- */
+
   useEffect(() => {
-    if (isLoading || isVoiceSession || isListening || query) return;
+    if (!response && suggestions.length === 0) return;
 
-    const target = placeholderOptions[placeholderIndex];
-    let timeout: NodeJS.Timeout;
+    const idle = Date.now() - lastActivityTime;
+    const shouldShow = !isLoading && !isVoiceSession && idle > 10000 && suggestions.length > 0;
 
-    if (!isDeleting && placeholderText === target) {
-      timeout = setTimeout(() => setIsDeleting(true), 3000);
-    } else if (isDeleting && placeholderText === "") {
-      setIsDeleting(false);
-      setPlaceholderIndex((prev) => (prev + 1) % placeholderOptions.length);
-    } else {
-      timeout = setTimeout(
-        () => {
-          setPlaceholderText((prev) =>
-            isDeleting ? target.slice(0, prev.length - 1) : target.slice(0, prev.length + 1),
-          );
-        },
-        isDeleting ? 25 : 45,
-      );
-    }
+    setShowExpandedSuggestions(shouldShow);
+  }, [lastActivityTime, response, suggestions.length, isLoading, isVoiceSession]);
 
-    return () => clearTimeout(timeout);
-  }, [
-    placeholderText,
-    isDeleting,
-    placeholderIndex,
-    placeholderOptions,
-    isLoading,
-    isVoiceSession,
-    isListening,
-    query,
-  ]);
+  /* ---------- Stop audio ---------- */
 
-  /* Voice Pipeline: Stop Audio & Session */
-  const stopAudio = useCallback(() => {
+  const stopAudioOnly = useCallback(() => {
     speakTokenRef.current += 1;
+
     if (currentSourceNodeRef.current) {
       try {
         currentSourceNodeRef.current.stop();
+      } catch {
+        /* already stopped */
+      }
+
+      try {
         currentSourceNodeRef.current.disconnect();
       } catch {
         /* noop */
       }
+
       currentSourceNodeRef.current = null;
     }
-    try {
-      window.speechSynthesis?.cancel();
-    } catch {
-      /* noop */
-    }
-    setIsSpeaking(false);
 
-  }, []);
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
+    setWaveformAnalyser(isListening ? micAnalyserRef.current : null);
+  }, [isListening]);
+
+  /* ---------- Voice session cleanup ---------- */
 
   const stopVoiceSession = useCallback(() => {
-    setIsVoiceSession(false);
     isVoiceSessionRef.current = false;
-    stopAudio();
+    setIsVoiceSession(false);
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
 
-    if (recognitionRef.current) {
+    speakTokenRef.current += 1;
+
+    if (currentSourceNodeRef.current) {
       try {
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.stop();
+        currentSourceNodeRef.current.stop();
       } catch {
         /* noop */
       }
+
+      try {
+        currentSourceNodeRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+
+      currentSourceNodeRef.current = null;
+    }
+
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
+
+    if (recognitionRef.current) {
+      const recognition = recognitionRef.current;
       recognitionRef.current = null;
+
+      try {
+        recognition.onend = null;
+        recognition.onerror = null;
+        recognition.stop();
+      } catch {
+        /* noop */
+      }
+    }
+
+    if (micSourceRef.current) {
+      try {
+        micSourceRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+      micSourceRef.current = null;
     }
 
     if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
     }
 
     setIsListening(false);
-  }, [stopAudio]);
+    setWaveformAnalyser(null);
 
-  /* Voice Pipeline: Speak Response */
+    if (audioContextRef.current) {
+      void audioContextRef.current.suspend().catch(() => undefined);
+    }
+
+    transcriptRef.current = "";
+  }, []);
+
+  /* ---------- TTS ---------- */
+
+  const cleanForSpeech = useCallback((raw: string) => {
+    return raw
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+      .replace(/^\s{0,3}>\s?/gm, "")
+      .replace(/^\s*[-*+]\s+/gm, "")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/__(.*?)__/g, "$1")
+      .replace(/_(.*?)_/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, []);
+
   const speakVoiceResponse = useCallback(
     async (raw: string) => {
-      stopAudio();
+      stopAudioOnly();
+
       const token = ++speakTokenRef.current;
-      const { ctx, analyser } = getAudioContext();
+      const audio = getAudioContext();
 
-      const clean = raw
-        .replace(/```[\s\S]*?```/g, " ")
-        .replace(/`([^`]+)`/g, "$1")
-        .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-        .replace(/^\s{0,3}#{1,6}\s*/gm, "")
-        .replace(/^\s{0,3}>\s?/gm, "")
-        .replace(/^\s*[-*+]\s+/gm, "")
-        .replace(/\*\*(.*?)\*\*/g, "$1")
-        .replace(/\*(.*?)\*/g, "$1")
-        .replace(/__(.*?)__/g, "$1")
-        .replace(/_(.*?)_/g, "$1")
-        .replace(/\s+/g, " ")
-        .trim();
+      if (!audio) return;
 
+      const { ctx, playbackAnalyser } = audio;
+      if (!ctx || !playbackAnalyser) return;
+
+      const clean = cleanForSpeech(raw);
       if (!clean) {
-        if (isVoiceSessionRef.current) startListeningContinuous();
+        if (isVoiceSessionRef.current) {
+          startListeningContinuousRef.current?.();
+        }
         return;
       }
 
-      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean]).map((s) => s.trim()).filter(Boolean);
+      const sentences = clean.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g)?.map((s) => s.trim()) ?? [clean];
 
       setIsSpeaking(true);
-
-      let ttsUnavailable = false;
-
-      const speakWithSynthesis = (sentence: string) =>
-        new Promise<void>((resolve) => {
-          const synth = window.speechSynthesis;
-          if (!synth) return resolve();
-          const utterance = new SpeechSynthesisUtterance(sentence);
-          utterance.rate = 1.05;
-          utterance.onend = () => resolve();
-          utterance.onerror = () => resolve();
-          synth.speak(utterance);
-        });
+      isSpeakingRef.current = true;
+      setWaveformAnalyser(playbackAnalyser);
 
       const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
-        if (ttsUnavailable) return null;
         try {
           const res = await fetch(TTS_ENDPOINT, {
             method: "POST",
@@ -441,40 +908,36 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             },
             body: JSON.stringify({ text: sentence }),
           });
-          if (!res.ok) {
-            // 429 (rate limit) / 5xx: stop hammering the endpoint for this response
-            if (res.status === 429 || res.status >= 500) ttsUnavailable = true;
-            throw new Error(`TTS status ${res.status}`);
-          }
-          const arrayBuffer = await res.arrayBuffer();
-          return await ctx.decodeAudioData(arrayBuffer);
-        } catch (err) {
-          console.warn("TTS fetch error:", err);
+
+          if (!res.ok) throw new Error(`TTS status ${res.status}`);
+
+          const bytes = await res.arrayBuffer();
+          return await ctx.decodeAudioData(bytes);
+        } catch (error) {
+          console.warn("TTS fetch/decode error:", error);
           return null;
         }
       };
 
-      const bufferPromises = sentences.map((s) => fetchAudioBuffer(s));
+      /*
+       * Prefetch in parallel. Playback itself remains sequential, so the
+       * voice never overlaps sentences.
+       */
+      const buffers = await Promise.all(sentences.map((sentence) => fetchAudioBuffer(sentence)));
 
       try {
-        for (let i = 0; i < sentences.length; i++) {
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
-
-          const buffer = await bufferPromises[i];
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
-          if (!buffer) {
-            // Fallback to the browser's built-in voice so playback never goes silent
-            await speakWithSynthesis(sentences[i]);
-            continue;
+        for (const buffer of buffers) {
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+            return;
           }
 
+          if (!buffer) continue;
 
           await new Promise<void>((resolve) => {
             const source = ctx.createBufferSource();
             source.buffer = buffer;
             source.playbackRate.value = 1.06;
-            source.connect(analyser);
-            analyser.connect(ctx.destination);
+            source.connect(playbackAnalyser);
             currentSourceNodeRef.current = source;
 
             source.onended = () => {
@@ -484,385 +947,1231 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               resolve();
             };
 
-            source.start(0);
+            try {
+              source.start();
+            } catch {
+              resolve();
+            }
           });
         }
       } finally {
         if (token === speakTokenRef.current) {
           setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          setWaveformAnalyser(null);
+
           if (isVoiceSessionRef.current) {
-            startListeningContinuous();
+            startListeningContinuousRef.current?.();
           }
         }
       }
     },
-    [getAudioContext, stopAudio],
+    [cleanForSpeech, getAudioContext, stopAudioOnly],
   );
 
-  /* Continuous Speech Recognition Loop */
-  const startListeningContinuous = useCallback(async () => {
-    if (!isVoiceSessionRef.current) return;
+  /* ---------- Continuous speech recognition ---------- */
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const startListeningContinuous = useCallback(async () => {
+    if (!isVoiceSessionRef.current || isLoadingRef.current) return;
+
+    const SpeechRecognition =
+      typeof window !== "undefined"
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : null;
+
     if (!SpeechRecognition) {
-      console.warn("Speech recognition not supported");
+      console.warn("Speech recognition is not supported in this browser.");
       stopVoiceSession();
       return;
     }
 
     try {
-      const { ctx, analyser } = getAudioContext();
+      const audio = getAudioContext();
+
+      if (!audio) throw new Error("Web Audio API is unavailable.");
+
       if (!micStreamRef.current) {
         micStreamRef.current = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
         });
-        const source = ctx.createMediaStreamSource(micStreamRef.current);
-        source.connect(analyser);
-      }
-    } catch (e) {
-      console.warn("Mic setup error:", e);
-    }
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* noop */
-      }
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognitionRef.current = recognition;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      transcriptRef.current = "";
-    };
-
-    const triggerSubmit = () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      const text = transcriptRef.current.trim();
-      if (text) {
-        recognition.stop();
-        setIsListening(false);
-        handleSubmit(undefined, text, true);
-      }
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
-        .join("");
-      transcriptRef.current = transcript;
-
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = setTimeout(() => {
-        triggerSubmit();
-      }, 1300);
-    };
-
-    recognition.onerror = (e: any) => {
-      if (e.error !== "no-speech") {
-        console.warn("Recognition error:", e.error);
-      }
-    };
-
-    recognition.onend = () => {
-      if (isVoiceSessionRef.current && !isLoading && !isSpeaking) {
-        const text = transcriptRef.current.trim();
-        if (text) {
-          triggerSubmit();
-        } else {
-          try {
-            recognition.start();
-          } catch {
-            /* noop */
-          }
+        if (audio.micAnalyser) {
+          micSourceRef.current = audio.ctx.createMediaStreamSource(micStreamRef.current);
+          micSourceRef.current.connect(audio.micAnalyser);
         }
       }
-    };
 
-    try {
-      recognition.start();
-    } catch {
-      /* noop */
+      if (!isVoiceSessionRef.current) return;
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onend = null;
+          recognitionRef.current.stop();
+        } catch {
+          /* noop */
+        }
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+      recognition.maxAlternatives = 1;
+
+      recognitionRef.current = recognition;
+      transcriptRef.current = "";
+
+      recognition.onstart = () => {
+        if (!isVoiceSessionRef.current) return;
+
+        setIsListening(true);
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+        setWaveformAnalyser(micAnalyserRef.current);
+        transcriptRef.current = "";
+      };
+
+      const submitTranscript = () => {
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+
+        const text = transcriptRef.current.trim();
+        if (!text || !isVoiceSessionRef.current) return;
+
+        try {
+          recognition.stop();
+        } catch {
+          /* noop */
+        }
+
+        setIsListening(false);
+        handleSubmitRef.current?.(undefined, text, true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let combined = "";
+
+        for (let i = 0; i < event.results.length; i++) {
+          combined += event.results[i][0]?.transcript ?? "";
+        }
+
+        transcriptRef.current = combined;
+
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+
+        silenceTimerRef.current = setTimeout(submitTranscript, SILENCE_MS);
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event?.error !== "no-speech") {
+          console.warn("Speech recognition error:", event?.error);
+        }
+
+        setIsListening(false);
+        setWaveformAnalyser(null);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        setWaveformAnalyser(null);
+
+        if (!isVoiceSessionRef.current) return;
+        if (isLoadingRef.current || isSpeakingRef.current) return;
+
+        const text = transcriptRef.current.trim();
+
+        if (text) {
+          transcriptRef.current = "";
+          handleSubmitRef.current?.(undefined, text, true);
+          return;
+        }
+
+        /*
+         * Chrome/Safari can end recognition spontaneously. Restarting from
+         * here keeps the "conversation" continuous without creating a new
+         * mic stream every time.
+         */
+        window.setTimeout(() => {
+          if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
+            startListeningContinuousRef.current?.();
+          }
+        }, 120);
+      };
+
+      try {
+        recognition.start();
+      } catch {
+        /* start() can throw if the recognizer is already starting */
+      }
+    } catch (error) {
+      console.warn("Microphone setup failed:", error);
+      stopVoiceSession();
     }
-  }, [getAudioContext, isLoading, isSpeaking, stopVoiceSession]);
+  }, [getAudioContext, stopVoiceSession]);
 
-  /* Start Voice Gesture */
-  const triggerVoiceSession = useCallback(() => {
-    if (isLoading) return;
-    getAudioContext();
-    setIsVoiceSession(true);
-    isVoiceSessionRef.current = true;
-    setResponse(null);
-    setSuggestions([]);
-    setShowTypewriter(false);
-    setHasInteracted(true);
-    startListeningContinuous();
-  }, [getAudioContext, isLoading, startListeningContinuous]);
+  startListeningContinuousRef.current = startListeningContinuous;
+
+  /* ---------- Unified submit ---------- */
+
+  const handleSubmit = useCallback(
+    async (e?: FormEvent, customQuery?: string, fromVoice = false) => {
+      e?.preventDefault();
+
+      const text = (customQuery ?? query).trim();
+      if (!text || isLoadingRef.current) return;
+
+      setHasInteracted(true);
+      setShowTypewriter(false);
+      setShowExpandedSuggestions(false);
+
+      if (!customQuery) setQuery("");
+
+      if (!fromVoice) {
+        stopVoiceSession();
+        stopAudioOnly();
+      }
+
+      if (response || suggestions.length > 0) {
+        setIsCollapsingToThink(true);
+
+        await new Promise((resolve) => setTimeout(resolve, 320));
+
+        setResponse(null);
+        setSuggestions([]);
+        setIsCollapsingToThink(false);
+      } else {
+        setResponse(null);
+        setSuggestions([]);
+      }
+
+      setIsLoading(true);
+      isLoadingRef.current = true;
+
+      try {
+        const result = await sendChatMessage(text);
+        const answer = String((result as any)?.response ?? "");
+        const nextSuggestions = Array.isArray((result as any)?.suggestions) ? (result as any).suggestions : [];
+
+        if (fromVoice && isVoiceSessionRef.current) {
+          void speakVoiceResponse(answer);
+        } else {
+          setResponse(answer);
+          setSuggestions(nextSuggestions);
+          setIsRestoredFromStorage(false);
+          onSearch?.(answer);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
+
+        if (fromVoice && isVoiceSessionRef.current) {
+          void speakVoiceResponse(message);
+        } else {
+          setResponse(message);
+          setSuggestions([]);
+          setIsRestoredFromStorage(false);
+          onSearch?.(message);
+        }
+      } finally {
+        setIsLoading(false);
+        isLoadingRef.current = false;
+      }
+    },
+    [onSearch, query, response, suggestions.length, speakVoiceResponse, stopAudioOnly, stopVoiceSession],
+  );
+
+  handleSubmitRef.current = handleSubmit;
+
+  /* ---------- Hold / click search button ---------- */
+
+  const startHold = useCallback(() => {
+    if (isLoadingRef.current || isVoiceSessionRef.current) return;
+
+    stopAudioOnly();
+    isHoldingRef.current = true;
+    wasVoiceGestureRef.current = false;
+
+    /*
+     * getUserMedia is intentionally called from the pointer gesture. This
+     * preserves browser permission behavior while the actual voice session
+     * still waits for the hold threshold.
+     */
+    let pendingStream: MediaStream | null = null;
+
+    const micPromise = navigator.mediaDevices
+      .getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
+      .then((stream) => {
+        pendingStream = stream;
+      })
+      .catch((error) => {
+        console.warn("Microphone permission failed:", error);
+      });
+
+    holdTimerRef.current = setTimeout(async () => {
+      if (!isHoldingRef.current) {
+        if (pendingStream) {
+          pendingStream.getTracks().forEach((track) => track.stop());
+        }
+        return;
+      }
+
+      wasVoiceGestureRef.current = true;
+      inputRef.current?.blur();
+
+      await micPromise;
+
+      if (!isHoldingRef.current) {
+        if (pendingStream) {
+          pendingStream.getTracks().forEach((track) => track.stop());
+        }
+        return;
+      }
+
+      setHasInteracted(true);
+      setShowTypewriter(false);
+      setShowExpandedSuggestions(false);
+      setResponse(null);
+      setSuggestions([]);
+
+      isVoiceSessionRef.current = true;
+      setIsVoiceSession(true);
+
+      if (pendingStream) {
+        micStreamRef.current = pendingStream;
+      }
+
+      startListeningContinuousRef.current?.();
+    }, HOLD_THRESHOLD_MS);
+  }, [stopAudioOnly]);
 
   const handleHoldStart = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      e.preventDefault();
-      isHoldingRef.current = true;
-      holdTimerRef.current = setTimeout(() => {
-        if (isHoldingRef.current) {
-          triggerVoiceSession();
-        }
-      }, 300);
+    (event: React.MouseEvent | React.TouchEvent) => {
+      event.preventDefault();
+      startHold();
     },
-    [triggerVoiceSession],
+    [startHold],
   );
 
   const handleHoldEnd = useCallback(
-    (e?: React.MouseEvent | React.TouchEvent) => {
-      e?.preventDefault();
+    (event?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
+      event?.preventDefault?.();
+
       const wasHolding = isHoldingRef.current;
       isHoldingRef.current = false;
+
       if (holdTimerRef.current) {
         clearTimeout(holdTimerRef.current);
         holdTimerRef.current = null;
       }
-      if (!isVoiceSession && wasHolding && query.trim()) {
-        handleSubmit(undefined, undefined, false);
+
+      if (isVoiceSessionRef.current) return;
+
+      /*
+       * Short click = search/submit.
+       * Long hold = voice and therefore must not also submit the existing
+       * query on release.
+       */
+      if (wasHolding && !wasVoiceGestureRef.current && query.trim()) {
+        handleSubmitRef.current?.();
       }
     },
-    [isVoiceSession, query],
+    [query],
   );
 
-  /* Desktop Shift Shortcut */
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Shift" || isListening || isLoading || isVoiceSession) return;
-      const target = document.activeElement as HTMLElement;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+  /* ---------- Desktop Shift shortcut ---------- */
 
-      e.preventDefault();
-      triggerVoiceSession();
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Shift" || event.repeat || isLoadingRef.current || isVoiceSessionRef.current) {
+        return;
+      }
+
+      const active = document.activeElement as HTMLElement | null;
+      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) {
+        return;
+      }
+
+      event.preventDefault();
+      startHold();
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        handleHoldEnd();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isListening, isLoading, isVoiceSession, triggerVoiceSession]);
+    window.addEventListener("keyup", handleKeyUp);
 
-  /* Unified Submit Function */
-  const handleSubmit = async (e?: FormEvent, customQuery?: string, fromVoice = false) => {
-    e?.preventDefault();
-    const text = (customQuery ?? query).trim();
-    if (!text) return;
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [handleHoldEnd, startHold]);
 
-    setHasInteracted(true);
-    setShowTypewriter(false);
-    if (!customQuery) setQuery("");
+  /* ---------- First-visit intro ---------- */
 
-    if (!fromVoice) {
-      stopVoiceSession();
-      setResponse(null);
-      setSuggestions([]);
-    }
-
-    setIsLoading(true);
-
-    try {
-      const result = await sendChatMessage(text);
-      const answer = String((result as any)?.response ?? "");
-      const suggs = (result as any)?.suggestions || [];
-
-      if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(answer);
-      } else {
-        setResponse(answer);
-        setSuggestions(suggs);
-        onSearch?.(answer);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
-      if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(msg);
-      } else {
-        setResponse(msg);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /* Outside Click Handler */
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchBarRef.current && searchBarRef.current.contains(e.target as Node)) return;
+    try {
+      if (!localStorage.getItem(FIRST_VISIT_KEY) && !response && suggestions.length === 0 && !isLoading) {
+        localStorage.setItem(FIRST_VISIT_KEY, "true");
 
-      if (isVoiceSession) {
+        const timer = setTimeout(() => {
+          handleSubmitRef.current?.(undefined, "introduce the website to the new user", false);
+        }, 1500);
+
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      /* noop */
+    }
+  }, []);
+
+  /* ---------- Outside click collapse ---------- */
+
+  useEffect(() => {
+    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+
+      if (searchBarRef.current?.contains(target)) return;
+
+      const element = event.target as Element | null;
+      const navigationClick =
+        Boolean(element?.closest?.('[class*="fixed top-6"]')) ||
+        Boolean(element?.closest?.('[class*="fixed bottom-6 right-6"]')) ||
+        Boolean(element?.closest?.('button[aria-label*="Scroll to top"]')) ||
+        Boolean(element?.closest?.('button[aria-label*="Close modal"]'));
+
+      if (navigationClick) return;
+
+      if (isVoiceSessionRef.current) {
         stopVoiceSession();
         return;
       }
 
-      if (response || suggestions.length > 0) {
-        setIsCollapsing(true);
-        window.setTimeout(() => {
-          setResponse(null);
-          setSuggestions([]);
-          setIsCollapsing(false);
-          try {
-            localStorage.removeItem(STORAGE_KEY);
-          } catch {
-            /* noop */
-          }
-        }, 300);
+      if (query.trim() && !response && suggestions.length === 0) {
+        setQuery("");
+        inputRef.current?.blur();
+        return;
       }
+
+      if (!response && suggestions.length === 0) return;
+
+      setIsCollapsing(true);
+      setShowExpandedSuggestions(false);
+
+      if (outsideCollapseTimerRef.current) {
+        clearTimeout(outsideCollapseTimerRef.current);
+      }
+
+      outsideCollapseTimerRef.current = setTimeout(() => {
+        setResponse(null);
+        setSuggestions([]);
+        setIsCollapsing(false);
+        clearPersistedState();
+      }, 650);
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [response, suggestions, isVoiceSession, stopVoiceSession]);
+    document.addEventListener("mousedown", handlePointerDownOutside);
+    document.addEventListener("touchstart", handlePointerDownOutside);
 
-  /* Stable Target Width Calculation */
-  const containerWidthClass = useMemo(() => {
-    if (response && !isVoiceSession) return "w-[620px] max-w-[94vw] rounded-2xl";
-    if (isVoiceSession) return "w-[440px] max-w-[94vw] rounded-full";
-    return "w-[480px] max-w-[94vw] rounded-full";
-  }, [response, isVoiceSession]);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside);
+      document.removeEventListener("touchstart", handlePointerDownOutside);
+
+      if (outsideCollapseTimerRef.current) {
+        clearTimeout(outsideCollapseTimerRef.current);
+      }
+    };
+  }, [clearPersistedState, query, response, suggestions.length, stopVoiceSession]);
+
+  /* ---------- Unmount cleanup ---------- */
+
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (outsideCollapseTimerRef.current) {
+        clearTimeout(outsideCollapseTimerRef.current);
+      }
+
+      isVoiceSessionRef.current = false;
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onend = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.stop();
+        } catch {
+          /* noop */
+        }
+        recognitionRef.current = null;
+      }
+
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      if (currentSourceNodeRef.current) {
+        try {
+          currentSourceNodeRef.current.stop();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (audioContextRef.current) {
+        void audioContextRef.current.close().catch(() => undefined);
+      }
+    };
+  }, []);
+
+  /* ---------- UI helpers ---------- */
+
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    setQuery("");
+    setHasInteracted(true);
+    setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
+    handleSubmitRef.current?.(undefined, suggestion, false);
+  }, []);
+
+  const handleInputFocus = useCallback(() => {
+    setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
+    setHasInteracted(true);
+  }, []);
+
+  const handleInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setQuery(event.target.value);
+    setHasInteracted(true);
+    setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
+  }, []);
+
+  const layout = useMemo(() => {
+    const hasContent = Boolean(response || suggestions.length);
+    const expanded = hasContent && !isLoading && !isVoiceSession;
+
+    if (isVoiceSession) {
+      return {
+        width: "min(500px, 92vw)",
+        radius: "999px",
+        expanded: false,
+      };
+    }
+
+    /*
+     * Keep the original responsive feel, but use a bounded CSS clamp instead
+     * of repeatedly measuring DOM width or causing layout thrash.
+     */
+    const queryWidth = Math.min(580, Math.max(420, 420 + query.length * 4));
+
+    return {
+      width: expanded ? "580px" : `${queryWidth}px`,
+      radius: expanded ? "18px" : "999px",
+      expanded,
+    };
+  }, [isLoading, isVoiceSession, query.length, response, suggestions.length]);
+
+  const isWaveActive = isListening || isSpeaking;
+  const waveMode = isSpeaking ? "speaking" : "listening";
 
   return (
     <div
       ref={searchBarRef}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3 font-sans antialiased"
+      className="fixed bottom-6 left-1/2 z-50 flex w-full -translate-x-1/2 flex-col items-center gap-3 px-4"
     >
-      {/* ── Typewriter Bubble ── */}
-      {showTypewriter && currentSuggestion && suggestionPhase !== "hidden" && !isVoiceSession && (
-        <div
-          onClick={() => {
-            setQuery("");
-            setHasInteracted(true);
-            setShowTypewriter(false);
-            handleSubmit(undefined, currentSuggestion, false);
-          }}
-          className={`cursor-pointer px-4 py-2 rounded-full text-xs sm:text-sm font-medium text-white/90 
-                     bg-neutral-900/80 backdrop-blur-md border border-white/10 shadow-lg 
-                     hover:bg-neutral-800/90 hover:border-white/20 transition-all duration-300
-                     max-w-[90vw] truncate select-none ${
-                       suggestionPhase === "emerging"
-                         ? "opacity-100 translate-y-0 scale-100"
-                         : suggestionPhase === "retreating"
-                           ? "opacity-0 translate-y-2 scale-95"
-                           : "opacity-100 translate-y-0 scale-100"
-                     }`}
-        >
-          {currentSuggestion}
-        </div>
-      )}
-
-      {/* ── Main Interactive Glass Container ── */}
-      <div
-        className={`mx-auto border bg-neutral-950/70 backdrop-blur-2xl text-white shadow-2xl transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden select-none ${containerWidthClass} ${
-          isLoading ? "border-sky-500/40 shadow-sky-500/10 shadow-lg" : "border-white/15"
-        } ${isVoiceSession ? "border-sky-400/50 bg-neutral-950/85" : ""}`}
+      {/* ---------- Floating typewriter suggestion ---------- */}
+      <Fade
+        show={showTypewriter && Boolean(fullText) && suggestionPhase !== "hidden" && !isVoiceSession}
+        duration={360}
       >
-        <div className={`p-2.5 transition-all duration-300 ${response && !isVoiceSession ? "p-5" : ""}`}>
-          {/* ── Follow-up Suggestion Chips ── */}
-          {suggestions.length > 0 && !isVoiceSession && !isLoading && (
-            <div className="flex gap-1.5 flex-wrap justify-center mb-3.5 animate-fadeIn">
-              {suggestions.map((s, i) => (
+        <button
+          type="button"
+          onClick={() => handleSuggestionClick(fullText)}
+          className={`suggestion-bubble suggestion-${suggestionPhase}`}
+          aria-label={`Try ${fullText}`}
+        >
+          <span>{fullText}</span>
+        </button>
+      </Fade>
+
+      {/* ---------- Main container ---------- */}
+      <div
+        className={[
+          "search-shell",
+          isLoading ? "search-shell-thinking" : "",
+          isVoiceSession ? "search-shell-voice" : "",
+          isCollapsing ? "search-shell-collapsing" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={{
+          width: layout.width,
+          maxWidth: "92vw",
+          borderRadius: layout.radius,
+        }}
+      >
+        <div className={`search-inner ${layout.expanded ? "search-inner-expanded" : ""}`}>
+          {/* ---------- Delayed suggestion chips ---------- */}
+          <Fade show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession} duration={420}>
+            <div className="suggestion-list">
+              {suggestions.map((suggestion, index) => (
                 <button
-                  key={i}
-                  onClick={() => {
-                    setQuery("");
-                    handleSubmit(undefined, s, false);
-                  }}
-                  className="px-3 py-1 bg-white/10 hover:bg-white/20 border border-white/5 rounded-full text-xs text-neutral-300 hover:text-white transition-all duration-200"
+                  key={`${suggestion}-${index}`}
+                  type="button"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="suggestion-chip"
+                  disabled={isLoading}
                 >
-                  {s}
+                  {suggestion}
                 </button>
               ))}
             </div>
-          )}
+          </Fade>
 
-          {/* ── Text Response Container (Text Mode Only) ── */}
-          {response && !isVoiceSession && (
-            <div
-              className={`transition-all duration-300 overflow-hidden ${
-                isCollapsing ? "max-h-0 opacity-0 mb-0" : "max-h-[360px] opacity-100 mb-4"
-              }`}
-            >
-              <div
-                className="text-xs sm:text-sm text-neutral-300 leading-relaxed px-2 overflow-y-auto max-h-[300px] scrollbar-thin scrollbar-thumb-white/20"
-                dangerouslySetInnerHTML={{ __html: formatMarkdown(response) }}
-              />
-            </div>
-          )}
-
-          {/* ── Search & Voice Row ── */}
-          <form
-            onSubmit={(e) => handleSubmit(e, undefined, false)}
-            className="flex items-center gap-2 relative min-h-[38px]"
-            onFocus={() => {
-              setShowTypewriter(false);
-              setHasInteracted(true);
+          {/* ---------- Response ---------- */}
+          <div
+            className={`response-shell ${
+              response && !isVoiceSession && !isCollapsing && !isCollapsingToThink
+                ? "response-shell-visible"
+                : "response-shell-hidden"
+            }`}
+            style={{
+              maxHeight: response && !isVoiceSession && !isCollapsingToThink ? `${RESPONSE_MAX_HEIGHT}px` : "0px",
             }}
           >
-            {/* Standard Text Input */}
-            {!isVoiceSession && (
-              <div className="relative flex-1">
+            {response && !isVoiceSession && (
+              <div
+                className={`response-content ${isRestoredFromStorage ? "" : "response-content-enter"}`}
+                dangerouslySetInnerHTML={{
+                  __html: convertMarkdownToHtml(response),
+                }}
+              />
+            )}
+          </div>
+
+          {/* ---------- Input / voice row ---------- */}
+          <form
+            onSubmit={(event) => handleSubmit(event, undefined, false)}
+            className="search-row"
+            onFocus={handleInputFocus}
+          >
+            {!isVoiceSession ? (
+              <div className="input-wrap">
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={isLoading ? "Thinking..." : placeholderText}
                   value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setHasInteracted(true);
-                    setShowTypewriter(false);
-                  }}
-                  className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-neutral-500 text-sm px-3.5 h-9 font-normal"
+                  placeholder={isLoading ? "Thinking…" : placeholderText}
+                  onChange={handleInputChange}
+                  className={`search-input ${isLoading ? "search-input-thinking" : ""}`}
                   disabled={isLoading}
+                  aria-label="Ask anything"
                 />
               </div>
-            )}
+            ) : (
+              <div className="voice-status">
+                <div className="voice-copy">
+                  <span className="voice-status-label">
+                    {isLoading ? "Thinking…" : isSpeaking ? "GDx is speaking" : "Listening…"}
+                  </span>
+                  <RecordingTimer isActive={isListening} />
+                </div>
 
-            {/* Voice Session Waveform & Real-time Indicator */}
-            {isVoiceSession && (
-              <div className="flex-1 flex items-center gap-3 pl-3 pr-2 min-w-0">
-                <span className="text-xs tracking-wider uppercase font-medium text-sky-400 shrink-0">
-                  {isLoading ? "Thinking" : isSpeaking ? "Speaking" : "Listening"}
-                </span>
-                <BarWaveform analyser={analyserNode} isActive={isVoiceSession && (isListening || isSpeaking)} />
+                <BarWaveform analyser={waveformAnalyser} isActive={isWaveActive} mode={waveMode} />
               </div>
             )}
 
-            {/* Action Buttons */}
             {isVoiceSession ? (
               <button
                 type="button"
                 onClick={stopVoiceSession}
-                className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-neutral-300 hover:text-white transition-all duration-200 active:scale-95 shrink-0"
-                title="End voice session"
+                className="voice-stop-button"
+                aria-label="End voice conversation"
+                title="End voice conversation"
               >
                 <X className="h-4 w-4" />
               </button>
             ) : (
-              <div
-                className="shrink-0"
+              <button
+                type="button"
+                className={`search-button ${isLoading ? "search-button-thinking" : ""}`}
                 onMouseDown={handleHoldStart}
                 onMouseUp={handleHoldEnd}
+                onMouseLeave={handleHoldEnd}
                 onTouchStart={handleHoldStart}
                 onTouchEnd={handleHoldEnd}
+                onContextMenu={(event) => event.preventDefault()}
+                aria-label={query.trim() ? "Search, or hold to talk" : "Hold to talk"}
               >
-                <button
-                  type="submit"
-                  className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-neutral-300 hover:text-white transition-all duration-200 active:scale-95 cursor-pointer"
-                  title="Search or hold to talk"
-                >
-                  <Search className="h-4 w-4" />
-                </button>
-              </div>
+                <Search className="h-4 w-4" />
+              </button>
             )}
           </form>
         </div>
       </div>
+
+      {/* ---------- Local component styles ---------- */}
+      <style>{`
+        .search-shell {
+          position: relative;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.22);
+          background: rgba(255,255,255,.085);
+          color: inherit;
+          box-shadow:
+            0 12px 40px rgba(0,0,0,.16),
+            inset 0 1px 0 rgba(255,255,255,.10);
+          backdrop-filter: blur(22px) saturate(125%);
+          -webkit-backdrop-filter: blur(22px) saturate(125%);
+          transform: translateZ(0);
+          will-change: width, border-radius, box-shadow, background-color;
+          transition:
+            width 720ms cubic-bezier(.22,1,.36,1),
+            border-radius 720ms cubic-bezier(.22,1,.36,1),
+            background-color 360ms ease,
+            box-shadow 500ms cubic-bezier(.22,1,.36,1),
+            border-color 360ms ease;
+        }
+
+        .search-shell::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          border-radius: inherit;
+          background:
+            linear-gradient(
+              115deg,
+              rgba(255,255,255,.08),
+              transparent 34%,
+              transparent 68%,
+              rgba(255,255,255,.035)
+            );
+          opacity: .7;
+        }
+
+        .search-shell-thinking {
+          border-color: rgba(255,255,255,.30);
+          background: rgba(255,255,255,.075);
+          animation: thinkingGlow 2.8s ease-in-out infinite;
+        }
+
+        .search-shell-voice {
+          border-color: rgba(255,255,255,.34);
+          background: rgba(255,255,255,.115);
+          animation: voiceGlow 3.2s ease-in-out infinite;
+        }
+
+        .search-shell-collapsing {
+          transform: translateZ(0) scale(.985);
+          opacity: .96;
+          transition:
+            width 600ms cubic-bezier(.22,1,.36,1),
+            border-radius 600ms cubic-bezier(.22,1,.36,1),
+            opacity 300ms ease,
+            transform 600ms cubic-bezier(.22,1,.36,1);
+        }
+
+        .search-inner {
+          position: relative;
+          z-index: 1;
+          padding: 8px;
+          transition:
+            padding 600ms cubic-bezier(.22,1,.36,1),
+            transform 600ms cubic-bezier(.22,1,.36,1);
+        }
+
+        .search-inner-expanded {
+          padding: 18px 18px 12px;
+        }
+
+        .search-row {
+          display: flex;
+          align-items: center;
+          min-height: 40px;
+          gap: 8px;
+        }
+
+        .input-wrap {
+          min-width: 0;
+          flex: 1;
+        }
+
+        .search-input {
+          width: 100%;
+          height: 40px;
+          padding: 0 14px;
+          border: 0 !important;
+          outline: none !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          color: inherit !important;
+          font-size: 15px;
+          user-select: text;
+        }
+
+        .search-input::placeholder {
+          color: rgba(255,255,255,.54);
+          opacity: 1;
+          transition: color 300ms ease;
+        }
+
+        .search-input-thinking::placeholder {
+          color: rgba(255,255,255,.72);
+          animation: thinkingText 2.2s ease-in-out infinite;
+        }
+
+        .search-button,
+        .voice-stop-button {
+          position: relative;
+          flex: 0 0 auto;
+          width: 34px;
+          height: 34px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: 0;
+          border-radius: 999px;
+          color: rgba(255,255,255,.62);
+          background: transparent;
+          cursor: pointer;
+          transform: translateZ(0);
+          transition:
+            transform 260ms cubic-bezier(.22,1,.36,1),
+            background-color 220ms ease,
+            color 220ms ease,
+            box-shadow 300ms ease;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
+        }
+
+        .search-button:hover {
+          color: rgba(255,255,255,.92);
+          background: rgba(255,255,255,.11);
+          transform: scale(1.08);
+        }
+
+        .search-button:active {
+          transform: scale(.92);
+        }
+
+        .search-button-thinking {
+          animation: iconPulse 2.3s ease-in-out infinite;
+        }
+
+        .voice-stop-button {
+          color: rgba(255,255,255,.88);
+          background: rgba(255,255,255,.14);
+        }
+
+        .voice-stop-button:hover {
+          background: rgba(255,255,255,.22);
+          transform: scale(1.06);
+        }
+
+        .voice-stop-button:active {
+          transform: scale(.92);
+        }
+
+        .voice-status {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+          flex: 1;
+          padding-left: 8px;
+        }
+
+        .voice-copy {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex: 0 0 auto;
+          min-width: 108px;
+        }
+
+        .voice-status-label {
+          white-space: nowrap;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .075em;
+          text-transform: uppercase;
+          color: rgba(255,255,255,.72);
+        }
+
+        .recording-timer {
+          flex: 0 0 auto;
+          min-width: 38px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: 11px;
+          font-variant-numeric: tabular-nums;
+          color: rgba(255,255,255,.48);
+        }
+
+        .waveform-container {
+          min-width: 0;
+          height: 30px;
+          flex: 1;
+          overflow: hidden;
+        }
+
+        .suggestion-bubble {
+          position: relative;
+          max-width: min(90vw, 680px);
+          overflow: hidden;
+          display: inline-flex;
+          align-items: center;
+          border: 1px solid rgba(255,255,255,.16);
+          border-radius: 999px;
+          padding: 9px 15px;
+          color: rgba(255,255,255,.88);
+          background: rgba(255,255,255,.10);
+          box-shadow:
+            0 10px 30px rgba(0,0,0,.12),
+            inset 0 1px 0 rgba(255,255,255,.08);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+          cursor: pointer;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          font-size: 13px;
+          transform: translateZ(0);
+          transition:
+            background-color 220ms ease,
+            border-color 220ms ease,
+            transform 240ms cubic-bezier(.22,1,.36,1);
+        }
+
+        .suggestion-bubble:hover {
+          background: rgba(255,255,255,.15);
+          border-color: rgba(255,255,255,.25);
+          transform: translateY(-2px);
+        }
+
+        .suggestion-bubble:active {
+          transform: scale(.97);
+        }
+
+        .suggestion-emerging {
+          animation: suggestionIn 560ms cubic-bezier(.16,1,.3,1) both;
+        }
+
+        .suggestion-retreating {
+          animation: suggestionOut 500ms cubic-bezier(.4,0,.2,1) both;
+        }
+
+        .suggestion-list {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 7px;
+          margin: 0 0 12px;
+          animation: chipsIn 420ms cubic-bezier(.22,1,.36,1) both;
+        }
+
+        .suggestion-chip {
+          border: 1px solid rgba(255,255,255,.10);
+          border-radius: 999px;
+          padding: 6px 11px;
+          color: rgba(255,255,255,.76);
+          background: rgba(255,255,255,.075);
+          font-size: 12px;
+          cursor: pointer;
+          transition:
+            transform 220ms cubic-bezier(.22,1,.36,1),
+            background-color 180ms ease,
+            border-color 180ms ease;
+        }
+
+        .suggestion-chip:hover:not(:disabled) {
+          border-color: rgba(255,255,255,.20);
+          background: rgba(255,255,255,.13);
+          transform: translateY(-1px);
+        }
+
+        .suggestion-chip:active:not(:disabled) {
+          transform: scale(.96);
+        }
+
+        .suggestion-chip:disabled {
+          cursor: default;
+          opacity: .55;
+        }
+
+        .response-shell {
+          overflow: hidden;
+          transform-origin: bottom center;
+          transition:
+            max-height 620ms cubic-bezier(.22,1,.36,1),
+            opacity 400ms ease,
+            margin-bottom 620ms cubic-bezier(.22,1,.36,1),
+            transform 620ms cubic-bezier(.22,1,.36,1);
+        }
+
+        .response-shell-visible {
+          opacity: 1;
+          margin-bottom: 14px;
+          transform: translateY(0) scaleY(1);
+        }
+
+        .response-shell-hidden {
+          opacity: 0;
+          margin-bottom: 0;
+          transform: translateY(5px) scaleY(.985);
+          pointer-events: none;
+        }
+
+        .response-content {
+          max-height: ${RESPONSE_MAX_HEIGHT}px;
+          overflow-y: auto;
+          padding: 0 8px;
+          color: rgba(255,255,255,.88);
+          font-size: 13px;
+          line-height: 1.65;
+          scrollbar-width: none;
+        }
+
+        .response-content::-webkit-scrollbar {
+          display: none;
+        }
+
+        .response-content-enter {
+          animation: responseIn 520ms cubic-bezier(.22,1,.36,1) 90ms both;
+        }
+
+        .response-content p {
+          margin: 0 0 9px;
+        }
+
+        .response-content h1,
+        .response-content h2,
+        .response-content h3 {
+          margin: 14px 0 7px;
+          color: rgba(255,255,255,.96);
+          line-height: 1.25;
+        }
+
+        .response-content h1 {
+          font-size: 21px;
+        }
+
+        .response-content h2 {
+          font-size: 17px;
+        }
+
+        .response-content h3 {
+          font-size: 15px;
+        }
+
+        .response-content ul {
+          margin: 0 0 10px;
+          padding-left: 18px;
+        }
+
+        .response-content li {
+          margin: 3px 0;
+        }
+
+        .inline-code {
+          padding: .10rem .32rem;
+          border-radius: 5px;
+          background: rgba(255,255,255,.08);
+          color: rgba(255,255,255,.92);
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: .9em;
+        }
+
+        .code-block {
+          margin: 10px 0;
+          overflow-x: auto;
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 10px;
+          padding: 10px 12px;
+          background: rgba(0,0,0,.18);
+          color: rgba(255,255,255,.82);
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: 12px;
+          line-height: 1.55;
+          scrollbar-width: none;
+        }
+
+        .code-block::-webkit-scrollbar {
+          display: none;
+        }
+
+        .response-link {
+          color: rgba(140,190,255,.92);
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+
+        .response-spacer {
+          height: 4px;
+        }
+
+        .fade-shell {
+          will-change: opacity, transform;
+          transition:
+            opacity var(--fade-duration) cubic-bezier(.22,1,.36,1),
+            transform var(--fade-duration) cubic-bezier(.22,1,.36,1);
+        }
+
+        .fade-shell-visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .fade-shell-hidden {
+          opacity: 0;
+          transform: translateY(5px);
+          pointer-events: none;
+        }
+
+        @keyframes responseIn {
+          from {
+            opacity: 0;
+            transform: translateY(9px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes chipsIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes suggestionIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(.965);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes suggestionOut {
+          from {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(8px) scale(.965);
+          }
+        }
+
+        @keyframes thinkingGlow {
+          0%, 100% {
+            box-shadow:
+              0 12px 40px rgba(0,0,0,.16),
+              0 0 8px rgba(255,255,255,.08),
+              inset 0 1px 0 rgba(255,255,255,.08);
+          }
+          50% {
+            box-shadow:
+              0 12px 44px rgba(0,0,0,.18),
+              0 0 24px rgba(255,255,255,.19),
+              inset 0 0 18px rgba(255,255,255,.06);
+          }
+        }
+
+        @keyframes voiceGlow {
+          0%, 100% {
+            box-shadow:
+              0 12px 42px rgba(0,0,0,.18),
+              0 0 10px rgba(255,255,255,.12),
+              inset 0 1px 0 rgba(255,255,255,.10);
+          }
+          50% {
+            box-shadow:
+              0 12px 48px rgba(0,0,0,.20),
+              0 0 28px rgba(255,255,255,.22),
+              inset 0 0 20px rgba(255,255,255,.08);
+          }
+        }
+
+        @keyframes thinkingText {
+          0%, 100% { opacity: .58; }
+          50% { opacity: .92; }
+        }
+
+        @keyframes iconPulse {
+          0%, 100% { opacity: .55; }
+          50% { opacity: .95; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .search-shell,
+          .search-inner,
+          .response-shell,
+          .suggestion-bubble,
+          .suggestion-chip,
+          .fade-shell {
+            transition-duration: 1ms !important;
+            animation-duration: 1ms !important;
+            animation-iteration-count: 1 !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .search-inner-expanded {
+            padding: 14px 12px 10px;
+          }
+
+          .voice-copy {
+            min-width: 88px;
+          }
+
+          .voice-status-label {
+            font-size: 10px;
+          }
+
+          .recording-timer {
+            display: none;
+          }
+
+          .response-content {
+            font-size: 12.5px;
+          }
+        }
+      `}</style>
     </div>
   );
 };
