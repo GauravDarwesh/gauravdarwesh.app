@@ -763,6 +763,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const stopAudioOnly = useCallback(() => {
     speakTokenRef.current += 1;
 
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
     if (currentSourceNodeRef.current) {
       try {
         currentSourceNodeRef.current.stop();
@@ -796,6 +800,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
 
     speakTokenRef.current += 1;
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
 
     if (currentSourceNodeRef.current) {
       try {
