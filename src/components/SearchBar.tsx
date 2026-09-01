@@ -11,10 +11,8 @@ const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
-const SILENT_MP3 =
-  "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIUdyEqABJRAAA//tQxCADAAABIAAA";
 
-/* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
+/* ---------- 1️⃣ MARKDOWN → HTML ---------- */
 const convertMarkdownToHtml = (text: string): string => {
   let result = text;
 
@@ -109,7 +107,6 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
       if (analyser && dataArray) analyser.getByteFrequencyData(dataArray);
 
       const dpr = window.devicePixelRatio || 1;
-      // Resize canvas to match container
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
         canvas.width = rect.width * dpr;
@@ -123,7 +120,6 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
-      // Calculate bar count based on available width
       const barCount = Math.max(8, Math.floor(w / (BAR_WIDTH + BAR_GAP)));
       const t = (performance.now() - start) / 1000;
 
@@ -133,14 +129,9 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
           const dataIndex = Math.floor((i / barCount) * bufferLength);
           value = dataArray[dataIndex] / 255;
         } else {
-          // Synthetic "speaking" pulse when no analyser is available
-          value =
-            0.18 +
-            0.32 * Math.abs(Math.sin(t * 3.1 + i * 0.35)) +
-            0.2 * Math.abs(Math.sin(t * 5.7 + i * 0.13));
+          value = 0.18 + 0.32 * Math.abs(Math.sin(t * 3.1 + i * 0.35)) + 0.2 * Math.abs(Math.sin(t * 5.7 + i * 0.13));
         }
         const barHeight = Math.max(MIN_HEIGHT, value * (h * 0.85));
-
         const x = i * (BAR_WIDTH + BAR_GAP);
         const y = (h - barHeight) / 2;
 
@@ -157,7 +148,6 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
       cancelAnimationFrame(animFrameRef.current);
     };
   }, [analyser, isActive]);
-
 
   if (!isActive) return null;
 
@@ -205,7 +195,6 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const STORAGE_KEY = "searchbar_state";
 
-  /* ----- Load persisted state ----- */
   const loadPersistedState = useCallback(() => {
     try {
       const isPageRefresh =
@@ -272,7 +261,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
 
   const [showTypewriter, setShowTypewriter] = useState(false);
-  const [suggestionVisible, setSuggestionVisible] = useState(true);
   const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
   const [fullText, setFullText] = useState("");
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
@@ -288,7 +276,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Rotating placeholder state ----- */
   const [placeholderText, setPlaceholderText] = useState("Ask anything...");
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
-  const [placeholderTarget, setPlaceholderTarget] = useState(0); // 0 = "Ask anything...", 1 = "Hold to speak"
+  const [placeholderTarget, setPlaceholderTarget] = useState(0);
   const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to speak"], []);
 
   /* ----- Audio/waveform refs ----- */
@@ -297,21 +285,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
-  const transcriptRef = useRef<string>(""); // hold transcript during listening
+  const transcriptRef = useRef<string>("");
 
   /* ----- Speech playback (TTS) state ----- */
   const [isSpeaking, setIsSpeaking] = useState(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const speakTokenRef = useRef(0);
+  const activeBlobUrlsRef = useRef<string[]>([]);
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string) => void>();
   const stopSpeakingRef = useRef<() => void>();
-
 
   /* ----- Hold-to-speak refs ----- */
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHoldingRef = useRef(false);
 
-  // Save state to localStorage
   useEffect(() => {
     const stateToSave = {
       response,
@@ -335,37 +322,40 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   /* ----- Typewriter suggestions ----- */
-  const rotatingSuggestions = useMemo(() => [
-    "✨ Tell me about Gaurav's Experience",
-    "✨ What is Gaurav's Education?",
-    "✨ What are Gaurav's Skills?",
-    "✨ Can you share Gaurav's Recommendations?",
-    "✨ Show me Gaurav's Achievements",
-    "✨ List Gaurav's Certifications",
-    "✨ What Projects has Gaurav done?",
-    "✨ Does Gaurav have any Hobbies?",
-    "✨ How to Contact Gaurav?",
-    "✨ What roles has Gaurav worked in?",
-    "✨ Can you share Gaurav's Career Highlights?",
-    "✨ What is Gaurav passionate about?",
-    "✨ Which Companies has Gaurav worked at?",
-    "✨ What is Gaurav's Current Role?",
-    "✨ Can you share Gaurav's Career Timeline?",
-    "✨ What Technologies does Gaurav use?",
-    "✨ Who has Gaurav collaborated with?",
-    "✨ What are Gaurav's Strengths?",
-    "✨ What are Gaurav's Future Goals?",
-    "✨ What Languages does Gaurav know?",
-    "✨ Has Gaurav contributed to Open Source?",
-    "✨ What Awards has Gaurav received?",
-    "✨ Has Gaurav done any Volunteering?",
-    "✨ Can you share Gaurav's Leadership Experience?",
-    "✨ What Publications has Gaurav written?",
-    "✨ What Conferences has Gaurav attended?",
-    "✨ Has Gaurav delivered any Talks?",
-    "✨ What is Gaurav's Work Philosophy?",
-    "✨ Can you share a Fun Fact about Gaurav?",
-  ], []);
+  const rotatingSuggestions = useMemo(
+    () => [
+      "✨ Tell me about Gaurav's Experience",
+      "✨ What is Gaurav's Education?",
+      "✨ What are Gaurav's Skills?",
+      "✨ Can you share Gaurav's Recommendations?",
+      "✨ Show me Gaurav's Achievements",
+      "✨ List Gaurav's Certifications",
+      "✨ What Projects has Gaurav done?",
+      "✨ Does Gaurav have any Hobbies?",
+      "✨ How to Contact Gaurav?",
+      "✨ What roles has Gaurav worked in?",
+      "✨ Can you share Gaurav's Career Highlights?",
+      "✨ What is Gaurav passionate about?",
+      "✨ Which Companies has Gaurav worked at?",
+      "✨ What is Gaurav's Current Role?",
+      "✨ Can you share Gaurav's Career Timeline?",
+      "✨ What Technologies does Gaurav use?",
+      "✨ Who has Gaurav collaborated with?",
+      "✨ What are Gaurav's Strengths?",
+      "✨ What are Gaurav's Future Goals?",
+      "✨ What Languages does Gaurav know?",
+      "✨ Has Gaurav contributed to Open Source?",
+      "✨ What Awards has Gaurav received?",
+      "✨ Has Gaurav done any Volunteering?",
+      "✨ Can you share Gaurav's Leadership Experience?",
+      "✨ What Publications has Gaurav written?",
+      "✨ What Conferences has Gaurav attended?",
+      "✨ Has Gaurav delivered any Talks?",
+      "✨ What is Gaurav's Work Philosophy?",
+      "✨ Can you share a Fun Fact about Gaurav?",
+    ],
+    [],
+  );
 
   /* ----- Rotating placeholder effect ----- */
   useEffect(() => {
@@ -440,7 +430,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, []);
 
-  /* ----- Show typewriter after 10s inactivity (first visit too) ----- */
+  /* ----- Show typewriter after 10s inactivity ----- */
   useEffect(() => {
     if (response || suggestions.length > 0) return;
     const timer = setTimeout(() => {
@@ -471,7 +461,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => clearInterval(interval);
   }, [lastActivityTime, response, suggestions, isLoading]);
 
-
   /* ----- Suggestion emerge/retreat cycle ----- */
   useEffect(() => {
     if (!showTypewriter) {
@@ -479,21 +468,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return;
     }
 
-    // Set initial text and emerge
     if (!fullText) {
       setFullText(rotatingSuggestions[suggestionIndexRef.current]);
     }
     setSuggestionPhase("emerging");
 
-    // After emerge animation completes, mark as visible
     const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 800);
 
-    // Total cycle: 800ms emerge + 4000ms visible + 700ms retreat = ~5500ms
     const interval = setInterval(() => {
-      // Retreat back into search bar
       setSuggestionPhase("retreating");
 
-      // After retreat animation, swap text and emerge again
       setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
         setFullText(rotatingSuggestions[suggestionIndexRef.current]);
@@ -524,7 +508,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     recognition.continuous = true;
     recognitionRef.current = recognition;
 
-    // Set up audio context for waveform using the already-acquired stream
     if (stream) {
       try {
         streamRef.current = stream;
@@ -553,22 +536,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const transcript = Array.from(event.results)
         .map((r: any) => r[0].transcript)
         .join("");
-      transcriptRef.current = transcript; // store in ref, don't show yet
+      transcriptRef.current = transcript;
     };
 
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
-      // Show the transcribed text now
       const finalTranscript = transcriptRef.current.trim();
       if (finalTranscript) {
         setQuery(finalTranscript);
       }
       transcriptRef.current = "";
-      // Blur input to prevent cursor showing
       inputRef.current?.blur();
 
-      // Cleanup audio
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -580,12 +560,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       analyserRef.current = null;
       setAnalyserNode(null);
 
-      // Auto-submit the captured transcript
       if (finalTranscript) {
         handleSubmitRef.current?.(undefined, finalTranscript);
       }
     };
-
 
     recognition.onerror = () => {
       setIsListening(false);
@@ -610,10 +588,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       try {
         recognitionRef.current.stop();
       } catch (e) {
-        // Already stopped
+        /* noop */
       }
     }
-    // Force cleanup in case onend doesn't fire
     isHoldingRef.current = false;
   }, []);
 
@@ -624,8 +601,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     stopSpeakingRef.current?.();
     isHoldingRef.current = true;
 
-    // CRITICAL: Acquire microphone directly from user gesture context
-    // to satisfy browser security policies, then wait for hold threshold
     let micStream: MediaStream | null = null;
     const micPromise = navigator.mediaDevices
       .getUserMedia({
@@ -641,15 +616,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     holdTimerRef.current = setTimeout(async () => {
       if (isHoldingRef.current) {
         inputRef.current?.blur();
-        await micPromise; // ensure mic is ready
+        await micPromise;
         if (micStream) {
           startListening(micStream);
         } else {
-          // Fallback: try without stream (waveform won't work but speech might)
           startListening();
         }
       } else {
-        // User released before threshold — clean up mic
         if (micStream) {
           micStream.getTracks().forEach((t) => t.stop());
         }
@@ -657,33 +630,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 400);
   }, [isLoading, startListening]);
 
-  /* ----- Hold-to-speak handlers (on magnifying glass) ----- */
   const handleHoldStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      // Prevent default to avoid iOS magnifying glass and form submission
       e.preventDefault();
       startHold();
     },
     [startHold],
   );
 
-  const handleHoldEnd = useCallback((e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
-    e?.preventDefault?.();
-    const wasHolding = isHoldingRef.current;
-    isHoldingRef.current = false;
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-    if (isListening) {
-      stopListening();
-    } else if (wasHolding && !isListening) {
-      // Short tap on search icon — submit if there's a query
-      if (query.trim()) {
-        handleSubmit(undefined);
+  const handleHoldEnd = useCallback(
+    (e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
+      e?.preventDefault?.();
+      const wasHolding = isHoldingRef.current;
+      isHoldingRef.current = false;
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
       }
-    }
-  }, [isListening, stopListening, query]);
+      if (isListening) {
+        stopListening();
+      } else if (wasHolding && !isListening) {
+        if (query.trim()) {
+          handleSubmit(undefined);
+        }
+      }
+    },
+    [isListening, stopListening, query],
+  );
 
   /* ----- Desktop: hold Shift to speak ----- */
   useEffect(() => {
@@ -718,7 +691,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [isListening, isLoading, startHold, handleHoldEnd]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
@@ -729,7 +701,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, []);
 
-  /* ----- Text-to-speech engine (gdx-tts + Web Speech fallback) ----- */
+  /* ----- Text-to-speech engine (gdx-tts + Parallel Prefetch Pipeline) ----- */
   const stopSpeaking = useCallback(() => {
     speakTokenRef.current += 1;
     try {
@@ -746,15 +718,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       currentAudioRef.current = null;
     }
+    activeBlobUrlsRef.current.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        /* noop */
+      }
+    });
+    activeBlobUrlsRef.current = [];
     setIsSpeaking(false);
   }, []);
 
   const speakResponse = useCallback(
     async (raw: string) => {
       stopSpeaking();
-      const token = speakTokenRef.current;
+      const token = ++speakTokenRef.current;
 
-      // Strip markdown
       const clean = raw
         .replace(/```[\s\S]*?```/g, " ")
         .replace(/`([^`]+)`/g, "$1")
@@ -772,13 +751,37 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (!clean) return;
 
-      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean])
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean]).map((s) => s.trim()).filter(Boolean);
 
       setIsSpeaking(true);
 
-      const speakWithSynthesis = (from: number) =>
+      const fetchAudioBlob = async (sentence: string): Promise<string | null> => {
+        try {
+          const res = await fetch(`${TTS_ENDPOINT}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+              apikey: SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ text: sentence }),
+          });
+          if (!res.ok) throw new Error(`tts ${res.status}`);
+          const blob = await res.blob();
+          if (!blob.size) throw new Error("empty audio");
+          const url = URL.createObjectURL(blob);
+          activeBlobUrlsRef.current.push(url);
+          return url;
+        } catch (err) {
+          console.warn("gdx-tts fetch error:", err);
+          return null;
+        }
+      };
+
+      // Prefetch all sentence audio chunks in parallel up front
+      const audioPromises = sentences.map((s) => fetchAudioBlob(s));
+
+      const speakWithSynthesisFallback = (from: number) =>
         new Promise<void>((resolve) => {
           const synth = window.speechSynthesis;
           if (!synth) return resolve();
@@ -786,6 +789,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           const next = () => {
             if (token !== speakTokenRef.current || i >= sentences.length) return resolve();
             const utter = new SpeechSynthesisUtterance(sentences[i]);
+            utter.rate = 1.05;
             i += 1;
             utter.onend = next;
             utter.onerror = () => resolve();
@@ -797,47 +801,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       try {
         for (let i = 0; i < sentences.length; i++) {
           if (token !== speakTokenRef.current) return;
-          let url: string;
-          try {
-            const res = await fetch(`${TTS_ENDPOINT}`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-                apikey: SUPABASE_ANON_KEY,
-              },
-              body: JSON.stringify({ text: sentences[i] }),
-            });
-            if (!res.ok) throw new Error(`tts ${res.status}`);
-            const blob = await res.blob();
-            if (!blob.size) throw new Error("empty audio");
-            url = URL.createObjectURL(blob);
-          } catch (err) {
-            console.warn("gdx-tts failed, falling back to speechSynthesis:", err);
-            await speakWithSynthesis(i);
-            return;
-          }
 
-          if (token !== speakTokenRef.current) {
-            URL.revokeObjectURL(url);
+          const url = await audioPromises[i];
+          if (token !== speakTokenRef.current) return;
+
+          if (!url) {
+            await speakWithSynthesisFallback(i);
             return;
           }
 
           await new Promise<void>((resolve) => {
             const audio = new Audio(url);
+            audio.playbackRate = 1.08; // Slightly faster natural conversational pacing
             currentAudioRef.current = audio;
-            audio.onended = () => {
+
+            const onDone = () => {
               URL.revokeObjectURL(url);
+              activeBlobUrlsRef.current = activeBlobUrlsRef.current.filter((u) => u !== url);
               resolve();
             };
-            audio.onerror = () => {
-              URL.revokeObjectURL(url);
-              resolve();
-            };
-            audio.play().catch(() => {
-              URL.revokeObjectURL(url);
-              resolve();
-            });
+
+            audio.onended = onDone;
+            audio.onerror = onDone;
+            audio.play().catch(onDone);
           });
         }
       } finally {
@@ -851,7 +837,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   );
 
   /* ----- Submit handler ----- */
-
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
@@ -937,14 +922,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           el.closest('button[aria-label*="Close modal"]'));
 
       if (!isNavigationClick) {
-        // If there's a query in the bar (after voice input), clear it and reset
         if (query.trim() && !response && suggestions.length === 0) {
           setQuery("");
           inputRef.current?.blur();
           return;
         }
 
-        // If there's a response/suggestions, collapse them
         if (response || suggestions.length > 0) {
           const COLLAPSE_MS = 1400;
           setIsCollapsing(true);
@@ -972,7 +955,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const dynamicWidth = Math.min(300 + query.length * 8, 580);
     const hasContent = suggestions.length > 0 || response;
     const isExpanded = hasContent && !isLoading;
-    // Ensure enough width for waveform + timer + icon when listening
     const listeningWidth = isListening ? Math.max(dynamicWidth, 380) : dynamicWidth;
     const targetWidth = isExpanded ? "580px" : `${listeningWidth}px`;
     const targetRadius = isExpanded ? "16px" : "999px";
@@ -993,11 +975,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
                      whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
           style={{
-            animation: suggestionPhase === "emerging"
-              ? "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
-              : suggestionPhase === "retreating"
-              ? "suggestionRetreat 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards"
-              : undefined,
+            animation:
+              suggestionPhase === "emerging"
+                ? "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+                : suggestionPhase === "retreating"
+                  ? "suggestionRetreat 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+                  : undefined,
           }}
         >
           {fullText}
@@ -1013,7 +996,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
-          transition: "width 1.2s cubic-bezier(0.25, 1, 0.3, 1), border-radius 1.2s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+          transition:
+            "width 1.2s cubic-bezier(0.25, 1, 0.3, 1), border-radius 1.2s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
@@ -1048,12 +1032,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           {/* ── Assistant response ── */}
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response ? (isCollapsing || isCollapsingToThink ? "opacity-0 mb-0" : "opacity-100 mb-5") : "opacity-0 mb-0"
+              response
+                ? isCollapsing || isCollapsingToThink
+                  ? "opacity-0 mb-0"
+                  : "opacity-100 mb-5"
+                : "opacity-0 mb-0"
             }`}
             style={{
               maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response ? "384px" : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
-              transitionDelay: response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
+              transitionDelay:
+                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
             {response && (
@@ -1070,7 +1059,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </div>
 
           {/* ── Input form ── */}
-          <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-2 relative" onFocus={handleInputFocus}>
+          <form
+            onSubmit={(e) => handleSubmit(e)}
+            className="flex items-center gap-2 relative"
+            onFocus={handleInputFocus}
+          >
             {!isListening && !isSpeaking && (
               <div className="relative flex-1">
                 <Input
@@ -1088,14 +1081,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 />
               </div>
             )}
-            {/* Waveform + timer fill available space when listening */}
             {(isListening || isSpeaking) && (
               <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
                 <BarWaveform analyser={isListening ? analyserNode : null} isActive={isListening || isSpeaking} />
                 <RecordingTimer isActive={isListening} />
               </div>
             )}
-            {/* Search icon / hold-to-speak target */}
             <div
               className="shrink-0 select-none"
               onMouseDown={handleHoldStart}
@@ -1110,7 +1101,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                            ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
                            ${isListening ? "bg-white/30" : "hover:bg-white/20"}`}
               >
-                <Search className={`h-4 w-4 text-white/50 ${isLoading ? "thinking-icon" : ""} ${isListening ? "!text-white" : ""}`} />
+                <Search
+                  className={`h-4 w-4 text-white/50 ${isLoading ? "thinking-icon" : ""} ${
+                    isListening ? "!text-white" : ""
+                  }`}
+                />
               </div>
             </div>
           </form>
@@ -1173,12 +1168,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
                      font-size:.9em;}
 
-        /* Typewriter cursor */
         @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
         .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
         .typewriter-text{display:inline-block;min-height:1.2em;}
 
-        /* Listening styles */
         .listening-container{
           border: 1px solid rgba(255,255,255,0.3);
           animation: listeningGlow 1.5s infinite ease-in-out;
@@ -1190,9 +1183,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           50% { 
             box-shadow: 0 0 25px rgba(255,255,255,0.4), inset 0 0 25px rgba(255,255,255,0.2);
           }
-        }
-        .listening-input{
-          color: transparent;
         }
 
         @keyframes suggestionEmerge {
