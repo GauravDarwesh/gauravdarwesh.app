@@ -10,6 +10,8 @@ const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
+const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
+const DEFAULT_TTS_QUOTA_BLOCK_MS = 24 * 60 * 60 * 1000;
 
 /* ---------- 1️⃣ MARKDOWN → HTML (Original aesthetics) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
@@ -532,6 +534,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Stop Audio & Exit Voice Mode ----- */
   const stopAudioOnly = useCallback(() => {
     speakTokenRef.current += 1;
+    window.speechSynthesis?.cancel();
     if (currentSourceNodeRef.current) {
       try {
         currentSourceNodeRef.current.stop();
@@ -604,7 +607,42 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       setIsSpeaking(true);
 
-      const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
+      const getQuotaBlockedUntil = () => {
+        try {
+          const value = Number(sessionStorage.getItem(TTS_QUOTA_BLOCK_KEY));
+          return Number.isFinite(value) ? value : 0;
+        } catch {
+          return 0;
+        }
+      };
+
+      const blockTtsUntil = (blockedUntil: number) => {
+        try {
+          sessionStorage.setItem(TTS_QUOTA_BLOCK_KEY, String(blockedUntil));
+        } catch {
+          /* Storage may be unavailable in private browsing. */
+        }
+      };
+
+      const speakWithBrowser = (sentence: string) =>
+        new Promise<void>((resolve) => {
+          if (!("speechSynthesis" in window) || token !== speakTokenRef.current) {
+            resolve();
+            return;
+          }
+
+          const utterance = new SpeechSynthesisUtterance(sentence);
+          utterance.rate = 1.06;
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          window.speechSynthesis.speak(utterance);
+        });
+
+      const fetchAudioBuffer = async (sentence: string): Promise<{ buffer: AudioBuffer | null; useFallback: boolean }> => {
+        if (getQuotaBlockedUntil() > Date.now()) {
+          return { buffer: null, useFallback: true };
+        }
+
         try {
           const res = await fetch(TTS_ENDPOINT, {
             method: "POST",
@@ -615,23 +653,41 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             },
             body: JSON.stringify({ text: sentence }),
           });
-          if (!res.ok) throw new Error(`TTS status ${res.status}`);
+          if (!res.ok) {
+            if (res.status === 429) {
+              let blockedUntil = Date.now() + DEFAULT_TTS_QUOTA_BLOCK_MS;
+              try {
+                const body = await res.text();
+                const resetMatch = body.match(/X-RateLimit-Reset(?:\\?"|[^0-9])+(\d{10,})/i);
+                const resetAt = resetMatch ? Number(resetMatch[1]) : 0;
+                if (Number.isFinite(resetAt) && resetAt > Date.now()) blockedUntil = resetAt;
+              } catch {
+                /* Keep the safe 24-hour fallback window. */
+              }
+              blockTtsUntil(blockedUntil);
+              return { buffer: null, useFallback: true };
+            }
+            throw new Error(`TTS status ${res.status}`);
+          }
           const arrayBuffer = await res.arrayBuffer();
-          return await ctx.decodeAudioData(arrayBuffer);
+          return { buffer: await ctx.decodeAudioData(arrayBuffer), useFallback: false };
         } catch (err) {
           console.warn("TTS error:", err);
-          return null;
+          return { buffer: null, useFallback: true };
         }
       };
-
-      const bufferPromises = sentences.map((s) => fetchAudioBuffer(s));
 
       try {
         for (let i = 0; i < sentences.length; i++) {
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
 
-          const buffer = await bufferPromises[i];
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current || !buffer) continue;
+          const { buffer, useFallback } = await fetchAudioBuffer(sentences[i]);
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
+
+          if (useFallback || !buffer) {
+            await speakWithBrowser(sentences[i]);
+            continue;
+          }
 
           await new Promise<void>((resolve) => {
             const source = ctx.createBufferSource();
