@@ -10,8 +10,6 @@ const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
-const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
-const DEFAULT_TTS_QUOTA_BLOCK_MS = 24 * 60 * 60 * 1000;
 
 /* ---------- 1️⃣ MARKDOWN → HTML (Original aesthetics) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
@@ -77,43 +75,25 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
   );
 }
 
-/* ---------- 3️⃣ Smooth Reactive Waveform (Zero Layout Thrashing) ---------- */
+/* ---------- 3️⃣ Ultra-Smooth Reactive Bar Waveform ---------- */
 const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const dimsRef = useRef({ width: 0, height: 0, dpr: 1 });
+  const barHeightsRef = useRef<Float32Array>(new Float32Array(48).fill(3));
 
   useEffect(() => {
-    if (!containerRef.current || !canvasRef.current) return;
-
-    const updateSize = () => {
-      if (!containerRef.current || !canvasRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      dimsRef.current = { width: rect.width, height: rect.height, dpr };
-
-      canvasRef.current.width = rect.width * dpr;
-      canvasRef.current.height = rect.height * dpr;
-      canvasRef.current.style.width = `${rect.width}px`;
-      canvasRef.current.style.height = `${rect.height}px`;
-    };
-
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [isActive]);
-
-  useEffect(() => {
-    if (!isActive || !canvasRef.current) return;
+    if (!isActive || !canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const bufferLength = analyser ? analyser.frequencyBinCount : 0;
-    const dataArray = analyser ? new Uint8Array(bufferLength) : null;
+    let dataArray: Uint8Array | null = null;
+    if (analyser) {
+      analyser.fftSize = 128;
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+    }
 
     const BAR_WIDTH = 2.5;
     const BAR_GAP = 2.5;
@@ -121,32 +101,62 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
 
     const draw = () => {
       animFrameRef.current = requestAnimationFrame(draw);
-      const { width, height, dpr } = dimsRef.current;
-      if (width === 0 || height === 0) return;
+      if (!containerRef.current || !canvasRef.current) return;
+
+      const rect = containerRef.current.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = rect.width;
+      const h = rect.height;
+
+      if (w === 0 || h === 0) return;
+
+      if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = `${w}px`;
+        canvas.style.height = `${h}px`;
+      }
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
 
       if (analyser && dataArray) {
         analyser.getByteFrequencyData(dataArray);
       }
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
+      const barCount = Math.max(10, Math.floor(w / (BAR_WIDTH + BAR_GAP)));
+      const totalWidth = barCount * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
+      const startX = Math.max(0, (w - totalWidth) / 2);
 
-      const barCount = Math.max(10, Math.floor(width / (BAR_WIDTH + BAR_GAP)));
+      // Extract voice energy to scale amplitudes smoothly
+      let energySum = 0;
+      if (dataArray) {
+        for (let k = 1; k < 20; k++) energySum += dataArray[k];
+      }
+      const avgEnergy = dataArray ? energySum / 20 / 255 : 0;
+      const scaleMultiplier = Math.min(2.2, 1.0 + avgEnergy * 1.8);
 
       for (let i = 0; i < barCount; i++) {
-        let value = 0;
+        let rawVal = 0;
         if (analyser && dataArray) {
-          const dataIndex = Math.floor((i / barCount) * (bufferLength * 0.7));
-          value = dataArray[dataIndex] / 255;
+          // Sample lower & mid voice spectrum (bins 1 to 24)
+          const normIdx = i / barCount;
+          const binIndex = Math.min(dataArray.length - 1, Math.max(1, Math.floor(normIdx * 24)));
+          rawVal = (dataArray[binIndex] / 255) * scaleMultiplier;
         }
 
-        const barHeight = Math.max(MIN_HEIGHT, value * (height * 0.85));
-        const x = i * (BAR_WIDTH + BAR_GAP);
-        const y = (height - barHeight) / 2;
+        const targetHeight = Math.max(MIN_HEIGHT, Math.min(h * 0.9, rawVal * h * 0.9));
+        // Interpolate bar heights for fluid 60fps motion
+        barHeightsRef.current[i] = (barHeightsRef.current[i] || MIN_HEIGHT) * 0.6 + targetHeight * 0.4;
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + value * 0.5})`;
+        const currentHeight = barHeightsRef.current[i];
+        const x = startX + i * (BAR_WIDTH + BAR_GAP);
+        const y = (h - currentHeight) / 2;
+
+        const alpha = 0.35 + Math.min(0.65, (currentHeight / h) * 0.8);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.beginPath();
-        ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1);
+        ctx.roundRect(x, y, BAR_WIDTH, currentHeight, 1.5);
         ctx.fill();
       }
     };
@@ -167,36 +177,7 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
   );
 };
 
-/* ---------- 3️⃣b Timer Component ---------- */
-const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
-  const [seconds, setSeconds] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (isActive) {
-      setSeconds(0);
-      intervalRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isActive]);
-
-  if (!isActive) return null;
-
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-
-  return (
-    <span className="text-sm font-mono text-white/70 tabular-nums shrink-0">
-      {mins}:{secs.toString().padStart(2, "0")}
-    </span>
-  );
-};
-
-/* ---------- 4️⃣ SearchBar component ---------- */
+/* ---------- 4️⃣ SearchBar Component ---------- */
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
@@ -305,7 +286,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const speakTokenRef = useRef(0);
 
-  /* ----- Hold-to-speak refs ----- */
+  /* ----- Gesture refs ----- */
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHoldingRef = useRef(false);
   const searchBarRef = useRef<HTMLDivElement>(null);
@@ -332,13 +313,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, []);
 
-  /* ----- Lazy AudioContext initialization ----- */
+  /* ----- Shared Audio Context Initializer ----- */
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const ctx = new AudioCtx();
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 128;
       analyser.smoothingTimeConstant = 0.8;
       audioContextRef.current = ctx;
       analyserRef.current = analyser;
@@ -534,7 +515,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* ----- Stop Audio & Exit Voice Mode ----- */
   const stopAudioOnly = useCallback(() => {
     speakTokenRef.current += 1;
-    window.speechSynthesis?.cancel();
     if (currentSourceNodeRef.current) {
       try {
         currentSourceNodeRef.current.stop();
@@ -576,7 +556,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsListening(false);
   }, [stopAudioOnly]);
 
-  /* ----- Reactive Voice Playback via Web Audio ----- */
+  /* ----- Reactive Voice Playback via Web Audio Analyser ----- */
   const speakVoiceResponse = useCallback(
     async (raw: string) => {
       stopAudioOnly();
@@ -607,42 +587,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       setIsSpeaking(true);
 
-      const getQuotaBlockedUntil = () => {
-        try {
-          const value = Number(sessionStorage.getItem(TTS_QUOTA_BLOCK_KEY));
-          return Number.isFinite(value) ? value : 0;
-        } catch {
-          return 0;
-        }
-      };
-
-      const blockTtsUntil = (blockedUntil: number) => {
-        try {
-          sessionStorage.setItem(TTS_QUOTA_BLOCK_KEY, String(blockedUntil));
-        } catch {
-          /* Storage may be unavailable in private browsing. */
-        }
-      };
-
-      const speakWithBrowser = (sentence: string) =>
-        new Promise<void>((resolve) => {
-          if (!("speechSynthesis" in window) || token !== speakTokenRef.current) {
-            resolve();
-            return;
-          }
-
-          const utterance = new SpeechSynthesisUtterance(sentence);
-          utterance.rate = 1.06;
-          utterance.onend = () => resolve();
-          utterance.onerror = () => resolve();
-          window.speechSynthesis.speak(utterance);
-        });
-
-      const fetchAudioBuffer = async (sentence: string): Promise<{ buffer: AudioBuffer | null; useFallback: boolean }> => {
-        if (getQuotaBlockedUntil() > Date.now()) {
-          return { buffer: null, useFallback: true };
-        }
-
+      const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
         try {
           const res = await fetch(TTS_ENDPOINT, {
             method: "POST",
@@ -653,41 +598,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             },
             body: JSON.stringify({ text: sentence }),
           });
-          if (!res.ok) {
-            if (res.status === 429) {
-              let blockedUntil = Date.now() + DEFAULT_TTS_QUOTA_BLOCK_MS;
-              try {
-                const body = await res.text();
-                const resetMatch = body.match(/X-RateLimit-Reset(?:\\?"|[^0-9])+(\d{10,})/i);
-                const resetAt = resetMatch ? Number(resetMatch[1]) : 0;
-                if (Number.isFinite(resetAt) && resetAt > Date.now()) blockedUntil = resetAt;
-              } catch {
-                /* Keep the safe 24-hour fallback window. */
-              }
-              blockTtsUntil(blockedUntil);
-              return { buffer: null, useFallback: true };
-            }
-            throw new Error(`TTS status ${res.status}`);
-          }
+          if (!res.ok) throw new Error(`TTS status ${res.status}`);
           const arrayBuffer = await res.arrayBuffer();
-          return { buffer: await ctx.decodeAudioData(arrayBuffer), useFallback: false };
+          return await ctx.decodeAudioData(arrayBuffer);
         } catch (err) {
           console.warn("TTS error:", err);
-          return { buffer: null, useFallback: true };
+          return null;
         }
       };
+
+      const bufferPromises = sentences.map((s) => fetchAudioBuffer(s));
 
       try {
         for (let i = 0; i < sentences.length; i++) {
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
 
-          const { buffer, useFallback } = await fetchAudioBuffer(sentences[i]);
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
-
-          if (useFallback || !buffer) {
-            await speakWithBrowser(sentences[i]);
-            continue;
-          }
+          const buffer = await bufferPromises[i];
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current || !buffer) continue;
 
           await new Promise<void>((resolve) => {
             const source = ctx.createBufferSource();
@@ -1026,17 +953,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [response, suggestions, query, isVoiceSession, stopVoiceSession, clearPersistedState]);
 
-  /* ----- Layout calculations (Original dynamic style with fixed baseline) ----- */
+  /* ----- Layout calculations ----- */
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession;
     const isExpanded = hasContent && !isLoading;
-    const targetWidth = isExpanded ? "580px" : isVoiceSession ? "420px" : "460px";
+    const targetWidth = isExpanded ? "580px" : isVoiceSession ? "440px" : "480px";
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { isExpanded, targetWidth, targetRadius };
   }, [suggestions.length, response, isVoiceSession, isLoading]);
 
-  /* ----- Render ----- */
   return (
     <div
       ref={searchBarRef}
@@ -1061,7 +987,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       )}
 
-      {/* ── Search bar container (Original authentic styling) ── */}
+      {/* ── Search bar container ── */}
       <div
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
@@ -1156,23 +1082,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
-            {/* Waveform fills available space when in Voice Mode */}
+            {/* Waveform fills space in Voice Mode without the timer */}
             {isVoiceSession && (
               <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession && (isListening || isSpeaking)} />
-                {isListening && <RecordingTimer isActive={isListening} />}
               </div>
             )}
 
-            {/* Voice exit (✕) or Search icon / hold-to-speak target */}
+            {/* Minimalist Close (✕) icon or Search / Hold-to-speak button */}
             {isVoiceSession ? (
               <button
                 type="button"
                 onClick={stopVoiceSession}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
-                title="End voice mode"
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors active:scale-90 cursor-pointer"
+                title="Exit voice mode"
+                aria-label="Exit voice mode"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" strokeWidth={1.5} />
               </button>
             ) : (
               <div
