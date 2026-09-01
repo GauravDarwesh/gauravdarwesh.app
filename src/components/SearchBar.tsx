@@ -7,9 +7,8 @@ import { sendChatMessage } from "@/lib/api";
 
 /* ---------- Configuration ---------- */
 
-const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
 const STORAGE_KEY = "searchbar_state";
