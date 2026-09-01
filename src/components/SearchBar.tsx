@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
+/* ---------- 0️⃣ TTS endpoint (existing gdx-tts edge function) ---------- */
+const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
+
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
   let result = text;
@@ -77,23 +83,28 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isActive || !analyser || !canvasRef.current || !containerRef.current) return;
+    if (!isActive || !canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    let bufferLength = 0;
+    let dataArray: Uint8Array<ArrayBuffer> | null = null;
+    if (analyser) {
+      analyser.fftSize = 256;
+      bufferLength = analyser.frequencyBinCount;
+      dataArray = new Uint8Array(bufferLength);
+    }
 
     const BAR_WIDTH = 2;
     const BAR_GAP = 2;
     const MIN_HEIGHT = 3;
+    const start = performance.now();
 
     const draw = () => {
       animFrameRef.current = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
+      if (analyser && dataArray) analyser.getByteFrequencyData(dataArray);
 
       const dpr = window.devicePixelRatio || 1;
       // Resize canvas to match container
@@ -112,10 +123,20 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
 
       // Calculate bar count based on available width
       const barCount = Math.max(8, Math.floor(w / (BAR_WIDTH + BAR_GAP)));
+      const t = (performance.now() - start) / 1000;
 
       for (let i = 0; i < barCount; i++) {
-        const dataIndex = Math.floor((i / barCount) * bufferLength);
-        const value = dataArray[dataIndex] / 255;
+        let value: number;
+        if (analyser && dataArray) {
+          const dataIndex = Math.floor((i / barCount) * bufferLength);
+          value = dataArray[dataIndex] / 255;
+        } else {
+          // Synthetic "speaking" pulse when no analyser is available
+          value =
+            0.18 +
+            0.32 * Math.abs(Math.sin(t * 3.1 + i * 0.35)) +
+            0.2 * Math.abs(Math.sin(t * 5.7 + i * 0.13));
+        }
         const barHeight = Math.max(MIN_HEIGHT, value * (h * 0.85));
 
         const x = i * (BAR_WIDTH + BAR_GAP);
@@ -134,6 +155,7 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
       cancelAnimationFrame(animFrameRef.current);
     };
   }, [analyser, isActive]);
+
 
   if (!isActive) return null;
 
@@ -274,6 +296,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const streamRef = useRef<MediaStream | null>(null);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const transcriptRef = useRef<string>(""); // hold transcript during listening
+
+  /* ----- Speech playback (TTS) state ----- */
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speakTokenRef = useRef(0);
+  const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string) => void>();
+  const stopSpeakingRef = useRef<() => void>();
+
 
   /* ----- Hold-to-speak refs ----- */
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -528,12 +558,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsListening(false);
       recognitionRef.current = null;
       // Show the transcribed text now
-      if (transcriptRef.current.trim()) {
-        setQuery(transcriptRef.current);
+      const finalTranscript = transcriptRef.current.trim();
+      if (finalTranscript) {
+        setQuery(finalTranscript);
       }
       transcriptRef.current = "";
       // Blur input to prevent cursor showing
       inputRef.current?.blur();
+
       // Cleanup audio
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -545,7 +577,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       analyserRef.current = null;
       setAnalyserNode(null);
+
+      // Auto-submit the captured transcript
+      if (finalTranscript) {
+        handleSubmitRef.current?.(undefined, finalTranscript);
+      }
     };
+
 
     recognition.onerror = () => {
       setIsListening(false);
@@ -581,6 +619,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const startHold = useCallback(() => {
     if (isLoading) return;
 
+    stopSpeakingRef.current?.();
     isHoldingRef.current = true;
 
     // CRITICAL: Acquire microphone directly from user gesture context
@@ -684,15 +723,139 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (recognitionRef.current) recognitionRef.current.stop();
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       if (audioContextRef.current) audioContextRef.current.close();
+      stopSpeakingRef.current?.();
     };
   }, []);
 
+  /* ----- Text-to-speech engine (gdx-tts + Web Speech fallback) ----- */
+  const stopSpeaking = useCallback(() => {
+    speakTokenRef.current += 1;
+    try {
+      window.speechSynthesis?.cancel();
+    } catch (e) {
+      /* noop */
+    }
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+      } catch (e) {
+        /* noop */
+      }
+      currentAudioRef.current = null;
+    }
+    setIsSpeaking(false);
+  }, []);
+
+  const speakResponse = useCallback(
+    async (raw: string) => {
+      stopSpeaking();
+      const token = speakTokenRef.current;
+
+      // Strip markdown
+      const clean = raw
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+        .replace(/^\s{0,3}>\s?/gm, "")
+        .replace(/^\s*[-*+]\s+/gm, "")
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        .replace(/\*(.*?)\*/g, "$1")
+        .replace(/__(.*?)__/g, "$1")
+        .replace(/_(.*?)_/g, "$1")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!clean) return;
+
+      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean])
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      setIsSpeaking(true);
+
+      const speakWithSynthesis = (from: number) =>
+        new Promise<void>((resolve) => {
+          const synth = window.speechSynthesis;
+          if (!synth) return resolve();
+          let i = from;
+          const next = () => {
+            if (token !== speakTokenRef.current || i >= sentences.length) return resolve();
+            const utter = new SpeechSynthesisUtterance(sentences[i]);
+            i += 1;
+            utter.onend = next;
+            utter.onerror = () => resolve();
+            synth.speak(utter);
+          };
+          next();
+        });
+
+      try {
+        for (let i = 0; i < sentences.length; i++) {
+          if (token !== speakTokenRef.current) return;
+          let url: string;
+          try {
+            const res = await fetch(`${TTS_ENDPOINT}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                apikey: SUPABASE_ANON_KEY,
+              },
+              body: JSON.stringify({ text: sentences[i] }),
+            });
+            if (!res.ok) throw new Error(`tts ${res.status}`);
+            const blob = await res.blob();
+            if (!blob.size) throw new Error("empty audio");
+            url = URL.createObjectURL(blob);
+          } catch (err) {
+            console.warn("gdx-tts failed, falling back to speechSynthesis:", err);
+            await speakWithSynthesis(i);
+            return;
+          }
+
+          if (token !== speakTokenRef.current) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+
+          await new Promise<void>((resolve) => {
+            const audio = new Audio(url);
+            currentAudioRef.current = audio;
+            audio.onended = () => {
+              URL.revokeObjectURL(url);
+              resolve();
+            };
+            audio.onerror = () => {
+              URL.revokeObjectURL(url);
+              resolve();
+            };
+            audio.play().catch(() => {
+              URL.revokeObjectURL(url);
+              resolve();
+            });
+          });
+        }
+      } finally {
+        if (token === speakTokenRef.current) {
+          currentAudioRef.current = null;
+          setIsSpeaking(false);
+        }
+      }
+    },
+    [stopSpeaking],
+  );
+
   /* ----- Submit handler ----- */
+
   const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
     e?.preventDefault();
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
+    stopSpeaking();
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
@@ -720,6 +883,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
       onSearch?.(String(answer));
+      void speakResponse(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
@@ -730,6 +894,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsLoading(false);
     }
   };
+
+  handleSubmitRef.current = handleSubmit;
+  stopSpeakingRef.current = stopSpeaking;
 
   /* ----- Interaction helpers ----- */
   const handleSuggestionClick = useCallback((s: string) => {
@@ -902,12 +1069,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Input form ── */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-2 relative" onFocus={handleInputFocus}>
-            {!isListening && (
+            {!isListening && !isSpeaking && (
               <div className="relative flex-1">
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={isLoading ? "Thinking…" : placeholderText}
+                  placeholder={isLoading ? "Thinking…" : "hold shift/search to talk with GDx"}
                   value={query}
                   onChange={handleInputChange}
                   className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
@@ -920,9 +1087,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
             {/* Waveform + timer fill available space when listening */}
-            {isListening && (
+            {(isListening || isSpeaking) && (
               <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
-                <BarWaveform analyser={analyserNode} isActive={isListening} />
+                <BarWaveform analyser={isListening ? analyserNode : null} isActive={isListening || isSpeaking} />
                 <RecordingTimer isActive={isListening} />
               </div>
             )}
