@@ -90,7 +90,7 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
     if (!ctx) return;
 
     let bufferLength = 0;
-    let dataArray: Uint8Array | null = null;
+    let dataArray: Uint8Array<ArrayBuffer> | null = null;
     if (analyser) {
       analyser.fftSize = 256;
       bufferLength = analyser.frequencyBinCount;
