@@ -291,6 +291,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const transcriptRef = useRef<string>(""); // hold transcript during listening
 
+  /* ----- Speech playback (TTS) state ----- */
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speakTokenRef = useRef(0);
+  const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string) => void>();
+
+
   /* ----- Hold-to-speak refs ----- */
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isHoldingRef = useRef(false);
