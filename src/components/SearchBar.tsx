@@ -570,7 +570,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       analyserRef.current = null;
       setAnalyserNode(null);
+
+      // Auto-submit the captured transcript
+      if (finalTranscript) {
+        handleSubmitRef.current?.(undefined, finalTranscript);
+      }
     };
+
 
     recognition.onerror = () => {
       setIsListening(false);
