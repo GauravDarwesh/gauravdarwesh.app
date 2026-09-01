@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
+/* ---------- 0️⃣ TTS endpoint (existing gdx-tts edge function) ---------- */
+const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
+
 /* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
 const convertMarkdownToHtml = (text: string): string => {
   let result = text;
@@ -296,6 +302,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const speakTokenRef = useRef(0);
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string) => void>();
+  const stopSpeakingRef = useRef<() => void>();
 
 
   /* ----- Hold-to-speak refs ----- */
@@ -612,6 +619,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const startHold = useCallback(() => {
     if (isLoading) return;
 
+    stopSpeakingRef.current?.();
     isHoldingRef.current = true;
 
     // CRITICAL: Acquire microphone directly from user gesture context
@@ -715,6 +723,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (recognitionRef.current) recognitionRef.current.stop();
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       if (audioContextRef.current) audioContextRef.current.close();
+      stopSpeakingRef.current?.();
     };
   }, []);
 
@@ -846,6 +855,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
+    stopSpeaking();
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
@@ -873,6 +883,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
       onSearch?.(String(answer));
+      void speakResponse(String(answer));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setResponse(msg);
@@ -883,6 +894,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsLoading(false);
     }
   };
+
+  handleSubmitRef.current = handleSubmit;
+  stopSpeakingRef.current = stopSpeaking;
 
   /* ----- Interaction helpers ----- */
   const handleSuggestionClick = useCallback((s: string) => {
@@ -1055,12 +1069,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           {/* ── Input form ── */}
           <form onSubmit={(e) => handleSubmit(e)} className="flex items-center gap-2 relative" onFocus={handleInputFocus}>
-            {!isListening && (
+            {!isListening && !isSpeaking && (
               <div className="relative flex-1">
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={isLoading ? "Thinking…" : placeholderText}
+                  placeholder={isLoading ? "Thinking…" : "hold shift/search to talk with GDx"}
                   value={query}
                   onChange={handleInputChange}
                   className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
@@ -1073,9 +1087,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
             {/* Waveform + timer fill available space when listening */}
-            {isListening && (
+            {(isListening || isSpeaking) && (
               <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
-                <BarWaveform analyser={analyserNode} isActive={isListening} />
+                <BarWaveform analyser={isListening ? analyserNode : null} isActive={isListening || isSpeaking} />
                 <RecordingTimer isActive={isListening} />
               </div>
             )}
