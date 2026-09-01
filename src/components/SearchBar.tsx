@@ -347,7 +347,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       currentSourceNodeRef.current = null;
     }
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* noop */
+    }
     setIsSpeaking(false);
+
   }, []);
 
   const stopVoiceSession = useCallback(() => {
