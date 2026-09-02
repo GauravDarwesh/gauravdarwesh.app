@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import React, {
@@ -2912,4 +2911,3 @@ const SearchBar: React.FC<SearchBarProps> = ({
 };
 
 export default SearchBar;
-```
