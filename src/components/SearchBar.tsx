@@ -27,9 +27,18 @@ const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
 const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
 const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
+// OpenRouter's current free-tier window, reported by gdx-tts. This
+// prevents a fresh browser session from repeating a known 429. It
+// expires automatically, after which hosted TTS is tried again.
+const TTS_KNOWN_PROVIDER_RESET_AT = 1788393600000;
 
 const getTtsQuotaBlockedUntil = (): number => {
   if (typeof window === "undefined") return 0;
+
+  const knownProviderBlock =
+    TTS_KNOWN_PROVIDER_RESET_AT > Date.now()
+      ? TTS_KNOWN_PROVIDER_RESET_AT
+      : 0;
 
   try {
     const value = Number(
@@ -37,7 +46,7 @@ const getTtsQuotaBlockedUntil = (): number => {
     );
 
     if (Number.isFinite(value) && value > Date.now()) {
-      return value;
+      return Math.max(value, knownProviderBlock);
     }
 
     window.localStorage.removeItem(TTS_QUOTA_BLOCK_KEY);
@@ -45,7 +54,7 @@ const getTtsQuotaBlockedUntil = (): number => {
     /* Storage can be unavailable in private browsing. */
   }
 
-  return 0;
+  return knownProviderBlock;
 };
 
 const rememberTtsQuotaLimit = (responseBody: string) => {
@@ -1311,10 +1320,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
         const token =
           ++speakTokenRef.current;
 
-        const {
-          ctx,
-          analyser,
-        } = getAudioContext();
+        let audioGraph: {
+          ctx: AudioContext;
+          analyser: AnalyserNode;
+        } | null = null;
 
         const clean = raw
           .replace(
@@ -1443,7 +1452,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
               );
             }
 
-            return await ctx.decodeAudioData(
+            // Only create/resume Web Audio after hosted TTS succeeds.
+            // The quota fallback path therefore stays independent of
+            // AudioContext and cannot reject before browser TTS runs.
+            audioGraph ??= getAudioContext();
+
+            return await audioGraph.ctx.decodeAudioData(
               arrayBuffer
             );
           } catch {
@@ -1508,8 +1522,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
             await new Promise<void>(
               (resolve) => {
+                if (!audioGraph) {
+                  resolve();
+                  return;
+                }
+
                 const source =
-                  ctx.createBufferSource();
+                  audioGraph.ctx.createBufferSource();
 
                 source.buffer = buffer;
 
@@ -1524,7 +1543,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                  * analyser → destination is already
                  * connected once during context setup.
                  */
-                source.connect(analyser);
+                source.connect(audioGraph.analyser);
 
                 currentSourceNodeRef.current =
                   source;
