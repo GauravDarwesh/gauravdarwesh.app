@@ -1935,6 +1935,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
       setIsListening(false);
     }, [stopAudioOnly]);
 
+  stopVoiceSessionRef.current =
+    stopVoiceSession;
+
+
+
   /* =======================================================
      CLEANUP
      ======================================================= */
