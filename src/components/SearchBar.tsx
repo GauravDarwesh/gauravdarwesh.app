@@ -25,6 +25,49 @@ const SUPABASE_ANON_KEY = import.meta.env
 
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
+const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
+const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
+
+const getTtsQuotaBlockedUntil = (): number => {
+  if (typeof window === "undefined") return 0;
+
+  try {
+    const value = Number(
+      window.localStorage.getItem(TTS_QUOTA_BLOCK_KEY)
+    );
+
+    if (Number.isFinite(value) && value > Date.now()) {
+      return value;
+    }
+
+    window.localStorage.removeItem(TTS_QUOTA_BLOCK_KEY);
+  } catch {
+    /* Storage can be unavailable in private browsing. */
+  }
+
+  return 0;
+};
+
+const rememberTtsQuotaLimit = (responseBody: string) => {
+  const resetMatch = responseBody.match(
+    /X-RateLimit-Reset[^0-9]*(\d{10,13})/i
+  );
+  const parsedReset = resetMatch ? Number(resetMatch[1]) : 0;
+  const resetAt =
+    Number.isFinite(parsedReset) && parsedReset > Date.now()
+      ? parsedReset
+      : Date.now() + TTS_QUOTA_FALLBACK_MS;
+
+  try {
+    window.localStorage.setItem(
+      TTS_QUOTA_BLOCK_KEY,
+      String(resetAt)
+    );
+  } catch {
+    /* The in-flight response still falls back safely. */
+  }
+};
+
 /* =========================================================
    1. MARKDOWN → HTML
    ========================================================= */
@@ -1350,16 +1393,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
         setIsSpeaking(true);
 
-        /*
-         * Fetch every sentence in parallel.
-         *
-         * This is the key latency improvement:
-         * sentence 1 doesn't wait for sentence 2/3/4
-         * to download before playback starts.
-         */
+        let ttsUnavailableForResponse =
+          getTtsQuotaBlockedUntil() > Date.now();
+
         const fetchAudioBuffer = async (
           sentence: string
         ): Promise<AudioBuffer | null> => {
+          if (ttsUnavailableForResponse) {
+            return null;
+          }
+
           try {
             const res = await fetch(
               TTS_ENDPOINT,
@@ -1379,9 +1422,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
             );
 
             if (!res.ok) {
-              throw new Error(
-                `TTS status ${res.status}`
-              );
+              const responseBody = await res.text();
+
+              if (res.status === 429) {
+                rememberTtsQuotaLimit(responseBody);
+              }
+
+              // Do not send the remaining sentences to an unavailable
+              // provider. The caller immediately switches to native TTS.
+              ttsUnavailableForResponse = true;
+              return null;
             }
 
             const arrayBuffer =
@@ -1396,20 +1446,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
             return await ctx.decodeAudioData(
               arrayBuffer
             );
-          } catch (err) {
-            console.warn(
-              "Supabase TTS sentence failed:",
-              err
-            );
-
+          } catch {
+            ttsUnavailableForResponse = true;
             return null;
           }
         };
-
-        const bufferPromises =
-          sentences.map((sentence) =>
-            fetchAudioBuffer(sentence)
-          );
 
         let nativeFallbackUsed = false;
 
@@ -1428,7 +1469,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
             }
 
             const buffer =
-              await bufferPromises[i];
+              await fetchAudioBuffer(sentences[i]);
 
             /*
              * If the Supabase TTS request failed,
