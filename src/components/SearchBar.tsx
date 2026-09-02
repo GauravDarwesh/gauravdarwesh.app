@@ -1552,7 +1552,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           "Speech recognition not supported"
         );
 
-        stopVoiceSession();
+        stopVoiceSessionRef.current?.();
         return;
       }
 
@@ -1705,7 +1705,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
       getAudioContext,
       isLoading,
       isSpeaking,
-      stopVoiceSession,
     ]);
 
   /* =======================================================
@@ -1874,6 +1873,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
   /* =======================================================
      STOP VOICE SESSION
      ======================================================= */
+
+  const stopVoiceSessionRef =
+    useRef<(() => void) | null>(null);
 
   const stopVoiceSession =
     useCallback(() => {
