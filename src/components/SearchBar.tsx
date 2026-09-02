@@ -1,150 +1,259 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
+import React, { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-/* ---------- 0️⃣ TTS endpoint (existing gdx-tts edge function) ---------- */
+/* ==========================================================================
+   CONFIG
+   ========================================================================== */
+
 const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
+
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm90Z3VjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
-/* ---------- 1️⃣ MARKDOWN → HTML (Original aesthetics) ---------- */
+const STORAGE_KEY = "searchbar_state";
+const FIRST_VISIT_KEY = "gd_ai_first_visit";
+
+/* ==========================================================================
+   TYPES
+   ========================================================================== */
+
+type SuggestionPhase = "hidden" | "entering" | "visible" | "exiting";
+
+interface PersistedState {
+  response: string | null;
+  suggestions: string[];
+  hasInteracted: boolean;
+  showExpandedSuggestions: boolean;
+  lastActivityTime: number;
+}
+
+/* ==========================================================================
+   MARKDOWN
+   ========================================================================== */
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 const convertMarkdownToHtml = (text: string): string => {
-  let result = text;
+  const processInline = (input: string) => {
+    let str = escapeHtml(input);
 
-  const processInline = (str: string): string => {
-    const rules = [
-      { pattern: /\*\*(.*?)\*\*/g, replacement: "<strong>$1</strong>" },
-      { pattern: /\*(.*?)\*/g, replacement: "<em>$1</em>" },
-      { pattern: /`([^`]+)`/g, replacement: '<code class="inline-code">$1</code>' },
-      {
-        pattern: /\[([^\]]+)\]\(([^)]+)\)/g,
-        replacement:
-          '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>',
-      },
-    ];
+    str = str.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
-    rules.forEach((rule) => {
-      str = str.replace(rule.pattern, rule.replacement);
-    });
+    str = str.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    str = str.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+    str = str.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>',
+    );
 
     return str;
   };
 
-  result = result
+  return text
     .split("\n")
-    .map((line) => {
-      line = line.trim();
-      if (!line) return "<br>";
-      if (line.startsWith("### "))
-        return `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
-      if (line.startsWith("## ")) return `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
-      if (line.startsWith("# ")) return `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
-      if (line.startsWith("- ") || line.startsWith("* ")) {
-        return `<li class="ml-4 list-disc">${processInline(line.slice(2))}</li>`;
+    .map((rawLine) => {
+      const line = rawLine.trim();
+
+      if (!line) {
+        return '<div class="h-2"></div>';
       }
+
+      if (line.startsWith("### ")) {
+        return `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
+      }
+
+      if (line.startsWith("## ")) {
+        return `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
+      }
+
+      if (line.startsWith("# ")) {
+        return `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
+      }
+
+      if (line.startsWith("- ") || line.startsWith("* ")) {
+        return `<div class="flex gap-2 ml-2 mb-1">
+          <span class="opacity-50">•</span>
+          <span>${processInline(line.slice(2))}</span>
+        </div>`;
+      }
+
       return `<p class="mb-2">${processInline(line)}</p>`;
     })
     .join("");
-
-  return result;
 };
 
-/* ---------- 2️⃣ Fade helper ---------- */
-function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
-  const [visible, setVisible] = useState(show);
-  useEffect(() => {
-    if (show) setVisible(true);
-    else {
-      const t = setTimeout(() => setVisible(false), duration);
-      return () => clearTimeout(t);
-    }
-  }, [show, duration]);
+/* ==========================================================================
+   SMOOTH BAR WAVEFORM
+   ========================================================================== */
 
-  if (!visible && !show) return null;
-  return (
-    <div
-      className={`transition-opacity ${show ? "opacity-100" : "opacity-0"}`}
-      style={{ transitionDuration: `${duration}ms` }}
-    >
-      {children}
-    </div>
-  );
+interface BarWaveformProps {
+  analyser: AnalyserNode | null;
+  isActive: boolean;
 }
 
-/* ---------- 3️⃣ Smooth Reactive Waveform (Zero Layout Thrashing) ---------- */
-const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animFrameRef = useRef<number>(0);
+const BarWaveform: React.FC<BarWaveformProps> = ({ analyser, isActive }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const dimsRef = useRef({ width: 0, height: 0, dpr: 1 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const frameRef = useRef<number | null>(null);
+
+  const dimensionsRef = useRef({
+    width: 0,
+    height: 0,
+    dpr: 1,
+  });
+
+  const smoothedValuesRef = useRef<number[]>([]);
+
+  /* ------------------------------------------------------------------------
+     Canvas sizing
+     ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    if (!containerRef.current || !canvasRef.current) return;
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
 
-    const updateSize = () => {
-      if (!containerRef.current || !canvasRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      dimsRef.current = { width: rect.width, height: rect.height, dpr };
+    if (!container || !canvas) return;
 
-      canvasRef.current.width = rect.width * dpr;
-      canvasRef.current.height = rect.height * dpr;
-      canvasRef.current.style.width = `${rect.width}px`;
-      canvasRef.current.style.height = `${rect.height}px`;
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      dimensionsRef.current = {
+        width: rect.width,
+        height: rect.height,
+        dpr,
+      };
+
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
     };
 
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(containerRef.current);
+    resize();
+
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
+
     return () => observer.disconnect();
-  }, [isActive]);
+  }, []);
+
+  /* ------------------------------------------------------------------------
+     Animation
+     ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    if (!isActive || !canvasRef.current) return;
+    if (!isActive) {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+
+      return;
+    }
 
     const canvas = canvasRef.current;
+
+    if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
+
     if (!ctx) return;
 
-    const bufferLength = analyser ? analyser.frequencyBinCount : 0;
-    const dataArray = analyser ? new Uint8Array(bufferLength) : null;
-
-    const BAR_WIDTH = 2.5;
-    const BAR_GAP = 2.5;
-    const MIN_HEIGHT = 3;
+    const frequencyData = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
 
     const draw = () => {
-      animFrameRef.current = requestAnimationFrame(draw);
-      const { width, height, dpr } = dimsRef.current;
-      if (width === 0 || height === 0) return;
+      frameRef.current = requestAnimationFrame(draw);
 
-      if (analyser && dataArray) {
-        analyser.getByteFrequencyData(dataArray);
+      const { width, height, dpr } = dimensionsRef.current;
+
+      if (!width || !height) return;
+
+      if (analyser && frequencyData) {
+        analyser.getByteFrequencyData(frequencyData);
+      }
+
+      const barWidth = 2.2;
+      const gap = 2.7;
+
+      const count = Math.max(12, Math.floor(width / (barWidth + gap)));
+
+      if (smoothedValuesRef.current.length !== count) {
+        smoothedValuesRef.current = Array.from({ length: count }, () => 0);
       }
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
-      const barCount = Math.max(10, Math.floor(width / (BAR_WIDTH + BAR_GAP)));
+      for (let i = 0; i < count; i++) {
+        let target = 0;
 
-      for (let i = 0; i < barCount; i++) {
-        let value = 0;
-        if (analyser && dataArray) {
-          const dataIndex = Math.floor((i / barCount) * (bufferLength * 0.7));
-          value = dataArray[dataIndex] / 255;
+        if (analyser && frequencyData) {
+          /*
+           * Ignore the very top end of the frequency spectrum.
+           * This produces a much calmer waveform.
+           */
+          const index = Math.floor((i / count) * Math.min(frequencyData.length * 0.65, frequencyData.length - 1));
+
+          target = frequencyData[index] / 255;
+
+          /*
+           * Give the center of the waveform slightly more energy.
+           */
+          const centerDistance = Math.abs(i / count - 0.5);
+
+          target *= 1 - centerDistance * 0.35;
         }
 
-        const barHeight = Math.max(MIN_HEIGHT, value * (height * 0.85));
-        const x = i * (BAR_WIDTH + BAR_GAP);
+        /*
+         * Critically damped-ish smoothing.
+         *
+         * Attack is slightly faster than release, which makes the
+         * waveform feel alive without becoming twitchy.
+         */
+        const previous = smoothedValuesRef.current[i] ?? 0;
+
+        const smoothing = target > previous ? 0.18 : 0.075;
+
+        const next = previous + (target - previous) * smoothing;
+
+        smoothedValuesRef.current[i] = next;
+
+        const idleBreath = !analyser ? 0.12 + Math.sin(performance.now() * 0.0015 + i * 0.45) * 0.035 : 0;
+
+        const value = Math.max(next, idleBreath);
+
+        const minHeight = 2.5;
+
+        const maxHeight = height * 0.78;
+
+        const barHeight = Math.max(minHeight, value * maxHeight);
+
+        const x = i * (barWidth + gap);
+
         const y = (height - barHeight) / 2;
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + value * 0.5})`;
+        const alpha = 0.26 + value * 0.55;
+
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+
         ctx.beginPath();
-        ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1);
+
+        ctx.roundRect(x, y, barWidth, barHeight, 2);
+
         ctx.fill();
       }
     };
@@ -152,203 +261,519 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
     draw();
 
     return () => {
-      cancelAnimationFrame(animFrameRef.current);
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
     };
   }, [analyser, isActive]);
 
   if (!isActive) return null;
 
   return (
-    <div ref={containerRef} className="flex-1 h-8 min-w-0">
-      <canvas ref={canvasRef} className="pointer-events-none w-full h-full" />
+    <div ref={containerRef} className="flex-1 min-w-0 h-8 overflow-hidden">
+      <canvas ref={canvasRef} className="block w-full h-full pointer-events-none" />
     </div>
   );
 };
 
-/* ---------- 3️⃣b Timer Component ---------- */
-const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
-  const [seconds, setSeconds] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+/* ==========================================================================
+   RECORDING TIMER
+   ========================================================================== */
+
+const RecordingTimer: React.FC<{
+  isActive: boolean;
+}> = ({ isActive }) => {
+  const startedAtRef = useRef<number | null>(null);
+
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (isActive) {
-      setSeconds(0);
-      intervalRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+    if (!isActive) {
+      startedAtRef.current = null;
+      setElapsed(0);
+      return;
     }
+
+    startedAtRef.current = performance.now();
+
+    const update = () => {
+      if (startedAtRef.current === null) return;
+
+      setElapsed(Math.floor((performance.now() - startedAtRef.current) / 1000));
+    };
+
+    update();
+
+    const interval = window.setInterval(update, 250);
+
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      window.clearInterval(interval);
     };
   }, [isActive]);
 
   if (!isActive) return null;
 
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  const minutes = Math.floor(elapsed / 60);
+
+  const seconds = elapsed % 60;
 
   return (
-    <span className="text-sm font-mono text-white/70 tabular-nums shrink-0">
-      {mins}:{secs.toString().padStart(2, "0")}
+    <span className="shrink-0 text-sm font-mono tabular-nums text-white/65">
+      {minutes}:{seconds.toString().padStart(2, "0")}
     </span>
   );
 };
 
-/* ---------- 4️⃣ SearchBar component ---------- */
+/* ==========================================================================
+   SEARCH BAR
+   ========================================================================== */
+
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  const STORAGE_KEY = "searchbar_state";
+  /* ========================================================================
+     PERSISTENCE
+     ======================================================================== */
 
-  /* ----- Load persisted state ----- */
-  const loadPersistedState = useCallback(() => {
-    try {
-      const isPageRefresh =
-        (window.performance as any)?.navigation?.type === 1 ||
-        (window.performance?.getEntriesByType("navigation")?.[0] as any)?.type === "reload";
-
-      if (isPageRefresh) {
-        localStorage.removeItem(STORAGE_KEY);
-        return {
-          response: null,
-          suggestions: [],
-          hasInteracted: false,
-          showExpandedSuggestions: false,
-          lastActivityTime: Date.now(),
-        };
-      }
-
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          response: parsed.response || null,
-          suggestions: parsed.suggestions || [],
-          hasInteracted: parsed.hasInteracted || false,
-          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
-          lastActivityTime: parsed.lastActivityTime || Date.now(),
-        };
-      }
-    } catch (error) {
-      console.warn("Failed to load persisted search state:", error);
-    }
-    return {
+  const getInitialState = useCallback((): PersistedState => {
+    const emptyState: PersistedState = {
       response: null,
       suggestions: [],
       hasInteracted: false,
       showExpandedSuggestions: false,
       lastActivityTime: Date.now(),
     };
+
+    try {
+      const navigationEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+
+      const isRefresh = navigationEntry?.type === "reload";
+
+      if (isRefresh) {
+        localStorage.removeItem(STORAGE_KEY);
+        return emptyState;
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY);
+
+      if (!saved) return emptyState;
+
+      const parsed = JSON.parse(saved);
+
+      return {
+        response: parsed.response ?? null,
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+        hasInteracted: Boolean(parsed.hasInteracted),
+        showExpandedSuggestions: Boolean(parsed.showExpandedSuggestions),
+        lastActivityTime: parsed.lastActivityTime ?? Date.now(),
+      };
+    } catch {
+      return emptyState;
+    }
   }, []);
 
-  const saveState = useCallback(
-    (state: {
-      response: string | null;
-      suggestions: string[];
-      hasInteracted: boolean;
-      showExpandedSuggestions: boolean;
-      lastActivityTime: number;
-    }) => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (error) {
-        console.warn("Failed to save search state:", error);
-      }
-    },
-    [],
-  );
+  const initialState = useMemo(() => getInitialState(), [getInitialState]);
 
-  const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
+  const saveState = useCallback((state: PersistedState) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      /* Ignore storage errors */
+    }
+  }, []);
 
-  /* ----- UI state ----- */
+  const clearPersistedState = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* Ignore */
+    }
+  }, []);
+
+  /* ========================================================================
+     BASIC STATE
+     ======================================================================== */
+
   const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(persistedState.response);
-  const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
 
-  const [showTypewriter, setShowTypewriter] = useState(false);
-  const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
-  const [fullText, setFullText] = useState("");
-  const suggestionIndexRef = useRef(0);
-  const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
-  const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
-  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [response, setResponse] = useState<string | null>(initialState.response);
+
+  const [suggestions, setSuggestions] = useState<string[]>(initialState.suggestions);
+
+  const [hasInteracted, setHasInteracted] = useState(initialState.hasInteracted);
+
+  const [lastActivityTime, setLastActivityTime] = useState(initialState.lastActivityTime);
+
+  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(initialState.showExpandedSuggestions);
+
+  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(Boolean(initialState.response));
+
+  /* ========================================================================
+     ANIMATION STATE
+     ======================================================================== */
+
   const [isCollapsing, setIsCollapsing] = useState(false);
-  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
+
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
 
-  /* ----- Continuous Voice Session State ----- */
+  const [showTypewriter, setShowTypewriter] = useState(false);
+
+  const [suggestionPhase, setSuggestionPhase] = useState<SuggestionPhase>("hidden");
+
+  const [activeSuggestion, setActiveSuggestion] = useState("");
+
+  const suggestionIndexRef = useRef(0);
+
+  const suggestionAnimationTimerRef = useRef<number | null>(null);
+
+  /* ========================================================================
+     VOICE STATE
+     ======================================================================== */
+
   const [isVoiceSession, setIsVoiceSession] = useState(false);
+
   const [isListening, setIsListening] = useState(false);
+
   const [isSpeaking, setIsSpeaking] = useState(false);
+
   const isVoiceSessionRef = useRef(false);
-  isVoiceSessionRef.current = isVoiceSession;
 
-  /* ----- Rotating placeholder state ----- */
+  const isLoadingRef = useRef(false);
+
+  const isSpeakingRef = useRef(false);
+
+  useEffect(() => {
+    isVoiceSessionRef.current = isVoiceSession;
+  }, [isVoiceSession]);
+
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
+
+  /* ========================================================================
+     PLACEHOLDER
+     ======================================================================== */
+
   const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to talk with GDx"], []);
-  const [placeholderText, setPlaceholderText] = useState(placeholderTexts[0]);
-  const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
-  const [placeholderTarget, setPlaceholderTarget] = useState(0);
 
-  /* ----- Audio/waveform refs ----- */
+  const [placeholderText, setPlaceholderText] = useState(placeholderTexts[0]);
+
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+  const [placeholderMode, setPlaceholderMode] = useState<"typing" | "waiting" | "deleting">("waiting");
+
+  /* ========================================================================
+     AUDIO
+     ======================================================================== */
+
   const audioContextRef = useRef<AudioContext | null>(null);
+
   const analyserRef = useRef<AnalyserNode | null>(null);
+
+  const analyserDestinationConnectedRef = useRef(false);
+
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
-  const recognitionRef = useRef<any>(null);
+
   const micStreamRef = useRef<MediaStream | null>(null);
-  const transcriptRef = useRef<string>("");
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+  const recognitionRef = useRef<any>(null);
+
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+
   const speakTokenRef = useRef(0);
 
-  /* ----- Hold-to-speak refs ----- */
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const transcriptRef = useRef("");
+
+  const silenceTimerRef = useRef<number | null>(null);
+
+  /* ========================================================================
+     HOLD TO SPEAK
+     ======================================================================== */
+
+  const holdTimerRef = useRef<number | null>(null);
+
   const isHoldingRef = useRef(false);
+
   const searchBarRef = useRef<HTMLDivElement>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
+
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
 
-  // Save state to localStorage
+  /* ========================================================================
+     SAVE STATE
+     ======================================================================== */
+
   useEffect(() => {
-    const stateToSave = {
+    saveState({
       response,
       suggestions,
       hasInteracted,
       showExpandedSuggestions,
       lastActivityTime,
-    };
-    saveState(stateToSave);
+    });
   }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime, saveState]);
 
-  const clearPersistedState = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.warn("Failed to clear persisted search state:", error);
-    }
-  }, []);
+  /* ========================================================================
+     AUDIO CONTEXT
+     ======================================================================== */
 
-  /* ----- Lazy AudioContext initialization ----- */
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioCtx();
-      const analyser = ctx.createAnalyser();
+      const AudioContextClass =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+
+      if (!AudioContextClass) {
+        throw new Error("Web Audio API is not supported.");
+      }
+
+      const context = new AudioContextClass();
+
+      const analyser = context.createAnalyser();
+
       analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
-      audioContextRef.current = ctx;
+
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -10;
+
+      analyser.smoothingTimeConstant = 0.86;
+
+      audioContextRef.current = context;
+
       analyserRef.current = analyser;
+
       setAnalyserNode(analyser);
     }
-    if (audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
+
+    const context = audioContextRef.current;
+
+    if (context.state === "suspended") {
+      void context.resume();
     }
-    return { ctx: audioContextRef.current, analyser: analyserRef.current! };
+
+    const analyser = analyserRef.current;
+
+    if (!analyser) {
+      throw new Error("Analyser initialization failed.");
+    }
+
+    /*
+     * The analyser should only be connected to the output once.
+     */
+    if (!analyserDestinationConnectedRef.current) {
+      analyser.connect(context.destination);
+
+      analyserDestinationConnectedRef.current = true;
+    }
+
+    return {
+      ctx: context,
+      analyser,
+    };
   }, []);
 
-  /* ----- Typewriter suggestions ----- */
+  /* ========================================================================
+     PLACEHOLDER ANIMATION
+     ======================================================================== */
+
+  useEffect(() => {
+    if (isLoading || isListening || isVoiceSession || query) {
+      return;
+    }
+
+    const target = placeholderTexts[placeholderIndex];
+
+    if (placeholderMode === "waiting") {
+      const timer = window.setTimeout(() => {
+        setPlaceholderMode("deleting");
+      }, 2600);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    if (placeholderMode === "deleting") {
+      if (placeholderText.length === 0) {
+        setPlaceholderIndex((index) => (index + 1) % placeholderTexts.length);
+
+        setPlaceholderMode("typing");
+
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        setPlaceholderText((value) => value.slice(0, -1));
+      }, 28);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    if (placeholderMode === "typing") {
+      if (placeholderText === target) {
+        setPlaceholderMode("waiting");
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        setPlaceholderText(target.slice(0, placeholderText.length + 1));
+      }, 42);
+
+      return () => window.clearTimeout(timer);
+    }
+  }, [
+    placeholderText,
+    placeholderMode,
+    placeholderIndex,
+    placeholderTexts,
+    isLoading,
+    isListening,
+    isVoiceSession,
+    query,
+  ]);
+
+  /* ========================================================================
+     ACTIVITY
+     ======================================================================== */
+
+  const activityTimerRef = useRef<number | null>(null);
+
+  const markActivity = useCallback((immediate = false) => {
+    if (activityTimerRef.current !== null) {
+      window.clearTimeout(activityTimerRef.current);
+    }
+
+    if (immediate) {
+      setLastActivityTime(Date.now());
+      return;
+    }
+
+    activityTimerRef.current = window.setTimeout(() => {
+      setLastActivityTime(Date.now());
+    }, 120);
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = () => markActivity();
+
+    const onInteraction = () => markActivity(true);
+
+    window.addEventListener("mousemove", onMouseMove);
+
+    window.addEventListener("keypress", onInteraction);
+
+    window.addEventListener("click", onInteraction);
+
+    window.addEventListener("scroll", onInteraction);
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+
+      window.removeEventListener("keypress", onInteraction);
+
+      window.removeEventListener("click", onInteraction);
+
+      window.removeEventListener("scroll", onInteraction);
+
+      if (activityTimerRef.current !== null) {
+        window.clearTimeout(activityTimerRef.current);
+      }
+    };
+  }, [markActivity]);
+
+  /* ========================================================================
+     FIRST VISIT INTRO
+     ======================================================================== */
+
+  useEffect(() => {
+    try {
+      const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
+
+      if (!isFirstVisit || response || suggestions.length || isLoading) {
+        return;
+      }
+
+      localStorage.setItem(FIRST_VISIT_KEY, "true");
+
+      const timer = window.setTimeout(() => {
+        handleSubmitRef.current?.(undefined, "introduce the website to the new user", false);
+      }, 1500);
+
+      return () => window.clearTimeout(timer);
+    } catch {
+      return;
+    }
+  }, []);
+
+  /* ========================================================================
+     TYPEWRITER TRIGGER
+     ======================================================================== */
+
+  useEffect(() => {
+    if (response || suggestions.length || isVoiceSession) {
+      setShowTypewriter(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!hasInteracted) {
+        setShowTypewriter(true);
+      }
+    }, 10000);
+
+    return () => window.clearTimeout(timer);
+  }, [hasInteracted, response, suggestions.length, isVoiceSession]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const idle = Date.now() - lastActivityTime;
+
+      if (response || suggestions.length || isVoiceSession) {
+        return;
+      }
+
+      if (idle > 10000 && hasInteracted && !isLoading) {
+        setShowTypewriter(true);
+      }
+    }, 1500);
+
+    return () => window.clearInterval(timer);
+  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions.length, isVoiceSession]);
+
+  /* ========================================================================
+     EXPANDED SUGGESTIONS
+     ======================================================================== */
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const idle = Date.now() - lastActivityTime;
+
+      const shouldShow = Boolean(response || suggestions.length) && !isLoading && !isVoiceSession && idle > 10000;
+
+      setShowExpandedSuggestions(shouldShow);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [lastActivityTime, response, suggestions.length, isLoading, isVoiceSession]);
+
+  /* ========================================================================
+     ROTATING SUGGESTION
+     ======================================================================== */
+
   const rotatingSuggestions = useMemo(
     () => [
       "✨ Tell me about Gaurav's Experience",
@@ -384,201 +809,151 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [],
   );
 
-  /* ----- Rotating placeholder effect ----- */
-  useEffect(() => {
-    if (isLoading || isListening || isVoiceSession || query) return;
-
-    const currentTarget = placeholderTexts[placeholderTarget];
-
-    if (placeholderPhase === "pause") {
-      const t = setTimeout(() => setPlaceholderPhase("deleting"), 2500);
-      return () => clearTimeout(t);
-    }
-
-    if (placeholderPhase === "deleting") {
-      if (placeholderText.length === 0) {
-        setPlaceholderTarget((prev) => (prev + 1) % placeholderTexts.length);
-        setPlaceholderPhase("typing");
-        return;
-      }
-      const t = setTimeout(() => setPlaceholderText((p) => p.slice(0, -1)), 30);
-      return () => clearTimeout(t);
-    }
-
-    if (placeholderPhase === "typing") {
-      if (placeholderText === currentTarget) {
-        setPlaceholderPhase("pause");
-        return;
-      }
-      const t = setTimeout(() => setPlaceholderText(currentTarget.slice(0, placeholderText.length + 1)), 50);
-      return () => clearTimeout(t);
-    }
-  }, [
-    placeholderText,
-    placeholderPhase,
-    placeholderTarget,
-    placeholderTexts,
-    isLoading,
-    isListening,
-    isVoiceSession,
-    query,
-  ]);
-
-  /* ----- Activity tracking ----- */
-  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
-
-  const debouncedSetActivity = useCallback(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    debounceTimeoutRef.current = setTimeout(() => {
-      setLastActivityTime(Date.now());
-    }, 100);
-  }, []);
-
-  useEffect(() => {
-    const handleMouseMove = debouncedSetActivity;
-    const handleImmediate = () => setLastActivityTime(Date.now());
-
-    window.addEventListener("mousemove", handleMouseMove);
-    ["keypress", "click", "scroll"].forEach((e) => window.addEventListener(e, handleImmediate));
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      ["keypress", "click", "scroll"].forEach((e) => window.removeEventListener(e, handleImmediate));
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, [debouncedSetActivity]);
-
-  /* ----- Auto-submit intro for first-time users ----- */
-  useEffect(() => {
-    const FIRST_VISIT_KEY = "gd_ai_first_visit";
-    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
-
-    if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
-      localStorage.setItem(FIRST_VISIT_KEY, "true");
-      const timer = setTimeout(() => {
-        handleSubmit(undefined, "introduce the website to the new user", false);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  /* ----- Show typewriter after 10s inactivity ----- */
-  useEffect(() => {
-    if (response || suggestions.length > 0 || isVoiceSession) return;
-    const timer = setTimeout(() => {
-      if (!hasInteracted) setShowTypewriter(true);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [hasInteracted, response, suggestions, isVoiceSession]);
-
-  /* ----- Re-show typewriter after inactivity ----- */
-  useEffect(() => {
-    const idleTimer = setInterval(() => {
-      const idle = Date.now() - lastActivityTime;
-      if (response || suggestions.length > 0 || isVoiceSession) return;
-      if (idle > 10000 && hasInteracted && !isLoading) {
-        setShowTypewriter(true);
-      }
-    }, 2000);
-    return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions, isVoiceSession]);
-
-  /* Delay expanded suggestions until 10s inactivity */
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const idle = Date.now() - lastActivityTime;
-      const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000 && !isVoiceSession;
-      setShowExpandedSuggestions(shouldShow);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [lastActivityTime, response, suggestions, isLoading, isVoiceSession]);
-
-  /* ----- Suggestion emerge/retreat cycle ----- */
   useEffect(() => {
     if (!showTypewriter || isVoiceSession) {
       setSuggestionPhase("hidden");
       return;
     }
 
-    if (!fullText) {
-      setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+    if (suggestionAnimationTimerRef.current !== null) {
+      window.clearTimeout(suggestionAnimationTimerRef.current);
     }
-    setSuggestionPhase("emerging");
 
-    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 800);
+    const showNext = () => {
+      const next = rotatingSuggestions[suggestionIndexRef.current % rotatingSuggestions.length];
 
-    const interval = setInterval(() => {
-      setSuggestionPhase("retreating");
+      setActiveSuggestion(next);
+      setSuggestionPhase("entering");
 
-      setTimeout(() => {
-        suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
-        setFullText(rotatingSuggestions[suggestionIndexRef.current]);
-        setSuggestionPhase("emerging");
+      suggestionAnimationTimerRef.current = window.setTimeout(() => {
+        setSuggestionPhase("visible");
 
-        setTimeout(() => setSuggestionPhase("visible"), 800);
-      }, 700);
-    }, 5500);
+        suggestionAnimationTimerRef.current = window.setTimeout(() => {
+          setSuggestionPhase("exiting");
+
+          suggestionAnimationTimerRef.current = window.setTimeout(() => {
+            suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
+
+            showNext();
+          }, 650);
+        }, 3900);
+      }, 650);
+    };
+
+    showNext();
 
     return () => {
-      clearInterval(interval);
-      clearTimeout(emergeTimer);
+      if (suggestionAnimationTimerRef.current !== null) {
+        window.clearTimeout(suggestionAnimationTimerRef.current);
+      }
     };
-  }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession]);
+  }, [showTypewriter, isVoiceSession, rotatingSuggestions]);
 
-  /* ----- Stop Audio & Exit Voice Mode ----- */
+  /* ========================================================================
+     STOP AUDIO
+     ======================================================================== */
+
   const stopAudioOnly = useCallback(() => {
     speakTokenRef.current += 1;
-    if (currentSourceNodeRef.current) {
+
+    const source = currentSourceNodeRef.current;
+
+    if (source) {
       try {
-        currentSourceNodeRef.current.stop();
-        currentSourceNodeRef.current.disconnect();
-      } catch (e) {
-        /* noop */
+        source.onended = null;
+        source.stop();
+      } catch {
+        /* Already stopped */
       }
+
+      try {
+        source.disconnect();
+      } catch {
+        /* Already disconnected */
+      }
+
       currentSourceNodeRef.current = null;
     }
+
     setIsSpeaking(false);
   }, []);
 
+  /* ========================================================================
+     STOP VOICE
+     ======================================================================== */
+
   const stopVoiceSession = useCallback(() => {
-    setIsVoiceSession(false);
     isVoiceSessionRef.current = false;
+
+    setIsVoiceSession(false);
+
     stopAudioOnly();
 
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
+    if (silenceTimerRef.current !== null) {
+      window.clearTimeout(silenceTimerRef.current);
+
       silenceTimerRef.current = null;
     }
 
-    if (recognitionRef.current) {
+    const recognition = recognitionRef.current;
+
+    if (recognition) {
+      recognition.onend = null;
+      recognition.onerror = null;
+      recognition.onresult = null;
+
       try {
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.stop();
-      } catch (e) {
+        recognition.stop();
+      } catch {
         /* noop */
       }
+
       recognitionRef.current = null;
     }
 
     if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+
       micStreamRef.current = null;
     }
 
+    if (micSourceRef.current) {
+      try {
+        micSourceRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+
+      micSourceRef.current = null;
+    }
+
     setIsListening(false);
+
+    transcriptRef.current = "";
   }, [stopAudioOnly]);
 
-  /* ----- Reactive Voice Playback via Web Audio ----- */
+  /* ========================================================================
+     VOICE RESPONSE
+     ======================================================================== */
+
   const speakVoiceResponse = useCallback(
     async (raw: string) => {
       stopAudioOnly();
-      const token = ++speakTokenRef.current;
-      const { ctx, analyser } = getAudioContext();
+
+      const token = speakTokenRef.current;
+
+      if (!isVoiceSessionRef.current) {
+        return;
+      }
+
+      let ctx: AudioContext;
+      let analyser: AnalyserNode;
+
+      try {
+        ({ ctx, analyser } = getAudioContext());
+      } catch {
+        return;
+      }
 
       const clean = raw
         .replace(/```[\s\S]*?```/g, " ")
@@ -596,15 +971,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .trim();
 
       if (!clean) {
-        if (isVoiceSessionRef.current) startListeningContinuous();
         return;
       }
 
-      const sentences = (clean.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [clean]).map((s) => s.trim()).filter(Boolean);
+      const sentences = clean
+        .match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g)
+        ?.map((sentence) => sentence.trim())
+        .filter(Boolean) ?? [clean];
 
       setIsSpeaking(true);
 
-      const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
+      const fetchAudio = async (sentence: string): Promise<AudioBuffer | null> => {
         try {
           const res = await fetch(TTS_ENDPOINT, {
             method: "POST",
@@ -613,254 +990,425 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
               apikey: SUPABASE_ANON_KEY,
             },
-            body: JSON.stringify({ text: sentence }),
+            body: JSON.stringify({
+              text: sentence,
+            }),
           });
-          if (!res.ok) throw new Error(`TTS status ${res.status}`);
-          const arrayBuffer = await res.arrayBuffer();
-          return await ctx.decodeAudioData(arrayBuffer);
-        } catch (err) {
-          console.warn("TTS error:", err);
+
+          if (!res.ok) {
+            throw new Error(`TTS ${res.status}`);
+          }
+
+          const buffer = await res.arrayBuffer();
+
+          return await ctx.decodeAudioData(buffer);
+        } catch (error) {
+          console.warn("TTS error:", error);
+
           return null;
         }
       };
 
-      const bufferPromises = sentences.map((s) => fetchAudioBuffer(s));
+      /*
+       * Prefetch all sentences concurrently.
+       */
+      const buffers = Promise.all(sentences.map(fetchAudio));
 
       try {
-        for (let i = 0; i < sentences.length; i++) {
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return;
+        const decoded = await buffers;
 
-          const buffer = await bufferPromises[i];
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current || !buffer) continue;
+        for (let i = 0; i < decoded.length; i++) {
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+            return;
+          }
+
+          const audio = decoded[i];
+
+          if (!audio) continue;
 
           await new Promise<void>((resolve) => {
+            if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+              resolve();
+              return;
+            }
+
             const source = ctx.createBufferSource();
-            source.buffer = buffer;
-            source.playbackRate.value = 1.06;
+
+            source.buffer = audio;
+
+            source.playbackRate.value = 1.045;
+
             source.connect(analyser);
-            analyser.connect(ctx.destination);
+
             currentSourceNodeRef.current = source;
 
             source.onended = () => {
               if (currentSourceNodeRef.current === source) {
                 currentSourceNodeRef.current = null;
               }
+
+              try {
+                source.disconnect();
+              } catch {
+                /* noop */
+              }
+
               resolve();
             };
 
-            source.start(0);
+            source.start();
           });
         }
       } finally {
         if (token === speakTokenRef.current) {
           setIsSpeaking(false);
-          if (isVoiceSessionRef.current) {
-            startListeningContinuous();
-          }
         }
       }
     },
     [getAudioContext, stopAudioOnly],
   );
 
-  /* ----- Continuous Speech Recognition Loop ----- */
-  const startListeningContinuous = useCallback(async () => {
-    if (!isVoiceSessionRef.current) return;
+  /* ========================================================================
+     START LISTENING
+     ======================================================================== */
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const startListeningContinuous = useCallback(async () => {
+    if (!isVoiceSessionRef.current || isLoadingRef.current || isSpeakingRef.current) {
+      return;
+    }
+
+    const SpeechRecognition =
+      (
+        window as typeof window & {
+          SpeechRecognition?: any;
+          webkitSpeechRecognition?: any;
+        }
+      ).SpeechRecognition ||
+      (
+        window as typeof window & {
+          SpeechRecognition?: any;
+          webkitSpeechRecognition?: any;
+        }
+      ).webkitSpeechRecognition;
+
     if (!SpeechRecognition) {
-      console.warn("Speech recognition not supported");
+      console.warn("Speech recognition is not supported.");
+
       stopVoiceSession();
+
       return;
     }
 
     try {
       const { ctx, analyser } = getAudioContext();
+
       if (!micStreamRef.current) {
         micStreamRef.current = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
         });
-        const source = ctx.createMediaStreamSource(micStreamRef.current);
-        source.connect(analyser);
+
+        micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
+
+        /*
+         * IMPORTANT:
+         * We intentionally don't connect this source
+         * directly to destination.
+         *
+         * It only feeds the analyser.
+         */
+        micSourceRef.current.connect(analyser);
       }
-    } catch (e) {
-      console.warn("Mic stream warning:", e);
+    } catch (error) {
+      console.warn("Microphone initialization failed:", error);
+
+      stopVoiceSession();
+
+      return;
     }
 
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {
+      } catch {
         /* noop */
       }
     }
 
     const recognition = new SpeechRecognition();
+
     recognition.lang = "en-US";
     recognition.interimResults = true;
     recognition.continuous = true;
+    recognition.maxAlternatives = 1;
+
     recognitionRef.current = recognition;
 
     recognition.onstart = () => {
-      setIsListening(true);
+      if (!isVoiceSessionRef.current) {
+        return;
+      }
+
       transcriptRef.current = "";
+
+      setIsListening(true);
     };
 
-    const triggerSubmit = () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      const text = transcriptRef.current.trim();
-      if (text) {
-        recognition.stop();
-        setIsListening(false);
-        handleSubmitRef.current?.(undefined, text, true);
+    const submitTranscript = () => {
+      if (silenceTimerRef.current !== null) {
+        window.clearTimeout(silenceTimerRef.current);
+
+        silenceTimerRef.current = null;
       }
+
+      const text = transcriptRef.current.trim();
+
+      if (!text) return;
+
+      try {
+        recognition.stop();
+      } catch {
+        /* noop */
+      }
+
+      setIsListening(false);
+
+      handleSubmitRef.current?.(undefined, text, true);
     };
 
     recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
-        .join("");
+      let transcript = "";
+
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+
       transcriptRef.current = transcript;
 
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = setTimeout(() => {
-        triggerSubmit();
-      }, 1400);
+      if (silenceTimerRef.current !== null) {
+        window.clearTimeout(silenceTimerRef.current);
+      }
+
+      /*
+       * Slightly longer than the original.
+       * This prevents natural pauses from cutting
+       * the user off too aggressively.
+       */
+      silenceTimerRef.current = window.setTimeout(submitTranscript, 1550);
     };
 
-    recognition.onerror = (e: any) => {
-      if (e.error !== "no-speech") {
-        console.warn("Speech error:", e.error);
+    recognition.onerror = (event: any) => {
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        console.warn("Speech recognition:", event.error);
       }
     };
 
     recognition.onend = () => {
-      if (isVoiceSessionRef.current && !isLoading && !isSpeaking) {
-        const text = transcriptRef.current.trim();
-        if (text) {
-          triggerSubmit();
-        } else {
+      if (recognitionRef.current !== recognition) {
+        return;
+      }
+
+      if (!isVoiceSessionRef.current) {
+        return;
+      }
+
+      if (isLoadingRef.current || isSpeakingRef.current) {
+        return;
+      }
+
+      const text = transcriptRef.current.trim();
+
+      if (text) {
+        submitTranscript();
+        return;
+      }
+
+      /*
+       * Browser speech recognition can stop
+       * automatically even with continuous=true.
+       *
+       * Restart gently.
+       */
+      window.setTimeout(() => {
+        if (
+          isVoiceSessionRef.current &&
+          !isLoadingRef.current &&
+          !isSpeakingRef.current &&
+          recognitionRef.current === recognition
+        ) {
           try {
             recognition.start();
-          } catch (e) {
-            /* noop */
+          } catch {
+            /* Already running */
           }
         }
-      }
+      }, 120);
     };
 
     try {
       recognition.start();
-    } catch (e) {
-      /* noop */
+    } catch {
+      /* Already started */
     }
-  }, [getAudioContext, isLoading, isSpeaking, stopVoiceSession]);
+  }, [getAudioContext, stopVoiceSession]);
 
-  /* ----- Hold-to-speak trigger ----- */
+  /* ========================================================================
+     HOLD TO SPEAK
+     ======================================================================== */
+
   const startHold = useCallback(() => {
-    if (isLoading) return;
-    getAudioContext();
+    if (isLoading || isVoiceSession) {
+      return;
+    }
+
+    try {
+      getAudioContext();
+    } catch {
+      return;
+    }
+
     isHoldingRef.current = true;
 
-    holdTimerRef.current = setTimeout(() => {
-      if (isHoldingRef.current) {
-        setIsVoiceSession(true);
-        isVoiceSessionRef.current = true;
-        setResponse(null);
-        setSuggestions([]);
-        setShowTypewriter(false);
-        setHasInteracted(true);
-        startListeningContinuous();
+    if (holdTimerRef.current !== null) {
+      window.clearTimeout(holdTimerRef.current);
+    }
+
+    holdTimerRef.current = window.setTimeout(() => {
+      if (!isHoldingRef.current) {
+        return;
       }
-    }, 350);
-  }, [getAudioContext, isLoading, startListeningContinuous]);
+
+      isVoiceSessionRef.current = true;
+
+      setIsVoiceSession(true);
+
+      setResponse(null);
+      setSuggestions([]);
+
+      setShowTypewriter(false);
+      setShowExpandedSuggestions(false);
+
+      setHasInteracted(true);
+
+      void startListeningContinuous();
+    }, 320);
+  }, [getAudioContext, isLoading, isVoiceSession, startListeningContinuous]);
 
   const handleHoldStart = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      e.preventDefault();
+    (event: React.MouseEvent | React.TouchEvent) => {
+      event.preventDefault();
+
       startHold();
     },
     [startHold],
   );
 
   const handleHoldEnd = useCallback(
-    (e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
-      e?.preventDefault?.();
+    (event?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
+      event?.preventDefault?.();
+
       const wasHolding = isHoldingRef.current;
+
       isHoldingRef.current = false;
-      if (holdTimerRef.current) {
-        clearTimeout(holdTimerRef.current);
+
+      if (holdTimerRef.current !== null) {
+        window.clearTimeout(holdTimerRef.current);
+
         holdTimerRef.current = null;
       }
-      if (!isVoiceSession && wasHolding && query.trim()) {
+
+      /*
+       * If the user only clicked instead of holding,
+       * submit the typed query.
+       */
+      if (!isVoiceSessionRef.current && wasHolding && query.trim()) {
         handleSubmitRef.current?.(undefined, undefined, false);
       }
     },
-    [isVoiceSession, query],
+    [query],
   );
 
-  /* ----- Desktop: hold Shift to speak ----- */
+  /* ========================================================================
+     SHIFT KEY
+     ======================================================================== */
+
   useEffect(() => {
-    const handleShiftDown = (e: KeyboardEvent) => {
-      if (e.key !== "Shift" || isListening || isLoading || isVoiceSession) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Shift" || event.repeat || isListening || isLoading || isVoiceSession) {
+        return;
+      }
 
-      const activeElement = document.activeElement as HTMLElement;
-      const isInputFocused =
-        activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.contentEditable === "true");
+      const active = document.activeElement as HTMLElement | null;
 
-      if (isInputFocused) return;
+      const inputFocused =
+        active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
 
-      e.preventDefault();
+      if (inputFocused) {
+        return;
+      }
+
+      event.preventDefault();
+
       startHold();
     };
 
-    const handleShiftUp = (e: KeyboardEvent) => {
-      if (e.key !== "Shift") return;
-      handleHoldEnd();
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key !== "Shift") {
+        return;
+      }
+
+      handleHoldEnd(event);
     };
 
-    window.addEventListener("keydown", handleShiftDown);
-    window.addEventListener("keyup", handleShiftUp);
+    window.addEventListener("keydown", handleKeyDown);
+
+    window.addEventListener("keyup", handleKeyUp);
+
     return () => {
-      window.removeEventListener("keydown", handleShiftDown);
-      window.removeEventListener("keyup", handleShiftUp);
+      window.removeEventListener("keydown", handleKeyDown);
+
+      window.removeEventListener("keyup", handleKeyUp);
     };
   }, [isListening, isLoading, isVoiceSession, startHold, handleHoldEnd]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (recognitionRef.current) recognitionRef.current.stop();
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      if (audioContextRef.current) audioContextRef.current.close();
-      stopAudioOnly();
-    };
-  }, [stopAudioOnly]);
+  /* ========================================================================
+     SUBMIT
+     ======================================================================== */
 
-  /* ----- Submit handler ----- */
-  const handleSubmit = async (e?: FormEvent, customQuery?: string, fromVoice = false) => {
-    e?.preventDefault();
+  const handleSubmit = async (event?: FormEvent, customQuery?: string, fromVoice = false) => {
+    event?.preventDefault();
+
     const text = (customQuery ?? query).trim();
+
     if (!text) return;
 
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
-    if (!customQuery) setQuery("");
+
+    if (!customQuery) {
+      setQuery("");
+    }
 
     if (!fromVoice) {
       stopVoiceSession();
-      if (response || suggestions.length > 0) {
+
+      if (response || suggestions.length) {
+        /*
+         * Soft collapse into thinking state.
+         */
         setIsCollapsingToThink(true);
-        await new Promise((r) => setTimeout(r, 500));
+
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 360));
+
         setResponse(null);
         setSuggestions([]);
-        await new Promise((r) => setTimeout(r, 200));
+
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 120));
+
         setIsCollapsingToThink(false);
       } else {
         setResponse(null);
@@ -872,26 +1420,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     try {
       const result = await sendChatMessage(text);
-      const answer = (result as any)?.response ?? "";
-      const suggs = (result as any)?.suggestions || [];
+
+      const answer = String((result as any)?.response ?? "");
+
+      const suggs = Array.isArray((result as any)?.suggestions) ? (result as any).suggestions : [];
 
       if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(String(answer));
+        void speakVoiceResponse(answer);
       } else {
-        setResponse(String(answer));
+        setResponse(answer);
         setSuggestions(suggs);
+
         setIsRestoredFromStorage(false);
-        onSearch?.(String(answer));
+
+        onSearch?.(answer);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
+
       if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(msg);
+        void speakVoiceResponse(message);
       } else {
-        setResponse(msg);
+        setResponse(message);
         setSuggestions([]);
+
         setIsRestoredFromStorage(false);
-        onSearch?.(msg);
+
+        onSearch?.(message);
       }
     } finally {
       setIsLoading(false);
@@ -900,243 +1455,531 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   handleSubmitRef.current = handleSubmit;
 
-  /* ----- Interaction helpers ----- */
-  const handleSuggestionClick = useCallback((s: string) => {
+  /* ========================================================================
+     SUGGESTIONS
+     ======================================================================== */
+
+  const handleSuggestionClick = useCallback((suggestion: string) => {
     setQuery("");
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
-    handleSubmit(undefined, s, false);
+
+    handleSubmitRef.current?.(undefined, suggestion, false);
   }, []);
+
+  /* ========================================================================
+     INPUT
+     ======================================================================== */
 
   const handleInputFocus = useCallback(() => {
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
-  }, []);
+    markActivity(true);
+  }, [markActivity]);
 
-  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
-    setHasInteracted(true);
-    setShowTypewriter(false);
-    setShowExpandedSuggestions(false);
-  }, []);
+  const handleInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setQuery(event.target.value);
 
-  /* Outside click handler */
+      setHasInteracted(true);
+      setShowTypewriter(false);
+      setShowExpandedSuggestions(false);
+
+      markActivity(true);
+    },
+    [markActivity],
+  );
+
+  /* ========================================================================
+     OUTSIDE CLICK
+     ======================================================================== */
+
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (searchBarRef.current && searchBarRef.current.contains(target)) return;
+    let collapseTimer: number | null = null;
 
-      if (isVoiceSession) {
+    const handleOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (searchBarRef.current?.contains(target)) {
+        return;
+      }
+
+      if (isVoiceSessionRef.current) {
         stopVoiceSession();
         return;
       }
 
-      const el = target as Element;
-      const isNavigationClick =
-        !!el?.closest &&
-        (el.closest('[class*="fixed top-6"]') ||
-          el.closest('[class*="fixed bottom-6 right-6"]') ||
-          el.closest('button[aria-label*="Scroll to top"]') ||
-          el.closest('button[aria-label*="Close modal"]'));
+      const element = event.target as Element;
 
-      if (!isNavigationClick) {
-        if (query.trim() && !response && suggestions.length === 0) {
-          setQuery("");
-          inputRef.current?.blur();
-          return;
-        }
+      const navigationClick = Boolean(
+        element?.closest?.('[class*="fixed top-6"]') ||
+        element?.closest?.('[class*="fixed bottom-6 right-6"]') ||
+        element?.closest?.('button[aria-label*="Scroll to top"]') ||
+        element?.closest?.('button[aria-label*="Close modal"]'),
+      );
 
-        if (response || suggestions.length > 0) {
-          const COLLAPSE_MS = 1400;
-          setIsCollapsing(true);
-          setShowExpandedSuggestions(false);
-          window.setTimeout(() => {
-            setResponse(null);
-            setSuggestions([]);
-            setIsCollapsing(false);
-            clearPersistedState();
-          }, COLLAPSE_MS);
-        }
+      if (navigationClick) {
+        return;
+      }
+
+      if (query.trim() && !response && suggestions.length === 0) {
+        setQuery("");
+        inputRef.current?.blur();
+        return;
+      }
+
+      if (response || suggestions.length) {
+        setIsCollapsing(true);
+        setShowExpandedSuggestions(false);
+
+        collapseTimer = window.setTimeout(() => {
+          setResponse(null);
+          setSuggestions([]);
+          setIsCollapsing(false);
+
+          clearPersistedState();
+        }, 900);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside as any);
+    document.addEventListener("mousedown", handleOutside);
+
+    document.addEventListener("touchstart", handleOutside as EventListener);
+
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside as any);
+      document.removeEventListener("mousedown", handleOutside);
+
+      document.removeEventListener("touchstart", handleOutside as EventListener);
+
+      if (collapseTimer !== null) {
+        window.clearTimeout(collapseTimer);
+      }
     };
-  }, [response, suggestions, query, isVoiceSession, stopVoiceSession, clearPersistedState]);
+  }, [query, response, suggestions.length, stopVoiceSession, clearPersistedState]);
 
-  /* ----- Layout calculations (Original dynamic style with fixed baseline) ----- */
-  const layoutValues = useMemo(() => {
-    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession;
-    const isExpanded = hasContent && !isLoading;
-    const targetWidth = isExpanded ? "580px" : isVoiceSession ? "420px" : "460px";
-    const targetRadius = isExpanded ? "16px" : "999px";
+  /* ========================================================================
+     CLEANUP
+     ======================================================================== */
 
-    return { isExpanded, targetWidth, targetRadius };
-  }, [suggestions.length, response, isVoiceSession, isLoading]);
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current !== null) {
+        window.clearTimeout(holdTimerRef.current);
+      }
 
-  /* ----- Render ----- */
+      if (silenceTimerRef.current !== null) {
+        window.clearTimeout(silenceTimerRef.current);
+      }
+
+      if (suggestionAnimationTimerRef.current !== null) {
+        window.clearTimeout(suggestionAnimationTimerRef.current);
+      }
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (currentSourceNodeRef.current) {
+        try {
+          currentSourceNodeRef.current.stop();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  /* ========================================================================
+     DERIVED LAYOUT
+     ======================================================================== */
+
+  const hasContent = Boolean(response || suggestions.length) && !isVoiceSession;
+
+  const isExpanded = hasContent && !isLoading && !isCollapsingToThink;
+
+  /*
+   * Instead of wildly changing dimensions,
+   * keep the visual states very close together.
+   *
+   * This makes the expansion feel intentional.
+   */
+  const targetWidth = isVoiceSession ? "420px" : isExpanded ? "580px" : "460px";
+
+  const targetRadius = isExpanded ? "18px" : "999px";
+
+  /* ========================================================================
+     RENDER
+     ======================================================================== */
+
   return (
     <div
       ref={searchBarRef}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
+      className="
+        fixed
+        bottom-6
+        left-1/2
+        -translate-x-1/2
+        z-50
+        w-full
+        px-4
+        flex
+        flex-col
+        items-center
+        gap-3
+      "
     >
-      {/* ── Suggestion bubble (emerge/retreat from search bar) ── */}
-      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && (
-        <div
-          onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
-                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
-          style={{
-            animation:
-              suggestionPhase === "emerging"
-                ? "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
-                : suggestionPhase === "retreating"
-                  ? "suggestionRetreat 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards"
-                  : undefined,
-          }}
-        >
-          {fullText}
-        </div>
-      )}
+      {/* ====================================================================
+          ROTATING SUGGESTION
+          ==================================================================== */}
 
-      {/* ── Search bar container (Original authentic styling) ── */}
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
-          isLoading ? "thinking-container" : ""
-        } ${isVoiceSession || isListening ? "listening-container" : ""}`}
+        className={`
+          pointer-events-none
+          transition-all
+          duration-[650ms]
+          ease-[cubic-bezier(0.16,1,0.3,1)]
+          ${
+            suggestionPhase === "hidden"
+              ? "opacity-0 translate-y-3 scale-[0.96]"
+              : suggestionPhase === "entering"
+                ? "opacity-0 translate-y-3 scale-[0.96]"
+                : suggestionPhase === "exiting"
+                  ? "opacity-0 translate-y-3 scale-[0.97]"
+                  : "opacity-100 translate-y-0 scale-100"
+          }
+          ${!showTypewriter || !activeSuggestion || isVoiceSession ? "invisible" : "visible"}
+        `}
+      >
+        <button
+          type="button"
+          onClick={() => handleSuggestionClick(activeSuggestion)}
+          className="
+            pointer-events-auto
+            max-w-[90vw]
+            overflow-hidden
+            text-ellipsis
+            whitespace-nowrap
+            rounded-full
+            border
+            border-white/10
+            bg-white/[0.09]
+            px-4
+            py-2
+            text-sm
+            text-white/80
+            backdrop-blur-2xl
+            shadow-[0_8px_35px_rgba(0,0,0,0.16)]
+            transition-all
+            duration-500
+            ease-[cubic-bezier(0.16,1,0.3,1)]
+            hover:bg-white/[0.14]
+            hover:text-white
+            hover:-translate-y-0.5
+            active:scale-[0.98]
+          "
+        >
+          {activeSuggestion}
+        </button>
+      </div>
+
+      {/* ====================================================================
+          SEARCH BAR
+          ==================================================================== */}
+
+      <div
+        className={`
+          searchbar-shell
+          mx-auto
+          overflow-hidden
+          select-none
+          border
+          border-white/[0.18]
+          bg-white/[0.075]
+          text-foreground
+          backdrop-blur-2xl
+          shadow-[0_10px_45px_rgba(0,0,0,0.16)]
+          ${isLoading ? "searchbar-thinking" : ""}
+          ${isListening ? "searchbar-listening" : ""}
+        `}
         style={{
-          width: layoutValues.targetWidth,
+          width: targetWidth,
           maxWidth: "90vw",
-          borderRadius: layoutValues.targetRadius,
-          transition:
-            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
-          cursor: isListening ? "default" : undefined,
+          borderRadius: targetRadius,
+
+          transition: [
+            "width 900ms cubic-bezier(0.16,1,0.3,1)",
+            "border-radius 900ms cubic-bezier(0.16,1,0.3,1)",
+            "background-color 700ms cubic-bezier(0.16,1,0.3,1)",
+            "border-color 700ms cubic-bezier(0.16,1,0.3,1)",
+            "box-shadow 900ms cubic-bezier(0.16,1,0.3,1)",
+          ].join(", "),
+
           WebkitTouchCallout: "none",
+
           WebkitUserSelect: "none",
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
-          style={{
-            transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
-          }}
+          className={`
+            searchbar-inner
+            ${isExpanded ? "expanded" : "collapsed"}
+          `}
         >
-          {/* ── Suggestion list ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession} duration={800}>
-            <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.8s ease forwards" }}
-            >
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
-                  disabled={isLoading}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </Fade>
+          {/* ================================================================
+              EXPANDED SUGGESTIONS
+              ================================================================ */}
 
-          {/* ── Assistant response (Text Mode Only) ── */}
           <div
-            className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response && !isVoiceSession
-                ? isCollapsing || isCollapsingToThink
-                  ? "opacity-0 mb-0"
-                  : "opacity-100 mb-5"
-                : "opacity-0 mb-0"
-            }`}
-            style={{
-              maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response && !isVoiceSession ? "384px" : "0px",
-              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
-              transitionDelay:
-                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
-            }}
+            className={`
+              suggestions-wrapper
+              ${
+                showExpandedSuggestions && suggestions.length && !isVoiceSession
+                  ? "suggestions-visible"
+                  : "suggestions-hidden"
+              }
+            `}
+          >
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-2 px-3 pb-3">
+                {suggestions.map((suggestion, index) => (
+                  <button
+                    key={`${suggestion}-${index}`}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="
+                        suggestion-chip
+                        rounded-full
+                        border
+                        border-white/10
+                        bg-white/[0.08]
+                        px-3
+                        py-1
+                        text-xs
+                        sm:text-sm
+                        text-white/75
+                        transition-all
+                        duration-500
+                        ease-[cubic-bezier(0.16,1,0.3,1)]
+                        hover:-translate-y-0.5
+                        hover:bg-white/[0.14]
+                        hover:text-white
+                        active:scale-[0.97]
+                        disabled:pointer-events-none
+                        disabled:opacity-50
+                      "
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ================================================================
+              RESPONSE
+              ================================================================ */}
+
+          <div
+            className={`
+              response-wrapper
+              ${
+                response && !isVoiceSession && !isCollapsing && !isCollapsingToThink
+                  ? "response-visible"
+                  : "response-hidden"
+              }
+            `}
           >
             {response && !isVoiceSession && (
               <div
-                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
-                style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
-                  maxHeight: "300px",
+                className="
+                    response-content
+                    scrollbar-hide
+                    px-4
+                    text-sm
+                    leading-relaxed
+                    text-foreground
+                  "
+                dangerouslySetInnerHTML={{
+                  __html: convertMarkdownToHtml(response),
                 }}
-                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
             )}
           </div>
 
-          {/* ── Input form ── */}
+          {/* ================================================================
+              FORM
+              ================================================================ */}
+
           <form
-            onSubmit={(e) => handleSubmit(e, undefined, false)}
-            className="flex items-center gap-2 relative min-h-[40px]"
+            onSubmit={(event) => handleSubmit(event, undefined, false)}
+            className="
+              searchbar-form
+              relative
+              flex
+              min-h-[40px]
+              items-center
+              gap-2
+            "
             onFocus={handleInputFocus}
           >
+            {/* --------------------------------------------------------------
+                TEXT INPUT
+                -------------------------------------------------------------- */}
+
             {!isVoiceSession && (
-              <div className="relative flex-1">
+              <div
+                className="
+                  relative
+                  min-w-0
+                  flex-1
+                "
+              >
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
+                  placeholder={isLoading ? "Thinking…" : placeholderText}
                   onChange={handleInputChange}
-                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                             text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                               isLoading ? "thinking-placeholder" : ""
-                             }`}
                   disabled={isLoading}
                   aria-label="Ask anything"
+                  className={`
+                    h-10
+                    w-full
+                    border-0
+                    bg-transparent
+                    px-4
+                    text-base
+                    text-foreground
+                    outline-none
+                    ring-0
+                    placeholder:text-white/40
+                    focus-visible:ring-0
+                    focus-visible:ring-offset-0
+                    ${isLoading ? "thinking-placeholder" : ""}
+                  `}
                 />
               </div>
             )}
 
-            {/* Waveform fills available space when in Voice Mode */}
+            {/* --------------------------------------------------------------
+                VOICE WAVEFORM
+                -------------------------------------------------------------- */}
+
             {isVoiceSession && (
-              <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
-                <BarWaveform analyser={analyserNode} isActive={isVoiceSession && (isListening || isSpeaking)} />
-                {isListening && <RecordingTimer isActive={isListening} />}
+              <div
+                className="
+                  flex
+                  min-w-0
+                  flex-1
+                  items-center
+                  gap-3
+                  pl-3
+                "
+              >
+                <BarWaveform analyser={analyserNode} isActive={isListening || isSpeaking} />
+
+                <RecordingTimer isActive={isListening} />
               </div>
             )}
 
-            {/* Voice exit (✕) or Search icon / hold-to-speak target */}
+            {/* --------------------------------------------------------------
+                ACTION BUTTON
+                -------------------------------------------------------------- */}
+
             {isVoiceSession ? (
               <button
                 type="button"
                 onClick={stopVoiceSession}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                aria-label="End voice mode"
                 title="End voice mode"
+                className="
+                  voice-close
+                  flex
+                  h-8
+                  w-8
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-white/[0.10]
+                  text-white/80
+                  transition-all
+                  duration-500
+                  ease-[cubic-bezier(0.16,1,0.3,1)]
+                  hover:scale-105
+                  hover:bg-white/[0.17]
+                  hover:text-white
+                  active:scale-90
+                "
               >
                 <X className="h-4 w-4" />
               </button>
             ) : (
               <div
-                className="shrink-0 select-none"
+                className="
+                  shrink-0
+                  select-none
+                "
                 onMouseDown={handleHoldStart}
                 onMouseUp={handleHoldEnd}
                 onMouseLeave={handleHoldEnd}
                 onTouchStart={handleHoldStart}
                 onTouchEnd={handleHoldEnd}
-                style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+                style={{
+                  WebkitTouchCallout: "none",
+                  WebkitUserSelect: "none",
+                }}
               >
                 <div
-                  className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 
-                             ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
-                             ${isListening ? "bg-white/30" : "hover:bg-white/20"}`}
+                  className={`
+                    search-action
+                    flex
+                    h-8
+                    w-8
+                    items-center
+                    justify-center
+                    rounded-full
+                    transition-all
+                    duration-500
+                    ease-[cubic-bezier(0.16,1,0.3,1)]
+                    hover:scale-110
+                    active:scale-90
+                    ${isListening ? "bg-white/[0.15]" : "hover:bg-white/[0.08]"}
+                  `}
                 >
                   <Search
-                    className={`h-4 w-4 text-white/50 ${isLoading ? "thinking-icon" : ""} ${
-                      isListening ? "!text-white" : ""
-                    }`}
+                    className={`
+                      h-4
+                      w-4
+                      text-white/45
+                      transition-all
+                      duration-500
+                      ${isLoading ? "thinking-icon" : ""}
+                      ${isListening ? "scale-110 !text-white" : ""}
+                    `}
                   />
                 </div>
               </div>
@@ -1145,103 +1988,356 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* ── Original Shared CSS ── */}
-      <style>{`
-        @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes delayedFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        .animate-fadeIn { animation: fadeIn 0.8s ease forwards; }
-        .animate-delayedFadeIn { animation: delayedFadeIn 1s ease forwards; animation-delay: 0.1s; }
+      {/* ====================================================================
+          CSS
+          ==================================================================== */}
 
-        .thinking-container{
-          border: 1px solid rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.05);
-          animation: glowPulse 2s infinite ease-in-out;
+      <style jsx>{`
+        /* ------------------------------------------------------------------
+           CORE PHYSICS
+           ------------------------------------------------------------------ */
+
+        .searchbar-inner {
+          padding: 8px;
+          transition:
+            padding 900ms cubic-bezier(0.16, 1, 0.3, 1),
+            transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+          transform-origin: center bottom;
         }
-        @keyframes glowPulse {
-          0%, 100% { 
-            box-shadow: 0 0 5px rgba(255,255,255,0.1), inset 0 0 10px rgba(255,255,255,0.05);
+
+        .searchbar-inner.expanded {
+          padding: 20px 20px 14px;
+        }
+
+        .searchbar-inner.collapsed {
+          padding: 8px;
+        }
+
+        /* ------------------------------------------------------------------
+           RESPONSE
+           ------------------------------------------------------------------ */
+
+        .response-wrapper {
+          overflow: hidden;
+
+          transform-origin: center bottom;
+
+          transition:
+            opacity 650ms cubic-bezier(0.16, 1, 0.3, 1),
+            transform 750ms cubic-bezier(0.16, 1, 0.3, 1),
+            max-height 850ms cubic-bezier(0.16, 1, 0.3, 1),
+            margin 850ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .response-visible {
+          max-height: 320px;
+          margin-bottom: 12px;
+          opacity: 1;
+          transform:
+            translateY(0)
+            scale(1);
+        }
+
+        .response-hidden {
+          max-height: 0;
+          margin-bottom: 0;
+          opacity: 0;
+          transform:
+            translateY(8px)
+            scale(0.985);
+        }
+
+        .response-content {
+          max-height: 300px;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          scrollbar-width: none;
+        }
+
+        .response-content::-webkit-scrollbar {
+          display: none;
+        }
+
+        /* ------------------------------------------------------------------
+           SUGGESTIONS
+           ------------------------------------------------------------------ */
+
+        .suggestions-wrapper {
+          overflow: hidden;
+
+          transition:
+            opacity 650ms cubic-bezier(0.16, 1, 0.3, 1),
+            transform 750ms cubic-bezier(0.16, 1, 0.3, 1),
+            max-height 750ms cubic-bezier(0.16, 1, 0.3, 1),
+            margin 750ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .suggestions-visible {
+          max-height: 140px;
+          margin-bottom: 2px;
+          opacity: 1;
+          transform:
+            translateY(0)
+            scale(1);
+        }
+
+        .suggestions-hidden {
+          max-height: 0;
+          margin-bottom: 0;
+          opacity: 0;
+          transform:
+            translateY(-5px)
+            scale(0.985);
+          pointer-events: none;
+        }
+
+        .suggestion-chip {
+          transform: translateZ(0);
+          will-change: transform, opacity;
+        }
+
+        /* ------------------------------------------------------------------
+           THINKING
+           ------------------------------------------------------------------ */
+
+        .searchbar-thinking {
+          border-color: rgba(
+            255,
+            255,
+            255,
+            0.24
+          );
+
+          background: rgba(
+            255,
+            255,
+            255,
+            0.06
+          );
+
+          animation:
+            thinkingPulse
+            2.8s
+            cubic-bezier(0.45, 0, 0.55, 1)
+            infinite;
+        }
+
+        @keyframes thinkingPulse {
+          0%,
+          100% {
+            box-shadow:
+              0 8px 40px rgba(
+                0,
+                0,
+                0,
+                0.14
+              ),
+              0 0 0 rgba(
+                255,
+                255,
+                255,
+                0
+              );
           }
-          50% { 
-            box-shadow: 0 0 20px rgba(255,255,255,0.3), inset 0 0 20px rgba(255,255,255,0.15);
+
+          50% {
+            box-shadow:
+              0 10px 45px rgba(
+                0,
+                0,
+                0,
+                0.18
+              ),
+              0 0 24px rgba(
+                255,
+                255,
+                255,
+                0.10
+              );
           }
         }
-        @keyframes textGlow {
-          0%, 100% { 
-            color: rgba(255,255,255,0.3);
-            text-shadow: 0 0 1px rgba(255,255,255,0.2);
+
+        .thinking-placeholder::placeholder {
+          color: rgba(
+            255,
+            255,
+            255,
+            0.55
+          );
+
+          animation:
+            placeholderGlow
+            2.8s
+            cubic-bezier(0.45, 0, 0.55, 1)
+            infinite;
+        }
+
+        @keyframes placeholderGlow {
+          0%,
+          100% {
+            opacity: 0.45;
           }
-          50% { 
-            color: rgba(255,255,255,0.8);
-            text-shadow: 0 0 3px rgba(255,255,255,0.6);
+
+          50% {
+            opacity: 0.9;
           }
         }
-        .thinking-placeholder::placeholder{
-          color: rgba(255,255,255,0.6);
-          animation: textGlow 2s infinite ease-in-out;
-        }
-        .thinking-placeholder[disabled]{caret-color:transparent;}
+
         .thinking-icon {
-          stroke: rgba(255,255,255,0.5);
-          filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: iconGlow 4s infinite ease-in-out;
-        }
-        @keyframes iconGlow {
-          0%, 100% { 
-            stroke: rgba(255,255,255,0.3);
-            filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
-          }
-          50% { 
-            stroke: rgba(255,255,255,0.8);
-            filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
-          }
+          animation:
+            iconBreath
+            2.4s
+            cubic-bezier(0.45, 0, 0.55, 1)
+            infinite;
         }
 
-        .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
-                     font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
-                     font-size:.9em;}
-
-        /* Typewriter cursor */
-        @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
-        .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
-        .typewriter-text{display:inline-block;min-height:1.2em;}
-
-        /* Listening styles */
-        .listening-container{
-          border: 1px solid rgba(255,255,255,0.3);
-          animation: listeningGlow 1.5s infinite ease-in-out;
-        }
-        @keyframes listeningGlow {
-          0%, 100% { 
-            box-shadow: 0 0 8px rgba(255,255,255,0.15), inset 0 0 12px rgba(255,255,255,0.08);
-          }
-          50% { 
-            box-shadow: 0 0 25px rgba(255,255,255,0.4), inset 0 0 25px rgba(255,255,255,0.2);
-          }
-        }
-        .listening-input{
-          color: transparent;
-        }
-
-        @keyframes suggestionEmerge {
-          0% {
-            opacity: 0;
-            transform: translateY(12px) scale(0.97);
-          }
+        @keyframes iconBreath {
+          0%,
           100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
+            opacity: 0.35;
+            filter:
+              drop-shadow(
+                0 0 0
+                rgba(
+                  255,
+                  255,
+                  255,
+                  0
+                )
+              );
+          }
+
+          50% {
+            opacity: 0.85;
+            filter:
+              drop-shadow(
+                0 0 5px
+                rgba(
+                  255,
+                  255,
+                  255,
+                  0.3
+                )
+              );
           }
         }
 
-        @keyframes suggestionRetreat {
-          0% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+        /* ------------------------------------------------------------------
+           LISTENING
+           ------------------------------------------------------------------ */
+
+        .searchbar-listening {
+          border-color: rgba(
+            255,
+            255,
+            255,
+            0.28
+          );
+
+          background: rgba(
+            255,
+            255,
+            255,
+            0.065
+          );
+
+          animation:
+            listeningPulse
+            3.2s
+            cubic-bezier(0.45, 0, 0.55, 1)
+            infinite;
+        }
+
+        @keyframes listeningPulse {
+          0%,
           100% {
-            opacity: 0;
-            transform: translateY(12px) scale(0.97);
+            box-shadow:
+              0 10px 45px rgba(
+                0,
+                0,
+                0,
+                0.15
+              ),
+              0 0 8px rgba(
+                255,
+                255,
+                255,
+                0.04
+              );
+          }
+
+          50% {
+            box-shadow:
+              0 12px 50px rgba(
+                0,
+                0,
+                0,
+                0.18
+              ),
+              0 0 26px rgba(
+                255,
+                255,
+                255,
+                0.11
+              );
+          }
+        }
+
+        /* ------------------------------------------------------------------
+           ACTION BUTTON
+           ------------------------------------------------------------------ */
+
+        .search-action,
+        .voice-close {
+          transform: translateZ(0);
+          will-change: transform;
+        }
+
+        /* ------------------------------------------------------------------
+           INLINE CODE
+           ------------------------------------------------------------------ */
+
+        .inline-code {
+          background: rgba(
+            255,
+            255,
+            255,
+            0.06
+          );
+
+          padding:
+            0.08rem
+            0.3rem;
+
+          border-radius: 5px;
+
+          font-family:
+            ui-monospace,
+            SFMono-Regular,
+            Menlo,
+            Monaco,
+            "Roboto Mono",
+            monospace;
+
+          font-size: 0.9em;
+        }
+
+        /* ------------------------------------------------------------------
+           REDUCED MOTION
+           ------------------------------------------------------------------ */
+
+        @media (
+          prefers-reduced-motion: reduce
+        ) {
+          .searchbar-shell,
+          .searchbar-inner,
+          .response-wrapper,
+          .suggestions-wrapper,
+          .suggestion-chip,
+          .search-action,
+          .voice-close {
+            transition: none !important;
+            animation: none !important;
           }
         }
       `}</style>
