@@ -17,11 +17,11 @@ import { sendChatMessage } from "@/lib/api";
    0. TTS CONFIG
    ========================================================= */
 
-const SUPABASE_URL =
-  "https://zdrcjhohalgzhlbufwcl.supabase.co";
+const SUPABASE_URL = import.meta.env
+  .VITE_SUPABASE_URL as string;
 
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmxlIiwicmVmIjoiemRyY2pob2hhbGd6aGxidWZ3Y2wiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc1NTg4NDg4OCwiZXhwIjoyMDcxNDYwODg4fQ.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+const SUPABASE_ANON_KEY = import.meta.env
+  .VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
