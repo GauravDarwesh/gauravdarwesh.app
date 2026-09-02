@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import React, {
@@ -1553,7 +1552,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           "Speech recognition not supported"
         );
 
-        stopVoiceSession();
+        stopVoiceSessionRef.current?.();
         return;
       }
 
@@ -1706,7 +1705,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
       getAudioContext,
       isLoading,
       isSpeaking,
-      stopVoiceSession,
     ]);
 
   /* =======================================================
@@ -1876,6 +1874,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
      STOP VOICE SESSION
      ======================================================= */
 
+  const stopVoiceSessionRef =
+    useRef<(() => void) | null>(null);
+
   const stopVoiceSession =
     useCallback(() => {
       setIsVoiceSession(false);
@@ -1933,6 +1934,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
       setIsListening(false);
     }, [stopAudioOnly]);
+
+  stopVoiceSessionRef.current =
+    stopVoiceSession;
+
+
 
   /* =======================================================
      CLEANUP
@@ -2912,4 +2918,3 @@ const SearchBar: React.FC<SearchBarProps> = ({
 };
 
 export default SearchBar;
-```
