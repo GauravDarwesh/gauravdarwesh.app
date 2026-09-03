@@ -40,9 +40,12 @@ const Index = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="fixed top-6 inset-x-0 flex justify-center z-10">
+      <div className="fixed top-6 inset-x-0 flex justify-center z-10" data-gdx-search-target>
         <SearchBar />
       </div>
+
+      {/* GDx pet layer */}
+      <GDxPet onEnterSearch={handleEnterSearch} />
     </div>
   );
 };
