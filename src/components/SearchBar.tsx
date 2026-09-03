@@ -137,14 +137,16 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
 }
 
 /* =========================================================
-   3. SMOOTH REACTIVE WAVEFORM
+   3. LOW-LATENCY REACTIVE WAVEFORM
 
-   Important voice fix:
-   - Hosted TTS is routed through the analyser.
-   - Native browser TTS has no exposed analyser stream, so a
-     restrained synthetic signal is used while it speaks.
-   - The synthetic signal is used whenever the analyser has
-     little/no usable output, so fallback TTS never looks frozen.
+   Voice-specific fixes:
+   - The visual starts immediately when voice mode opens.
+   - Mic waveform uses the live time-domain signal directly instead
+     of a delayed history queue.
+   - Fast attack / slower release keeps speech transients visible.
+   - AudioContext analyser smoothing is intentionally very low.
+   - Hosted TTS is visualised from the exact playback signal.
+   - A tiny synthetic floor is used only before real audio is ready.
    ========================================================= */
 
 const BarWaveform: React.FC<{
@@ -161,17 +163,7 @@ const BarWaveform: React.FC<{
   const speakingRef = useRef(isSpeaking);
 
   const dimsRef = useRef({ width: 0, height: 0, dpr: 1 });
-
-  /*
-   * This is deliberately a HISTORY waveform rather than a set of
-   * independent sine waves. Every new audio measurement enters on
-   * the right and older measurements drift toward the left.
-   *
-   * That makes it feel like actual speech instead of a collection
-   * of bars breathing in sync.
-   */
-  const historyRef = useRef<number[]>([]);
-  const smoothEnergyRef = useRef(0);
+  const levelsRef = useRef<number[]>([]);
   const noiseRef = useRef<number[]>([]);
   const phaseRef = useRef(0);
 
@@ -191,9 +183,11 @@ const BarWaveform: React.FC<{
     if (!containerRef.current || !canvasRef.current) return;
 
     const updateSize = () => {
-      if (!containerRef.current || !canvasRef.current) return;
+      const container = containerRef.current;
+      const canvas = canvasRef.current;
+      if (!container || !canvas) return;
 
-      const rect = containerRef.current.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
       dimsRef.current = {
@@ -202,24 +196,24 @@ const BarWaveform: React.FC<{
         dpr,
       };
 
-      canvasRef.current.width = Math.max(1, Math.round(rect.width * dpr));
-      canvasRef.current.height = Math.max(1, Math.round(rect.height * dpr));
-      canvasRef.current.style.width = `${rect.width}px`;
-      canvasRef.current.style.height = `${rect.height}px`;
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
 
-      const barCount = Math.max(12, Math.floor(rect.width / 4.2));
+      const barCount = Math.max(18, Math.floor(rect.width / 4.05));
 
-      if (historyRef.current.length !== barCount) {
-        const previous = historyRef.current;
-        historyRef.current = Array.from({ length: barCount }, (_, i) => {
-          if (!previous.length) return 0.035;
-          const sourceIndex = Math.floor((i / Math.max(1, barCount - 1)) * Math.max(0, previous.length - 1));
-          return previous[sourceIndex] ?? 0.035;
+      if (levelsRef.current.length !== barCount) {
+        const previous = levelsRef.current;
+        levelsRef.current = Array.from({ length: barCount }, (_, index) => {
+          if (!previous.length) return 0.025;
+          const sourceIndex = Math.floor((index / Math.max(1, barCount - 1)) * Math.max(0, previous.length - 1));
+          return previous[sourceIndex] ?? 0.025;
         });
       }
 
       if (noiseRef.current.length !== barCount) {
-        noiseRef.current = Array.from({ length: barCount }, () => 0.85 + Math.random() * 0.3);
+        noiseRef.current = Array.from({ length: barCount }, () => 0.86 + Math.random() * 0.28);
       }
     };
 
@@ -238,8 +232,13 @@ const BarWaveform: React.FC<{
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    /*
+     * 256 is intentional:
+     * enough samples to derive individual bar energy while keeping
+     * the analyser extremely responsive for live speech.
+     */
+    const timeData = new Uint8Array(256);
     const frequencyData = new Uint8Array(128);
-    const timeData = new Uint8Array(128);
 
     let previousTime = performance.now();
 
@@ -249,7 +248,7 @@ const BarWaveform: React.FC<{
       const { width, height, dpr } = dimsRef.current;
       if (!width || !height) return;
 
-      const delta = Math.min(40, Math.max(8, now - previousTime));
+      const delta = Math.min(34, Math.max(6, now - previousTime));
       previousTime = now;
 
       const active = activeRef.current;
@@ -259,202 +258,164 @@ const BarWaveform: React.FC<{
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
-      const barCount = Math.max(12, Math.floor(width / 4.2));
+      const barCount = Math.max(18, Math.floor(width / 4.05));
 
-      if (historyRef.current.length !== barCount) {
-        historyRef.current = Array.from({ length: barCount }, () => 0.035);
+      if (levelsRef.current.length !== barCount) {
+        levelsRef.current = Array.from({ length: barCount }, () => 0.025);
       }
 
       if (noiseRef.current.length !== barCount) {
-        noiseRef.current = Array.from({ length: barCount }, () => 0.85 + Math.random() * 0.3);
+        noiseRef.current = Array.from({ length: barCount }, () => 0.86 + Math.random() * 0.28);
       }
 
       /*
-       * No analyser is required for the visual to begin.
-       *
-       * This is what removes the "waveform appears 300–500ms later"
-       * feeling: the waveform exists the instant voice mode opens.
+       * A small idle floor makes the waveform visibly alive on the
+       * same frame voice mode opens, even before mic permission / stream
+       * setup has completed.
        */
-      let measured = 0;
+      let rawLevels = new Array<number>(barCount).fill(0);
 
       if (active && currentAnalyser) {
         if (speaking) {
           /*
-           * AI playback: use frequency energy, but calculate a
-           * weighted voice band rather than averaging everything.
+           * Exact playback energy. We favour low/mid voice frequencies
+           * so consonants do not disappear into the high-end noise floor.
            */
           currentAnalyser.getByteFrequencyData(frequencyData);
 
-          let weighted = 0;
-          let weightTotal = 0;
+          for (let bar = 0; bar < barCount; bar++) {
+            const start = Math.floor((bar / barCount) * 92);
+            const end = Math.max(start + 1, Math.floor(((bar + 1) / barCount) * 92));
 
-          const end = Math.min(frequencyData.length, 72);
+            let sum = 0;
+            let weight = 0;
 
-          for (let i = 2; i < end; i++) {
-            const normalized = frequencyData[i] / 255;
+            for (let i = start; i < Math.min(end, frequencyData.length); i++) {
+              const normalized = frequencyData[i] / 255;
+              const frequencyWeight = 1.25 - (i / 92) * 0.72;
+              sum += normalized * Math.max(0.25, frequencyWeight);
+              weight += Math.max(0.25, frequencyWeight);
+            }
 
-            /*
-             * Voice fundamentals and low/mid harmonics carry more
-             * visual weight than the extreme high end.
-             */
-            const position = (i - 2) / Math.max(1, end - 2);
-
-            const weight = 1.15 - position * 0.62;
-
-            weighted += normalized * weight;
-
-            weightTotal += weight;
+            rawLevels[bar] = weight > 0 ? sum / weight : 0;
           }
-
-          measured = weightTotal > 0 ? weighted / weightTotal : 0;
         } else {
           /*
-           * Microphone: RMS from the time-domain signal is much more
-           * reliable for speech amplitude than frequency averaging.
+           * Live microphone energy:
+           * each bar reads a different slice of the analyser's latest
+           * time-domain buffer. There is no history queue, so the user's
+           * voice reaches the visual essentially on the next frame.
            */
           currentAnalyser.getByteTimeDomainData(timeData);
 
-          let sumSquares = 0;
+          for (let bar = 0; bar < barCount; bar++) {
+            const start = Math.floor((bar / barCount) * timeData.length);
+            const end = Math.max(start + 1, Math.floor(((bar + 1) / barCount) * timeData.length));
 
-          for (let i = 0; i < timeData.length; i++) {
-            const sample = (timeData[i] - 128) / 128;
+            let sumSquares = 0;
 
-            sumSquares += sample * sample;
+            for (let i = start; i < Math.min(end, timeData.length); i++) {
+              const sample = (timeData[i] - 128) / 128;
+              sumSquares += sample * sample;
+            }
+
+            const rms = Math.sqrt(sumSquares / Math.max(1, end - start));
+
+            /*
+             * Speech RMS is normally small. This lift makes quiet speech
+             * visible without making the entire waveform constantly full.
+             */
+            rawLevels[bar] = Math.min(1, rms * 7.2);
           }
-
-          const rms = Math.sqrt(sumSquares / Math.max(1, timeData.length));
-
-          /*
-           * Speech RMS from a mic is usually much smaller than
-           * a full-scale waveform, so amplify it.
-           */
-          measured = Math.min(1, rms * 5.2);
         }
       }
 
-      /*
-       * Exponential smoothing keeps the waveform fluid without
-       * destroying consonant/transient movement.
-       */
-      const target = active ? Math.max(measured, speaking ? 0.055 : 0.028) : 0;
-
-      const current = smoothEnergyRef.current;
-
-      const response = target > current ? 0.28 : 0.105;
-
-      smoothEnergyRef.current = current + (target - current) * (1 - Math.pow(1 - response, delta / 16.67));
-
-      const energy = smoothEnergyRef.current;
+      phaseRef.current += delta * 0.0016;
 
       /*
-       * Feed a new sample into the right edge.
-       *
-       * We deliberately vary the value a little from sample to sample
-       * so that speech doesn't become a perfect mechanical envelope.
+       * If the audio signal is not available yet, keep a restrained
+       * breathing floor. The moment real audio arrives, it dominates.
        */
-      phaseRef.current += delta * 0.0014;
+      const hasRealSignal = rawLevels.some((value) => value > 0.018);
+      if (active && !hasRealSignal) {
+        const idlePulse = 0.026 + (speaking ? 0.032 : 0.012) * (0.5 + 0.5 * Math.sin(phaseRef.current * 5.8));
 
-      const speechPulse = speaking ? 1 + Math.sin(phaseRef.current * 5.1) * 0.035 : 1;
-
-      const newSample = Math.max(0, Math.min(1, energy * speechPulse));
-
-      /*
-       * Shift history only when there is enough frame progress.
-       * This creates a slow physical movement from right → left
-       * instead of every bar changing in place.
-       */
-      const history = historyRef.current;
-
-      const shiftAmount = Math.min(1, delta / 25);
-
-      /*
-       * Smoothly move every point toward the point ahead of it.
-       */
-      for (let i = 0; i < history.length - 1; i++) {
-        const next = history[i + 1];
-
-        history[i] += (next - history[i]) * shiftAmount * 0.95;
+        rawLevels = rawLevels.map((_, index) => {
+          const edge = index / Math.max(1, barCount - 1);
+          const envelope = 0.4 + 0.6 * Math.sin(edge * Math.PI);
+          return idlePulse * envelope;
+        });
       }
 
-      history[history.length - 1] += (newSample - history[history.length - 1]) * Math.min(1, delta / 18);
+      const levels = levelsRef.current;
 
       /*
-       * When audio stops, retain a very small tail and let it decay.
-       * This prevents a hard "off" cut.
+       * Fast attack and slower release.
+       * This is the important responsiveness fix:
+       * speech starts aggressively instead of being hidden by heavy
+       * exponential smoothing.
        */
-      if (!active) {
-        for (let i = 0; i < history.length; i++) {
-          history[i] *= Math.pow(0.82, delta / 16.67);
-        }
+      for (let i = 0; i < barCount; i++) {
+        const incoming = rawLevels[i] ?? 0;
+        const current = levels[i] ?? 0;
+
+        const attack = 1 - Math.pow(0.14, delta / 16.67);
+        const release = 1 - Math.pow(0.62, delta / 16.67);
+
+        levels[i] =
+          incoming > current ? current + (incoming - current) * attack : current + (incoming - current) * release;
       }
 
       const BAR_WIDTH = 2.15;
-      const BAR_GAP = 2.05;
-      const center = (history.length - 1) / 2;
+      const BAR_GAP = 1.95;
+      const totalWidth = barCount * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
+      const startX = (width - totalWidth) / 2;
 
-      for (let i = 0; i < history.length; i++) {
-        const raw = history[i];
+      for (let i = 0; i < barCount; i++) {
+        const distanceFromCenter = Math.abs(i - (barCount - 1) / 2) / Math.max(1, (barCount - 1) / 2);
 
-        /*
-         * Natural spatial envelope.
-         *
-         * Keep the centre stronger, but not perfectly symmetrical.
-         * Real speech isn't symmetrical.
-         */
-        const distance = Math.abs(i - center) / Math.max(1, center);
+        const spatialEnvelope = 0.34 + 0.66 * Math.pow(Math.max(0, 1 - distanceFromCenter), 0.62);
 
-        const centreEnvelope = 0.26 + 0.74 * Math.pow(Math.max(0, 1 - distance), 0.58);
+        const localNoise = noiseRef.current[i] || 1;
 
-        const neighbour = i > 0 && i < history.length - 1 ? (history[i - 1] + history[i + 1]) / 2 : raw;
+        let value = (levels[i] ?? 0) * spatialEnvelope * localNoise;
 
-        const localVariation = noiseRef.current[i] || 1;
-
-        /*
-         * Mix current sample and neighbours.
-         *
-         * This makes adjacent bars feel connected while retaining
-         * the irregular "human" shape.
-         */
-        let value = raw * 0.68 + neighbour * 0.32;
-
-        value *= centreEnvelope * localVariation;
-
-        /*
-         * Slightly different behaviour for the two modes.
-         */
         if (speaking) {
-          value *= 1.52;
+          value *= 1.48;
         } else if (active) {
-          value *= 1.35;
+          value *= 1.34;
         }
 
-        const minLevel = active ? (speaking ? 0.035 : 0.022) : 0;
-
-        value = Math.max(minLevel, Math.min(1, value));
-
-        /*
-         * Ease the bar height rather than snapping to analyser values.
-         */
-        const barHeight = Math.max(2.5, value * height * 0.86);
+        const minimum = active ? (speaking ? 0.038 : 0.024) : 0;
+        value = Math.max(minimum, Math.min(1, value));
 
         /*
-         * Start slightly left so the last bar doesn't clip.
+         * Keep the visual soft and connected rather than spiky.
          */
-        const totalWidth = history.length * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
+        const neighbourAverage =
+          i > 0 && i < barCount - 1 ? ((levels[i - 1] ?? value) + (levels[i + 1] ?? value)) / 2 : value;
 
-        const startX = (width - totalWidth) / 2;
+        value = value * 0.76 + neighbourAverage * 0.24;
 
+        const barHeight = Math.max(2.5, value * height * 0.88);
         const x = startX + i * (BAR_WIDTH + BAR_GAP);
-
         const y = (height - barHeight) / 2;
-
-        const opacity = 0.27 + Math.min(0.52, value * 0.58);
+        const opacity = 0.27 + Math.min(0.53, value * 0.62);
 
         ctx.fillStyle = `rgba(255,255,255,${opacity})`;
-
         ctx.beginPath();
         ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1.15);
         ctx.fill();
+      }
+
+      /*
+       * When the session ends, decay quickly but gracefully instead of
+       * snapping the waveform off.
+       */
+      if (!active) {
+        for (let i = 0; i < levels.length; i++) {
+          levels[i] *= Math.pow(0.78, delta / 16.67);
+        }
       }
     };
 
@@ -464,17 +425,10 @@ const BarWaveform: React.FC<{
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-
       animationFrameRef.current = null;
     };
   }, []);
 
-  /*
-   * Don't return null when inactive.
-   *
-   * Keeping the canvas mounted is important: React does not destroy
-   * and recreate the animation surface every time voice state changes.
-   */
   return (
     <div ref={containerRef} className="flex-1 h-8 min-w-0 overflow-hidden" aria-hidden="true">
       <canvas ref={canvasRef} className="pointer-events-none block w-full h-full" />
@@ -709,12 +663,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const analyser = ctx.createAnalyser();
 
       /*
-       * 512 gives us enough resolution for the AI voice spectrum,
-       * while 0.72 keeps the live microphone response quick.
+       * Low smoothing is critical here. Heavy analyser smoothing makes
+       * microphone transients arrive visually late and makes consonants
+       * feel "washed out".
        */
       analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.72;
-      analyser.minDecibels = -80;
+      analyser.smoothingTimeConstant = 0.08;
+      analyser.minDecibels = -90;
       analyser.maxDecibels = -8;
 
       const monitor = ctx.createGain();
@@ -1022,7 +977,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       };
 
       const utterance = new SpeechSynthesisUtterance(text.trim());
-      utterance.rate = 1.16;
+      utterance.rate = 1.2;
       utterance.pitch = 1;
       utterance.volume = 1;
 
@@ -1238,7 +1193,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
             const source = audioGraph.ctx.createBufferSource();
             source.buffer = buffer;
-            source.playbackRate.value = 1.14;
+            source.playbackRate.value = 1.2;
 
             /*
              * AI playback path:
@@ -1366,9 +1321,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       const { ctx, analyser } = getAudioContext();
 
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+
+      /* Show live-listening state immediately; the mic stream can still
+         take a moment to resolve on the browser side. */
+      setIsListening(true);
+
       if (!micStreamRef.current) {
         micStreamRef.current = await navigator.mediaDevices.getUserMedia({
           audio: {
+            channelCount: 1,
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
