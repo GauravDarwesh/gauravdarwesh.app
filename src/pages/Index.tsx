@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
+import GDxPet from "@/components/GDxPet";
 
 const ANIM_MS = 3000; // same duration for all
 
