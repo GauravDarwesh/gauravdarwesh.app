@@ -2,27 +2,55 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
+
 type Category = (typeof CATEGORIES)[number];
 
+/*
+ * Content is intentionally richer than the compressed resume.
+ * The resume has limited space, so this section surfaces the broader
+ * skill set represented across the resume and existing portfolio.
+ */
 const CATEGORY_DATA: Record<Category, string[]> = {
   Languages: ["English", "Marathi", "Hindi", "Japanese"],
 
   Skills: [
-    "GenAI, Agents, AI Workflows",
-    "Python, SQL",
-    "Data Analytics & Visualization",
-    "Project Management",
+    "Generative AI",
+    "AI Agents",
+    "AI Workflows",
+    "LLM Applications",
+    "Workflow Automation",
+    "Regulatory Technology",
+    "Business Analysis",
+    "Product Management",
+    "Customer Success Operations",
+    "Data Analytics",
+    "Data Visualization",
     "Strategic Planning",
+    "Project Management",
+    "Cross-functional Collaboration",
+    "Process Optimization",
+    "Python",
+    "SQL",
+    "Computer Vision",
+    "Ray Tracing",
+    "5G Network Optimization",
   ],
 
   Platforms: [
     "Salesforce",
-    "ServiceNOW",
-    "JIRA, Confluence",
+    "ServiceNow",
+    "JIRA",
+    "Confluence",
     "Planhat",
-    "PowerBI, Tableau",
-    "Power Automate, n8n",
-    "Qualtrics, Workday",
+    "Power BI",
+    "Power Query",
+    "Tableau",
+    "Power Automate",
+    "n8n",
+    "Qualtrics",
+    "Workday",
+    "Microsoft Teams",
+    "Microsoft 365",
   ],
 
   Certifications: [
@@ -42,30 +70,42 @@ const CATEGORY_DATA: Record<Category, string[]> = {
   ],
 };
 
-// Auto-rotation dwell time per category (ms)
+/*
+ * How long each category remains active.
+ * Kept slightly longer for larger content groups.
+ */
 const DURATIONS: Record<Category, number> = {
   Languages: 7000,
-  Skills: 7000,
-  Platforms: 7000,
+  Skills: 11000,
+  Platforms: 9000,
   Certifications: 11000,
-  Extracurriculars: 11000,
+  Extracurriculars: 9000,
 };
 
-// Uniform squircle chip — same size as the filter/sort-by buttons on the Notion page
+/*
+ * Uniform squircle chip.
+ * Deliberately unchanged from the existing visual language.
+ */
 const chipClass =
   "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-out px-4 py-2 text-sm";
 
-const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
+/* -------------------------------------------------------------------------- */
+/* Spotlight content                                                         */
+/* -------------------------------------------------------------------------- */
+
+const SpotlightContent = ({ category, animationKey }: { category: Category; animationKey: number }) => {
   const items = CATEGORY_DATA[category];
 
-  const stagger = (i: number) => ({
-    animationDelay: `${i * 90}ms`,
-  });
-
   return (
-    <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
-      {items.map((item, i) => (
-        <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass}`}>
+    <div key={animationKey} className="flex flex-wrap gap-2.5 sm:gap-3">
+      {items.map((item, index) => (
+        <div
+          key={item}
+          className={`spotlight-item ${chipClass}`}
+          style={{
+            animationDelay: `${index * 55}ms`,
+          }}
+        >
           {item}
         </div>
       ))}
@@ -73,36 +113,79 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
   );
 };
 
+/* -------------------------------------------------------------------------- */
+/* Category spotlight                                                        */
+/* -------------------------------------------------------------------------- */
+
 const CategorySpotlight = () => {
   const [active, setActive] = useState<Category>("Languages");
   const [paused, setPaused] = useState(false);
-  const [progressKey, setProgressKey] = useState(0);
-  const reducedMotion = useRef(false);
+  const [animationKey, setAnimationKey] = useState(0);
 
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reducedMotionRef = useRef(false);
+
+  /*
+   * Detect reduced-motion preference once.
+   */
   useEffect(() => {
-    reducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    reducedMotionRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
+  /*
+   * Clear the current category timer.
+   */
+  const clearCategoryTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  /*
+   * Move to the next category.
+   */
   const advance = useCallback(() => {
-    setActive((prev) => {
-      const idx = CATEGORIES.indexOf(prev);
-      return CATEGORIES[(idx + 1) % CATEGORIES.length];
+    setActive((current) => {
+      const currentIndex = CATEGORIES.indexOf(current);
+      return CATEGORIES[(currentIndex + 1) % CATEGORIES.length];
     });
 
-    setProgressKey((k) => k + 1);
+    setAnimationKey((key) => key + 1);
   }, []);
 
+  /*
+   * Category timing.
+   *
+   * Important difference from the previous implementation:
+   * the progress animation itself is handled entirely by CSS.
+   *
+   * React only handles the category timer.
+   * This prevents the progress bar from being repeatedly mounted,
+   * restarted or interrupted during normal rendering.
+   */
   useEffect(() => {
-    if (paused || reducedMotion.current) return;
+    clearCategoryTimer();
 
-    const t = setTimeout(advance, DURATIONS[active]);
+    if (paused || reducedMotionRef.current) {
+      return;
+    }
 
-    return () => clearTimeout(t);
-  }, [active, paused, advance, progressKey]);
+    timerRef.current = setTimeout(() => {
+      advance();
+    }, DURATIONS[active]);
 
-  const select = (cat: Category) => {
-    setActive(cat);
-    setProgressKey((k) => k + 1);
+    return clearCategoryTimer;
+  }, [active, paused, advance, clearCategoryTimer]);
+
+  /*
+   * Manual category selection.
+   */
+  const select = (category: Category) => {
+    clearCategoryTimer();
+
+    setActive(category);
+    setAnimationKey((key) => key + 1);
   };
 
   return (
@@ -112,28 +195,31 @@ const CategorySpotlight = () => {
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
-      {/* Animated category navigation heading */}
+      {/* Category navigation */}
       <h2 className="text-xl sm:text-2xl font-semibold mb-6 flex flex-wrap items-baseline gap-x-2 gap-y-2">
-        {CATEGORIES.map((cat, i) => (
-          <span key={cat} className="flex items-baseline gap-x-2">
+        {CATEGORIES.map((category, index) => (
+          <span key={category} className="flex items-baseline gap-x-2">
             <button
               type="button"
-              onClick={() => select(cat)}
+              onClick={() => select(category)}
               className={`relative pb-1 transition-all duration-500 focus:outline-none ${
-                active === cat
+                active === category
                   ? "text-white [text-shadow:0_0_18px_rgba(255,255,255,0.55)]"
                   : "text-white/40 hover:text-white/70"
               }`}
             >
-              {cat}
+              {category}
 
-              {active === cat && (
-                <span className="absolute left-0 right-0 -bottom-0.5 h-[2px] rounded-full bg-white/30 overflow-hidden">
+              {active === category && (
+                <span
+                  className="absolute left-0 right-0 -bottom-0.5 h-[2px] rounded-full bg-white/30 overflow-hidden"
+                  aria-hidden="true"
+                >
                   <span
-                    key={progressKey}
+                    key={`${category}-${animationKey}`}
                     className="spotlight-progress block h-full bg-white"
                     style={{
-                      animationDuration: `${DURATIONS[cat]}ms`,
+                      animationDuration: `${DURATIONS[category]}ms`,
                       animationPlayState: paused ? "paused" : "running",
                     }}
                   />
@@ -141,18 +227,22 @@ const CategorySpotlight = () => {
               )}
             </button>
 
-            {i < CATEGORIES.length - 1 && <span className="text-white/30 select-none">/</span>}
+            {index < CATEGORIES.length - 1 && <span className="text-white/30 select-none">/</span>}
           </span>
         ))}
       </h2>
 
-      {/* Content — squircle pills only */}
+      {/* Category content */}
       <div className="pt-2 max-w-4xl">
-        <SpotlightContent category={active} animKey={progressKey} />
+        <SpotlightContent category={active} animationKey={animationKey} />
       </div>
     </section>
   );
 };
+
+/* -------------------------------------------------------------------------- */
+/* Portfolio                                                                  */
+/* -------------------------------------------------------------------------- */
 
 const Portfolio = () => {
   return (
@@ -165,17 +255,20 @@ const Portfolio = () => {
         }}
       />
 
-      {/* Navigation Toggle */}
+      {/* Navigation */}
       <NavigationToggle />
 
-      {/* Main Content with invisible scroll */}
+      {/* Main content */}
       <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
-        {/* Header */}
+        {/* ---------------------------------------------------------------- */}
+        {/* Header                                                           */}
+        {/* ---------------------------------------------------------------- */}
+
         <div className="relative w-full mb-8 overflow-hidden">
-          {/* Accessible single H1 for SEO */}
+          {/* Accessible SEO heading */}
           <h1 className="sr-only">Gaurav Darwesh</h1>
 
-          {/* Seamless marquee: two identical groups inside a single animated track */}
+          {/* Seamless marquee */}
           <div className="overflow-hidden marquee-fade-edges">
             <div className="animate-marquee flex items-center">
               {/* Group A */}
@@ -197,7 +290,7 @@ const Portfolio = () => {
                 </span>
               </div>
 
-              {/* Group B (duplicate) */}
+              {/* Group B */}
               <div className="flex items-center shrink-0" aria-hidden="true">
                 <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
@@ -219,7 +312,10 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* Social Links */}
+        {/* ---------------------------------------------------------------- */}
+        {/* Social links                                                     */}
+        {/* ---------------------------------------------------------------- */}
+
         <div>
           <div className="flex flex-wrap gap-4 text-white mt-2">
             <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
@@ -238,7 +334,10 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* About Section */}
+        {/* ---------------------------------------------------------------- */}
+        {/* About                                                            */}
+        {/* ---------------------------------------------------------------- */}
+
         <p className="text-base sm:text-lg leading-relaxed mt-4">
           Results-oriented professional with a strong foundation in regulatory tech and customer success operations.
           Skilled in transforming complex requirements into scalable solutions and streamlining end-to-end processes
@@ -247,10 +346,14 @@ const Portfolio = () => {
           data-driven approach to solving business challenges.
         </p>
 
-        {/* Education */}
+        {/* ---------------------------------------------------------------- */}
+        {/* Education                                                        */}
+        {/* ---------------------------------------------------------------- */}
+
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
+          {/* University of Mumbai */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
@@ -263,6 +366,7 @@ const Portfolio = () => {
             <p className="text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
           </div>
 
+          {/* University of Cambridge */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Cambridge</h3>
@@ -274,11 +378,17 @@ const Portfolio = () => {
           </div>
         </section>
 
-        {/* Experience */}
+        {/* ---------------------------------------------------------------- */}
+        {/* Experience                                                       */}
+        {/* ---------------------------------------------------------------- */}
+
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
-          {/* Nasdaq — Product Manager Analyst */}
+          {/* ============================================================ */}
+          {/* NASDAQ — Product Manager Analyst                              */}
+          {/* ============================================================ */}
+
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
@@ -292,42 +402,49 @@ const Portfolio = () => {
 
               <li>
                 Manage end-to-end regulatory change processes, including creating JIRA tickets, coordinating
-                cross-functional teams like BA, sales and pre-sales teams with client-specific needs, ensuring data
+                cross-functional teams such as BA, sales, and pre-sales with client-specific needs, ensuring data
                 accuracy and integrity in internal systems, and contributing to product enhancements.
               </li>
 
               <li>
                 Built Power BI dashboards using Power Query, translating raw data from JIRA and ServiceNow into
-                leadership insights.
+                actionable leadership insights.
               </li>
 
               <li>
                 Designed a comprehensive Regulatory Monitoring communication pipeline for the AxiomSL Regulatory
                 Newsletter, Email, and Teams Channel using Power Automate and an internal AI platform. The system
                 captures marked JIRA tickets, utilizes AI to structure the data, and enforces human-in-the-loop
-                approvals before broadcasting to internal teams and clients. This reduced manual reporting time from 3
-                days to 30 minutes — 98% faster.
+                approvals before broadcasting to internal teams and clients.
+              </li>
+
+              <li>
+                Reduced manual regulatory reporting time from 3 days to 30 minutes through the automated communication
+                pipeline, achieving a 98% reduction in reporting time.
               </li>
 
               <li>
                 Drive automation initiatives to streamline regulatory monitoring, including the development of ReM AI
                 (Regulatory Monitoring AI), an LLM-powered tool assisting the RMT Team with document summarization,
-                comparison, and historical trend analysis through a connected JIRA MCP.
+                comparison, and understanding historical trends through a connected JIRA MCP.
               </li>
 
               <li>
-                Enable ReM AI to automatically create JIRA issues and Confluence pages, improving the efficiency of
-                regulatory monitoring workflows.
+                Developed ReM AI capabilities to automatically create JIRA issues and Confluence pages, streamlining
+                downstream regulatory workflows.
               </li>
 
               <li>
-                Architect a unified data repository, Reg-Inventory, by integrating multi-channel data streams from JIRA,
-                ServiceNow, and product inventory to centralize documentation for regulatory reports.
+                Architecting a unified data repository, Reg-Inventory, by integrating multi-channel data streams from
+                JIRA, ServiceNow, and product inventory to centralize documentation for regulatory reports.
               </li>
             </ul>
           </div>
 
-          {/* Nasdaq — Client Success Operations Analysis Intern */}
+          {/* ============================================================ */}
+          {/* NASDAQ — Client Success Operations Analysis Intern             */}
+          {/* ============================================================ */}
+
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
@@ -335,14 +452,18 @@ const Portfolio = () => {
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>
-                Led strategic initiatives, including the Whitespace Project to identify upsell and cross-sell
-                opportunities, and an organization-wide Net Promoter Score campaign across multiple Nasdaq product lines
-                including Calypso, AxiomSL, and NTS.
+                Led strategic initiatives including the Whitespace Project to identify upsell and cross-sell
+                opportunities across Nasdaq product lines.
+              </li>
+
+              <li>
+                Led an organization-wide Net Promoter Score campaign across multiple Nasdaq product lines including
+                Calypso, AxiomSL, and NTS.
               </li>
 
               <li>
                 Leveraged Qualtrics, Planhat, Power BI, and Salesforce to support customer success analytics, campaign
-                execution, and strategic reporting.
+                execution, reporting, and strategic decision-making.
               </li>
 
               <li>
@@ -351,7 +472,7 @@ const Portfolio = () => {
               </li>
 
               <li>
-                Increased efficiency and reduced manual work for easy-to-process documents through AI-powered workflow
+                Improved efficiency and reduced manual work for easy-to-process documents through AI-powered workflow
                 automation.
               </li>
 
@@ -362,7 +483,10 @@ const Portfolio = () => {
             </ul>
           </div>
 
-          {/* Jio */}
+          {/* ============================================================ */}
+          {/* JIO                                                            */}
+          {/* ============================================================ */}
+
           <div className="mb-8">
             <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
 
@@ -387,13 +511,50 @@ const Portfolio = () => {
               </li>
             </ul>
           </div>
+
+          {/* ============================================================ */}
+          {/* FANATICH DIGITAL MARKETING SERVICES                            */}
+          {/* ============================================================ */}
+
+          <div className="mb-8">
+            <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
+
+            <p className="italic mb-3">Marketing Intern</p>
+
+            <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
+              <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
+
+              <li>Led a comprehensive campaign titled “Feast from the East” targeting food enthusiasts in Mumbai.</li>
+
+              <li>
+                Utilized Instagram and Google Ads to segment audiences based on culinary interests and online behavior.
+              </li>
+
+              <li>
+                Developed a content calendar featuring daily recipes, cooking tips, and user-generated content to
+                maintain engagement.
+              </li>
+
+              <li>Implemented A/B testing for ad creatives and landing pages to optimize campaign performance.</li>
+
+              <li>Increased followers by 25% across all Instagram handles.</li>
+
+              <li>Achieved a 40% boost in engagement rates through targeted ads and interactive content.</li>
+            </ul>
+          </div>
         </section>
 
-        {/* Category Spotlight */}
+        {/* ---------------------------------------------------------------- */}
+        {/* Category Spotlight                                                */}
+        {/* ---------------------------------------------------------------- */}
+
         <CategorySpotlight />
       </div>
 
-      {/* Invisible scrollbar styling */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Invisible scrollbar                                                */}
+      {/* ------------------------------------------------------------------ */}
+
       <style>{`
         .no-scrollbar::-webkit-scrollbar {
           display: none;
@@ -402,6 +563,78 @@ const Portfolio = () => {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        /*
+         * Category chip entrance animation.
+         *
+         * The animation is intentionally soft and short so that a larger
+         * Skills category does not feel like a wall of elements suddenly
+         * appearing.
+         */
+        .spotlight-item {
+          opacity: 0;
+          transform: translateY(6px);
+          animation: spotlightItemIn 500ms cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+          ) forwards;
+        }
+
+        @keyframes spotlightItemIn {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * The progress bar uses one continuous CSS animation.
+         * There is no frame-by-frame React state update.
+         *
+         * This avoids the previous "stuck / jump / continue" effect.
+         */
+        .spotlight-progress {
+          width: 0%;
+          transform-origin: left center;
+          animation-name: spotlightProgress;
+          animation-timing-function: linear;
+          animation-fill-mode: forwards;
+        }
+
+        @keyframes spotlightProgress {
+          from {
+            width: 0%;
+          }
+
+          to {
+            width: 100%;
+          }
+        }
+
+        /*
+         * Respect system reduced-motion settings.
+         */
+        @media (prefers-reduced-motion: reduce) {
+          .spotlight-item {
+            animation: none;
+            opacity: 1;
+            transform: none;
+          }
+
+          .spotlight-progress {
+            animation: none;
+            width: 100%;
+          }
         }
       `}</style>
     </div>
