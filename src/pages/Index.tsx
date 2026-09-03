@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
-import GDxPet from "@/components/GDxPet";
 
 const ANIM_MS = 3000; // same duration for all
 
@@ -16,14 +15,6 @@ const Index = () => {
       return () => clearTimeout(t);
     }
   }, []);
-
-  const handleEnterSearch = useCallback(() => {
-    const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-      "[data-gdx-search-target] input, [data-gdx-search-target] textarea"
-    );
-    input?.focus();
-  }, []);
-
 
   return (
     <div
@@ -48,12 +39,9 @@ const Index = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="fixed top-6 inset-x-0 flex justify-center z-10" data-gdx-search-target>
+      <div className="fixed top-6 inset-x-0 flex justify-center z-10">
         <SearchBar />
       </div>
-
-      {/* GDx pet layer */}
-      <GDxPet onEnterSearch={handleEnterSearch} />
     </div>
   );
 };
