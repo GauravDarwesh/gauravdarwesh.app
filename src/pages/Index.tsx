@@ -17,6 +17,14 @@ const Index = () => {
     }
   }, []);
 
+  const handleEnterSearch = useCallback(() => {
+    const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+      "[data-gdx-search-target] input, [data-gdx-search-target] textarea"
+    );
+    input?.focus();
+  }, []);
+
+
   return (
     <div
       className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
