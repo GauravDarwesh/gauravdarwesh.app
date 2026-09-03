@@ -271,22 +271,31 @@ const Portfolio = () => {
           data-driven approach to solving business challenges.
         </p>
 
-        {/* Education */}
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
+          {/* University of Mumbai */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
             </div>
-            <p className="text-sm">B.E. in Computer Science & Engineering (AI & ML), 8.6 CGPA</p>
+
+            <p className="text-sm">
+              B.E. Computer Science & Engineering (Artificial Intelligence and Machine Learning) — 8.6 CGPA
+            </p>
+
+            <p className="text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
           </div>
 
+          {/* University of Cambridge */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Cambridge</h3>
             </div>
-            <p className="text-sm">Undergraduate Certificate in Strategic Business & Management</p>
+
+            <p className="text-sm">Undergraduate Certificate in Strategic Business and Management</p>
+
+            <p className="text-sm text-white/60 mt-1">Oct 2023 – July 2024</p>
           </div>
         </section>
 
