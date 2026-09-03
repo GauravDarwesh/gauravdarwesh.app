@@ -5,6 +5,10 @@ const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extra
 
 type Category = (typeof CATEGORIES)[number];
 
+/* -------------------------------------------------------------------------- */
+/* Content                                                                    */
+/* -------------------------------------------------------------------------- */
+
 const CATEGORY_DATA: Record<Category, string[]> = {
   Languages: ["English", "Marathi", "Hindi", "Japanese"],
 
@@ -49,12 +53,10 @@ const CATEGORY_DATA: Record<Category, string[]> = {
   ],
 };
 
-/*
- * Category dwell times.
- *
- * Skills and certifications get slightly more time because
- * they contain more pills.
- */
+/* -------------------------------------------------------------------------- */
+/* Timing                                                                     */
+/* -------------------------------------------------------------------------- */
+
 const DURATIONS: Record<Category, number> = {
   Languages: 7000,
   Skills: 9000,
@@ -63,29 +65,31 @@ const DURATIONS: Record<Category, number> = {
   Extracurriculars: 9000,
 };
 
-/*
- * Existing visual language of the website.
- * Do not alter this unless the overall design is intentionally changed.
- */
+/* -------------------------------------------------------------------------- */
+/* Chip styling                                                               */
+/* -------------------------------------------------------------------------- */
+
 const chipClass =
   "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-out px-4 py-2 text-sm";
 
 /* -------------------------------------------------------------------------- */
-/* Spotlight Content                                                         */
+/* Spotlight Content                                                          */
 /* -------------------------------------------------------------------------- */
 
-const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
+const SpotlightContent = ({ category, animationKey }: { category: Category; animationKey: number }) => {
   const items = CATEGORY_DATA[category];
 
   return (
-    <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
-      {items.map((item, i) => (
+    <div key={animationKey} className="flex flex-wrap gap-2.5 sm:gap-3">
+      {items.map((item, index) => (
         <div
           key={item}
           className={`spotlight-item ${chipClass}`}
-          style={{
-            animationDelay: `${i * 90}ms`,
-          }}
+          style={
+            {
+              "--spotlight-delay": `${index * 75}ms`,
+            } as React.CSSProperties
+          }
         >
           {item}
         </div>
@@ -95,56 +99,78 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
 };
 
 /* -------------------------------------------------------------------------- */
-/* Category Spotlight                                                        */
+/* Category Spotlight                                                         */
 /* -------------------------------------------------------------------------- */
 
 const CategorySpotlight = () => {
   const [active, setActive] = useState<Category>("Languages");
   const [paused, setPaused] = useState(false);
-  const [progressKey, setProgressKey] = useState(0);
+  const [animationKey, setAnimationKey] = useState(0);
 
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reducedMotion = useRef(false);
+  const timerRef = useRef<number | null>(null);
+  const reducedMotionRef = useRef(false);
+
+  /* ---------------------------------------------------------------------- */
+  /* Reduced motion                                                         */
+  /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    reducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    reducedMotionRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
+  /* ---------------------------------------------------------------------- */
+  /* Timer cleanup                                                          */
+  /* ---------------------------------------------------------------------- */
+
   const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
   }, []);
 
+  /* ---------------------------------------------------------------------- */
+  /* Advance category                                                       */
+  /* ---------------------------------------------------------------------- */
+
   const advance = useCallback(() => {
-    setActive((prev) => {
-      const idx = CATEGORIES.indexOf(prev);
-      return CATEGORIES[(idx + 1) % CATEGORIES.length];
+    setActive((current) => {
+      const currentIndex = CATEGORIES.indexOf(current);
+      return CATEGORIES[(currentIndex + 1) % CATEGORIES.length];
     });
 
-    setProgressKey((key) => key + 1);
+    setAnimationKey((key) => key + 1);
   }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* Category timer                                                         */
+  /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
     clearTimer();
 
-    if (paused || reducedMotion.current) {
+    if (paused || reducedMotionRef.current) {
       return;
     }
 
-    timerRef.current = setTimeout(() => {
-      advance();
-    }, DURATIONS[active]);
+    timerRef.current = window.setTimeout(advance, DURATIONS[active]);
 
     return clearTimer;
-  }, [active, paused, advance, clearTimer, progressKey]);
+  }, [active, paused, advance, clearTimer]);
+
+  /* ---------------------------------------------------------------------- */
+  /* Manual category selection                                              */
+  /* ---------------------------------------------------------------------- */
 
   const select = (category: Category) => {
+    if (category === active) {
+      return;
+    }
+
     clearTimer();
 
     setActive(category);
-    setProgressKey((key) => key + 1);
+    setAnimationKey((key) => key + 1);
   };
 
   return (
@@ -154,14 +180,17 @@ const CategorySpotlight = () => {
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
-      {/* Animated category navigation heading */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Category navigation                                               */}
+      {/* ---------------------------------------------------------------- */}
+
       <h2 className="text-xl sm:text-2xl font-semibold mb-6 flex flex-wrap items-baseline gap-x-2 gap-y-2">
-        {CATEGORIES.map((category, i) => (
+        {CATEGORIES.map((category, index) => (
           <span key={category} className="flex items-baseline gap-x-2">
             <button
               type="button"
               onClick={() => select(category)}
-              className={`relative pb-1 transition-all duration-500 focus:outline-none ${
+              className={`relative pb-1 transition-all duration-500 ease-out focus:outline-none ${
                 active === category
                   ? "text-white [text-shadow:0_0_18px_rgba(255,255,255,0.55)]"
                   : "text-white/40 hover:text-white/70"
@@ -169,14 +198,18 @@ const CategorySpotlight = () => {
             >
               {category}
 
+              {/* -------------------------------------------------------- */}
+              {/* Progress indicator                                       */}
+              {/* -------------------------------------------------------- */}
+
               {active === category && (
                 <span
                   className="absolute left-0 right-0 -bottom-0.5 h-[2px] rounded-full bg-white/30 overflow-hidden"
                   aria-hidden="true"
                 >
                   <span
-                    key={progressKey}
-                    className="spotlight-progress block h-full bg-white"
+                    key={`${category}-${animationKey}`}
+                    className="spotlight-progress block h-full w-full bg-white"
                     style={{
                       animationDuration: `${DURATIONS[category]}ms`,
                       animationPlayState: paused ? "paused" : "running",
@@ -186,14 +219,17 @@ const CategorySpotlight = () => {
               )}
             </button>
 
-            {i < CATEGORIES.length - 1 && <span className="text-white/30 select-none">/</span>}
+            {index < CATEGORIES.length - 1 && <span className="text-white/30 select-none">/</span>}
           </span>
         ))}
       </h2>
 
-      {/* Content */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Category content                                                  */}
+      {/* ---------------------------------------------------------------- */}
+
       <div className="pt-2 max-w-4xl">
-        <SpotlightContent category={active} animKey={progressKey} />
+        <SpotlightContent category={active} animationKey={animationKey} />
       </div>
     </section>
   );
@@ -206,28 +242,35 @@ const CategorySpotlight = () => {
 const Portfolio = () => {
   return (
     <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
-      {/* Background */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Background                                                        */}
+      {/* ---------------------------------------------------------------- */}
+
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+          backgroundImage: "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
         }}
       />
 
-      {/* Navigation Toggle */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Navigation                                                        */}
+      {/* ---------------------------------------------------------------- */}
+
       <NavigationToggle />
 
-      {/* Main Content */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Main content                                                      */}
+      {/* ---------------------------------------------------------------- */}
+
       <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
         {/* Header                                                           */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
 
         <div className="relative w-full mb-8 overflow-hidden">
-          {/* Accessible single H1 for SEO */}
           <h1 className="sr-only">Gaurav Darwesh</h1>
 
-          {/* Seamless marquee */}
           <div className="overflow-hidden marquee-fade-edges">
             <div className="animate-marquee flex items-center">
               {/* Group A */}
@@ -271,9 +314,9 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
         {/* Social Links                                                     */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
 
         <div>
           <div className="flex flex-wrap gap-4 text-white mt-2">
@@ -293,9 +336,9 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
         {/* About                                                            */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
 
         <p className="text-base sm:text-lg leading-relaxed mt-4">
           Results-oriented professional with a strong foundation in regulatory tech and customer success operations.
@@ -305,13 +348,14 @@ const Portfolio = () => {
           data-driven approach to solving business challenges.
         </p>
 
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
         {/* Education                                                        */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
 
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
+          {/* University of Mumbai */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
@@ -324,6 +368,7 @@ const Portfolio = () => {
             <p className="text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
           </div>
 
+          {/* University of Cambridge */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Cambridge</h3>
@@ -335,9 +380,9 @@ const Portfolio = () => {
           </div>
         </section>
 
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
         {/* Experience                                                       */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
 
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
@@ -359,38 +404,37 @@ const Portfolio = () => {
 
               <li>
                 Manage end-to-end regulatory change processes, including creating JIRA tickets, coordinating
-                cross-functional teams such as BA, sales, and pre-sales with client-specific needs, ensuring data
+                cross-functional teams like BA, sales and pre-sales teams with client-specific needs, ensuring data
                 accuracy and integrity in internal systems, and contributing to product enhancements.
               </li>
 
               <li>
-                Built Power BI dashboards using Power Query, translating raw data from JIRA and ServiceNow into
+                Built Power BI dashboards using Power Query translating raw data from JIRA and ServiceNow into
                 leadership insights.
               </li>
 
               <li>
                 Designed a comprehensive Regulatory Monitoring communication pipeline for the AxiomSL Regulatory
-                Newsletter, Email, and Teams Channel using Power Automate and an internal AI platform. The system
-                captures marked JIRA tickets, utilizes AI to structure the data, and enforces human-in-the-loop
-                approvals before broadcasting to internal teams and clients.
+                Newsletter, Email, and Teams Channel via Power Automate and an internal AI platform. The system captures
+                marked JIRA tickets, utilizes AI to structure the data, and enforces human-in-the-loop approvals before
+                broadcasting to internal teams and clients.
               </li>
 
               <li>
-                Reduced manual reporting time from 3 days to 30 minutes through the automated communication pipeline,
-                achieving a 98% reduction in reporting time.
+                Reduced manual reporting time from 3 days to 30 minutes, making the reporting workflow 98% faster.
               </li>
 
               <li>
                 Drive automation initiatives through the development of ReM AI (Regulatory Monitoring AI), an
-                LLM-powered tool that assists the RMT Team with document summarization, comparison, and understanding
+                LLM-powered tool assisting the RMT Team with document summarization, comparison, and understanding
                 historical trends via a connected JIRA MCP.
               </li>
 
               <li>Developed capabilities for ReM AI to automatically create JIRA issues and Confluence pages.</li>
 
               <li>
-                Architecting a unified data repository, Reg-Inventory, by integrating data streams from JIRA,
-                ServiceNow, and product inventory to centralize documentation for regulatory reports.
+                Architecting a unified data repository, Reg-Inventory, by integrating multi-channel data streams from
+                JIRA, ServiceNow, and product inventory to centralize documentation for all regulatory reports.
               </li>
             </ul>
           </div>
@@ -412,17 +456,17 @@ const Portfolio = () => {
 
               <li>
                 Led an organization-wide Net Promoter Score campaign across multiple Nasdaq product lines including
-                Calypso, AxiomSL, and NTS.
-              </li>
-
-              <li>
-                Leveraged Qualtrics, Planhat, Power BI, and Salesforce to support customer success analytics, campaign
-                execution, and reporting.
+                Calypso, AxiomSL, and NTS, leveraging Qualtrics, Planhat, Power BI, and Salesforce.
               </li>
 
               <li>
                 Supported Nasdaq Trade Surveillance (Phase-1) by vetting subscriptions through JIRA and automating
                 AI-powered vetting workflows using an internal GenAI Platform.
+              </li>
+
+              <li>
+                Improved efficiency and reduced manual work for easy-to-process documents through AI-powered workflow
+                automation.
               </li>
 
               <li>
@@ -496,15 +540,15 @@ const Portfolio = () => {
           </div>
         </section>
 
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
         {/* Category Spotlight                                                */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ================================================================ */}
 
         <CategorySpotlight />
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Invisible scrollbar + Spotlight animations                          */}
+      {/* Performance-focused animations                                    */}
       {/* ------------------------------------------------------------------ */}
 
       <style>{`
@@ -517,85 +561,123 @@ const Portfolio = () => {
           scrollbar-width: none;
         }
 
+        /* ================================================================ */
+        /* Spotlight item animation                                         */
+        /* ================================================================ */
+
         /*
-         * Soft spotlight entrance.
+         * IMPORTANT:
          *
-         * This intentionally brings back the original blurry/fading feeling
-         * instead of the hard "slide up" animation.
+         * Do NOT animate filter: blur().
+         *
+         * Blur is a paint-heavy operation and was the main reason the
+         * previous version could feel like it was running at ~24fps.
+         *
+         * Instead, this creates the same soft visual impression through:
+         *
+         *   opacity
+         *   translateY
+         *   scale
+         *
+         * These properties can be handled by the compositor.
          */
+
         .spotlight-item {
           opacity: 0;
-          filter: blur(8px);
-          transform: translateY(3px) scale(0.985);
-          animation:
-            spotlightItemIn
-            720ms
-            cubic-bezier(0.22, 1, 0.36, 1)
-            forwards;
-          will-change: opacity, filter, transform;
+          transform: translate3d(0, 4px, 0) scale(0.985);
+
+          animation-name: spotlightItemIn;
+          animation-duration: 620ms;
+          animation-timing-function: cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+          );
+          animation-delay: var(--spotlight-delay);
+          animation-fill-mode: both;
+
+          /*
+           * Only promote the currently animating element.
+           * The animation itself is short, so this avoids keeping
+           * unnecessary GPU layers around permanently.
+           */
+          backface-visibility: hidden;
         }
 
         @keyframes spotlightItemIn {
+
           0% {
             opacity: 0;
-            filter: blur(8px);
-            transform: translateY(3px) scale(0.985);
+            transform: translate3d(0, 4px, 0) scale(0.985);
           }
 
-          45% {
-            opacity: 0.55;
-            filter: blur(3px);
+          35% {
+            opacity: 0.45;
+            transform: translate3d(0, 2px, 0) scale(0.992);
+          }
+
+          70% {
+            opacity: 0.82;
           }
 
           100% {
             opacity: 1;
-            filter: blur(0);
-            transform: translateY(0) scale(1);
+            transform: translate3d(0, 0, 0) scale(1);
           }
         }
 
+        /* ================================================================ */
+        /* Progress bar                                                     */
+        /* ================================================================ */
+
         /*
-         * Progress bar.
+         * ScaleX is compositor-friendly.
          *
-         * Uses transform instead of animating width.
-         * Transform is GPU-friendly and avoids the slight visual
-         * "sticking" that can happen when width is continuously repainted.
+         * We don't animate width, left, margin, padding or any layout
+         * property.
          */
+
         .spotlight-progress {
-          width: 100%;
           transform-origin: left center;
-          transform: scaleX(0);
+          transform: scale3d(0, 1, 1);
+
           animation-name: spotlightProgress;
           animation-timing-function: linear;
           animation-fill-mode: forwards;
-          will-change: transform;
+
+          backface-visibility: hidden;
         }
 
         @keyframes spotlightProgress {
+
           from {
-            transform: scaleX(0);
+            transform: scale3d(0, 1, 1);
           }
 
           to {
-            transform: scaleX(1);
+            transform: scale3d(1, 1, 1);
           }
+
         }
 
-        /*
-         * Reduced motion.
-         */
+        /* ================================================================ */
+        /* Reduced motion                                                   */
+        /* ================================================================ */
+
         @media (prefers-reduced-motion: reduce) {
+
           .spotlight-item {
             animation: none;
             opacity: 1;
-            filter: none;
             transform: none;
           }
 
           .spotlight-progress {
             animation: none;
-            transform: scaleX(1);
+            transform: scale3d(1, 1, 1);
           }
+
         }
       `}</style>
     </div>
