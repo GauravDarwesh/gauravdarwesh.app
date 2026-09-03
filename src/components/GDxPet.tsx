@@ -20,7 +20,7 @@ const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
   const wrapRef = useRef<HTMLButtonElement | null>(null);
   const bodyRef = useRef<HTMLSpanElement | null>(null);
-  const limbsRef = useRef<HTMLSpanElement | null>(null);
+  const limbsRef = useRef<SVGGElement | null>(null);
 
   const xRef = useRef(0); // horizontal offset from home, px
   const busyRef = useRef(true); // busy until the entrance completes
@@ -399,7 +399,7 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
               {/* x */}
               <path d="M32.4 12.1c2.2 2.5 4.3 5 6.4 7.5M38.9 12c-2.2 2.6-4.3 5.1-6.4 7.6" />
               {/* limbs — thin, imperfect */}
-              <g ref={limbsRef as unknown as React.Ref<SVGGElement>} style={{ transformOrigin: "22px 20px" }}>
+              <g ref={limbsRef} style={{ transformOrigin: "22px 20px" }}>
                 <path d="M5.6 15.4c-2.3.9-3.6 2-4.4 3.6" />
                 <path d="M40.8 15c2.4.6 3.9 1.6 5 3.1" />
                 <path d="M17.4 21.6c-.6 3.6-1.2 6.1-2.3 8.2M15.1 29.8c-1.3.6-2.3 1.1-3.4 1.3" />
