@@ -12,71 +12,119 @@ const EASE_IN = "cubic-bezier(0.55, 0, 1, 0.45)";
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
-const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 /**
- * GDx
+ * GDx — tiny hand-drawn page pet.
  *
- * A tiny hand-drawn page pet.
+ * The important distinction in this version:
  *
- * Important implementation rules:
- * - Animation is imperative. React is never used as an animation clock.
- * - GDx mostly does nothing.
- * - Every "masti" is short and returns to a calm idle state.
- * - The outer layer never captures pointer events.
- * - No layout is changed by animation.
+ *   WORLD POSITION
+ *       ↓
+ *   full viewport x/y
+ *       ↓
+ *   CHARACTER MOTION
+ *       ↓
+ *   body / limbs / squash / rotation
+ *
+ * The pet is therefore not trapped inside a small centred strip.
  */
 const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const bodyRef = useRef<HTMLSpanElement | null>(null);
   const limbsRef = useRef<SVGGElement | null>(null);
 
-  const xRef = useRef(0);
+  // World position in viewport coordinates.
+  const positionRef = useRef({ x: 0, y: 0 });
+
   const busyRef = useRef(true);
-  const destroyedRef = useRef(false);
+  const mountedRef = useRef(false);
   const reducedRef = useRef(false);
 
   const idleTimerRef = useRef<number | null>(null);
   const entranceTimerRef = useRef<number | null>(null);
 
   const breathingRef = useRef<Animation | null>(null);
+  const bodyAnimationRef = useRef<Animation | null>(null);
   const limbAnimationRef = useRef<Animation | null>(null);
+  const worldAnimationRef = useRef<Animation | null>(null);
 
-  const cancelAnimation = (ref: React.MutableRefObject<Animation | null>) => {
+  const cancel = (ref: React.MutableRefObject<Animation | null>) => {
     ref.current?.cancel();
     ref.current = null;
   };
 
-  const animate = useCallback((el: Element, keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
-    const animation = el.animate(keyframes, options);
+  const animate = useCallback((element: Element, keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
+    const animation = element.animate(keyframes, options);
     return animation.finished.catch(() => {});
   }, []);
 
-  const setPosition = useCallback((x: number, y = 0, rotation = 0) => {
+  const viewport = useCallback(() => {
+    const mobile = window.innerWidth < 640;
+
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+
+      // Keep GDx away from the extreme edges.
+      left: mobile ? 28 : 42,
+      right: mobile ? 28 : 42,
+
+      // Don't let it walk underneath the SearchBar/navigation.
+      top: mobile ? 92 : 105,
+
+      // Leave a little breathing room at the bottom.
+      bottom: mobile ? 54 : 68,
+    };
+  }, []);
+
+  const bounds = useCallback(() => {
+    const v = viewport();
+
+    return {
+      minX: v.left,
+      maxX: Math.max(v.left, v.width - v.right - 52),
+
+      minY: v.top,
+      maxY: Math.max(v.top, v.height - v.bottom - 40),
+    };
+  }, [viewport]);
+
+  const renderPosition = useCallback((x: number, y: number, rotation = 0) => {
     const el = buttonRef.current;
     if (!el) return;
 
     el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${rotation}deg)`;
-    xRef.current = x;
   }, []);
 
-  const clampX = useCallback((x: number) => {
-    const horizontalPadding = window.innerWidth < 640 ? 48 : 72;
-    const limit = Math.min(230, Math.max(90, window.innerWidth / 2 - horizontalPadding));
-    return Math.max(-limit, Math.min(limit, x));
-  }, []);
+  const setPosition = useCallback(
+    (x: number, y: number, rotation = 0) => {
+      positionRef.current = { x, y };
+      renderPosition(x, y, rotation);
+    },
+    [renderPosition],
+  );
+
+  const randomPosition = useCallback(() => {
+    const b = bounds();
+
+    return {
+      x: rand(b.minX, b.maxX),
+      y: rand(b.minY, b.maxY),
+    };
+  }, [bounds]);
 
   const startBreathing = useCallback(() => {
     const body = bodyRef.current;
     if (!body || reducedRef.current || busyRef.current) return;
 
-    cancelAnimation(breathingRef);
+    cancel(breathingRef);
 
     breathingRef.current = body.animate(
       [
         { transform: "translate3d(0,0,0) scale(1,1)" },
         {
-          transform: "translate3d(0,-0.9px,0) scale(1.012,0.988)",
+          transform: "translate3d(0,-0.8px,0) scale(1.012,0.988)",
           offset: 0.45,
         },
         { transform: "translate3d(0,0,0) scale(1,1)" },
@@ -90,38 +138,43 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
   }, []);
 
   const stopBreathing = useCallback(() => {
-    cancelAnimation(breathingRef);
+    cancel(breathingRef);
   }, []);
 
-  const bodyMotion = useCallback(
-    async (keyframes: Keyframe[], duration: number, easing = EASE_SOFT) => {
-      const body = bodyRef.current;
-      if (!body) return;
+  const bodyMotion = useCallback(async (keyframes: Keyframe[], duration: number, easing = EASE_SOFT) => {
+    const body = bodyRef.current;
+    if (!body) return;
 
-      await animate(body, keyframes, {
-        duration,
-        easing,
-        fill: "forwards",
-      });
+    cancel(bodyAnimationRef);
 
-      // Keep the resting state clean after the animation.
-      body.style.transform = "translate3d(0,0,0)";
-    },
-    [animate],
-  );
+    const animation = body.animate(keyframes, {
+      duration,
+      easing,
+      fill: "forwards",
+    });
 
-  const limbWiggle = useCallback(async (duration: number, amount = 5) => {
+    bodyAnimationRef.current = animation;
+    await animation.finished.catch(() => {});
+
+    if (bodyRef.current) {
+      bodyRef.current.style.transform = "translate3d(0,0,0)";
+    }
+
+    bodyAnimationRef.current = null;
+  }, []);
+
+  const wiggleLimbs = useCallback(async (duration: number, amount = 5) => {
     const limbs = limbsRef.current;
     if (!limbs || reducedRef.current) return;
 
-    cancelAnimation(limbAnimationRef);
+    cancel(limbAnimationRef);
 
     const animation = limbs.animate(
       [
         { transform: "rotate(0deg)" },
         { transform: `rotate(${amount}deg)`, offset: 0.25 },
-        { transform: `rotate(${-amount}deg)`, offset: 0.55 },
-        { transform: `rotate(${amount * 0.55}deg)`, offset: 0.78 },
+        { transform: `rotate(${-amount}deg)`, offset: 0.52 },
+        { transform: `rotate(${amount * 0.45}deg)`, offset: 0.76 },
         { transform: "rotate(0deg)" },
       ],
       {
@@ -133,32 +186,55 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
 
     limbAnimationRef.current = animation;
     await animation.finished.catch(() => {});
+    limbAnimationRef.current = null;
   }, []);
 
-  const moveTo = useCallback(
-    async (targetX: number, duration: number, running = false) => {
+  /**
+   * Actual world movement.
+   *
+   * This is the part the previous version was missing:
+   * x/y are viewport coordinates, not offsets from a centred wrapper.
+   */
+  const walkTo = useCallback(
+    async (targetX: number, targetY: number, duration: number, running = false) => {
       const el = buttonRef.current;
       if (!el) return;
 
-      const fromX = xRef.current;
-      const distance = targetX - fromX;
+      const { x: fromX, y: fromY } = positionRef.current;
 
-      if (Math.abs(distance) < 2) return;
+      const dx = targetX - fromX;
+      const dy = targetY - fromY;
 
-      const direction = distance >= 0 ? 1 : -1;
-      const lean = running ? 9 : 5;
+      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+
+      const direction = dx >= 0 ? 1 : -1;
+      const lean = running ? 7 : 3.5;
+
+      cancel(worldAnimationRef);
 
       const animation = el.animate(
         [
           {
-            transform: `translate3d(${fromX}px,0,0) rotate(${direction * 1}deg)`,
+            transform: `translate3d(${fromX}px,${fromY}px,0) rotate(${direction}deg)`,
           },
           {
-            transform: `translate3d(${fromX + distance * 0.45}px,-1px,0) rotate(${direction * lean}deg)`,
-            offset: 0.45,
+            transform: `translate3d(
+              ${fromX + dx * 0.38}px,
+              ${fromY + dy * 0.38 - (running ? 5 : 2)}px,
+              0
+            ) rotate(${direction * lean}deg)`,
+            offset: 0.38,
           },
           {
-            transform: `translate3d(${targetX}px,0,0) rotate(${direction * 1}deg)`,
+            transform: `translate3d(
+              ${fromX + dx * 0.72}px,
+              ${fromY + dy * 0.72}px,
+              0
+            ) rotate(${direction * lean * 0.5}deg)`,
+            offset: 0.72,
+          },
+          {
+            transform: `translate3d(${targetX}px,${targetY}px,0) rotate(0deg)`,
           },
         ],
         {
@@ -168,18 +244,30 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
         },
       );
 
-      xRef.current = targetX;
+      worldAnimationRef.current = animation;
 
-      await Promise.all([animation.finished.catch(() => {}), limbWiggle(Math.min(duration, 700), running ? 7 : 4)]);
+      positionRef.current = {
+        x: targetX,
+        y: targetY,
+      };
 
-      el.style.transform = `translate3d(${targetX}px,0,0)`;
+      await Promise.all([
+        animation.finished.catch(() => {}),
+        wiggleLimbs(running ? Math.min(duration, 850) : Math.min(duration, 1100), running ? 7 : 4),
+      ]);
+
+      if (buttonRef.current) {
+        renderPosition(targetX, targetY, 0);
+      }
+
+      worldAnimationRef.current = null;
     },
-    [limbWiggle],
+    [renderPosition, wiggleLimbs],
   );
 
   /*
    * ─────────────────────────────────────────────────────────────
-   * MASTI REPERTOIRE
+   * MASTI
    * ─────────────────────────────────────────────────────────────
    */
 
@@ -188,79 +276,73 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
       [
         { transform: "rotate(0deg)" },
         { transform: "rotate(-5deg) translateX(-1px)", offset: 0.22 },
-        { transform: "rotate(0deg)", offset: 0.43 },
-        { transform: "rotate(6deg) translateX(1px)", offset: 0.67 },
+        { transform: "rotate(0deg)", offset: 0.44 },
+        { transform: "rotate(6deg) translateX(1px)", offset: 0.68 },
         { transform: "rotate(0deg)" },
       ],
-      1900,
+      1800,
       EASE_IN_OUT,
     );
   }, [bodyMotion]);
 
-  const tinyHop = useCallback(async () => {
+  const hop = useCallback(async () => {
     const el = buttonRef.current;
     if (!el) return;
 
-    const x = xRef.current;
+    const { x, y } = positionRef.current;
 
     await animate(
       el,
       [
         {
-          transform: `translate3d(${x}px,0,0) scale(1.08,0.9)`,
+          transform: `translate3d(${x}px,${y}px,0) scale(1.08,0.9)`,
         },
         {
-          transform: `translate3d(${x}px,-18px,0) scale(0.97,1.035)`,
+          transform: `translate3d(${x + rand(-4, 4)}px,${y - 22}px,0) scale(0.97,1.04)`,
           offset: 0.38,
         },
         {
-          transform: `translate3d(${x + rand(-4, 4)}px,-21px,0) scale(1,1)`,
+          transform: `translate3d(${x + rand(-5, 5)}px,${y - 26}px,0) scale(1,1)`,
           offset: 0.56,
         },
         {
-          transform: `translate3d(${x}px,0,0) scale(1.07,0.93)`,
+          transform: `translate3d(${x}px,${y}px,0) scale(1.07,0.93)`,
           offset: 0.84,
         },
         {
-          transform: `translate3d(${x}px,0,0) scale(1,1)`,
+          transform: `translate3d(${x}px,${y}px,0) scale(1,1)`,
         },
       ],
       {
-        duration: 720,
+        duration: 760,
         easing: EASE_SOFT,
         fill: "forwards",
       },
     );
 
-    el.style.transform = `translate3d(${x}px,0,0)`;
-  }, [animate]);
+    renderPosition(x, y);
+  }, [animate, renderPosition]);
 
   const doubleHop = useCallback(async () => {
-    await tinyHop();
-    await wait(90);
-    await tinyHop();
-  }, [tinyHop]);
+    await hop();
+    await sleep(90);
+    await hop();
+  }, [hop]);
 
   const stretch = useCallback(async () => {
     await bodyMotion(
       [
-        { transform: "translateY(0) scale(1,1)" },
-        {
-          transform: "translateY(1px) scale(0.92,1.08)",
-          offset: 0.22,
-        },
-        {
-          transform: "translateY(-2px) scale(1.06,0.94)",
-          offset: 0.55,
-        },
-        { transform: "translateY(0) scale(1,1)" },
+        { transform: "scale(1,1)" },
+        { transform: "translateY(1px) scale(0.92,1.08)", offset: 0.22 },
+        { transform: "translateY(-2px) scale(1.06,0.94)", offset: 0.55 },
+        { transform: "scale(1,1)" },
       ],
       1250,
       EASE_SPRING,
     );
   }, [bodyMotion]);
 
-  const sitAndThink = useCallback(async () => {
+  const sit = useCallback(async () => {
     await bodyMotion(
       [
         { transform: "translateY(0) scale(1,1)" },
@@ -274,76 +356,36 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
         },
         { transform: "translateY(0) scale(1,1)" },
       ],
-      2550,
+      2400,
       EASE_SOFT,
     );
   }, [bodyMotion]);
-
-  const wave = useCallback(async () => {
-    await bodyMotion(
-      [
-        { transform: "rotate(0deg)" },
-        { transform: "rotate(-4deg)", offset: 0.2 },
-        { transform: "rotate(3deg)", offset: 0.4 },
-        { transform: "rotate(-3deg)", offset: 0.6 },
-        { transform: "rotate(2deg)", offset: 0.8 },
-        { transform: "rotate(0deg)" },
-      ],
-      1350,
-      EASE_IN_OUT,
-    );
-
-    await limbWiggle(900, 10);
-  }, [bodyMotion, limbWiggle]);
-
-  const walk = useCallback(async () => {
-    const target = clampX(xRef.current + rand(-105, 105));
-    const duration = Math.max(850, Math.abs(target - xRef.current) * 13);
-
-    await moveTo(target, duration, false);
-  }, [clampX, moveTo]);
-
-  const run = useCallback(async () => {
-    const direction = Math.random() < 0.5 ? -1 : 1;
-    const target = clampX(xRef.current + direction * rand(150, 235));
-    const duration = Math.max(620, Math.abs(target - xRef.current) * 5.2);
-
-    await moveTo(target, duration, true);
-
-    await bodyMotion(
-      [
-        { transform: "rotate(0deg)" },
-        { transform: "rotate(-3deg) translateY(-1px)", offset: 0.35 },
-        { transform: "rotate(0deg)" },
-      ],
-      420,
-      EASE_SOFT,
-    );
-  }, [bodyMotion, clampX, moveTo]);
 
   const stumble = useCallback(async () => {
     const el = buttonRef.current;
     if (!el) return;
 
-    const x = xRef.current;
+    const { x, y } = positionRef.current;
 
     await animate(
       el,
       [
-        { transform: `translate3d(${x}px,0,0) rotate(0deg)` },
+        { transform: `translate3d(${x}px,${y}px,0) rotate(0deg)` },
         {
-          transform: `translate3d(${x + rand(-4, 4)}px,2px,0) rotate(-10deg)`,
-          offset: 0.3,
+          transform: `translate3d(${x + 3}px,${y + 2}px,0) rotate(-10deg)`,
+          offset: 0.28,
         },
         {
-          transform: `translate3d(${x + rand(5, 9)}px,3px,0) rotate(13deg)`,
-          offset: 0.53,
+          transform: `translate3d(${x + 8}px,${y + 3}px,0) rotate(13deg)`,
+          offset: 0.52,
         },
         {
-          transform: `translate3d(${x}px,-2px,0) rotate(-5deg)`,
+          transform: `translate3d(${x}px,${y - 2}px,0) rotate(-5deg)`,
           offset: 0.72,
         },
-        { transform: `translate3d(${x}px,0,0) rotate(0deg)` },
+        {
+          transform: `translate3d(${x}px,${y}px,0) rotate(0deg)`,
+        },
       ],
       {
         duration: 1050,
@@ -352,103 +394,154 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
       },
     );
 
-    el.style.transform = `translate3d(${x}px,0,0)`;
-  }, [animate]);
+    renderPosition(x, y);
+  }, [animate, renderPosition]);
 
   const peek = useCallback(async () => {
     const el = buttonRef.current;
     if (!el) return;
 
-    const x = xRef.current;
+    const { x, y } = positionRef.current;
 
     await animate(
       el,
       [
-        { transform: `translate3d(${x}px,0,0)`, opacity: 1 },
         {
-          transform: `translate3d(${x}px,12px,0) scale(0.94)`,
-          opacity: 0.45,
+          transform: `translate3d(${x}px,${y}px,0) scale(1)`,
+          opacity: 1,
+        },
+        {
+          transform: `translate3d(${x}px,${y + 10}px,0) scale(0.94)`,
+          opacity: 0.35,
           offset: 0.28,
         },
         {
-          transform: `translate3d(${x}px,-7px,0) scale(1.02)`,
+          transform: `translate3d(${x}px,${y - 7}px,0) scale(1.02)`,
           opacity: 1,
           offset: 0.62,
         },
-        { transform: `translate3d(${x}px,0,0) scale(1)`, opacity: 1 },
+        {
+          transform: `translate3d(${x}px,${y}px,0) scale(1)`,
+          opacity: 1,
+        },
       ],
       {
-        duration: 1650,
+        duration: 1600,
         easing: EASE_SOFT,
         fill: "forwards",
       },
     );
 
     el.style.opacity = "1";
-    el.style.transform = `translate3d(${x}px,0,0)`;
-  }, [animate]);
+    renderPosition(x, y);
+  }, [animate, renderPosition]);
+
+  const wander = useCallback(async () => {
+    const b = bounds();
+
+    const { x: currentX, y: currentY } = positionRef.current;
+
+    // Prefer a meaningful distance so the movement is actually visible.
+    let targetX = rand(b.minX, b.maxX);
+    let targetY = rand(b.minY, b.maxY);
+
+    let attempts = 0;
+
+    while (Math.hypot(targetX - currentX, targetY - currentY) < 150 && attempts < 8) {
+      targetX = rand(b.minX, b.maxX);
+      targetY = rand(b.minY, b.maxY);
+      attempts++;
+    }
+
+    const distance = Math.hypot(targetX - currentX, targetY - currentY);
+
+    const duration = Math.max(1500, Math.min(4200, distance * 8.5));
+
+    await walkTo(targetX, targetY, duration, false);
+  }, [bounds, walkTo]);
+
+  const run = useCallback(async () => {
+    const b = bounds();
+    const { x, y } = positionRef.current;
+
+    const direction = Math.random() < 0.5 ? -1 : 1;
+
+    let targetX = direction < 0 ? rand(b.minX, Math.max(b.minX, x - 180)) : rand(Math.min(b.maxX, x + 180), b.maxX);
+
+    // If there isn't enough room in the chosen direction, cross the page.
+    if (Math.abs(targetX - x) < 120) {
+      targetX = direction < 0 ? b.minX : b.maxX;
+    }
+
+    const targetY = Math.max(b.minY, Math.min(b.maxY, y + rand(-35, 35)));
+
+    const distance = Math.hypot(targetX - x, targetY - y);
+
+    await walkTo(targetX, targetY, Math.max(850, Math.min(2600, distance * 4.4)), true);
+  }, [bounds, walkTo]);
 
   const hideAndReappear = useCallback(async () => {
     const el = buttonRef.current;
     if (!el) return;
 
-    const fromX = xRef.current;
-    const toX = clampX(fromX + rand(-145, 145));
+    const from = positionRef.current;
+    const to = randomPosition();
 
     await animate(
       el,
       [
         {
-          transform: `translate3d(${fromX}px,0,0) scale(1)`,
+          transform: `translate3d(${from.x}px,${from.y}px,0) scale(1)`,
           opacity: 1,
         },
         {
-          transform: `translate3d(${fromX}px,6px,0) scale(0.72)`,
+          transform: `translate3d(${from.x}px,${from.y + 8}px,0) scale(0.65)`,
           opacity: 0,
-          offset: 0.3,
+          offset: 0.28,
         },
         {
-          transform: `translate3d(${toX}px,6px,0) scale(0.72)`,
+          transform: `translate3d(${to.x}px,${to.y + 8}px,0) scale(0.65)`,
           opacity: 0,
-          offset: 0.65,
+          offset: 0.72,
         },
         {
-          transform: `translate3d(${toX}px,0,0) scale(1)`,
+          transform: `translate3d(${to.x}px,${to.y}px,0) scale(1)`,
           opacity: 1,
         },
       ],
       {
-        duration: 2100,
+        duration: 1900,
         easing: EASE_SOFT,
         fill: "forwards",
       },
     );
 
-    xRef.current = toX;
+    positionRef.current = to;
+
     el.style.opacity = "1";
-    el.style.transform = `translate3d(${toX}px,0,0)`;
-  }, [animate, clampX]);
+    renderPosition(to.x, to.y);
+  }, [animate, randomPosition, renderPosition]);
 
   const spin = useCallback(async () => {
     const el = buttonRef.current;
     if (!el) return;
 
-    const x = xRef.current;
+    const { x, y } = positionRef.current;
 
     await animate(
       el,
       [
-        { transform: `translate3d(${x}px,0,0) rotate(0deg)` },
+        { transform: `translate3d(${x}px,${y}px,0) rotate(0deg)` },
         {
-          transform: `translate3d(${x + 4}px,-14px,0) rotate(-18deg)`,
+          transform: `translate3d(${x + 4}px,${y - 12}px,0) rotate(-20deg)`,
           offset: 0.28,
         },
         {
-          transform: `translate3d(${x - 3}px,-18px,0) rotate(18deg)`,
+          transform: `translate3d(${x - 3}px,${y - 17}px,0) rotate(20deg)`,
           offset: 0.58,
         },
         {
-          transform: `translate3d(${x}px,0,0) rotate(0deg)`,
+          transform: `translate3d(${x}px,${y}px,0) rotate(0deg)`,
         },
       ],
       {
@@ -458,144 +551,111 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
       },
     );
 
-    el.style.transform = `translate3d(${x}px,0,0)`;
-  }, [animate]);
+    renderPosition(x, y);
+  }, [animate, renderPosition]);
 
-  const hang = useCallback(async () => {
-    const el = buttonRef.current;
-    if (!el) return;
-
-    const x = xRef.current;
-
-    await animate(
-      el,
-      [
-        { transform: `translate3d(${x}px,0,0) rotate(0deg)` },
-        {
-          transform: `translate3d(${x}px,-15px,0) rotate(150deg)`,
-          offset: 0.3,
-        },
-        {
-          transform: `translate3d(${x + 2}px,-11px,0) rotate(176deg)`,
-          offset: 0.58,
-        },
-        {
-          transform: `translate3d(${x}px,0,0) rotate(0deg)`,
-        },
-      ],
-      {
-        duration: 2400,
-        easing: EASE_SOFT,
-        fill: "forwards",
-      },
-    );
-
-    el.style.transform = `translate3d(${x}px,0,0)`;
-  }, [animate]);
-
-  const sleep = useCallback(async () => {
+  const sleepMasti = useCallback(async () => {
     await bodyMotion(
       [
-        { transform: "translateY(0) scale(1,1) rotate(0deg)" },
+        { transform: "translateY(0) scale(1,1)" },
         {
-          transform: "translateY(3px) scale(1.07,0.9) rotate(-3deg)",
-          offset: 0.18,
+          transform: "translateY(3px) scale(1.07,0.9)",
+          offset: 0.2,
         },
         {
-          transform: "translateY(3px) scale(1.07,0.9) rotate(3deg)",
+          transform: "translateY(3px) scale(1.07,0.9) rotate(2deg)",
           offset: 0.5,
         },
         {
           transform: "translateY(3px) scale(1.07,0.9) rotate(-2deg)",
-          offset: 0.82,
+          offset: 0.78,
         },
-        { transform: "translateY(0) scale(1,1) rotate(0deg)" },
+        { transform: "translateY(0) scale(1,1)" },
       ],
-      3200,
+      3000,
       EASE_IN_OUT,
     );
   }, [bodyMotion]);
 
+  /*
+   * Movement-heavy repertoire.
+   *
+   * We intentionally bias the first development version toward movement
+   * because GDx should visibly inhabit the page.
+   */
   const masti = useRef<Array<() => Promise<void>>>([]);
 
   useEffect(() => {
+    // Movement is intentionally weighted more heavily during this phase.
     masti.current = [
-      lookAround,
-      tinyHop,
-      doubleHop,
-      stretch,
-      sitAndThink,
-      wave,
-      walk,
+      wander,
+      wander,
+      wander,
       run,
+      hop,
+      doubleHop,
+      lookAround,
+      stretch,
+      sit,
       stumble,
       peek,
       hideAndReappear,
       spin,
-      hang,
-      sleep,
+      sleepMasti,
     ];
-  }, [
-    lookAround,
-    tinyHop,
-    doubleHop,
-    stretch,
-    sitAndThink,
-    wave,
-    walk,
-    run,
-    stumble,
-    peek,
-    hideAndReappear,
-    spin,
-    hang,
-    sleep,
-  ]);
+  }, [wander, run, hop, doubleHop, lookAround, stretch, sit, stumble, peek, hideAndReappear, spin, sleepMasti]);
 
   /*
-   * The pet is intentionally quiet.
-   *
-   * The delay is selected again after every behaviour, so there is no
-   * recognisable "every N seconds" rhythm.
+   * ─────────────────────────────────────────────────────────────
+   * LIFECYCLE
+   * ─────────────────────────────────────────────────────────────
    */
+
   useEffect(() => {
     const el = buttonRef.current;
     if (!el) return;
 
-    destroyedRef.current = false;
+    mountedRef.current = true;
     reducedRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let cancelled = false;
 
-    const runIdleCycle = () => {
-      if (cancelled) return;
+    const startIdleScheduler = () => {
+      if (cancelled || document.hidden || disabled) return;
 
-      const delay = reducedRef.current ? rand(12000, 18000) : rand(7500, 14500);
+      const delay = reducedRef.current ? rand(9000, 15000) : rand(3500, 8500);
 
       idleTimerRef.current = window.setTimeout(async () => {
-        if (cancelled || destroyedRef.current || disabled || busyRef.current || document.hidden) {
-          runIdleCycle();
+        idleTimerRef.current = null;
+
+        if (cancelled || !mountedRef.current || disabled || busyRef.current || document.hidden) {
+          startIdleScheduler();
+          return;
+        }
+
+        const list = masti.current;
+
+        if (!list.length) {
+          startIdleScheduler();
           return;
         }
 
         busyRef.current = true;
         stopBreathing();
 
-        const list = masti.current;
         const action = list[Math.floor(Math.random() * list.length)];
 
         try {
-          await action?.();
+          await action();
         } catch {
-          // Animation cancellation/unmount is intentionally harmless.
+          // Animation cancellation is harmless.
         }
 
-        if (!cancelled && !destroyedRef.current) {
+        if (!cancelled && mountedRef.current) {
           busyRef.current = false;
           startBreathing();
+          startIdleScheduler();
         }
-
-        runIdleCycle();
       }, delay);
     };
 
@@ -605,40 +665,55 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
           window.clearTimeout(idleTimerRef.current);
           idleTimerRef.current = null;
         }
+
+        cancel(worldAnimationRef);
         stopBreathing();
         return;
       }
 
       if (!busyRef.current && !disabled) {
         startBreathing();
-        runIdleCycle();
+        startIdleScheduler();
       }
     };
 
-    const entrance = window.setTimeout(async () => {
+    /*
+     * Start at the lower centre of the viewport.
+     * This is just the initial home position — GDx is free to leave it.
+     */
+    const initial = bounds();
+
+    const startX = window.innerWidth / 2 - 26;
+    const startY = Math.min(initial.maxY, Math.max(initial.minY, window.innerHeight * 0.72));
+
+    setPosition(startX, startY);
+
+    el.style.opacity = "0";
+
+    entranceTimerRef.current = window.setTimeout(async () => {
       if (cancelled) return;
 
       busyRef.current = true;
 
       if (reducedRef.current) {
         el.style.opacity = "1";
-        el.style.transform = "translate3d(0,0,0)";
+        setPosition(startX, startY);
       } else {
         await animate(
           el,
           [
             {
               opacity: 0,
-              transform: "translate3d(0,16px,0) scale(0.72)",
+              transform: `translate3d(${startX}px,${startY + 18}px,0) scale(0.72)`,
             },
             {
               opacity: 1,
-              transform: "translate3d(0,-5px,0) scale(1.035)",
+              transform: `translate3d(${startX}px,${startY - 5}px,0) scale(1.035)`,
               offset: 0.7,
             },
             {
               opacity: 1,
-              transform: "translate3d(0,0,0) scale(1)",
+              transform: `translate3d(${startX}px,${startY}px,0) scale(1)`,
             },
           ],
           {
@@ -648,79 +723,57 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
           },
         );
 
+        setPosition(startX, startY);
         el.style.opacity = "1";
-        el.style.transform = "translate3d(0,0,0)";
       }
 
       if (cancelled) return;
 
       busyRef.current = false;
       startBreathing();
-      runIdleCycle();
-    }, 3200);
 
-    entranceTimerRef.current = entrance;
+      // First visible behaviour arrives relatively soon during development.
+      startIdleScheduler();
+    }, 3200);
 
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       cancelled = true;
-      destroyedRef.current = true;
-
-      window.clearTimeout(entrance);
-
-      if (idleTimerRef.current) {
-        window.clearTimeout(idleTimerRef.current);
-        idleTimerRef.current = null;
-      }
+      mountedRef.current = false;
 
       if (entranceTimerRef.current) {
         window.clearTimeout(entranceTimerRef.current);
         entranceTimerRef.current = null;
       }
 
-      stopBreathing();
-      cancelAnimation(limbAnimationRef);
+      if (idleTimerRef.current) {
+        window.clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+
+      cancel(breathingRef);
+      cancel(bodyAnimationRef);
+      cancel(limbAnimationRef);
+      cancel(worldAnimationRef);
+
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [
-    animate,
-    disabled,
-    startBreathing,
-    stopBreathing,
-    lookAround,
-    tinyHop,
-    doubleHop,
-    stretch,
-    sitAndThink,
-    wave,
-    walk,
-    run,
-    stumble,
-    peek,
-    hideAndReappear,
-    spin,
-    hang,
-    sleep,
-  ]);
+  }, [animate, bounds, disabled, setPosition, startBreathing, stopBreathing]);
 
   /*
-   * Interaction is deliberately kept separate from the idle system.
-   * The search transition can be refined independently later.
+   * ─────────────────────────────────────────────────────────────
+   * TAP → SEARCHBAR
+   * ─────────────────────────────────────────────────────────────
+   *
+   * This is intentionally still simple for this phase.
+   * We establish the correct full-screen world first.
    */
   const handleActivate = useCallback(async () => {
-    if (disabled || busyRef.current || reducedRef.current) {
-      if (disabled || busyRef.current) return;
-
-      // Reduced-motion users still get the action without a long animation.
-      busyRef.current = true;
-      stopBreathing();
-      onEnterSearch();
-      busyRef.current = false;
-      startBreathing();
-      return;
-    }
+    if (disabled || busyRef.current) return;
 
     const el = buttonRef.current;
+
     if (!el) {
       onEnterSearch();
       return;
@@ -729,17 +782,25 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
     busyRef.current = true;
     stopBreathing();
 
-    const x = xRef.current;
+    const { x, y } = positionRef.current;
+
+    if (reducedRef.current) {
+      onEnterSearch();
+      busyRef.current = false;
+      startBreathing();
+      return;
+    }
 
     try {
+      // Small anticipation.
       await animate(
         el,
         [
           {
-            transform: `translate3d(${x}px,0,0) scale(1,1)`,
+            transform: `translate3d(${x}px,${y}px,0) scale(1,1)`,
           },
           {
-            transform: `translate3d(${x}px,3px,0) scale(1.13,0.84)`,
+            transform: `translate3d(${x}px,${y + 3}px,0) scale(1.13,0.84)`,
           },
         ],
         {
@@ -749,26 +810,33 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
         },
       );
 
+      /*
+       * SearchBar target is intentionally only used here.
+       * We are NOT changing SearchBar yet.
+       */
+      const search = document.querySelector<HTMLElement>("[data-gdx-search-target]");
+
+      const target = search?.getBoundingClientRect();
+
+      const targetX = target ? target.left + target.width / 2 - 26 : window.innerWidth / 2 - 26;
+
+      const targetY = target ? target.top + target.height / 2 - 20 : 42;
+
+      const apexX = x + (targetX - x) * 0.45;
+      const apexY = Math.min(y, targetY) - Math.max(90, window.innerHeight * 0.12);
+
       await animate(
         el,
         [
           {
-            transform: `translate3d(${x}px,3px,0) scale(0.94,1.08)`,
+            transform: `translate3d(${x}px,${y + 3}px,0) scale(0.94,1.08)`,
           },
           {
-            transform: `translate3d(${x + rand(-8, 8)}px,-27px,0) scale(0.98,1.03)`,
-            offset: 0.38,
+            transform: `translate3d(${apexX}px,${apexY}px,0) rotate(8deg) scale(1,1)`,
+            offset: 0.5,
           },
           {
-            transform: `translate3d(${x + rand(-14, 14)}px,-34px,0) scale(1,1)`,
-            offset: 0.58,
-          },
-          {
-            transform: `translate3d(${x}px,0,0) scale(1.06,0.94)`,
-            offset: 0.88,
-          },
-          {
-            transform: `translate3d(${x}px,0,0) scale(1,1)`,
+            transform: `translate3d(${targetX}px,${targetY}px,0) scale(0.9,1.1)`,
           },
         ],
         {
@@ -782,16 +850,16 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
         el,
         [
           {
-            transform: `translate3d(${x}px,0,0) scale(1,1)`,
+            transform: `translate3d(${targetX}px,${targetY}px,0) scale(0.9,1.1)`,
             opacity: 1,
           },
           {
-            transform: `translate3d(${x}px,3px,0) scale(1.16,0.5)`,
-            opacity: 0.55,
-            offset: 0.52,
+            transform: `translate3d(${targetX}px,${targetY + 4}px,0) scale(1.16,0.5)`,
+            opacity: 0.5,
+            offset: 0.55,
           },
           {
-            transform: `translate3d(${x}px,5px,0) scale(0.35,0.2)`,
+            transform: `translate3d(${targetX}px,${targetY + 5}px,0) scale(0.35,0.2)`,
             opacity: 0,
           },
         ],
@@ -804,26 +872,21 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
 
       onEnterSearch();
 
-      /*
-       * Until SearchBar gets its own GDx lifecycle, bring the pet back
-       * quietly after the interaction. This keeps GDx independently usable.
-       */
       window.setTimeout(() => {
-        const node = buttonRef.current;
-        if (!node || destroyedRef.current) return;
+        if (!mountedRef.current) return;
 
-        node.style.opacity = "0";
-        node.style.transform = `translate3d(${x}px,12px,0)`;
+        el.style.opacity = "0";
+        el.style.transform = `translate3d(${x}px,${y + 12}px,0) scale(0.7)`;
 
-        node.animate(
+        el.animate(
           [
             {
               opacity: 0,
-              transform: `translate3d(${x}px,12px,0) scale(0.7)`,
+              transform: `translate3d(${x}px,${y + 12}px,0) scale(0.7)`,
             },
             {
               opacity: 1,
-              transform: `translate3d(${x}px,0,0) scale(1)`,
+              transform: `translate3d(${x}px,${y}px,0) scale(1)`,
             },
           ],
           {
@@ -833,26 +896,27 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
           },
         );
 
-        node.style.opacity = "1";
-        node.style.transform = `translate3d(${x}px,0,0)`;
+        positionRef.current = { x, y };
+        el.style.opacity = "1";
+        renderPosition(x, y);
 
         busyRef.current = false;
         startBreathing();
       }, 1150);
     } catch {
-      if (!destroyedRef.current) {
-        el.style.opacity = "1";
-        el.style.transform = `translate3d(${x}px,0,0)`;
-        busyRef.current = false;
-        startBreathing();
-      }
+      if (!mountedRef.current) return;
+
+      el.style.opacity = "1";
+      renderPosition(x, y);
+      busyRef.current = false;
+      startBreathing();
     }
-  }, [animate, disabled, onEnterSearch, startBreathing, stopBreathing]);
+  }, [animate, disabled, onEnterSearch, renderPosition, startBreathing, stopBreathing]);
 
   return (
     <div
       aria-hidden={false}
-      className="pointer-events-none fixed inset-x-0 bottom-[14vh] z-30 flex justify-center"
+      className="pointer-events-none fixed inset-0 z-30"
       style={{
         contain: "layout paint",
       }}
@@ -863,9 +927,10 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
         onClick={handleActivate}
         aria-label="Talk to GDx"
         disabled={disabled}
-        className="pointer-events-auto cursor-pointer border-0 bg-transparent p-2 opacity-0 will-change-transform focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full"
+        className="pointer-events-auto absolute cursor-pointer border-0 bg-transparent p-2 opacity-0 will-change-transform focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full"
         style={{
-          transform: "translate3d(0,16px,0)",
+          left: 0,
+          top: 0,
           touchAction: "manipulation",
         }}
       >
@@ -904,7 +969,7 @@ const GDxPet = ({ onEnterSearch, disabled = false }: GDxPetProps) => {
               {/* x */}
               <path d="M32.4 12.1c2.2 2.5 4.3 5 6.4 7.5M38.9 12c-2.2 2.6-4.3 5.1-6.4 7.6" />
 
-              {/* tiny, imperfect limbs */}
+              {/* thin, imperfect limbs */}
               <g
                 ref={limbsRef}
                 style={{
