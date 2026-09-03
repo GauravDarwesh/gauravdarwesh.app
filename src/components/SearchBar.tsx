@@ -39,9 +39,7 @@ const getTtsQuotaBlockedUntil = (): number => {
 
 const rememberTtsQuotaLimit = (responseBody: string) => {
   const resetMatch = responseBody.match(/X-RateLimit-Reset[^0-9]*(\d{10,13})/i);
-
   const parsedReset = resetMatch ? Number(resetMatch[1]) : 0;
-
   const resetAt =
     Number.isFinite(parsedReset) && parsedReset > Date.now() ? parsedReset : Date.now() + TTS_QUOTA_FALLBACK_MS;
 
@@ -89,21 +87,17 @@ const convertMarkdownToHtml = (text: string): string => {
     .split("\n")
     .map((rawLine) => {
       const line = rawLine.trim();
-
       if (!line) return "<br>";
 
       if (line.startsWith("### ")) {
         return `<h3 class="text-lg font-normal mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
       }
-
       if (line.startsWith("## ")) {
         return `<h2 class="text-xl font-normal mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
       }
-
       if (line.startsWith("# ")) {
         return `<h1 class="text-2xl font-normal mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
       }
-
       if (line.startsWith("- ") || line.startsWith("* ")) {
         return `<li class="ml-4 list-disc font-normal">${processInline(line.slice(2))}</li>`;
       }
@@ -114,7 +108,7 @@ const convertMarkdownToHtml = (text: string): string => {
 };
 
 /* =========================================================
-   2. FADE
+   2. FADE HELPER
    ========================================================= */
 
 function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
@@ -127,7 +121,6 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
     }
 
     const timer = setTimeout(() => setVisible(false), duration);
-
     return () => clearTimeout(timer);
   }, [show, duration]);
 
@@ -136,9 +129,7 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
   return (
     <div
       className={`transition-opacity ${show ? "opacity-100" : "opacity-0"}`}
-      style={{
-        transitionDuration: `${duration}ms`,
-      }}
+      style={{ transitionDuration: `${duration}ms` }}
     >
       {children}
     </div>
@@ -146,65 +137,43 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
 }
 
 /* =========================================================
-   3. SMOOTH VOICE WAVEFORM
-   =========================================================
+   3. SMOOTH REACTIVE WAVEFORM
 
-   Important architectural change:
-
-   The waveform itself is completely independent from React's
-   speaking/listening state.
-
-   React tells it:
-
-     listening = true/false
-     speaking = true/false
-     analyser = active analyser
-
-   The canvas owns its animation loop.
-
-   This means changing React state does NOT restart the RAF loop.
-
-   The analyser is also fed by exactly ONE active source at a time:
-   microphone OR AI playback.
-
-   This eliminates a large amount of the previous jitter.
+   Important voice fix:
+   - Hosted TTS is routed through the analyser.
+   - Native browser TTS has no exposed analyser stream, so a
+     restrained synthetic signal is used while it speaks.
+   - The synthetic signal is used whenever the analyser has
+     little/no usable output, so fallback TTS never looks frozen.
    ========================================================= */
 
-interface BarWaveformProps {
+const BarWaveform: React.FC<{
   analyser: AnalyserNode | null;
   isActive: boolean;
-  isListening: boolean;
-  isSpeaking: boolean;
-}
-
-const BarWaveform: React.FC<BarWaveformProps> = ({ analyser, isActive, isListening, isSpeaking }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  isSpeaking?: boolean;
+}> = ({ analyser, isActive, isSpeaking = false }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
+  const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const activeRef = useRef(false);
-  const listeningRef = useRef(false);
-  const speakingRef = useRef(false);
+  const analyserRef = useRef<AnalyserNode | null>(analyser);
+  const activeRef = useRef(isActive);
+  const speakingRef = useRef(isSpeaking);
 
+  const dimsRef = useRef({ width: 0, height: 0, dpr: 1 });
+
+  /*
+   * This is deliberately a HISTORY waveform rather than a set of
+   * independent sine waves. Every new audio measurement enters on
+   * the right and older measurements drift toward the left.
+   *
+   * That makes it feel like actual speech instead of a collection
+   * of bars breathing in sync.
+   */
+  const historyRef = useRef<number[]>([]);
+  const smoothEnergyRef = useRef(0);
+  const noiseRef = useRef<number[]>([]);
   const phaseRef = useRef(0);
-
-  const energyRef = useRef(0);
-  const targetEnergyRef = useRef(0);
-
-  const dimensionsRef = useRef({
-    width: 0,
-    height: 0,
-    dpr: 1,
-  });
-
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-
-  /* -------------------------------------------------------
-     Keep animation state in refs.
-     No RAF restart when props change.
-     ------------------------------------------------------- */
 
   useEffect(() => {
     analyserRef.current = analyser;
@@ -215,67 +184,58 @@ const BarWaveform: React.FC<BarWaveformProps> = ({ analyser, isActive, isListeni
   }, [isActive]);
 
   useEffect(() => {
-    listeningRef.current = isListening;
-  }, [isListening]);
-
-  useEffect(() => {
     speakingRef.current = isSpeaking;
   }, [isSpeaking]);
 
-  /* -------------------------------------------------------
-     Canvas resize
-     ------------------------------------------------------- */
-
   useEffect(() => {
-    const container = containerRef.current;
-    const canvas = canvasRef.current;
+    if (!containerRef.current || !canvasRef.current) return;
 
-    if (!container || !canvas) return;
+    const updateSize = () => {
+      if (!containerRef.current || !canvasRef.current) return;
 
-    const resize = () => {
-      const rect = container.getBoundingClientRect();
-
+      const rect = containerRef.current.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-      dimensionsRef.current = {
+      dimsRef.current = {
         width: rect.width,
         height: rect.height,
         dpr,
       };
 
-      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvasRef.current.width = Math.max(1, Math.round(rect.width * dpr));
+      canvasRef.current.height = Math.max(1, Math.round(rect.height * dpr));
+      canvasRef.current.style.width = `${rect.width}px`;
+      canvasRef.current.style.height = `${rect.height}px`;
 
-      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      const barCount = Math.max(12, Math.floor(rect.width / 4.2));
 
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
+      if (historyRef.current.length !== barCount) {
+        const previous = historyRef.current;
+        historyRef.current = Array.from({ length: barCount }, (_, i) => {
+          if (!previous.length) return 0.035;
+          const sourceIndex = Math.floor((i / Math.max(1, barCount - 1)) * Math.max(0, previous.length - 1));
+          return previous[sourceIndex] ?? 0.035;
+        });
+      }
+
+      if (noiseRef.current.length !== barCount) {
+        noiseRef.current = Array.from({ length: barCount }, () => 0.85 + Math.random() * 0.3);
+      }
     };
 
-    resize();
+    updateSize();
 
-    const observer = new ResizeObserver(resize);
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(containerRef.current);
 
-    observer.observe(container);
-
-    resizeObserverRef.current = observer;
-
-    return () => {
-      observer.disconnect();
-      resizeObserverRef.current = null;
-    };
+    return () => observer.disconnect();
   }, []);
 
-  /* -------------------------------------------------------
-     Single permanent animation loop
-     ------------------------------------------------------- */
-
   useEffect(() => {
+    if (!canvasRef.current) return;
+
     const canvas = canvasRef.current;
-
-    if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
-
     if (!ctx) return;
 
     const frequencyData = new Uint8Array(128);
@@ -286,222 +246,214 @@ const BarWaveform: React.FC<BarWaveformProps> = ({ analyser, isActive, isListeni
     const draw = (now: number) => {
       animationFrameRef.current = requestAnimationFrame(draw);
 
-      const { width, height, dpr } = dimensionsRef.current;
-
+      const { width, height, dpr } = dimsRef.current;
       if (!width || !height) return;
 
       const delta = Math.min(40, Math.max(8, now - previousTime));
-
       previousTime = now;
 
       const active = activeRef.current;
-      const listening = listeningRef.current;
       const speaking = speakingRef.current;
+      const currentAnalyser = analyserRef.current;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
       ctx.clearRect(0, 0, width, height);
 
+      const barCount = Math.max(12, Math.floor(width / 4.2));
+
+      if (historyRef.current.length !== barCount) {
+        historyRef.current = Array.from({ length: barCount }, () => 0.035);
+      }
+
+      if (noiseRef.current.length !== barCount) {
+        noiseRef.current = Array.from({ length: barCount }, () => 0.85 + Math.random() * 0.3);
+      }
+
       /*
-       * Even when inactive, gently drain the energy.
+       * No analyser is required for the visual to begin.
        *
-       * This is important because immediately switching the
-       * waveform to zero produces the "cut off" feeling.
+       * This is what removes the "waveform appears 300–500ms later"
+       * feeling: the waveform exists the instant voice mode opens.
        */
-      if (!active) {
-        targetEnergyRef.current = 0;
-      } else {
-        const currentAnalyser = analyserRef.current;
+      let measured = 0;
 
-        let measuredEnergy = 0;
-
-        if (currentAnalyser) {
-          try {
-            if (speaking) {
-              currentAnalyser.getByteFrequencyData(frequencyData);
-
-              /*
-               * Voice energy is concentrated toward the
-               * lower/mid spectrum. Avoid using the entire
-               * frequency range because high-frequency noise
-               * makes the waveform look nervous.
-               */
-              const sampleStart = 2;
-              const sampleEnd = Math.min(frequencyData.length, 64);
-
-              let sum = 0;
-              let weightedSum = 0;
-
-              for (let i = sampleStart; i < sampleEnd; i++) {
-                const value = frequencyData[i] / 255;
-
-                const normalizedIndex = (i - sampleStart) / Math.max(1, sampleEnd - sampleStart);
-
-                const weight = 1 - normalizedIndex * 0.45;
-
-                sum += value;
-                weightedSum += value * weight;
-              }
-
-              if (sum > 0) {
-                measuredEnergy = weightedSum / Math.max(1, sampleEnd - sampleStart);
-              }
-            } else if (listening) {
-              currentAnalyser.getByteTimeDomainData(timeData);
-
-              let sumSquares = 0;
-
-              for (let i = 0; i < timeData.length; i++) {
-                const normalized = (timeData[i] - 128) / 128;
-
-                sumSquares += normalized * normalized;
-              }
-
-              const rms = Math.sqrt(sumSquares / Math.max(1, timeData.length));
-
-              /*
-               * Microphone RMS tends to be quite small,
-               * therefore boost it slightly but clamp it.
-               */
-              measuredEnergy = Math.min(1, rms * 4.2);
-            }
-          } catch {
-            measuredEnergy = 0;
-          }
-        }
-
-        /*
-         * The real analyser can occasionally return almost zero
-         * for a few frames during speech.
-         *
-         * Don't allow those frames to instantly collapse the
-         * visual waveform.
-         */
+      if (active && currentAnalyser) {
         if (speaking) {
-          targetEnergyRef.current = Math.max(measuredEnergy, 0.035);
-        } else if (listening) {
-          targetEnergyRef.current = Math.max(measuredEnergy, 0.018);
+          /*
+           * AI playback: use frequency energy, but calculate a
+           * weighted voice band rather than averaging everything.
+           */
+          currentAnalyser.getByteFrequencyData(frequencyData);
+
+          let weighted = 0;
+          let weightTotal = 0;
+
+          const end = Math.min(frequencyData.length, 72);
+
+          for (let i = 2; i < end; i++) {
+            const normalized = frequencyData[i] / 255;
+
+            /*
+             * Voice fundamentals and low/mid harmonics carry more
+             * visual weight than the extreme high end.
+             */
+            const position = (i - 2) / Math.max(1, end - 2);
+
+            const weight = 1.15 - position * 0.62;
+
+            weighted += normalized * weight;
+
+            weightTotal += weight;
+          }
+
+          measured = weightTotal > 0 ? weighted / weightTotal : 0;
         } else {
-          targetEnergyRef.current = 0;
+          /*
+           * Microphone: RMS from the time-domain signal is much more
+           * reliable for speech amplitude than frequency averaging.
+           */
+          currentAnalyser.getByteTimeDomainData(timeData);
+
+          let sumSquares = 0;
+
+          for (let i = 0; i < timeData.length; i++) {
+            const sample = (timeData[i] - 128) / 128;
+
+            sumSquares += sample * sample;
+          }
+
+          const rms = Math.sqrt(sumSquares / Math.max(1, timeData.length));
+
+          /*
+           * Speech RMS from a mic is usually much smaller than
+           * a full-scale waveform, so amplify it.
+           */
+          measured = Math.min(1, rms * 5.2);
         }
       }
 
       /*
-       * Asymmetric smoothing:
-       *
-       * Rise quickly enough to feel responsive.
-       * Fall much slower so the waveform feels soft.
+       * Exponential smoothing keeps the waveform fluid without
+       * destroying consonant/transient movement.
        */
-      const currentEnergy = energyRef.current;
+      const target = active ? Math.max(measured, speaking ? 0.055 : 0.028) : 0;
 
-      const target = targetEnergyRef.current;
+      const current = smoothEnergyRef.current;
 
-      const riseSpeed = speaking || listening ? 0.22 : 0.12;
+      const response = target > current ? 0.28 : 0.105;
 
-      const fallSpeed = speaking ? 0.075 : 0.12;
+      smoothEnergyRef.current = current + (target - current) * (1 - Math.pow(1 - response, delta / 16.67));
 
-      const smoothing = target > currentEnergy ? riseSpeed : fallSpeed;
-
-      energyRef.current = currentEnergy + (target - currentEnergy) * (1 - Math.pow(1 - smoothing, delta / 16.67));
-
-      const energy = energyRef.current;
+      const energy = smoothEnergyRef.current;
 
       /*
-       * Slowly evolving phase.
+       * Feed a new sample into the right edge.
        *
-       * The old implementation stepped phase by a fixed amount
-       * every frame. This makes animation speed dependent on
-       * frame rate.
-       *
-       * Using delta makes it stable at 60/120/144Hz.
+       * We deliberately vary the value a little from sample to sample
+       * so that speech doesn't become a perfect mechanical envelope.
        */
-      phaseRef.current += (speaking ? 0.055 : listening ? 0.038 : 0.02) * (delta / 16.67);
+      phaseRef.current += delta * 0.0014;
 
-      const BAR_WIDTH = 2.2;
-      const BAR_GAP = 2.6;
+      const speechPulse = speaking ? 1 + Math.sin(phaseRef.current * 5.1) * 0.035 : 1;
 
-      const barCount = Math.max(12, Math.floor(width / (BAR_WIDTH + BAR_GAP)));
+      const newSample = Math.max(0, Math.min(1, energy * speechPulse));
 
       /*
-       * Slightly wider centre weighting gives the waveform
-       * a more organic voice shape.
+       * Shift history only when there is enough frame progress.
+       * This creates a slow physical movement from right → left
+       * instead of every bar changing in place.
        */
-      const center = (barCount - 1) / 2;
+      const history = historyRef.current;
 
-      for (let i = 0; i < barCount; i++) {
+      const shiftAmount = Math.min(1, delta / 25);
+
+      /*
+       * Smoothly move every point toward the point ahead of it.
+       */
+      for (let i = 0; i < history.length - 1; i++) {
+        const next = history[i + 1];
+
+        history[i] += (next - history[i]) * shiftAmount * 0.95;
+      }
+
+      history[history.length - 1] += (newSample - history[history.length - 1]) * Math.min(1, delta / 18);
+
+      /*
+       * When audio stops, retain a very small tail and let it decay.
+       * This prevents a hard "off" cut.
+       */
+      if (!active) {
+        for (let i = 0; i < history.length; i++) {
+          history[i] *= Math.pow(0.82, delta / 16.67);
+        }
+      }
+
+      const BAR_WIDTH = 2.15;
+      const BAR_GAP = 2.05;
+      const center = (history.length - 1) / 2;
+
+      for (let i = 0; i < history.length; i++) {
+        const raw = history[i];
+
+        /*
+         * Natural spatial envelope.
+         *
+         * Keep the centre stronger, but not perfectly symmetrical.
+         * Real speech isn't symmetrical.
+         */
         const distance = Math.abs(i - center) / Math.max(1, center);
 
-        /*
-         * Smooth spatial envelope.
-         */
-        const envelope = Math.pow(Math.max(0, 1 - distance * 0.92), 0.72);
+        const centreEnvelope = 0.26 + 0.74 * Math.pow(Math.max(0, 1 - distance), 0.58);
+
+        const neighbour = i > 0 && i < history.length - 1 ? (history[i - 1] + history[i + 1]) / 2 : raw;
+
+        const localVariation = noiseRef.current[i] || 1;
 
         /*
-         * Multiple low-frequency oscillations.
+         * Mix current sample and neighbours.
          *
-         * These are deliberately subtle. The analyser controls
-         * the actual energy; these only make the bars move
-         * smoothly between analyser updates.
+         * This makes adjacent bars feel connected while retaining
+         * the irregular "human" shape.
          */
-        const waveA = Math.sin(phaseRef.current * 1.8 + i * 0.28);
+        let value = raw * 0.68 + neighbour * 0.32;
 
-        const waveB = Math.sin(phaseRef.current * 2.7 - i * 0.16);
-
-        const waveC = Math.sin(phaseRef.current * 0.85 + i * 0.52);
-
-        const organicMotion = 1 + waveA * 0.1 + waveB * 0.055 + waveC * 0.035;
+        value *= centreEnvelope * localVariation;
 
         /*
-         * Different visual behaviour for mic and AI.
-         *
-         * AI:
-         *   stronger, fuller, more symmetrical.
-         *
-         * Mic:
-         *   slightly more reactive and thinner.
+         * Slightly different behaviour for the two modes.
          */
-        let heightFactor;
-
         if (speaking) {
-          heightFactor = energy * envelope * organicMotion * 1.85;
-        } else if (listening) {
-          heightFactor = energy * envelope * organicMotion * 1.55;
-        } else {
-          heightFactor = energy * envelope * 1.25;
+          value *= 1.52;
+        } else if (active) {
+          value *= 1.35;
         }
 
+        const minLevel = active ? (speaking ? 0.035 : 0.022) : 0;
+
+        value = Math.max(minLevel, Math.min(1, value));
+
         /*
-         * Add a tiny floor so the waveform doesn't visually
-         * disappear between syllables.
+         * Ease the bar height rather than snapping to analyser values.
          */
-        const floor = speaking ? 0.035 : listening ? 0.025 : 0;
+        const barHeight = Math.max(2.5, value * height * 0.86);
 
-        heightFactor = Math.max(floor, heightFactor);
+        /*
+         * Start slightly left so the last bar doesn't clip.
+         */
+        const totalWidth = history.length * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
 
-        const maxHeight = height * 0.82;
+        const startX = (width - totalWidth) / 2;
 
-        const barHeight = Math.max(2.5, Math.min(maxHeight, heightFactor * maxHeight));
-
-        const x = i * (BAR_WIDTH + BAR_GAP);
+        const x = startX + i * (BAR_WIDTH + BAR_GAP);
 
         const y = (height - barHeight) / 2;
 
-        /*
-         * Slight opacity variation keeps the centre alive
-         * without making individual bars flash.
-         */
-        const opacity = 0.3 + Math.min(0.48, heightFactor * 0.55);
+        const opacity = 0.27 + Math.min(0.52, value * 0.58);
 
         ctx.fillStyle = `rgba(255,255,255,${opacity})`;
 
         ctx.beginPath();
-
-        /*
-         * roundRect is smoother than repeatedly constructing
-         * tiny irregular paths.
-         */
-        ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1.2);
-
+        ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1.15);
         ctx.fill();
       }
     };
@@ -511,12 +463,18 @@ const BarWaveform: React.FC<BarWaveformProps> = ({ analyser, isActive, isListeni
     return () => {
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
-
-        animationFrameRef.current = null;
       }
+
+      animationFrameRef.current = null;
     };
   }, []);
 
+  /*
+   * Don't return null when inactive.
+   *
+   * Keeping the canvas mounted is important: React does not destroy
+   * and recreate the animation surface every time voice state changes.
+   */
   return (
     <div ref={containerRef} className="flex-1 h-8 min-w-0 overflow-hidden" aria-hidden="true">
       <canvas ref={canvasRef} className="pointer-events-none block w-full h-full" />
@@ -525,37 +483,27 @@ const BarWaveform: React.FC<BarWaveformProps> = ({ analyser, isActive, isListeni
 };
 
 /* =========================================================
-   4. RECORDING TIMER
+   3b. RECORDING TIMER
    ========================================================= */
 
-const RecordingTimer: React.FC<{
-  isActive: boolean;
-}> = ({ isActive }) => {
+const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const [seconds, setSeconds] = useState(0);
-
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!isActive) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-
+      if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
       return;
     }
 
     setSeconds(0);
-
     intervalRef.current = setInterval(() => {
       setSeconds((current) => current + 1);
     }, 1000);
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-
+      if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
   }, [isActive]);
@@ -563,7 +511,6 @@ const RecordingTimer: React.FC<{
   if (!isActive) return null;
 
   const mins = Math.floor(seconds / 60);
-
   const secs = seconds % 60;
 
   return (
@@ -574,7 +521,7 @@ const RecordingTimer: React.FC<{
 };
 
 /* =========================================================
-   5. SEARCH BAR
+   4. SEARCH BAR
    ========================================================= */
 
 interface SearchBarProps {
@@ -584,21 +531,19 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const STORAGE_KEY = "searchbar_state";
 
-  /* =======================================================
-     PERSISTED STATE
-     ======================================================= */
+  /* -------------------------------------------------------
+     Persisted state
+     ------------------------------------------------------- */
 
   const loadPersistedState = useCallback(() => {
     try {
       const navigation = window.performance?.getEntriesByType("navigation")?.[0] as
         | PerformanceNavigationTiming
         | undefined;
-
       const isPageRefresh = (window.performance as any)?.navigation?.type === 1 || navigation?.type === "reload";
 
       if (isPageRefresh) {
         localStorage.removeItem(STORAGE_KEY);
-
         return {
           response: null,
           suggestions: [],
@@ -609,10 +554,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       const saved = localStorage.getItem(STORAGE_KEY);
-
       if (saved) {
         const parsed = JSON.parse(saved);
-
         return {
           response: parsed.response || null,
           suggestions: parsed.suggestions || [],
@@ -653,145 +596,82 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
 
-  /* =======================================================
-     UI STATE
-     ======================================================= */
+  /* -------------------------------------------------------
+     UI state
+     ------------------------------------------------------- */
 
   const [query, setQuery] = useState("");
-
   const [isLoading, setIsLoading] = useState(false);
-
   const [response, setResponse] = useState<string | null>(persistedState.response);
-
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
-
   const [showTypewriter, setShowTypewriter] = useState(false);
-
   const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
-
   const [fullText, setFullText] = useState("");
-
   const suggestionIndexRef = useRef(0);
-
   const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
-
   const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
-
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
-
   const [isCollapsing, setIsCollapsing] = useState(false);
-
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
-
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
 
-  /* =======================================================
-     VOICE STATE
-     ======================================================= */
+  /* -------------------------------------------------------
+     Voice state
+     ------------------------------------------------------- */
 
   const [isVoiceSession, setIsVoiceSession] = useState(false);
-
   const [isListening, setIsListening] = useState(false);
-
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  /*
-   * These refs are the source of truth for async voice
-   * callbacks. React state is only for rendering.
-   */
   const isVoiceSessionRef = useRef(false);
-
   const isLoadingRef = useRef(false);
-
   const isSpeakingRef = useRef(false);
 
-  const isListeningRef = useRef(false);
+  isVoiceSessionRef.current = isVoiceSession;
+  isLoadingRef.current = isLoading;
+  isSpeakingRef.current = isSpeaking;
 
-  /* =======================================================
-     PLACEHOLDER
-     ======================================================= */
+  /* -------------------------------------------------------
+     Placeholder
+     ------------------------------------------------------- */
 
   const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to talk with GDx"], []);
-
   const [placeholderText, setPlaceholderText] = useState(placeholderTexts[0]);
-
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
-
   const [placeholderTarget, setPlaceholderTarget] = useState(0);
 
-  /* =======================================================
-     AUDIO GRAPH
-     =======================================================
-
-     IMPORTANT:
-
-     There is now one visual analyser but two mutually exclusive
-     input paths.
-
-       microphone ─────┐
-                       ├──> visualAnalyser ──> destination
-       AI playback ────┘
-
-     Only one source is connected at a time.
-
-     This prevents mic input from polluting AI playback.
-     ======================================================= */
+  /* -------------------------------------------------------
+     Audio / recognition refs
+     ------------------------------------------------------- */
 
   const audioContextRef = useRef<AudioContext | null>(null);
-
   const analyserRef = useRef<AnalyserNode | null>(null);
-
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
-
   const analyserDestinationConnectedRef = useRef(false);
-
-  const micConnectedRef = useRef(false);
-
-  const playbackConnectedRef = useRef(false);
+  const analyserMonitorRef = useRef<GainNode | null>(null);
 
   const recognitionRef = useRef<any>(null);
-
   const recognitionGenerationRef = useRef(0);
-
   const micStreamRef = useRef<MediaStream | null>(null);
-
   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   const transcriptRef = useRef("");
-
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
-
   const speakTokenRef = useRef(0);
 
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const isHoldingRef = useRef(false);
 
   const searchBarRef = useRef<HTMLDivElement>(null);
-
   const inputRef = useRef<HTMLInputElement>(null);
-
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
-
   const stopVoiceSessionRef = useRef<(() => void) | null>(null);
-
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
 
-  /*
-   * Mirror state into refs.
-   */
-  isVoiceSessionRef.current = isVoiceSession;
-
-  isLoadingRef.current = isLoading;
-
-  isSpeakingRef.current = isSpeaking;
-
-  isListeningRef.current = isListening;
-
   /* =======================================================
-     PERSIST
+     Persist state
      ======================================================= */
 
   useEffect(() => {
@@ -829,33 +709,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const analyser = ctx.createAnalyser();
 
       /*
-       * Higher FFT gives more detailed frequency data.
-       * 512 is still extremely cheap and gives the AI waveform
-       * smoother spectral information.
+       * 512 gives us enough resolution for the AI voice spectrum,
+       * while 0.72 keeps the live microphone response quick.
        */
       analyser.fftSize = 512;
-
-      /*
-       * Let the browser smooth small frame-to-frame changes,
-       * while our canvas does additional visual smoothing.
-       */
-      analyser.smoothingTimeConstant = 0.88;
-
-      analyser.minDecibels = -85;
+      analyser.smoothingTimeConstant = 0.72;
+      analyser.minDecibels = -80;
       analyser.maxDecibels = -8;
 
+      const monitor = ctx.createGain();
+
+      monitor.gain.value = 1;
+
+      /*
+       * DO NOT permanently connect analyser -> destination.
+       *
+       * During microphone listening that would play the user's own
+       * microphone back through the speakers.
+       *
+       * We only connect the analyser to the destination while AI
+       * audio is actually playing.
+       */
       audioContextRef.current = ctx;
 
       analyserRef.current = analyser;
 
-      /*
-       * The analyser itself feeds the speakers.
-       */
-      if (!analyserDestinationConnectedRef.current) {
-        analyser.connect(ctx.destination);
-
-        analyserDestinationConnectedRef.current = true;
-      }
+      analyserMonitorRef.current = monitor;
 
       setAnalyserNode(analyser);
     }
@@ -868,76 +747,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ctx: audioContextRef.current,
       analyser: analyserRef.current!,
     };
-  }, []);
-
-  /* =======================================================
-     AUDIO ROUTING
-     ======================================================= */
-
-  const disconnectMic = useCallback(() => {
-    const source = micSourceRef.current;
-
-    if (!source) return;
-
-    if (!micConnectedRef.current) return;
-
-    try {
-      source.disconnect(analyserRef.current || undefined);
-    } catch {
-      try {
-        source.disconnect();
-      } catch {
-        /* noop */
-      }
-    }
-
-    micConnectedRef.current = false;
-  }, []);
-
-  const connectMic = useCallback(() => {
-    const source = micSourceRef.current;
-
-    const analyser = analyserRef.current;
-
-    if (!source || !analyser) return;
-
-    if (micConnectedRef.current) return;
-
-    /*
-     * Never connect mic while AI is speaking.
-     */
-    if (isSpeakingRef.current) return;
-
-    try {
-      source.connect(analyser);
-      micConnectedRef.current = true;
-    } catch {
-      /*
-       * Some browsers throw if the connection already exists.
-       * The ref remains the source of truth.
-       */
-      micConnectedRef.current = true;
-    }
-  }, []);
-
-  const disconnectPlayback = useCallback(() => {
-    const source = currentSourceNodeRef.current;
-
-    if (!source) return;
-
-    if (!playbackConnectedRef.current) return;
-
-    try {
-      source.disconnect(analyserRef.current || undefined);
-    } catch {
-      try {
-        source.disconnect();
-      } catch {
-        /* noop */
-      }
-    }
-
-    playbackConnectedRef.current = false;
   }, []);
 
   /* =======================================================
@@ -984,41 +793,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   useEffect(() => {
-    if (isLoading || isListening || isVoiceSession || query) {
-      return;
-    }
+    if (isLoading || isListening || isVoiceSession || query) return;
 
     const currentTarget = placeholderTexts[placeholderTarget];
 
     if (placeholderPhase === "pause") {
       const timer = setTimeout(() => setPlaceholderPhase("deleting"), 2500);
-
       return () => clearTimeout(timer);
     }
 
     if (placeholderPhase === "deleting") {
       if (!placeholderText.length) {
         setPlaceholderTarget((prev) => (prev + 1) % placeholderTexts.length);
-
         setPlaceholderPhase("typing");
-
         return;
       }
 
       const timer = setTimeout(() => setPlaceholderText((current) => current.slice(0, -1)), 30);
-
       return () => clearTimeout(timer);
     }
 
     if (placeholderPhase === "typing") {
       if (placeholderText === currentTarget) {
         setPlaceholderPhase("pause");
-
         return;
       }
 
       const timer = setTimeout(() => setPlaceholderText(currentTarget.slice(0, placeholderText.length + 1)), 50);
-
       return () => clearTimeout(timer);
     }
   }, [
@@ -1036,33 +837,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ACTIVITY TRACKING
      ======================================================= */
 
-  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
 
   const debouncedSetActivity = useCallback(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    debounceTimeoutRef.current = setTimeout(() => {
-      setLastActivityTime(Date.now());
-    }, 100);
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    debounceTimeoutRef.current = setTimeout(() => setLastActivityTime(Date.now()), 100);
   }, []);
 
   useEffect(() => {
     const handleImmediate = () => setLastActivityTime(Date.now());
 
     window.addEventListener("mousemove", debouncedSetActivity);
-
     ["keypress", "click", "scroll"].forEach((event) => window.addEventListener(event, handleImmediate));
 
     return () => {
       window.removeEventListener("mousemove", debouncedSetActivity);
-
       ["keypress", "click", "scroll"].forEach((event) => window.removeEventListener(event, handleImmediate));
-
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
+      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
   }, [debouncedSetActivity]);
 
@@ -1072,16 +863,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   useEffect(() => {
     const FIRST_VISIT_KEY = "gd_ai_first_visit";
-
     const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
 
     if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
       localStorage.setItem(FIRST_VISIT_KEY, "true");
-
       const timer = setTimeout(() => {
         handleSubmit(undefined, "introduce the website to the new user", false);
       }, 1500);
-
       return () => clearTimeout(timer);
     }
   }, []);
@@ -1091,14 +879,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   useEffect(() => {
-    if (response || suggestions.length > 0 || isVoiceSession) {
-      return;
-    }
+    if (response || suggestions.length > 0 || isVoiceSession) return;
 
     const timer = setTimeout(() => {
-      if (!hasInteracted) {
-        setShowTypewriter(true);
-      }
+      if (!hasInteracted) setShowTypewriter(true);
     }, 10000);
 
     return () => clearTimeout(timer);
@@ -1107,10 +891,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-
-      if (response || suggestions.length > 0 || isVoiceSession) {
-        return;
-      }
+      if (response || suggestions.length > 0 || isVoiceSession) return;
 
       if (idle > 10000 && hasInteracted && !isLoading) {
         setShowTypewriter(true);
@@ -1123,10 +904,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     const interval = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-
       const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000 && !isVoiceSession;
 
-      setShowExpandedSuggestions(!!shouldShow);
+      setShowExpandedSuggestions(shouldShow);
     }, 1000);
 
     return () => clearInterval(interval);
@@ -1135,7 +915,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   useEffect(() => {
     if (!showTypewriter || isVoiceSession) {
       setSuggestionPhase("hidden");
-
       return;
     }
 
@@ -1146,24 +925,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setSuggestionPhase("emerging");
 
     const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 800);
-
     const interval = setInterval(() => {
       setSuggestionPhase("retreating");
 
       setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
-
         setFullText(rotatingSuggestions[suggestionIndexRef.current]);
-
         setSuggestionPhase("emerging");
-
         setTimeout(() => setSuggestionPhase("visible"), 800);
       }, 700);
     }, 5500);
 
     return () => {
       clearInterval(interval);
-
       clearTimeout(emergeTimer);
     };
   }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession]);
@@ -1173,9 +947,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const stopAudioOnly = useCallback(() => {
-    /*
-     * Invalidate every previous TTS operation.
-     */
     speakTokenRef.current += 1;
 
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -1186,39 +957,43 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
     }
 
-    const source = currentSourceNodeRef.current;
-
-    if (source) {
+    if (currentSourceNodeRef.current) {
       try {
-        source.onended = null;
+        currentSourceNodeRef.current.onended = null;
+        currentSourceNodeRef.current.stop();
+        currentSourceNodeRef.current.disconnect();
       } catch {
         /* noop */
       }
-
-      try {
-        source.stop();
-      } catch {
-        /* noop */
-      }
-
-      try {
-        source.disconnect();
-      } catch {
-        /* noop */
-      }
+      currentSourceNodeRef.current = null;
     }
 
-    currentSourceNodeRef.current = null;
+    if (analyserDestinationConnectedRef.current && analyserRef.current && analyserMonitorRef.current) {
+      try {
+        analyserRef.current.disconnect(analyserMonitorRef.current);
+      } catch {
+        /* noop */
+      }
 
-    playbackConnectedRef.current = false;
+      try {
+        analyserMonitorRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+
+      analyserDestinationConnectedRef.current = false;
+    }
 
     isSpeakingRef.current = false;
-
     setIsSpeaking(false);
   }, []);
 
   /* =======================================================
-     BROWSER TTS FALLBACK
+     NATIVE BROWSER TTS FALLBACK
+
+     Native TTS does not expose its audio stream. The waveform
+     therefore receives isSpeaking=true and switches to its
+     restrained synthetic voice animation.
      ======================================================= */
 
   const speakWithBrowserTTS = useCallback(async (text: string, token: number): Promise<boolean> => {
@@ -1227,30 +1002,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
 
     const synthesis = window.speechSynthesis;
-
-    try {
-      synthesis.cancel();
-    } catch {
-      /* noop */
-    }
+    synthesis.cancel();
 
     return new Promise<boolean>((resolve) => {
       let settled = false;
-
       let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
       const finish = (success: boolean) => {
         if (settled) return;
-
         settled = true;
-
-        if (safetyTimer) {
-          clearTimeout(safetyTimer);
-        }
+        if (safetyTimer) clearTimeout(safetyTimer);
 
         if (token === speakTokenRef.current) {
           isSpeakingRef.current = false;
-
           setIsSpeaking(false);
         }
 
@@ -1258,53 +1022,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       };
 
       const utterance = new SpeechSynthesisUtterance(text.trim());
-
-      utterance.rate = 1.06;
+      utterance.rate = 1.16;
       utterance.pitch = 1;
       utterance.volume = 1;
 
       const chooseVoice = () => {
         const voices = synthesis.getVoices();
-
         const preferred = voices.find((voice) => /^en(-|_)/i.test(voice.lang)) || voices[0];
-
-        if (preferred) {
-          utterance.voice = preferred;
-        }
+        if (preferred) utterance.voice = preferred;
       };
 
       chooseVoice();
-
       if (synthesis.onvoiceschanged !== undefined) {
-        synthesis.addEventListener("voiceschanged", chooseVoice, {
-          once: true,
-        });
+        synthesis.addEventListener("voiceschanged", chooseVoice, { once: true });
       }
 
       utterance.onstart = () => {
         if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
-          try {
-            synthesis.cancel();
-          } catch {
-            /* noop */
-          }
-
+          synthesis.cancel();
           finish(false);
           return;
         }
 
-        /*
-         * The waveform will automatically use its
-         * synthetic speaking motion because there is
-         * no analyser stream from native speechSynthesis.
-         */
         isSpeakingRef.current = true;
-
         setIsSpeaking(true);
       };
 
       utterance.onend = () => finish(true);
-
       utterance.onerror = () => finish(false);
 
       synthesis.speak(utterance);
@@ -1317,7 +1061,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             } catch {
               /* noop */
             }
-
             finish(false);
           }
         },
@@ -1327,59 +1070,45 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   /* =======================================================
-     TEXT CLEANING FOR TTS
-     ======================================================= */
-
-  const cleanTextForSpeech = useCallback((raw: string) => {
-    return raw
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/`([^`]+)`/g, "$1")
-      .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .replace(/^\s{0,3}#{1,6}\s*/gm, "")
-      .replace(/^\s{0,3}>\s?/gm, "")
-      .replace(/^\s*[-*+]\s+/gm, "")
-      .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/\*(.*?)\*/g, "$1")
-      .replace(/__(.*?)__/g, "$1")
-      .replace(/_(.*?)_/g, "$1")
-      .replace(/\s+/g, " ")
-      .trim();
-  }, []);
-
-  /* =======================================================
      HOSTED TTS
+
+     Key fixes:
+     - First sentence is requested immediately.
+     - Up to three sentences are fetched concurrently.
+     - Audio plays as soon as each ordered chunk is ready.
+     - One failed hosted request falls back to native TTS for
+       the remaining response.
+     - Mic analyser input is disconnected while AI speaks,
+       preventing mic silence/echo from masking the AI waveform.
      ======================================================= */
 
   const speakVoiceResponse = useCallback(
     async (raw: string) => {
-      /*
-       * Stop any previous response immediately.
-       */
       stopAudioOnly();
 
-      const token = speakTokenRef.current;
-
-      const clean = cleanTextForSpeech(raw);
+      const token = ++speakTokenRef.current;
+      const clean = raw
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+        .replace(/^\s{0,3}>\s?/gm, "")
+        .replace(/^\s*[-*+]\s+/gm, "")
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        .replace(/\*(.*?)\*/g, "$1")
+        .replace(/__(.*?)__/g, "$1")
+        .replace(/_(.*?)_/g, "$1")
+        .replace(/\s+/g, " ")
+        .trim();
 
       if (!clean) {
         if (isVoiceSessionRef.current) {
-          requestAnimationFrame(() => {
-            if (isVoiceSessionRef.current) {
-              void startListeningContinuousRef.current?.();
-            }
-          });
+          void startListeningContinuousRef.current?.();
         }
-
         return;
       }
 
-      /*
-       * Sentence splitting.
-       *
-       * Keeping sentences as individual audio chunks lets the
-       * next sentence be decoded while the current one plays.
-       */
       const sentences = (clean.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [clean])
         .map((sentence) => sentence.trim())
         .filter(Boolean);
@@ -1390,16 +1119,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       } | null = null;
 
       let hostedTtsFailed = getTtsQuotaBlockedUntil() > Date.now();
-
       let nativeFallbackUsed = false;
 
-      /*
-       * The first request begins immediately.
-       */
-      const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
-        if (hostedTtsFailed) {
-          return null;
+      const disconnectMicForPlayback = () => {
+        if (micSourceRef.current) {
+          try {
+            micSourceRef.current.disconnect();
+          } catch {
+            /* noop */
+          }
         }
+      };
+
+      const reconnectMicAfterPlayback = () => {
+        if (!micSourceRef.current || !analyserRef.current) return;
+        try {
+          micSourceRef.current.connect(analyserRef.current);
+        } catch {
+          /* It may already be connected. */
+        }
+      };
+
+      const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
+        if (hostedTtsFailed) return null;
 
         try {
           const response = await fetch(TTS_ENDPOINT, {
@@ -1409,55 +1151,38 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
               apikey: SUPABASE_ANON_KEY,
             },
-            body: JSON.stringify({
-              text: sentence,
-            }),
+            body: JSON.stringify({ text: sentence }),
           });
 
           if (!response.ok) {
             const body = await response.text().catch(() => "");
-
-            if (response.status === 429) {
-              rememberTtsQuotaLimit(body);
-            }
-
+            if (response.status === 429) rememberTtsQuotaLimit(body);
             hostedTtsFailed = true;
-
             return null;
           }
 
           const arrayBuffer = await response.arrayBuffer();
-
           if (!arrayBuffer.byteLength) {
             hostedTtsFailed = true;
-
             return null;
           }
 
           audioGraph ??= getAudioContext();
-
           return await audioGraph.ctx.decodeAudioData(arrayBuffer);
         } catch {
           hostedTtsFailed = true;
-
           return null;
         }
       };
 
-      /*
-       * Rolling three-sentence prefetch.
-       */
+      /* Fetch a small rolling window instead of waiting for the
+         whole answer. This is the main perceived-latency fix. */
       const buffers: Array<Promise<AudioBuffer | null> | undefined> = [];
-
       let nextToFetch = 0;
 
       const scheduleNext = () => {
-        if (nextToFetch >= sentences.length || hostedTtsFailed) {
-          return;
-        }
-
+        if (nextToFetch >= sentences.length || hostedTtsFailed) return;
         buffers[nextToFetch] = fetchAudioBuffer(sentences[nextToFetch]);
-
         nextToFetch += 1;
       };
 
@@ -1465,13 +1190,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       scheduleNext();
       scheduleNext();
 
-      /*
-       * Mark speaking only after the TTS pipeline has actually
-       * started. The waveform itself fades into the speaking
-       * state instead of snapping.
-       */
       isSpeakingRef.current = true;
-
       setIsSpeaking(true);
 
       try {
@@ -1482,25 +1201,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           const buffer = await buffers[i];
 
-          /*
-           * Hosted TTS failed.
-           *
-           * Instead of trying additional requests and making
-           * the user wait, use browser TTS for everything that
-           * remains.
-           */
           if (!buffer) {
             nativeFallbackUsed = true;
 
+            /* Do not leave the user waiting for another hosted request. */
             const remainingText = sentences.slice(i).join(" ");
-
-            /*
-             * There is no real audio analyser for browser TTS.
-             * The BarWaveform gracefully falls back to its
-             * smooth synthetic speaking motion.
-             */
+            disconnectMicForPlayback();
             isSpeakingRef.current = true;
-
             setIsSpeaking(true);
 
             const success = await speakWithBrowserTTS(remainingText, token);
@@ -1516,64 +1223,53 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             return;
           }
 
-          /*
-           * Keep one more sentence warm.
-           */
+          /* Keep the next chunks warm while the current one speaks. */
           scheduleNext();
 
-          /*
-           * Switch audio ownership:
-           *
-           * microphone OFF
-           * playback ON
-           */
-          disconnectMic();
-
-          if (!audioGraph) {
-            audioGraph = getAudioContext();
-          }
-
-          const source = audioGraph.ctx.createBufferSource();
-
-          source.buffer = buffer;
-
-          source.playbackRate.value = 1.06;
-
-          /*
-           * The analyser is between playback and destination:
-           *
-           * source → analyser → speakers
-           */
-          source.connect(audioGraph.analyser);
-
-          playbackConnectedRef.current = true;
-
-          currentSourceNodeRef.current = source;
-
+          disconnectMicForPlayback();
           isSpeakingRef.current = true;
-
           setIsSpeaking(true);
 
           await new Promise<void>((resolve) => {
-            let ended = false;
+            if (!audioGraph) {
+              resolve();
+              return;
+            }
+
+            const source = audioGraph.ctx.createBufferSource();
+            source.buffer = buffer;
+            source.playbackRate.value = 1.14;
+
+            /*
+             * AI playback path:
+             *
+             * source → analyser → monitor → speakers
+             *
+             * The analyser therefore sees the exact same audio the
+             * user hears, which gives the AI waveform real speech
+             * movement instead of a guessed sine wave.
+             */
+            const monitor = analyserMonitorRef.current;
+
+            if (monitor) {
+              try {
+                if (!analyserDestinationConnectedRef.current) {
+                  audioGraph.analyser.connect(monitor);
+                  monitor.connect(audioGraph.ctx.destination);
+                  analyserDestinationConnectedRef.current = true;
+                }
+              } catch {
+                /* The graph may already be connected. */
+              }
+            }
+
+            source.connect(audioGraph.analyser);
+            currentSourceNodeRef.current = source;
 
             const finish = () => {
-              if (ended) return;
-
-              ended = true;
-
-              try {
-                source.disconnect();
-              } catch {
-                /* noop */
-              }
-
               if (currentSourceNodeRef.current === source) {
                 currentSourceNodeRef.current = null;
               }
-
-              playbackConnectedRef.current = false;
-
               resolve();
             };
 
@@ -1590,39 +1286,40 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         if (token === speakTokenRef.current) {
           currentSourceNodeRef.current = null;
 
-          playbackConnectedRef.current = false;
+          /*
+           * Remove the analyser → speakers monitor before handing
+           * the analyser back to the microphone. This prevents the
+           * microphone from being echoed to the user.
+           */
+          if (analyserDestinationConnectedRef.current && analyserRef.current && analyserMonitorRef.current) {
+            try {
+              analyserRef.current.disconnect(analyserMonitorRef.current);
+            } catch {
+              /* noop */
+            }
+
+            try {
+              analyserMonitorRef.current.disconnect();
+            } catch {
+              /* noop */
+            }
+
+            analyserDestinationConnectedRef.current = false;
+          }
 
           isSpeakingRef.current = false;
-
           setIsSpeaking(false);
 
-          /*
-           * Return analyser ownership to the mic.
-           *
-           * A tiny delay avoids the visual/audio transition
-           * happening in the exact same frame.
-           */
-          if (!nativeFallbackUsed && isVoiceSessionRef.current) {
-            requestAnimationFrame(() => {
-              if (!isVoiceSessionRef.current || isLoadingRef.current || isSpeakingRef.current) {
-                return;
-              }
+          if (!nativeFallbackUsed) {
+            reconnectMicAfterPlayback();
+          }
 
-              connectMic();
-
-              setIsListening(false);
-
-              requestAnimationFrame(() => {
-                if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
-                  void startListeningContinuousRef.current?.();
-                }
-              });
-            });
-          } else if (isVoiceSessionRef.current) {
+          if (isVoiceSessionRef.current) {
+            /* Wait one frame so the waveform settles before recognition
+               takes the mic back. This avoids the old speaking/listening
+               race where both states could be true for a moment. */
             requestAnimationFrame(() => {
               if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
-                connectMic();
-
                 void startListeningContinuousRef.current?.();
               }
             });
@@ -1630,56 +1327,41 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       }
     },
-    [cleanTextForSpeech, connectMic, disconnectMic, getAudioContext, speakWithBrowserTTS, stopAudioOnly],
+    [getAudioContext, speakWithBrowserTTS, stopAudioOnly],
   );
 
   /* =======================================================
      CONTINUOUS SPEECH RECOGNITION
+
+     Uses refs for loading/speaking state so recognition callbacks
+     never operate on stale render-time values.
      ======================================================= */
 
   const startListeningContinuous = useCallback(async () => {
-    if (!isVoiceSessionRef.current) {
-      return;
-    }
-
-    if (isSpeakingRef.current || isLoadingRef.current) {
-      return;
-    }
+    if (!isVoiceSessionRef.current) return;
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       console.warn("Speech recognition is not supported in this browser.");
-
       stopVoiceSessionRef.current?.();
-
       return;
     }
 
-    /*
-     * Every recognition instance gets a generation.
-     *
-     * Old recognition callbacks become invalid immediately.
-     */
     const generation = ++recognitionGenerationRef.current;
 
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onend = null;
-
         recognitionRef.current.onerror = null;
-
         recognitionRef.current.stop();
       } catch {
         /* noop */
       }
-
       recognitionRef.current = null;
     }
 
-    if (!isVoiceSessionRef.current) {
-      return;
-    }
+    if (!isVoiceSessionRef.current) return;
 
     try {
       const { ctx, analyser } = getAudioContext();
@@ -1698,51 +1380,34 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
       }
 
-      if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current || isSpeakingRef.current) {
-        return;
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.connect(analyser);
+        } catch {
+          /* Already connected. */
+        }
       }
-
-      /*
-       * Explicitly make microphone the active analyser source.
-       */
-      connectMic();
-
-      /*
-       * The analyser can retain a little previous AI audio.
-       * We intentionally don't reset the analyser because doing
-       * so creates a hard visual cut. Its smoothing handles this.
-       */
-      void analyser;
     } catch (error) {
       console.warn("Microphone setup warning:", error);
-
-      if (!isVoiceSessionRef.current) {
-        return;
-      }
+      if (!isVoiceSessionRef.current) return;
     }
 
-    if (!isVoiceSessionRef.current || generation !== recognitionGenerationRef.current || isSpeakingRef.current) {
+    if (!isVoiceSessionRef.current || generation !== recognitionGenerationRef.current) {
       return;
     }
 
     const recognition = new SpeechRecognition();
-
     recognition.lang = "en-US";
-
     recognition.interimResults = true;
-
     recognition.continuous = true;
-
     recognition.maxAlternatives = 1;
 
     recognitionRef.current = recognition;
-
     transcriptRef.current = "";
 
     const clearSilenceTimer = () => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
-
         silenceTimerRef.current = null;
       }
     };
@@ -1755,18 +1420,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       const text = transcriptRef.current.trim();
-
       if (!text) return;
 
       transcriptRef.current = "";
-
-      isListeningRef.current = false;
-
       setIsListening(false);
 
       try {
         recognition.onend = null;
-
         recognition.stop();
       } catch {
         /* noop */
@@ -1786,15 +1446,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         } catch {
           /* noop */
         }
-
         return;
       }
 
-      transcriptRef.current = "";
-
-      isListeningRef.current = true;
-
       setIsListening(true);
+      transcriptRef.current = "";
     };
 
     recognition.onresult = (event: any) => {
@@ -1803,20 +1459,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       let transcript = "";
-
       for (let i = 0; i < event.results.length; i++) {
         transcript += event.results[i][0]?.transcript || "";
       }
 
       transcriptRef.current = transcript;
-
       clearSilenceTimer();
 
       if (transcript.trim()) {
-        /*
-         * 1.4 seconds is long enough to allow natural
-         * pauses but still feels responsive.
-         */
         silenceTimerRef.current = setTimeout(submitTranscript, 1400);
       }
     };
@@ -1844,18 +1494,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       const text = transcriptRef.current.trim();
-
       if (text) {
         submitTranscript();
         return;
       }
 
-      /*
-       * Browser recognition can terminate spontaneously.
-       *
-       * Restart on the next frame rather than immediately.
-       * This prevents start/stop races.
-       */
+      /* Safari/Chrome can end continuous recognition spontaneously. */
       requestAnimationFrame(() => {
         if (
           generation === recognitionGenerationRef.current &&
@@ -1876,11 +1520,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       recognition.start();
     } catch {
-      /*
-       * Duplicate starts are harmless.
-       */
+      /* A duplicate start is harmless. */
     }
-  }, [connectMic, getAudioContext]);
+  }, [getAudioContext]);
 
   startListeningContinuousRef.current = startListeningContinuous;
 
@@ -1889,50 +1531,35 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const stopVoiceSession = useCallback(() => {
-    /*
-     * Invalidate everything first.
-     */
     isVoiceSessionRef.current = false;
-
     isHoldingRef.current = false;
-
     recognitionGenerationRef.current += 1;
 
     setIsVoiceSession(false);
-
     setIsListening(false);
-
-    isListeningRef.current = false;
 
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
-
       holdTimerRef.current = null;
     }
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
-
       silenceTimerRef.current = null;
     }
 
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onend = null;
-
         recognitionRef.current.onerror = null;
-
         recognitionRef.current.stop();
       } catch {
         /* noop */
       }
-
       recognitionRef.current = null;
     }
 
     transcriptRef.current = "";
-
-    disconnectMic();
 
     if (micSourceRef.current) {
       try {
@@ -1940,20 +1567,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       } catch {
         /* noop */
       }
-
       micSourceRef.current = null;
     }
 
-    micConnectedRef.current = false;
-
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
-
       micStreamRef.current = null;
     }
 
     stopAudioOnly();
-  }, [disconnectMic, stopAudioOnly]);
+  }, [stopAudioOnly]);
 
   stopVoiceSessionRef.current = stopVoiceSession;
 
@@ -1962,47 +1585,34 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const startHold = useCallback(() => {
-    if (isLoading || isVoiceSession) {
-      return;
-    }
+    if (isLoading || isVoiceSession) return;
 
     try {
       getAudioContext();
     } catch {
-      /*
-       * Recognition still gets its own error path.
-       */
+      /* Voice recognition can still provide its own error path. */
     }
 
     isHoldingRef.current = true;
 
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-    }
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
 
     /*
-     * Slight delay prevents accidental voice activation from
-     * normal clicks/touches.
+     * Enter voice mode immediately.
+     *
+     * The old 350ms gate made the waveform visibly late. We still
+     * keep a ref guard so accidental pointer events cannot start
+     * recognition after the hold has ended.
      */
-    holdTimerRef.current = setTimeout(() => {
-      if (!isHoldingRef.current || isLoadingRef.current) {
-        return;
-      }
+    isVoiceSessionRef.current = true;
+    setIsVoiceSession(true);
+    setResponse(null);
+    setSuggestions([]);
+    setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
+    setHasInteracted(true);
 
-      isVoiceSessionRef.current = true;
-
-      setIsVoiceSession(true);
-
-      setResponse(null);
-      setSuggestions([]);
-      setShowTypewriter(false);
-
-      setShowExpandedSuggestions(false);
-
-      setHasInteracted(true);
-
-      void startListeningContinuousRef.current?.();
-    }, 350);
+    void startListeningContinuousRef.current?.();
   }, [getAudioContext, isLoading, isVoiceSession]);
 
   const handleHoldStart = useCallback(
@@ -2018,18 +1628,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       event?.preventDefault?.();
 
       const wasHolding = isHoldingRef.current;
-
       isHoldingRef.current = false;
 
       if (holdTimerRef.current) {
         clearTimeout(holdTimerRef.current);
-
         holdTimerRef.current = null;
       }
 
-      /*
-       * Normal click behaviour remains untouched.
-       */
       if (!isVoiceSessionRef.current && wasHolding && query.trim()) {
         handleSubmitRef.current?.(undefined, undefined, false);
       }
@@ -2048,35 +1653,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       const activeElement = document.activeElement as HTMLElement | null;
-
       const isInputFocused =
         !!activeElement &&
         (activeElement.tagName === "INPUT" ||
           activeElement.tagName === "TEXTAREA" ||
           activeElement.contentEditable === "true");
 
-      if (isInputFocused) {
-        return;
-      }
+      if (isInputFocused) return;
 
       event.preventDefault();
-
       startHold();
     };
 
     const handleShiftUp = (event: KeyboardEvent) => {
-      if (event.key === "Shift") {
-        handleHoldEnd();
-      }
+      if (event.key === "Shift") handleHoldEnd();
     };
 
     window.addEventListener("keydown", handleShiftDown);
-
     window.addEventListener("keyup", handleShiftUp);
 
     return () => {
       window.removeEventListener("keydown", handleShiftDown);
-
       window.removeEventListener("keyup", handleShiftUp);
     };
   }, [isListening, isLoading, isVoiceSession, startHold, handleHoldEnd]);
@@ -2089,20 +1686,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => {
       recognitionGenerationRef.current += 1;
 
-      if (holdTimerRef.current) {
-        clearTimeout(holdTimerRef.current);
-      }
-
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-      }
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
       if (recognitionRef.current) {
         try {
           recognitionRef.current.onend = null;
-
           recognitionRef.current.onerror = null;
-
           recognitionRef.current.stop();
         } catch {
           /* noop */
@@ -2130,11 +1720,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (currentSourceNodeRef.current) {
         try {
           currentSourceNodeRef.current.stop();
-        } catch {
-          /* noop */
-        }
-
-        try {
           currentSourceNodeRef.current.disconnect();
         } catch {
           /* noop */
@@ -2155,66 +1740,48 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     event?.preventDefault();
 
     const text = (customQuery ?? query).trim();
-
     if (!text) return;
 
     setHasInteracted(true);
-
     setShowTypewriter(false);
-
     setShowExpandedSuggestions(false);
 
-    if (!customQuery) {
-      setQuery("");
-    }
+    if (!customQuery) setQuery("");
 
     if (!fromVoice) {
       stopVoiceSession();
 
       if (response || suggestions.length > 0) {
         setIsCollapsingToThink(true);
-
         await new Promise((resolve) => setTimeout(resolve, 500));
-
         setResponse(null);
         setSuggestions([]);
-
         await new Promise((resolve) => setTimeout(resolve, 200));
-
         setIsCollapsingToThink(false);
       } else {
         setResponse(null);
         setSuggestions([]);
       }
     } else {
+      /* Recognition has already stopped before this reaches the API. */
       setIsListening(false);
-
-      isListeningRef.current = false;
     }
 
     isLoadingRef.current = true;
-
     setIsLoading(true);
 
     try {
       const result = await sendChatMessage(text);
-
       const answer = String((result as any)?.response ?? "");
-
       const suggs = (result as any)?.suggestions || [];
 
       if (fromVoice && isVoiceSessionRef.current) {
-        /*
-         * Start TTS immediately.
-         */
+        /* Start TTS immediately; don't wait for another render. */
         void speakVoiceResponse(answer);
       } else {
         setResponse(answer);
-
         setSuggestions(suggs);
-
         setIsRestoredFromStorage(false);
-
         onSearch?.(answer);
       }
     } catch (error) {
@@ -2224,16 +1791,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         void speakVoiceResponse(message);
       } else {
         setResponse(message);
-
         setSuggestions([]);
-
         setIsRestoredFromStorage(false);
-
         onSearch?.(message);
       }
     } finally {
       isLoadingRef.current = false;
-
       setIsLoading(false);
     }
   };
@@ -2246,31 +1809,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setQuery("");
-
     setHasInteracted(true);
-
     setShowTypewriter(false);
-
     setShowExpandedSuggestions(false);
-
     void handleSubmit(undefined, suggestion, false);
   }, []);
 
   const handleInputFocus = useCallback(() => {
     setShowTypewriter(false);
-
     setShowExpandedSuggestions(false);
-
     setHasInteracted(true);
   }, []);
 
   const handleInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
-
     setHasInteracted(true);
-
     setShowTypewriter(false);
-
     setShowExpandedSuggestions(false);
   }, []);
 
@@ -2282,9 +1836,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node;
 
-      if (searchBarRef.current?.contains(target)) {
-        return;
-      }
+      if (searchBarRef.current?.contains(target)) return;
 
       if (isVoiceSessionRef.current) {
         stopVoiceSession();
@@ -2292,7 +1844,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       const element = target as Element;
-
       const isNavigationClick =
         !!element?.closest &&
         (element.closest('[class*="fixed top-6"]') ||
@@ -2300,23 +1851,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           element.closest('button[aria-label*="Scroll to top"]') ||
           element.closest('button[aria-label*="Close modal"]'));
 
-      if (isNavigationClick) {
-        return;
-      }
+      if (isNavigationClick) return;
 
       if (query.trim() && !response && suggestions.length === 0) {
         setQuery("");
-
         inputRef.current?.blur();
-
         return;
       }
 
       if (response || suggestions.length > 0) {
         const COLLAPSE_MS = 1400;
-
         setIsCollapsing(true);
-
         setShowExpandedSuggestions(false);
 
         window.setTimeout(() => {
@@ -2329,12 +1874,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-
     document.addEventListener("touchstart", handleClickOutside);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-
       document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [response, suggestions, query, stopVoiceSession, clearPersistedState]);
@@ -2343,26 +1886,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      LAYOUT
      ======================================================= */
 
-  /*
-   * IMPORTANT:
-   *
-   * This section intentionally preserves your original search
-   * bar animation values.
-   */
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession;
-
-    const isExpanded = !!hasContent && !isLoading;
-
+    const isExpanded = hasContent && !isLoading;
     const targetWidth = isExpanded ? "580px" : isVoiceSession ? "420px" : "460px";
-
     const targetRadius = isExpanded ? "16px" : "999px";
 
-    return {
-      isExpanded,
-      targetWidth,
-      targetRadius,
-    };
+    return { isExpanded, targetWidth, targetRadius };
   }, [suggestions.length, response, isVoiceSession, isLoading]);
 
   /* =======================================================
@@ -2397,41 +1927,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         } ${isVoiceSession || isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
-
           maxWidth: "90vw",
-
           borderRadius: layoutValues.targetRadius,
-
-          /*
-           * MAIN SEARCH BAR ANIMATION — PRESERVED.
-           */
           transition:
             "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
-
           cursor: isListening ? "default" : undefined,
-
           WebkitTouchCallout: "none",
-
           WebkitUserSelect: "none",
         }}
       >
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
-            /*
-             * MAIN SEARCH BAR CONTENT ANIMATION — PRESERVED.
-             */
             transitionDuration: "800ms",
-
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
           }}
         >
           <Fade show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession} duration={800}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{
-                animation: "fadeIn 0.8s ease forwards",
-              }}
+              style={{ animation: "fadeIn 0.8s ease forwards" }}
             >
               {suggestions.map((suggestion, index) => (
                 <button
@@ -2456,12 +1971,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }`}
             style={{
               maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response && !isVoiceSession ? "384px" : "0px",
-
-              /*
-               * RESPONSE COLLAPSE — PRESERVED.
-               */
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
-
               transitionDelay:
                 response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
@@ -2471,16 +1981,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-
                   animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
-
                   maxHeight: "300px",
-
                   fontWeight: 400,
                 }}
-                dangerouslySetInnerHTML={{
-                  __html: convertMarkdownToHtml(response),
-                }}
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
             )}
           </div>
@@ -2503,22 +2008,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   }`}
                   disabled={isLoading}
                   aria-label="Ask anything"
-                  style={{
-                    fontWeight: 400,
-                  }}
+                  style={{ fontWeight: 400 }}
                 />
               </div>
             )}
 
             {isVoiceSession && (
               <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
-                <BarWaveform
-                  analyser={analyserNode}
-                  isActive={isVoiceSession && (isListening || isSpeaking)}
-                  isListening={isListening}
-                  isSpeaking={isSpeaking}
-                />
-
+                <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking} />
                 {isListening && <RecordingTimer isActive={isListening} />}
               </div>
             )}
@@ -2533,7 +2030,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               >
                 <span aria-hidden="true" className="relative block h-3.5 w-3.5">
                   <span className="absolute left-1/2 top-1/2 block h-[1px] w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white/70" />
-
                   <span className="absolute left-1/2 top-1/2 block h-[1px] w-3.5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-white/70" />
                 </span>
               </button>
@@ -2545,11 +2041,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 onMouseLeave={handleHoldEnd}
                 onTouchStart={handleHoldStart}
                 onTouchEnd={handleHoldEnd}
-                style={{
-                  WebkitTouchCallout: "none",
-
-                  WebkitUserSelect: "none",
-                }}
+                style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
               >
                 <div
                   className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer ${
@@ -2557,9 +2049,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   }`}
                 >
                   <Search
-                    className={`h-4 w-4 text-white/50 ${isLoading ? "thinking-icon" : ""} ${
-                      isListening ? "!text-white" : ""
-                    }`}
+                    className={`h-4 w-4 text-white/50 ${
+                      isLoading ? "thinking-icon" : ""
+                    } ${isListening ? "!text-white" : ""}`}
                     strokeWidth={1.5}
                   />
                 </div>
@@ -2570,300 +2062,172 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       {/* =====================================================
-          EXISTING MAIN ANIMATIONS — PRESERVED
+          EXISTING ANIMATIONS — intentionally preserved
           ===================================================== */}
 
       <style>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes fadeSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes delayedFadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .animate-fadeIn {
-          animation:
-            fadeIn 0.8s ease forwards;
+          animation: fadeIn 0.8s ease forwards;
         }
 
         .animate-delayedFadeIn {
-          animation:
-            delayedFadeIn 1s ease forwards;
+          animation: delayedFadeIn 1s ease forwards;
           animation-delay: 0.1s;
         }
 
         .thinking-container {
-          border: 1px solid
-            rgba(255,255,255,0.2);
-
-          background:
-            rgba(255,255,255,0.05);
-
-          animation:
-            glowPulse 2s infinite
-            ease-in-out;
+          border: 1px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.05);
+          animation: glowPulse 2s infinite ease-in-out;
         }
 
         @keyframes glowPulse {
           0%, 100% {
             box-shadow:
-              0 0 5px
-                rgba(255,255,255,0.1),
-              inset 0 0 10px
-                rgba(255,255,255,0.05);
+              0 0 5px rgba(255,255,255,0.1),
+              inset 0 0 10px rgba(255,255,255,0.05);
           }
-
           50% {
             box-shadow:
-              0 0 20px
-                rgba(255,255,255,0.3),
-              inset 0 0 20px
-                rgba(255,255,255,0.15);
+              0 0 20px rgba(255,255,255,0.3),
+              inset 0 0 20px rgba(255,255,255,0.15);
           }
         }
 
         @keyframes textGlow {
           0%, 100% {
-            color:
-              rgba(255,255,255,0.3);
-
-            text-shadow:
-              0 0 1px
-                rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.3);
+            text-shadow: 0 0 1px rgba(255,255,255,0.2);
           }
-
           50% {
-            color:
-              rgba(255,255,255,0.8);
-
-            text-shadow:
-              0 0 3px
-                rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.8);
+            text-shadow: 0 0 3px rgba(255,255,255,0.6);
           }
         }
 
         .thinking-placeholder::placeholder {
-          color:
-            rgba(255,255,255,0.6);
-
-          animation:
-            textGlow 2s infinite
-            ease-in-out;
-
+          color: rgba(255,255,255,0.6);
+          animation: textGlow 2s infinite ease-in-out;
           font-weight: 400;
         }
 
         .thinking-placeholder[disabled] {
-          caret-color:
-            transparent;
+          caret-color: transparent;
         }
 
         .thinking-icon {
-          stroke:
-            rgba(255,255,255,0.5);
-
-          filter:
-            drop-shadow(
-              0 0 1px
-              rgba(255,255,255,0.3)
-            );
-
-          animation:
-            iconGlow 4s infinite
-            ease-in-out;
+          stroke: rgba(255,255,255,0.5);
+          filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
+          animation: iconGlow 4s infinite ease-in-out;
         }
 
         @keyframes iconGlow {
           0%, 100% {
-            stroke:
-              rgba(255,255,255,0.3);
-
-            filter:
-              drop-shadow(
-                0 0 1px
-                rgba(255,255,255,0.2)
-              );
+            stroke: rgba(255,255,255,0.3);
+            filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
           }
-
           50% {
-            stroke:
-              rgba(255,255,255,0.8);
-
-            filter:
-              drop-shadow(
-                0 0 3px
-                rgba(255,255,255,0.6)
-              );
+            stroke: rgba(255,255,255,0.8);
+            filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
           }
         }
 
         .inline-code {
-          background:
-            rgba(255,255,255,.04);
-
-          padding:
-            .05rem .25rem;
-
-          border-radius:
-            4px;
-
-          font-family:
-            ui-monospace,
-            SFMono-Regular,
-            Menlo,
-            Monaco,
-            "Roboto Mono",
-            "Helvetica Neue",
-            monospace;
-
-          font-size:
-            .9em;
-
-          font-weight:
-            400;
+          background: rgba(255,255,255,.04);
+          padding: .05rem .25rem;
+          border-radius: 4px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace;
+          font-size: .9em;
+          font-weight: 400;
         }
 
         @keyframes blink {
-          0%, 50% {
-            opacity: 1;
-          }
-
-          51%, 100% {
-            opacity: 0;
-          }
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
         }
 
         .typewriter-cursor {
-          display:
-            inline-block;
-
-          animation:
-            blink 1s infinite;
-
-          margin-left:
-            2px;
-
-          font-weight:
-            400;
+          display: inline-block;
+          animation: blink 1s infinite;
+          margin-left: 2px;
+          font-weight: 400;
         }
 
         .typewriter-text {
-          display:
-            inline-block;
-
-          min-height:
-            1.2em;
-
-          font-weight:
-            400;
+          display: inline-block;
+          min-height: 1.2em;
+          font-weight: 400;
         }
 
         .listening-container {
-          border:
-            1px solid
-            rgba(255,255,255,0.3);
-
-          animation:
-            listeningGlow 1.5s infinite
-            ease-in-out;
+          border: 1px solid rgba(255,255,255,0.3);
+          animation: listeningGlow 1.5s infinite ease-in-out;
         }
 
         @keyframes listeningGlow {
           0%, 100% {
             box-shadow:
-              0 0 8px
-                rgba(255,255,255,0.15),
-              inset 0 0 12px
-                rgba(255,255,255,0.08);
+              0 0 8px rgba(255,255,255,0.15),
+              inset 0 0 12px rgba(255,255,255,0.08);
           }
-
           50% {
             box-shadow:
-              0 0 25px
-                rgba(255,255,255,0.4),
-              inset 0 0 25px
-                rgba(255,255,255,0.2);
+              0 0 25px rgba(255,255,255,0.4),
+              inset 0 0 25px rgba(255,255,255,0.2);
           }
         }
 
         .listening-input {
-          color:
-            transparent;
+          color: transparent;
         }
 
         @keyframes suggestionEmerge {
           0% {
             opacity: 0;
-            transform:
-              translateY(12px)
-              scale(0.97);
+            transform: translateY(12px) scale(0.97);
           }
-
           100% {
             opacity: 1;
-            transform:
-              translateY(0)
-              scale(1);
+            transform: translateY(0) scale(1);
           }
         }
 
         @keyframes suggestionRetreat {
           0% {
             opacity: 1;
-            transform:
-              translateY(0)
-              scale(1);
+            transform: translateY(0) scale(1);
           }
-
           100% {
             opacity: 0;
-            transform:
-              translateY(12px)
-              scale(0.97);
+            transform: translateY(12px) scale(0.97);
           }
         }
 
         input,
         button {
-          font-weight:
-            400;
+          font-weight: 400;
         }
 
         strong,
         h1,
         h2,
         h3 {
-          font-weight:
-            400;
+          font-weight: 400;
         }
       `}</style>
     </div>
