@@ -459,6 +459,44 @@ const Portfolio = () => {
           </div>
         </section>
 
+        {/* Recommendations */}
+        <section>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
+          <div className="space-y-6">
+            <div>
+              <p>
+                <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq
+              </p>
+              <p className="text-sm text-white mt-1">
+                Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s motivation, curiosity, and
+                strong engagement, describing him as a standout contributor who brought fresh energy and shows great
+                potential for the future.
+              </p>
+            </div>
+            <div>
+              <p>
+                <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge
+              </p>
+              <p className="text-sm text-white mt-1">
+                Doug taught Gaurav in the Finance & Accounting unit at Cambridge. He highlighted his ability to grasp
+                complex finance topics, apply them to practical challenges, and deliver insightful analysis. Doug also
+                commended Gaurav’s strong time and project management skills, confident he will add substantial value in
+                any role.
+              </p>
+            </div>
+            <div>
+              <p>
+                <strong>Sourav Raj</strong> — Data Scientist, Jio
+              </p>
+              <p className="text-sm text-white mt-1">
+                Sourav mentored Gaurav during an internship at Jio. He emphasized his flexibility, rapid learning, and
+                proactive approach to problem-solving. Gaurav consistently delivered high-quality work on time, and
+                Sourav noted he would be a valuable asset in any future position.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* ================================================================ */}
         {/* Category Spotlight                                                */}
         {/* ================================================================ */}
