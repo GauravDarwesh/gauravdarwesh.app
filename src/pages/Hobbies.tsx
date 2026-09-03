@@ -9,16 +9,18 @@ const CATEGORY_DATA: Record<Category, string[]> = {
   Languages: ["English", "Marathi", "Hindi", "Japanese"],
 
   Skills: [
-    "Business Strategy",
+    "GenAI, Agents, AI Workflows",
+    "Python, SQL",
     "Data Analytics & Visualization",
-    "Project Management",
-    "Strategic Planning",
     "Product Management",
+    "Business Strategy",
+    "Strategic Planning",
+    "Project Management",
     "Business Analysis",
-    "Technical Leadership",
     "Customer Success Operations",
     "AI Development Solutions",
     "Workflow Automation",
+    "Technical Leadership",
   ],
 
   Platforms: [
@@ -30,9 +32,9 @@ const CATEGORY_DATA: Record<Category, string[]> = {
     "Power BI",
     "Tableau",
     "Power Automate",
+    "n8n",
     "Qualtrics",
     "Workday",
-    "n8n",
   ],
 
   Certifications: [
@@ -279,10 +281,11 @@ const Portfolio = () => {
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
+              <span className="text-xs sm:text-sm text-white/60">Mumbai, India</span>
             </div>
 
             <p className="text-sm">
-              B.E. in Computer Science & Engineering (Artificial Intelligence & Machine Learning), 8.6 CGPA
+              B.E. Computer Science & Engineering (Artificial Intelligence and Machine Learning) 8.6 CGPA
             </p>
 
             <p className="text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
@@ -291,9 +294,10 @@ const Portfolio = () => {
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Cambridge</h3>
+              <span className="text-xs sm:text-sm text-white/60">Cambridge, UK</span>
             </div>
 
-            <p className="text-sm">Undergraduate Certificate in Strategic Business & Management</p>
+            <p className="text-sm">Undergraduate Certificate in Strategic Business and Management</p>
 
             <p className="text-sm text-white/60 mt-1">Oct 2023 – July 2024</p>
           </div>
@@ -311,7 +315,7 @@ const Portfolio = () => {
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
+            <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
             <p className="italic mb-3">Product Manager Analyst · July 2025 – Present</p>
 
@@ -323,37 +327,32 @@ const Portfolio = () => {
 
               <li>
                 Manage end-to-end regulatory change processes, including creating JIRA tickets, coordinating
-                cross-functional teams such as BA, sales, and pre-sales with client-specific needs, ensuring data
+                cross-functional teams like BA, sales and pre-sales teams with client-specific needs, ensuring data
                 accuracy and integrity in internal systems, and contributing to product enhancements.
               </li>
 
               <li>
-                Built Power BI dashboards using Power Query, translating raw data from JIRA and ServiceNow into
-                leadership insights.
+                Built Power BI dashboards using Power Query translating raw data (Jira, SNOW) into leadership insights.
               </li>
 
               <li>
-                Designed a comprehensive Regulatory Monitoring communication pipeline for the AxiomSL Regulatory
-                Newsletter, Email, and Teams Channel using Power Automate and an internal AI platform. The system
-                captures marked JIRA tickets, utilizes AI to structure the data, and enforces human-in-the-loop
-                approvals before broadcasting to internal teams and clients.
+                Designed a comprehensive Regulatory Monitoring communication pipeline (AxiomSL Regulatory Newsletter -
+                Global, Email, Teams Channel) via Power Automate and internal AI platform. The system captures marked
+                Jira tickets, utilizes AI to structure the data, and enforces human-in-the-loop approvals before
+                broadcasting to internal teams and clients. This seamless workflow reduced manual reporting time from 3
+                days to 30 minutes (98% faster).
               </li>
 
               <li>
-                Reduced manual reporting time from 3 days to 30 minutes, achieving a 98% reduction in reporting time.
+                Drive automation initiatives to streamline regulatory monitoring, including the development of ReM AI
+                (Regulatory Monitoring AI). This LLM-powered tool assists the RMT Team with document summarization,
+                comparison, and understanding historical trends via a connected Jira MCP, and can automatically create
+                Jira issues and Confluence pages.
               </li>
 
               <li>
-                Drive automation initiatives through the development of ReM AI (Regulatory Monitoring AI), an
-                LLM-powered tool that assists the RMT Team with document summarization, comparison, and understanding
-                historical trends via a connected JIRA MCP.
-              </li>
-
-              <li>Developed capabilities for ReM AI to automatically create JIRA issues and Confluence pages.</li>
-
-              <li>
-                Architecting a unified data repository, Reg-Inventory, by integrating data streams from JIRA,
-                ServiceNow, and product inventory to centralize documentation for regulatory reports.
+                Architecting a unified data repository (Reg-Inventory) by integrating multi-channel data streams from
+                Jira, ServiceNow (SNOW), and product inventory to centralize documentation for all regulatory reports.
               </li>
             </ul>
           </div>
@@ -363,29 +362,21 @@ const Portfolio = () => {
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="font-semibold">Nasdaq, Mumbai, India</h3>
+            <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
             <p className="italic mb-3">Client Success Operations Analysis Intern · Jan 2025 – Jun 2025</p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>
                 Led strategic initiatives, including the Whitespace Project to identify upsell and cross-sell
-                opportunities across Nasdaq product lines.
-              </li>
-
-              <li>
-                Led an organization-wide Net Promoter Score campaign across multiple Nasdaq product lines including
-                Calypso, AxiomSL, and NTS.
-              </li>
-
-              <li>
-                Leveraged Qualtrics, Planhat, Power BI, and Salesforce to support customer success analytics, campaign
-                execution, and reporting.
+                opportunities, and an organization-wide Net Promoter Score campaign across multiple Nasdaq product lines
+                (Calypso, AxiomSL, NTS) leveraging Qualtrics, Planhat, Power BI, and Salesforce.
               </li>
 
               <li>
                 Supported Nasdaq Trade Surveillance (Phase-1) by vetting subscriptions through JIRA and automating
-                AI-powered vetting workflows using an internal GenAI Platform.
+                AI-powered vetting workflows using an internal GenAI Platform. This increased efficiency and reduced
+                manual work for easy-to-process documents.
               </li>
 
               <li>
@@ -407,8 +398,8 @@ const Portfolio = () => {
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>
                 Designed and implemented an AI-driven indoor wireless coverage optimization system, integrating ray
-                tracing simulations using Pylayers and computer vision using OpenCV to enhance network planning and
-                signal accuracy.
+                tracing simulations (Pylayers) and computer vision (OpenCV) to enhance network planning and signal
+                accuracy.
               </li>
 
               <li>
@@ -425,7 +416,7 @@ const Portfolio = () => {
           </div>
 
           {/* ============================================================ */}
-          {/* FANATISCH — MARKETING INTERN                                   */}
+          {/* FANATISCH DIGITAL MARKETING SERVICES                           */}
           {/* ============================================================ */}
 
           <div className="mb-8">
@@ -434,10 +425,17 @@ const Portfolio = () => {
             <p className="italic mb-3">Marketing Intern</p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
-              <li>Curated engaging content ideas for Instagram handles of food companies under FDMS.</li>
+              <li>
+                Curated engaging content ideas for Instagram handles of food companies, including @oddiyana._, @pots56_,
+                @pakkhtun_, @blissobowl, and @birinjz.
+              </li>
 
               <li>
-                Led a comprehensive campaign titled &quot;Feast from the East&quot; for a month, targeting food
+                Executed data-driven campaigns using Instagram and Google Ads to boost brand visibility and engagement.
+              </li>
+
+              <li>
+                Led a comprehensive campaign titled &quot;Feast from the east&quot; for a month, targeting food
                 enthusiasts in Mumbai.
               </li>
 
@@ -455,6 +453,21 @@ const Portfolio = () => {
               <li>Increased followers by 25% across all Instagram handles.</li>
 
               <li>Achieved a 40% boost in engagement rates through targeted ads and interactive content.</li>
+
+              <li>
+                Enhanced website traffic by 35% and improved conversion rates by 20% through optimized online marketing
+                strategies.
+              </li>
+
+              <li>
+                Assisted in organizing the &quot;Feast from the East&quot; event at Royal Orchid Central Grazia, Mumbai.
+              </li>
+
+              <li>
+                Coordinated logistics, managed vendor relations, and promoted the event through social media channels.
+              </li>
+
+              <li>Ensured a successful event turnout and positive attendee feedback.</li>
             </ul>
           </div>
         </section>
