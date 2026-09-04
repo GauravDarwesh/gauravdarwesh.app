@@ -1290,7 +1290,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       const audio = androidPlaybackAudioRef.current ?? new Audio();
       audio.preload = "auto";
-      audio.playsInline = true;
+      audio.setAttribute("playsinline", "true");
       audio.src = url;
       audio.currentTime = 0;
       hostedAudioRef.current = audio;
