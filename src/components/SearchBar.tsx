@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Mic, Check, X } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
@@ -51,7 +51,20 @@ const rememberTtsQuotaLimit = (responseBody: string) => {
 };
 
 /* =========================================================
-   1. MARKDOWN → HTML
+   1. CHATGPT-STYLE WAVEFORM ICON
+   ========================================================= */
+
+const ChatGPTWaveformIcon: React.FC<{ className?: string }> = ({ className = "h-4 w-4 text-white" }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    <rect x="3.5" y="8" width="2.5" height="8" rx="1.25" />
+    <rect x="8.5" y="4" width="2.5" height="16" rx="1.25" />
+    <rect x="13.5" y="6.5" width="2.5" height="11" rx="1.25" />
+    <rect x="18.5" y="9" width="2.5" height="6" rx="1.25" />
+  </svg>
+);
+
+/* =========================================================
+   2. MARKDOWN → HTML
    ========================================================= */
 
 const convertMarkdownToHtml = (text: string): string => {
@@ -108,7 +121,7 @@ const convertMarkdownToHtml = (text: string): string => {
 };
 
 /* =========================================================
-   2. FADE HELPER
+   3. FADE HELPER
    ========================================================= */
 
 function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
@@ -137,7 +150,7 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
 }
 
 /* =========================================================
-   3. REACTIVE WAVEFORM
+   4. REACTIVE WAVEFORM
    ========================================================= */
 
 const BarWaveform: React.FC<{
@@ -323,7 +336,7 @@ const BarWaveform: React.FC<{
 };
 
 /* =========================================================
-   3b. RECORDING TIMER
+   5. RECORDING TIMER
    ========================================================= */
 
 const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
@@ -361,7 +374,7 @@ const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
 };
 
 /* =========================================================
-   4. SEARCH BAR
+   6. SEARCH BAR MAIN COMPONENT
    ========================================================= */
 
 interface SearchBarProps {
@@ -458,18 +471,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
 
   /* -------------------------------------------------------
-     Voice state
+     Modes: Voice Session vs Transcribe
      ------------------------------------------------------- */
 
   const [isVoiceSession, setIsVoiceSession] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const isVoiceSessionRef = useRef(false);
+  const isTranscribingRef = useRef(false);
   const isLoadingRef = useRef(false);
   const isSpeakingRef = useRef(false);
 
   isVoiceSessionRef.current = isVoiceSession;
+  isTranscribingRef.current = isTranscribing;
   isLoadingRef.current = isLoading;
   isSpeakingRef.current = isSpeaking;
 
@@ -477,7 +493,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      Placeholder
      ------------------------------------------------------- */
 
-  const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to talk with GDx"], []);
+  const placeholderTexts = useMemo(() => ["Ask anything...", "Ask GDx anything..."], []);
   const [placeholderText, setPlaceholderText] = useState(placeholderTexts[0]);
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
   const [placeholderTarget, setPlaceholderTarget] = useState(0);
@@ -503,13 +519,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const speakTokenRef = useRef(0);
 
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isHoldingRef = useRef(false);
-
   const searchBarRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
   const stopVoiceSessionRef = useRef<(() => void) | null>(null);
+  const stopTranscribeRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
 
   /* =======================================================
@@ -632,7 +646,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   useEffect(() => {
-    if (isLoading || isListening || isVoiceSession || query) return;
+    if (isLoading || isListening || isVoiceSession || isTranscribing || query) return;
 
     const currentTarget = placeholderTexts[placeholderTarget];
 
@@ -669,6 +683,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     isLoading,
     isListening,
     isVoiceSession,
+    isTranscribing,
     query,
   ]);
 
@@ -718,19 +733,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   useEffect(() => {
-    if (response || suggestions.length > 0 || isVoiceSession) return;
+    if (response || suggestions.length > 0 || isVoiceSession || isTranscribing) return;
 
     const timer = setTimeout(() => {
       if (!hasInteracted) setShowTypewriter(true);
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [hasInteracted, response, suggestions, isVoiceSession]);
+  }, [hasInteracted, response, suggestions, isVoiceSession, isTranscribing]);
 
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      if (response || suggestions.length > 0 || isVoiceSession) return;
+      if (response || suggestions.length > 0 || isVoiceSession || isTranscribing) return;
 
       if (idle > 10000 && hasInteracted && !isLoading) {
         setShowTypewriter(true);
@@ -738,21 +753,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 2000);
 
     return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions, isVoiceSession]);
+  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions, isVoiceSession, isTranscribing]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000 && !isVoiceSession;
+      const shouldShow =
+        (response || suggestions.length > 0) && !isLoading && idle > 10000 && !isVoiceSession && !isTranscribing;
 
       setShowExpandedSuggestions(shouldShow);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [lastActivityTime, response, suggestions, isLoading, isVoiceSession]);
+  }, [lastActivityTime, response, suggestions, isLoading, isVoiceSession, isTranscribing]);
 
   useEffect(() => {
-    if (!showTypewriter || isVoiceSession) {
+    if (!showTypewriter || isVoiceSession || isTranscribing) {
       if (suggestionPhase !== "blurringOut") {
         setSuggestionPhase("hidden");
       }
@@ -781,7 +797,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       clearInterval(interval);
       clearTimeout(emergeTimer);
     };
-  }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession]);
+  }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession, isTranscribing]);
 
   /* =======================================================
      STOP AUDIO
@@ -1123,7 +1139,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   );
 
   /* =======================================================
-     CONTINUOUS SPEECH RECOGNITION
+     CONTINUOUS SPEECH RECOGNITION (VOICE AGENT)
      ======================================================= */
 
   const startListeningContinuous = useCallback(async () => {
@@ -1322,21 +1338,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   startListeningContinuousRef.current = startListeningContinuous;
 
   /* =======================================================
-     STOP VOICE SESSION
+     STOP VOICE SESSION (AGENT)
      ======================================================= */
 
   const stopVoiceSession = useCallback(() => {
     isVoiceSessionRef.current = false;
-    isHoldingRef.current = false;
     recognitionGenerationRef.current += 1;
 
     setIsVoiceSession(false);
     setIsListening(false);
-
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
@@ -1376,20 +1386,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   stopVoiceSessionRef.current = stopVoiceSession;
 
   /* =======================================================
-     HOLD TO SPEAK
+     START VOICE SESSION (AGENT)
      ======================================================= */
 
-  const startHold = useCallback(() => {
-    if (isLoading || isVoiceSession) return;
+  const startVoiceSession = useCallback(() => {
+    if (isLoading) return;
+
+    if (isTranscribing) {
+      stopTranscribeRef.current?.();
+    }
 
     try {
       getAudioContext();
     } catch {
-      /* Voice recognition can still handle its own path */
+      /* Handled gracefully */
     }
-
-    isHoldingRef.current = true;
-    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
 
     isVoiceSessionRef.current = true;
     setIsVoiceSession(true);
@@ -1400,70 +1411,151 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
 
     void startListeningContinuousRef.current?.();
-  }, [getAudioContext, isLoading, isVoiceSession, dismissSuggestionBubble]);
-
-  const handleHoldStart = useCallback(
-    (event: React.MouseEvent | React.TouchEvent) => {
-      event.preventDefault();
-      startHold();
-    },
-    [startHold],
-  );
-
-  const handleHoldEnd = useCallback(
-    (event?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
-      event?.preventDefault?.();
-
-      const wasHolding = isHoldingRef.current;
-      isHoldingRef.current = false;
-
-      if (holdTimerRef.current) {
-        clearTimeout(holdTimerRef.current);
-        holdTimerRef.current = null;
-      }
-
-      if (!isVoiceSessionRef.current && wasHolding && query.trim()) {
-        handleSubmitRef.current?.(undefined, undefined, false);
-      }
-    },
-    [query],
-  );
+  }, [getAudioContext, isLoading, isTranscribing, dismissSuggestionBubble]);
 
   /* =======================================================
-     SHIFT TO SPEAK
+     TRANSCRIBE (SPEECH TO TEXT)
      ======================================================= */
 
-  useEffect(() => {
-    const handleShiftDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift" || event.repeat || isListening || isLoading || isVoiceSession) {
-        return;
+  const stopTranscribe = useCallback(() => {
+    isTranscribingRef.current = false;
+    setIsTranscribing(false);
+    setIsListening(false);
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    }
+
+    if (micSourceRef.current) {
+      try {
+        micSourceRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+      micSourceRef.current = null;
+    }
+
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
+
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+  }, []);
+
+  stopTranscribeRef.current = stopTranscribe;
+
+  const startTranscribe = useCallback(async () => {
+    if (isLoading) return;
+
+    if (isVoiceSessionRef.current) {
+      stopVoiceSession();
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    dismissSuggestionBubble();
+    setShowExpandedSuggestions(false);
+    setHasInteracted(true);
+
+    try {
+      const { ctx, analyser } = getAudioContext();
+
+      if (ctx.state === "suspended") {
+        await ctx.resume();
       }
 
-      const activeElement = document.activeElement as HTMLElement | null;
-      const isInputFocused =
-        !!activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.contentEditable === "true");
+      if (!micStreamRef.current) {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      }
 
-      if (isInputFocused) return;
+      if (!micSourceRef.current && micStreamRef.current) {
+        micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
+      }
 
-      event.preventDefault();
-      startHold();
-    };
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.connect(analyser);
+        } catch {
+          /* Already connected */
+        }
+      }
 
-    const handleShiftUp = (event: KeyboardEvent) => {
-      if (event.key === "Shift") handleHoldEnd();
-    };
+      setIsTranscribing(true);
+      isTranscribingRef.current = true;
+      setIsListening(true);
 
-    window.addEventListener("keydown", handleShiftDown);
-    window.addEventListener("keyup", handleShiftUp);
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+      recognition.maxAlternatives = 1;
 
-    return () => {
-      window.removeEventListener("keydown", handleShiftDown);
-      window.removeEventListener("keyup", handleShiftUp);
-    };
-  }, [isListening, isLoading, isVoiceSession, startHold, handleHoldEnd]);
+      recognitionRef.current = recognition;
+
+      recognition.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0]?.transcript || "";
+        }
+
+        if (transcript) {
+          setQuery(transcript);
+        }
+
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = setTimeout(() => {
+          stopTranscribe();
+        }, 3000);
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+          console.warn("Speech recognition transcribe error:", event.error);
+        }
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          stopTranscribe();
+        }
+      };
+
+      recognition.onend = () => {
+        if (isTranscribingRef.current) {
+          stopTranscribe();
+        }
+      };
+
+      recognition.start();
+    } catch (error) {
+      console.warn("Transcribe setup warning:", error);
+      stopTranscribe();
+    }
+  }, [getAudioContext, isLoading, stopVoiceSession, stopTranscribe, dismissSuggestionBubble]);
 
   /* =======================================================
      CLEANUP
@@ -1473,7 +1565,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => {
       recognitionGenerationRef.current += 1;
 
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
       if (recognitionRef.current) {
@@ -1525,6 +1616,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const handleSubmit = async (event?: FormEvent, customQuery?: string, fromVoice = false) => {
     event?.preventDefault();
+
+    if (isTranscribingRef.current) {
+      stopTranscribe();
+    }
 
     const text = (customQuery ?? query).trim();
     if (!text) return;
@@ -1629,6 +1724,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (searchBarRef.current?.contains(target)) return;
 
+      if (isTranscribingRef.current) {
+        stopTranscribe();
+        return;
+      }
+
       if (isVoiceSessionRef.current) {
         stopVoiceSession();
         return;
@@ -1671,20 +1771,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [response, suggestions, query, stopVoiceSession, clearPersistedState]);
+  }, [response, suggestions, query, stopVoiceSession, stopTranscribe, clearPersistedState]);
 
   /* =======================================================
      LAYOUT
      ======================================================= */
 
   const layoutValues = useMemo(() => {
-    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession;
+    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
     const isExpanded = hasContent && !isLoading;
-    const targetWidth = isExpanded ? "580px" : isVoiceSession ? "420px" : "460px";
+    const targetWidth = isExpanded ? "580px" : isVoiceSession || isTranscribing ? "420px" : "460px";
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { isExpanded, targetWidth, targetRadius };
-  }, [suggestions.length, response, isVoiceSession, isLoading]);
+  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading]);
 
   /* =======================================================
      RENDER
@@ -1695,7 +1795,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && (
+      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-all"
@@ -1717,7 +1817,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       <div
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
-        } ${isVoiceSession || isListening ? "listening-container" : ""}`}
+        } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
@@ -1736,7 +1836,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
           }}
         >
-          <Fade show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession} duration={800}>
+          <Fade
+            show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession && !isTranscribing}
+            duration={800}
+          >
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.8s ease forwards" }}
@@ -1756,20 +1859,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response && !isVoiceSession
+              response && !isVoiceSession && !isTranscribing
                 ? isCollapsing || isCollapsingToThink
                   ? "opacity-0 mb-0"
                   : "opacity-100 mb-5"
                 : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response && !isVoiceSession ? "384px" : "0px",
+              maxHeight:
+                isCollapsing || isCollapsingToThink
+                  ? "0px"
+                  : response && !isVoiceSession && !isTranscribing
+                    ? "384px"
+                    : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
               transitionDelay:
                 response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
-            {response && !isVoiceSession && (
+            {response && !isVoiceSession && !isTranscribing && (
               <div
                 className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                 style={{
@@ -1788,7 +1896,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             className="flex items-center gap-2 relative min-h-[40px]"
             onFocus={handleInputFocus}
           >
-            {!isVoiceSession && (
+            {!isVoiceSession && !isTranscribing && (
               <div className="relative flex-1">
                 <Input
                   ref={inputRef}
@@ -1806,51 +1914,65 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
-            {isVoiceSession && (
+            {/* Talk with agent voice mode: Waveform WITHOUT timer */}
+            {isVoiceSession && !isTranscribing && (
               <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking} />
-                {isListening && <RecordingTimer isActive={isListening} />}
               </div>
             )}
 
+            {/* Transcribe mode: Waveform WITH timer */}
+            {isTranscribing && (
+              <div className="flex-1 flex items-center gap-3 pl-3 min-w-0">
+                <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={false} />
+                <RecordingTimer isActive={isTranscribing} />
+              </div>
+            )}
+
+            {/* Action buttons */}
             {isVoiceSession ? (
               <button
                 type="button"
                 onClick={stopVoiceSession}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-all active:scale-95 cursor-pointer"
-                title="End voice mode"
-                aria-label="End voice mode"
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                title="End voice session"
+                aria-label="End voice session"
               >
-                <span aria-hidden="true" className="relative block h-3.5 w-3.5">
-                  <span className="absolute left-1/2 top-1/2 block h-[1px] w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white/70" />
-                  <span className="absolute left-1/2 top-1/2 block h-[1px] w-3.5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-white/70" />
-                </span>
+                <X className="h-4 w-4 text-white" strokeWidth={2} />
+              </button>
+            ) : isTranscribing ? (
+              <button
+                type="button"
+                onClick={stopTranscribe}
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                title="Done transcribing"
+                aria-label="Done transcribing"
+              >
+                <Check className="h-4 w-4 text-white" strokeWidth={2.5} />
               </button>
             ) : (
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label="Search or hold to speak"
-                className="shrink-0 select-none"
-                onMouseDown={handleHoldStart}
-                onMouseUp={handleHoldEnd}
-                onMouseLeave={handleHoldEnd}
-                onTouchStart={handleHoldStart}
-                onTouchEnd={handleHoldEnd}
-                style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
-              >
-                <div
-                  className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer ${
-                    isListening ? "bg-white/30" : "hover:bg-white/20"
-                  }`}
+              <div className="flex items-center gap-1.5 shrink-0 pr-1">
+                {/* Transcribe mic button */}
+                <button
+                  type="button"
+                  onClick={startTranscribe}
+                  className="h-9 w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                  title="Transcribe speech"
+                  aria-label="Transcribe speech"
                 >
-                  <Search
-                    className={`h-4 w-4 text-white/50 ${
-                      isLoading ? "thinking-icon" : ""
-                    } ${isListening ? "!text-white" : ""}`}
-                    strokeWidth={1.5}
-                  />
-                </div>
+                  <Mic className="h-5 w-5" strokeWidth={2} />
+                </button>
+
+                {/* Talk with agent button (ChatGPT style) */}
+                <button
+                  type="button"
+                  onClick={startVoiceSession}
+                  className="h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] transition-all active:scale-95 shadow-sm cursor-pointer"
+                  title="Talk with GDx"
+                  aria-label="Talk with GDx"
+                >
+                  <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
+                </button>
               </div>
             )}
           </form>
@@ -1920,23 +2042,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         .thinking-placeholder[disabled] {
           caret-color: transparent;
-        }
-
-        .thinking-icon {
-          stroke: rgba(255,255,255,0.5);
-          filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
-          animation: iconGlow 4s infinite ease-in-out;
-        }
-
-        @keyframes iconGlow {
-          0%, 100% {
-            stroke: rgba(255,255,255,0.3);
-            filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
-          }
-          50% {
-            stroke: rgba(255,255,255,0.8);
-            filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
-          }
         }
 
         .inline-code {
