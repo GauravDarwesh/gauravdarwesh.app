@@ -1921,7 +1921,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "px-3 py-4 sm:p-5 sm:pt-6" : "p-2"}`}
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
             transitionDuration: "800ms",
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
@@ -1995,7 +1995,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-sm sm:text-base font-normal px-2 sm:px-4 h-10 ${
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10 ${
                     isLoading ? "thinking-placeholder" : ""
                   }`}
                   disabled={isLoading}
