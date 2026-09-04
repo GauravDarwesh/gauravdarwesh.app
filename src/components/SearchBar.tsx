@@ -153,21 +153,19 @@ const BarWaveform: React.FC<{
   analyser: AnalyserNode | null;
   isActive: boolean;
   isSpeaking?: boolean;
-}> = ({ analyser, isActive, isSpeaking = false }) => {
+}> = ({ analyser, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationFrameRef = useRef<number | null>(null);
 
   const analyserRef = useRef<AnalyserNode | null>(analyser);
   const activeRef = useRef(isActive);
-  const speakingRef = useRef(isSpeaking);
 
   const dimsRef = useRef({ width: 0, height: 0, dpr: 1 });
-  const levelsRef = useRef<number[]>([]);
-  const noiseRef = useRef<number[]>([]);
-  const historyRef = useRef<number[]>([]);
-  const lastSampleAtRef = useRef(0);
-  const phaseRef = useRef(0);
+  const visualLevelRef = useRef(0.035);
+  const visualLowRef = useRef(0.035);
+  const visualMidRef = useRef(0.035);
+  const visualHighRef = useRef(0.035);
+  const visualPitchRef = useRef(0.22);
 
   useEffect(() => {
     analyserRef.current = analyser;
@@ -178,17 +176,11 @@ const BarWaveform: React.FC<{
   }, [isActive]);
 
   useEffect(() => {
-    speakingRef.current = isSpeaking;
-  }, [isSpeaking]);
-
-  useEffect(() => {
-    if (!containerRef.current || !canvasRef.current) return;
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
 
     const updateSize = () => {
-      const container = containerRef.current;
-      const canvas = canvasRef.current;
-      if (!container || !canvas) return;
-
       const rect = container.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -202,240 +194,223 @@ const BarWaveform: React.FC<{
       canvas.height = Math.max(1, Math.round(rect.height * dpr));
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
-
-      const barCount = Math.max(18, Math.floor(rect.width / 4.05));
-
-      if (levelsRef.current.length !== barCount) {
-        const previous = levelsRef.current;
-        levelsRef.current = Array.from({ length: barCount }, (_, index) => {
-          if (!previous.length) return 0.025;
-
-          const sourceIndex = Math.floor((index / Math.max(1, barCount - 1)) * Math.max(0, previous.length - 1));
-
-          return previous[sourceIndex] ?? 0.025;
-        });
-      }
-
-      if (noiseRef.current.length !== barCount) {
-        noiseRef.current = Array.from({ length: barCount }, (_, index) => 0.91 + 0.09 * Math.sin(index * 0.73));
-      }
-
-      const historyLength = Math.max(24, Math.floor(rect.width / 5));
-      if (historyRef.current.length > historyLength) {
-        historyRef.current = historyRef.current.slice(-historyLength);
-      }
     };
 
     updateSize();
-
     const observer = new ResizeObserver(updateSize);
-    observer.observe(containerRef.current);
+    observer.observe(container);
 
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const timeData = new Uint8Array(512);
     const frequencyData = new Uint8Array(256);
-
+    let frameId = 0;
     let previousTime = performance.now();
 
+    const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+    const smoothTowards = (current: number, target: number, delta: number, response: number) => {
+      const amount = 1 - Math.exp(-response * (delta / 1000));
+      return current + (target - current) * amount;
+    };
+
     const draw = (now: number) => {
-      animationFrameRef.current = requestAnimationFrame(draw);
+      frameId = requestAnimationFrame(draw);
 
       const { width, height, dpr } = dimsRef.current;
       if (!width || !height) return;
 
-      const delta = Math.min(34, Math.max(6, now - previousTime));
+      const delta = Math.min(40, Math.max(8, now - previousTime));
       previousTime = now;
 
       const active = activeRef.current;
-      const speaking = speakingRef.current;
       const currentAnalyser = analyserRef.current;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
-      const barCount = Math.max(18, Math.floor(width / 4.05));
-      const historyLength = Math.max(24, Math.floor(width / 5));
-
-      if (levelsRef.current.length !== barCount) {
-        levelsRef.current = Array.from({ length: barCount }, () => 0.025);
-      }
-
-      if (noiseRef.current.length !== barCount) {
-        noiseRef.current = Array.from({ length: barCount }, (_, index) => 0.91 + 0.09 * Math.sin(index * 0.73));
-      }
-
-      /*
-       * Instead of drawing every analyser sample as a bar, we sample the
-       * overall voice energy at a deliberately slower visual cadence.
-       * This removes the "hyper-fast" audio-buffer look while keeping the
-       * leading edge responsive.
-       */
-      let currentEnergy = 0;
+      let targetLevel = active ? 0.035 : 0;
+      let targetLow = active ? 0.035 : 0;
+      let targetMid = active ? 0.035 : 0;
+      let targetHigh = active ? 0.035 : 0;
+      let targetPitch = visualPitchRef.current;
 
       if (active && currentAnalyser) {
-        if (speaking) {
-          currentAnalyser.getByteFrequencyData(frequencyData);
+        currentAnalyser.getByteFrequencyData(frequencyData);
 
-          let weightedEnergy = 0;
-          let totalWeight = 0;
+        const nyquist = currentAnalyser.context.sampleRate / 2;
+        const hzPerBin = nyquist / frequencyData.length;
 
-          for (let i = 0; i < 118; i++) {
-            const normalized = frequencyData[i] / 255;
-            const voiceWeight = 1.35 - (i / 118) * 0.85;
-            weightedEnergy += normalized * Math.max(0.28, voiceWeight);
-            totalWeight += Math.max(0.28, voiceWeight);
+        let totalWeighted = 0;
+        let totalWeight = 0;
+        let lowEnergy = 0;
+        let lowWeight = 0;
+        let midEnergy = 0;
+        let midWeight = 0;
+        let highEnergy = 0;
+        let highWeight = 0;
+        let weightedFrequency = 0;
+        let frequencyWeight = 0;
+
+        for (let i = 1; i < frequencyData.length; i++) {
+          const magnitude = frequencyData[i] / 255;
+          const hz = i * hzPerBin;
+
+          const weight = Math.pow(magnitude, 1.35);
+          totalWeighted += magnitude * weight;
+          totalWeight += weight;
+
+          if (hz >= 70 && hz < 280) {
+            lowEnergy += magnitude * weight;
+            lowWeight += weight;
+          } else if (hz >= 280 && hz < 2200) {
+            midEnergy += magnitude * weight;
+            midWeight += weight;
+          } else if (hz >= 2200 && hz < 6000) {
+            highEnergy += magnitude * weight;
+            highWeight += weight;
           }
 
-          currentEnergy = totalWeight > 0 ? Math.min(1, (weightedEnergy / totalWeight) * 2.15) : 0;
-        } else {
-          currentAnalyser.getByteTimeDomainData(timeData);
-
-          let sumSquares = 0;
-
-          for (let i = 0; i < timeData.length; i++) {
-            const sample = (timeData[i] - 128) / 128;
-            sumSquares += sample * sample;
+          if (hz >= 100 && hz <= 4500) {
+            weightedFrequency += hz * weight;
+            frequencyWeight += weight;
           }
-
-          const rms = Math.sqrt(sumSquares / timeData.length);
-          currentEnergy = Math.min(1, rms * 7.6);
-        }
-      }
-
-      /*
-       * Only append to the history ~24 times per second. This is the main
-       * "slow wave" change: the visual has breathing room between samples
-       * instead of following every tiny acoustic fluctuation.
-       */
-      const sampleInterval = speaking ? 44 : 42;
-
-      if (now - lastSampleAtRef.current >= sampleInterval) {
-        lastSampleAtRef.current = now;
-
-        if (!active) {
-          currentEnergy = 0;
-        } else if (currentEnergy < 0.018) {
-          const idleBase = speaking ? 0.045 : 0.026;
-          currentEnergy = idleBase + (speaking ? 0.026 : 0.012) * (0.5 + 0.5 * Math.sin(phaseRef.current));
         }
 
-        historyRef.current.push(currentEnergy);
+        const overall = totalWeight > 0 ? totalWeighted / totalWeight : 0;
+        const low = lowWeight > 0 ? lowEnergy / lowWeight : 0;
+        const mid = midWeight > 0 ? midEnergy / midWeight : 0;
+        const high = highWeight > 0 ? highEnergy / highWeight : 0;
 
-        if (historyRef.current.length > historyLength) {
-          historyRef.current.splice(0, historyRef.current.length - historyLength);
-        }
+        // Convert dominant vocal frequency into a stable spatial shape.
+        // There is deliberately NO time/phase accumulator here.
+        const dominantHz = frequencyWeight > 0 ? weightedFrequency / frequencyWeight : 220;
+        const pitchNorm = clamp01((dominantHz - 120) / 700);
+
+        targetLevel = clamp01(Math.pow(overall * 8.5, 0.82));
+        targetLow = clamp01(Math.pow(low * 10, 0.82));
+        targetMid = clamp01(Math.pow(mid * 9, 0.82));
+        targetHigh = clamp01(Math.pow(high * 12, 0.78));
+        targetPitch = pitchNorm;
       }
 
-      if (historyRef.current.length === 0 && active) {
-        historyRef.current = Array.from({ length: historyLength }, (_, index) => 0.02 + 0.012 * Math.sin(index * 0.24));
+      // Slow attack + slower release creates physical-looking movement and
+      // lets the visual glide between microphone and AI playback states.
+      visualLevelRef.current = smoothTowards(
+        visualLevelRef.current,
+        targetLevel,
+        delta,
+        targetLevel > visualLevelRef.current ? 5.5 : 2.8,
+      );
+      visualLowRef.current = smoothTowards(
+        visualLowRef.current,
+        targetLow,
+        delta,
+        targetLow > visualLowRef.current ? 5 : 2.6,
+      );
+      visualMidRef.current = smoothTowards(
+        visualMidRef.current,
+        targetMid,
+        delta,
+        targetMid > visualMidRef.current ? 5.5 : 2.8,
+      );
+      visualHighRef.current = smoothTowards(
+        visualHighRef.current,
+        targetHigh,
+        delta,
+        targetHigh > visualHighRef.current ? 5 : 2.7,
+      );
+      visualPitchRef.current = smoothTowards(visualPitchRef.current, targetPitch, delta, 3.2);
+
+      if (!active) {
+        visualLevelRef.current = smoothTowards(visualLevelRef.current, 0, delta, 7);
+        visualLowRef.current = smoothTowards(visualLowRef.current, 0, delta, 7);
+        visualMidRef.current = smoothTowards(visualMidRef.current, 0, delta, 7);
+        visualHighRef.current = smoothTowards(visualHighRef.current, 0, delta, 7);
       }
 
-      /*
-       * Very slow phase drift keeps neighbouring bars organic. The phase
-       * changes gently rather than making the waveform visibly race.
-       */
-      phaseRef.current += delta * (speaking ? 0.00062 : 0.0005);
+      const level = clamp01(visualLevelRef.current);
+      const low = clamp01(visualLowRef.current);
+      const mid = clamp01(visualMidRef.current);
+      const high = clamp01(visualHighRef.current);
+      const pitch = clamp01(visualPitchRef.current);
 
-      const history = historyRef.current;
-      const levels = levelsRef.current;
+      // Fixed geometry. X never changes because of time/audio history.
+      // Audio only changes the vertical deformation of this same curve.
+      const centerY = height / 2;
+      const leftBias = Math.max(0.001, width);
+      const points = Math.max(64, Math.floor(width));
 
-      for (let i = 0; i < barCount; i++) {
-        const historyPosition = history.length <= 1 ? 0 : (i / Math.max(1, barCount - 1)) * (history.length - 1);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
 
-        const indexA = Math.floor(historyPosition);
-        const indexB = Math.min(history.length - 1, indexA + 1);
-        const mix = historyPosition - indexA;
+      // Soft glow pass.
+      ctx.beginPath();
+      for (let i = 0; i <= points; i++) {
+        const x = (i / points) * width;
+        const t = i / points;
 
-        const a = history[indexA] ?? currentEnergy;
-        const b = history[indexB] ?? a;
+        // Strongest motion lives on the left and gently settles toward the right.
+        const envelope = 0.08 + 0.92 * Math.exp(-Math.pow(t / 0.36, 1.65));
 
-        const historicalEnergy = a + (b - a) * mix;
+        // Pitch controls the fixed spatial frequency. No animated phase.
+        const cycles = 1.35 + pitch * 2.35;
+        const spatialWave =
+          0.48 * Math.sin(t * cycles * Math.PI * 2 + 0.35) + 0.22 * Math.sin(t * cycles * Math.PI * 4 - 0.6);
 
-        const center = (barCount - 1) / 2;
-        const distanceFromCenter = Math.abs(i - center) / Math.max(1, center);
+        const spectralShape = 0.48 * low + 0.86 * mid + 0.56 * high;
+        const amplitude = Math.min(height * 0.39, 3 + level * height * 0.38 * spectralShape);
+        const y = centerY - spatialWave * envelope * amplitude;
 
-        const spatialEnvelope = 0.42 + 0.58 * Math.pow(Math.max(0, 1 - distanceFromCenter), speaking ? 0.72 : 0.82);
-
-        /*
-         * Small, slow local movement prevents the waveform from looking
-         * like a rigid mirrored meter while remaining visually calm.
-         */
-        const drift =
-          1 + Math.sin(phaseRef.current * 5.5 + i * 0.46 + historicalEnergy * 2.4) * (speaking ? 0.045 : 0.035);
-
-        let target = historicalEnergy * spatialEnvelope * (noiseRef.current[i] || 1) * drift;
-
-        if (speaking) {
-          target *= 1.42;
-        } else if (active) {
-          target *= 1.3;
-        }
-
-        target = Math.max(active ? (speaking ? 0.038 : 0.023) : 0, Math.min(1, target));
-
-        const current = levels[i] ?? 0;
-
-        /*
-         * Slow attack + soft release makes the waveform swell naturally.
-         * It reacts on the same frame, but the shape takes time to settle.
-         */
-        const attack = 1 - Math.pow(0.56, delta / 16.67);
-        const release = 1 - Math.pow(0.82, delta / 16.67);
-
-        levels[i] = target > current ? current + (target - current) * attack : current + (target - current) * release;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
+      ctx.strokeStyle = `rgba(255,255,255,${0.08 + level * 0.12})`;
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
 
-      const BAR_WIDTH = 2.15;
-      const BAR_GAP = 1.95;
-      const totalWidth = barCount * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
-      const startX = (width - totalWidth) / 2;
+      // Main waveform pass.
+      ctx.beginPath();
+      for (let i = 0; i <= points; i++) {
+        const x = (i / points) * width;
+        const t = i / points;
 
-      for (let i = 0; i < barCount; i++) {
-        const left = levels[i - 1] ?? levels[i];
-        const current = levels[i] ?? 0;
-        const right = levels[i + 1] ?? current;
+        const envelope = 0.07 + 0.93 * Math.exp(-Math.pow(t / 0.34, 1.72));
 
-        /*
-         * Blend neighbours to make connected hills instead of independent
-         * rapid spikes.
-         */
-        let value = current * 0.62 + left * 0.19 + right * 0.19;
+        const cycles = 1.35 + pitch * 2.35;
+        const spatialWave =
+          0.5 * Math.sin(t * cycles * Math.PI * 2 + 0.35) + 0.2 * Math.sin(t * cycles * Math.PI * 4 - 0.6);
 
-        if (!active) {
-          value *= Math.pow(0.68, delta / 16.67);
-        }
+        const spectralShape = 0.48 * low + 0.88 * mid + 0.58 * high;
+        const amplitude = Math.min(height * 0.4, 2.6 + level * height * 0.39 * spectralShape);
+        const y = centerY - spatialWave * envelope * amplitude;
 
-        const barHeight = Math.max(active ? 2.5 : 0, value * height * 0.86);
-
-        const x = startX + i * (BAR_WIDTH + BAR_GAP);
-        const y = (height - barHeight) / 2;
-        const opacity = active ? 0.25 + Math.min(0.55, value * 0.64) : Math.max(0, 0.18 * value);
-
-        ctx.fillStyle = `rgba(255,255,255,${opacity})`;
-        ctx.beginPath();
-        ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1.15);
-        ctx.fill();
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
+      ctx.strokeStyle = `rgba(255,255,255,${0.4 + level * 0.42})`;
+      ctx.lineWidth = 1.35 + level * 1.05;
+      ctx.stroke();
+
+      // Small fixed baseline keeps the visual grounded without introducing motion.
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(leftBias, centerY);
+      ctx.strokeStyle = `rgba(255,255,255,${active ? 0.08 : 0})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
     };
 
-    animationFrameRef.current = requestAnimationFrame(draw);
+    frameId = requestAnimationFrame(draw);
 
-    return () => {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-
-      animationFrameRef.current = null;
-    };
+    return () => cancelAnimationFrame(frameId);
   }, []);
 
   return (
@@ -569,6 +544,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
   const [showTypewriter, setShowTypewriter] = useState(false);
   const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
+  const suggestionHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [fullText, setFullText] = useState("");
   const suggestionIndexRef = useRef(0);
   const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
@@ -632,6 +608,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
   const stopVoiceSessionRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
+
+  const dismissSuggestionBubble = useCallback((immediate = false) => {
+    if (suggestionHideTimerRef.current) {
+      clearTimeout(suggestionHideTimerRef.current);
+      suggestionHideTimerRef.current = null;
+    }
+
+    if (immediate) {
+      setSuggestionPhase("hidden");
+      return;
+    }
+
+    setSuggestionPhase((phase) => {
+      if (phase === "hidden" || phase === "retreating") return phase;
+      return "retreating";
+    });
+
+    suggestionHideTimerRef.current = setTimeout(() => {
+      setSuggestionPhase("hidden");
+      suggestionHideTimerRef.current = null;
+    }, 520);
+  }, []);
 
   /* =======================================================
      Persist state
@@ -801,25 +799,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ACTIVITY TRACKING
      ======================================================= */
 
-  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
-
-  const debouncedSetActivity = useCallback(() => {
-    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    debounceTimeoutRef.current = setTimeout(() => setLastActivityTime(Date.now()), 100);
-  }, []);
-
   useEffect(() => {
     const handleImmediate = () => setLastActivityTime(Date.now());
 
-    window.addEventListener("mousemove", debouncedSetActivity);
-    ["keypress", "click", "scroll"].forEach((event) => window.addEventListener(event, handleImmediate));
+    ["keypress", "click", "scroll", "focusin"].forEach((event) => window.addEventListener(event, handleImmediate));
 
     return () => {
-      window.removeEventListener("mousemove", debouncedSetActivity);
-      ["keypress", "click", "scroll"].forEach((event) => window.removeEventListener(event, handleImmediate));
-      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+      ["keypress", "click", "scroll", "focusin"].forEach((event) => window.removeEventListener(event, handleImmediate));
     };
-  }, [debouncedSetActivity]);
+  }, []);
 
   /* =======================================================
      FIRST VISIT
@@ -877,8 +865,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [lastActivityTime, response, suggestions, isLoading, isVoiceSession]);
 
   useEffect(() => {
-    if (!showTypewriter || isVoiceSession) {
-      setSuggestionPhase("hidden");
+    if (isVoiceSession) {
+      dismissSuggestionBubble(false);
+      return;
+    }
+
+    if (!showTypewriter) {
+      dismissSuggestionBubble(false);
       return;
     }
 
@@ -903,8 +896,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => {
       clearInterval(interval);
       clearTimeout(emergeTimer);
+      if (suggestionHideTimerRef.current) {
+        clearTimeout(suggestionHideTimerRef.current);
+        suggestionHideTimerRef.current = null;
+      }
     };
-  }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession]);
+  }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession, dismissSuggestionBubble]);
 
   /* =======================================================
      STOP AUDIO
@@ -1661,6 +1658,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (suggestionHideTimerRef.current) clearTimeout(suggestionHideTimerRef.current);
 
       if (recognitionRef.current) {
         try {
@@ -1780,26 +1778,35 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      INTERACTION HELPERS
      ======================================================= */
 
-  const handleSuggestionClick = useCallback((suggestion: string) => {
-    setQuery("");
-    setHasInteracted(true);
-    setShowTypewriter(false);
-    setShowExpandedSuggestions(false);
-    void handleSubmit(undefined, suggestion, false);
-  }, []);
+  const handleSuggestionClick = useCallback(
+    (suggestion: string) => {
+      dismissSuggestionBubble(false);
+      setQuery("");
+      setHasInteracted(true);
+      setShowTypewriter(false);
+      setShowExpandedSuggestions(false);
+      void handleSubmit(undefined, suggestion, false);
+    },
+    [dismissSuggestionBubble],
+  );
 
   const handleInputFocus = useCallback(() => {
+    dismissSuggestionBubble(false);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
-  }, []);
+  }, [dismissSuggestionBubble]);
 
-  const handleInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setQuery(event.target.value);
-    setHasInteracted(true);
-    setShowTypewriter(false);
-    setShowExpandedSuggestions(false);
-  }, []);
+  const handleInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      dismissSuggestionBubble(false);
+      setQuery(event.target.value);
+      setHasInteracted(true);
+      setShowTypewriter(false);
+      setShowExpandedSuggestions(false);
+    },
+    [dismissSuggestionBubble],
+  );
 
   /* =======================================================
      OUTSIDE CLICK
@@ -1877,7 +1884,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && (
+      {fullText && suggestionPhase !== "hidden" && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
           className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
@@ -1886,8 +1893,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               suggestionPhase === "emerging"
                 ? "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
                 : suggestionPhase === "retreating"
-                  ? "suggestionRetreat 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+                  ? "suggestionRetreat 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards"
                   : undefined,
+            filter: suggestionPhase === "retreating" ? "blur(7px)" : "blur(0px)",
+            transition: "filter 520ms cubic-bezier(0.22,1,0.36,1)",
           }}
         >
           {fullText}
@@ -2184,10 +2193,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           0% {
             opacity: 1;
             transform: translateY(0) scale(1);
+            filter: blur(0px);
           }
           100% {
             opacity: 0;
-            transform: translateY(12px) scale(0.97);
+            transform: translateY(5px) scale(0.985);
+            filter: blur(7px);
           }
         }
 
