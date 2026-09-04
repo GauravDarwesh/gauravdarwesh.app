@@ -483,6 +483,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const isTranscribingRef = useRef(false);
   const isLoadingRef = useRef(false);
   const isSpeakingRef = useRef(false);
+  const isAndroidRef = useRef(false);
+
+  useEffect(() => {
+    isAndroidRef.current = /Android/i.test(navigator.userAgent || "");
+  }, []);
 
   isVoiceSessionRef.current = isVoiceSession;
   isTranscribingRef.current = isTranscribing;
@@ -525,6 +530,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const transcribeRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const hostedAudioRef = useRef<HTMLAudioElement | null>(null);
+  const hostedObjectUrlRef = useRef<string | null>(null);
   const speakTokenRef = useRef(0);
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -853,6 +860,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     activeUtteranceRef.current = null;
 
+    if (hostedAudioRef.current) {
+      try {
+        hostedAudioRef.current.pause();
+        hostedAudioRef.current.currentTime = 0;
+      } catch {
+        /* noop */
+      }
+      hostedAudioRef.current = null;
+    }
+
+    if (hostedObjectUrlRef.current) {
+      try {
+        URL.revokeObjectURL(hostedObjectUrlRef.current);
+      } catch {
+        /* noop */
+      }
+      hostedObjectUrlRef.current = null;
+    }
+
     if (currentSourceNodeRef.current) {
       try {
         currentSourceNodeRef.current.onended = null;
@@ -1051,6 +1077,58 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [getAvailableVoice],
   );
 
+  const playHostedAudioOnAndroid = useCallback(async (audioBytes: ArrayBuffer, token: number): Promise<boolean> => {
+    if (!isAndroidRef.current || typeof window === "undefined") return false;
+    if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+
+    try {
+      const blob = new Blob([audioBytes]);
+      const url = URL.createObjectURL(blob);
+      hostedObjectUrlRef.current = url;
+
+      const audio = new Audio();
+      audio.preload = "auto";
+      audio.src = url;
+      hostedAudioRef.current = audio;
+
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          audio.onended = null;
+          audio.onerror = null;
+        };
+        audio.onended = () => {
+          cleanup();
+          resolve();
+        };
+        audio.onerror = () => {
+          cleanup();
+          reject(new Error("Android audio playback failed"));
+        };
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+        audio.play().catch(reject);
+      });
+
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      return token === speakTokenRef.current;
+    } catch {
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      return false;
+    } finally {
+      if (hostedAudioRef.current) hostedAudioRef.current = null;
+      if (hostedObjectUrlRef.current) {
+        try {
+          URL.revokeObjectURL(hostedObjectUrlRef.current);
+        } catch {
+          /* noop */
+        }
+        hostedObjectUrlRef.current = null;
+      }
+    }
+  }, []);
+
   /* =======================================================
      HOSTED TTS WITH CLEAN LOCAL FALLBACK
      ======================================================= */
@@ -1108,10 +1186,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       let audioGraph: { ctx: AudioContext; analyser: AnalyserNode } | null = null;
 
-      // A 429 is terminal until the provider's advertised daily reset.
-      // Avoid repeatedly calling the exhausted endpoint; browser speech
-      // remains available immediately and hosted audio resumes after reset.
-      let hostedTtsFailed = getTtsQuotaBlockedUntil() > Date.now();
+      // Every new voice response tests the hosted TTS endpoint first.
+      // Once that request fails, the remainder of this response falls back
+      // to browser/local TTS. A previously stored quota flag never skips
+      // the first live API attempt.
+      let hostedTtsFailed = false;
 
       const disconnectMicForPlayback = () => {
         if (micSourceRef.current) {
@@ -1168,7 +1247,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           // If the function accidentally returns JSON/text instead of audio,
           // fail over immediately instead of trying to decode invalid bytes.
-          if (!arrayBuffer.byteLength || /(application\/json|text\/)/i.test(contentType)) {
+          if (!arrayBuffer.byteLength || /application\\/(json | text) / i.test(contentType)) {
+            hostedTtsFailed = true;
+            return null;
+          }
+
+          if (isAndroidRef.current) {
+            const played = await playHostedAudioOnAndroid(arrayBuffer, token);
+            if (played) return { __androidPlayed: true } as any;
             hostedTtsFailed = true;
             return null;
           }
@@ -1214,6 +1300,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
             return;
+          }
+
+          if (isAndroidRef.current && (buffer as any)?.__androidPlayed) {
+            continue;
           }
 
           disconnectMicForPlayback();
@@ -1339,34 +1429,39 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!isVoiceSessionRef.current) return;
 
     try {
-      const { ctx, analyser } = getAudioContext();
-
-      if (ctx.state === "suspended") {
-        await ctx.resume();
-      }
-
       setIsListening(true);
 
-      if (!micStreamRef.current) {
-        micStreamRef.current = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        });
-      }
+      // Android Chrome can have trouble when getUserMedia and its separate
+      // SpeechRecognition service compete for the microphone. Let recognition
+      // own the microphone on Android; desktop/iOS retain the real analyser.
+      if (!isAndroidRef.current) {
+        const { ctx, analyser } = getAudioContext();
 
-      if (!micSourceRef.current && micStreamRef.current) {
-        micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
-      }
+        if (ctx.state === "suspended") {
+          await ctx.resume();
+        }
 
-      if (micSourceRef.current) {
-        try {
-          micSourceRef.current.connect(analyser);
-        } catch {
-          /* Already connected */
+        if (!micStreamRef.current) {
+          micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          });
+        }
+
+        if (!micSourceRef.current && micStreamRef.current) {
+          micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
+        }
+
+        if (micSourceRef.current) {
+          try {
+            micSourceRef.current.connect(analyser);
+          } catch {
+            /* Already connected */
+          }
         }
       }
     } catch (error) {
@@ -1381,7 +1476,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = true;
+    recognition.continuous = !isAndroidRef.current;
     recognition.maxAlternatives = 1;
 
     recognitionRef.current = recognition;
@@ -1665,34 +1760,37 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setQuery("");
 
     try {
-      const { ctx, analyser } = getAudioContext();
+      // Android Chrome's SpeechRecognition service and getUserMedia() can
+      // compete for the same microphone session. Recognition must own the
+      // microphone on Android. Desktop/iOS keep the real analyser waveform.
+      if (!isAndroidRef.current) {
+        const { ctx, analyser } = getAudioContext();
 
-      if (ctx.state === "suspended") {
-        await ctx.resume();
-      }
+        if (ctx.state === "suspended") {
+          await ctx.resume();
+        }
 
-      // Always request a fresh stream after a completed Android recognition
-      // session. Reusing a stopped stream is a common mobile failure mode.
-      if (!micStreamRef.current) {
-        micStreamRef.current = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        });
-      }
+        if (!micStreamRef.current) {
+          micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          });
+        }
 
-      if (!micSourceRef.current && micStreamRef.current) {
-        micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
-      }
+        if (!micSourceRef.current && micStreamRef.current) {
+          micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
+        }
 
-      if (micSourceRef.current) {
-        try {
-          micSourceRef.current.connect(analyser);
-        } catch {
-          /* Already connected */
+        if (micSourceRef.current) {
+          try {
+            micSourceRef.current.connect(analyser);
+          } catch {
+            /* Already connected */
+          }
         }
       }
 
@@ -1723,7 +1821,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         const recognition = new SpeechRecognition();
         recognition.lang = "en-US";
         recognition.interimResults = true;
-        recognition.continuous = true;
+        recognition.continuous = !isAndroidRef.current;
         recognition.maxAlternatives = 1;
 
         recognitionRef.current = recognition;
@@ -1902,6 +2000,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       activeUtteranceRef.current = null;
+
+      if (hostedAudioRef.current) {
+        try {
+          hostedAudioRef.current.pause();
+        } catch {
+          /* noop */
+        }
+      }
+      if (hostedObjectUrlRef.current) {
+        try {
+          URL.revokeObjectURL(hostedObjectUrlRef.current);
+        } catch {
+          /* noop */
+        }
+      }
 
       if (currentSourceNodeRef.current) {
         try {
