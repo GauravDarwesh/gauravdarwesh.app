@@ -15,7 +15,10 @@ const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 
 const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
 const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
-const TTS_KNOWN_PROVIDER_RESET_AT = 1788393600000;
+// OpenRouter's current free-tier reset, reported by gdx-tts. Keeping this
+// client-side guard prevents a fresh browser session from calling the edge
+// function while the provider is already known to be unavailable.
+const TTS_KNOWN_PROVIDER_RESET_AT = 1788566400000;
 
 const getTtsQuotaBlockedUntil = (): number => {
   if (typeof window === "undefined") return 0;
@@ -938,9 +941,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      HOSTED TTS
 
      Key fixes:
-     - First sentence is requested immediately.
-     - Up to three sentences are fetched concurrently.
-     - Audio plays as soon as each ordered chunk is ready.
+     - Sentences are requested and played strictly sequentially.
+     - A quota response prevents every subsequent hosted request.
      - One failed hosted request falls back to native TTS for
        the remaining response.
      - Mic analyser input is disconnected while AI speaks,
@@ -1040,21 +1042,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       };
 
-      /* Fetch a small rolling window instead of waiting for the
-         whole answer. This is the main perceived-latency fix. */
-      const buffers: Array<Promise<AudioBuffer | null> | undefined> = [];
-      let nextToFetch = 0;
-
-      const scheduleNext = () => {
-        if (nextToFetch >= sentences.length || hostedTtsFailed) return;
-        buffers[nextToFetch] = fetchAudioBuffer(sentences[nextToFetch]);
-        nextToFetch += 1;
-      };
-
-      scheduleNext();
-      scheduleNext();
-      scheduleNext();
-
       isSpeakingRef.current = true;
       setIsSpeaking(true);
 
@@ -1064,7 +1051,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             return;
           }
 
-          const buffer = await buffers[i];
+           const buffer = await fetchAudioBuffer(sentences[i]);
 
           if (!buffer) {
             nativeFallbackUsed = true;
@@ -1087,9 +1074,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
             return;
           }
-
-          /* Keep the next chunks warm while the current one speaks. */
-          scheduleNext();
 
           disconnectMicForPlayback();
           isSpeakingRef.current = true;
