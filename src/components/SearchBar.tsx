@@ -1108,11 +1108,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       let audioGraph: { ctx: AudioContext; analyser: AnalyserNode } | null = null;
 
-      // Every new voice response tests the hosted TTS endpoint first.
-      // Once that request fails, the remainder of this response falls back
-      // to browser/local TTS. A previously stored quota flag never skips
-      // the first live API attempt.
-      let hostedTtsFailed = false;
+      // A 429 is terminal until the provider's advertised daily reset.
+      // Avoid repeatedly calling the exhausted endpoint; browser speech
+      // remains available immediately and hosted audio resumes after reset.
+      let hostedTtsFailed = getTtsQuotaBlockedUntil() > Date.now();
 
       const disconnectMicForPlayback = () => {
         if (micSourceRef.current) {
