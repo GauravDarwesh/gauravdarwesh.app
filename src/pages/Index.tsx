@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
+import Pet from "@/components/Pet";
 
 const ANIM_MS = 3000; // same duration for all
 
