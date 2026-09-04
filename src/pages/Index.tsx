@@ -41,9 +41,9 @@ const Index = () => {
 
       {/* Search Bar + Pet */}
       <div className="fixed top-6 inset-x-0 flex justify-center z-10">
-        <div className="relative">
+        <div className="flex items-center gap-3">
           <SearchBar />
-          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 hidden md:block">
+          <div className="hidden md:block">
             <Pet />
           </div>
         </div>
