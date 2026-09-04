@@ -1871,7 +1871,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
     const isExpanded = hasContent && !isLoading;
-    const targetWidth = isExpanded ? "580px" : isVoiceSession || isTranscribing ? "420px" : "460px";
+    const targetWidth = isExpanded ? "460px" : isVoiceSession || isTranscribing ? "320px" : "360px";
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { isExpanded, targetWidth, targetRadius };
