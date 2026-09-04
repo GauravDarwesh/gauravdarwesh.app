@@ -24,15 +24,21 @@ const Index = () => {
       }`}
     >
       <Helmet>
-        <title>Gaurav Darwesh — AI &amp; Product Management Portfolio</title>
-        <meta name="description" content="Gaurav Darwesh builds AI-driven products and leads programs across analytics, automation and product strategy. Ask GDx anything about his work." />
+        <title>Gaurav Darwesh — Portfolio</title>
+        <meta
+          name="description"
+          content="Product Manager Analyst specializing in Applied AI, enterprise workflow automation, and analytics. Explore Gaurav Darwesh’s portfolio, systems, and projects."
+        />
         <link rel="canonical" href="https://gauravdarwesh.app/" />
-        <meta property="og:title" content="Gaurav Darwesh — AI &amp; Product Management Portfolio" />
-        <meta property="og:description" content="Gaurav Darwesh builds AI-driven products and leads programs across analytics, automation and product strategy." />
+        <meta property="og:title" content="Gaurav Darwesh — Portfolio" />
+        <meta
+          property="og:description"
+          content="Product Manager Analyst specializing in Applied AI, enterprise workflow automation, and analytics. Explore Gaurav Darwesh’s portfolio, systems, and projects."
+        />
         <meta property="og:url" content="https://gauravdarwesh.app/" />
       </Helmet>
 
-      <h1 className="sr-only">Gaurav Darwesh — AI and Product Management portfolio</h1>
+      <h1 className="sr-only">Gaurav Darwesh — Portfolio</h1>
 
       {/* Background */}
       <div className="fixed inset-0 z-0">
