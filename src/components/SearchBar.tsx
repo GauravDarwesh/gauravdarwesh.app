@@ -1186,11 +1186,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       let audioGraph: { ctx: AudioContext; analyser: AnalyserNode } | null = null;
 
-      // Every new voice response tests the hosted TTS endpoint first.
-      // Once that request fails, the remainder of this response falls back
-      // to browser/local TTS. A previously stored quota flag never skips
-      // the first live API attempt.
-      let hostedTtsFailed = false;
+      // A quota denial is terminal until the provider's advertised reset.
+      // Skip the hosted endpoint entirely during that window so a voice reply
+      // cannot trigger another 429 (or the preview runtime error overlay).
+      let hostedTtsFailed = getTtsQuotaBlockedUntil() > Date.now();
 
       const disconnectMicForPlayback = () => {
         if (micSourceRef.current) {
@@ -1222,7 +1221,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       };
 
       const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
-        if (hostedTtsFailed) return null;
+        if (hostedTtsFailed || getTtsQuotaBlockedUntil() > Date.now()) {
+          hostedTtsFailed = true;
+          return null;
+        }
 
         try {
           const res = await fetch(TTS_ENDPOINT, {
