@@ -1911,7 +1911,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
-          maxWidth: "85vw",
+          maxWidth: "87vw",
           borderRadius: layoutValues.targetRadius,
           transition:
             "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
