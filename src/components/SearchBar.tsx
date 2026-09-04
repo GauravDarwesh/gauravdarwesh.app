@@ -549,7 +549,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   /* =======================================================
-     AUDIO CONTEXT
+     MOBILE HARDWARE & SPEECH SYNTHESIS UNLOCKING
      ======================================================= */
 
   const getAudioContext = useCallback(() => {
@@ -587,6 +587,36 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       analyser: analyserRef.current!,
     };
   }, []);
+
+  const primeMobileAudioSession = useCallback(() => {
+    try {
+      const { ctx } = getAudioContext();
+      if (ctx.state === "suspended") {
+        void ctx.resume();
+      }
+
+      // iOS WebKit silent buffer prime to unlock hardware audio playback
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+    } catch {
+      /* AudioContext prime fallback */
+    }
+
+    // iOS WebKit & Android user-gesture priming for native speech synthesis
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const silentUtterance = new SpeechSynthesisUtterance("");
+        silentUtterance.volume = 0;
+        window.speechSynthesis.speak(silentUtterance);
+      } catch {
+        /* Speech synthesis unlock fallback */
+      }
+    }
+  }, [getAudioContext]);
 
   /* =======================================================
      ROTATING SUGGESTIONS
@@ -846,80 +876,122 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   /* =======================================================
-     NATIVE BROWSER TTS FALLBACK
-     ========================================================= */
+     NATIVE BROWSER TTS FALLBACK (MOBILE OPTIMIZED)
+     ======================================================= */
 
-  const speakWithBrowserTTS = useCallback(async (sentencesToSpeak: string[], token: number): Promise<boolean> => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window) || sentencesToSpeak.length === 0) {
-      return false;
-    }
+  const getAvailableVoice = useCallback(async (synthesis: SpeechSynthesis): Promise<SpeechSynthesisVoice | null> => {
+    let voices = synthesis.getVoices();
 
-    const synthesis = window.speechSynthesis;
-    try {
-      synthesis.cancel();
-    } catch {
-      /* noop */
-    }
-
-    const voices = synthesis.getVoices();
-    const preferredVoice = voices.find((v) => /^en(-|_)/i.test(v.lang)) || voices[0] || null;
-
-    for (let sIdx = 0; sIdx < sentencesToSpeak.length; sIdx++) {
-      if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
-        try {
-          synthesis.cancel();
-        } catch {
-          /* noop */
-        }
-        return false;
-      }
-
-      const sentence = sentencesToSpeak[sIdx].trim();
-      if (!sentence) continue;
-
+    if (!voices.length) {
       await new Promise<void>((resolve) => {
-        let settled = false;
-        let safetyTimer: ReturnType<typeof setTimeout> | null = null;
-
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          if (safetyTimer) clearTimeout(safetyTimer);
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const onVoices = () => {
+          if (timer) clearTimeout(timer);
+          synthesis.removeEventListener("voiceschanged", onVoices);
           resolve();
         };
 
-        const utterance = new SpeechSynthesisUtterance(sentence);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-        }
-
-        utterance.onstart = () => {
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
-            try {
-              synthesis.cancel();
-            } catch {
-              /* noop */
-            }
-            finish();
-            return;
-          }
-          isSpeakingRef.current = true;
-          setIsSpeaking(true);
-        };
-
-        utterance.onend = finish;
-        utterance.onerror = finish;
-
-        synthesis.speak(utterance);
-        safetyTimer = setTimeout(finish, Math.max(7000, sentence.length * 160));
+        synthesis.addEventListener("voiceschanged", onVoices);
+        timer = setTimeout(() => {
+          synthesis.removeEventListener("voiceschanged", onVoices);
+          resolve();
+        }, 500);
       });
+      voices = synthesis.getVoices();
     }
 
-    return true;
+    return voices.find((v) => /^en(-|_)/i.test(v.lang)) || voices[0] || null;
   }, []);
+
+  const speakWithBrowserTTS = useCallback(
+    async (sentencesToSpeak: string[], token: number): Promise<boolean> => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window) || sentencesToSpeak.length === 0) {
+        return false;
+      }
+
+      const synthesis = window.speechSynthesis;
+
+      try {
+        if (synthesis.paused) synthesis.resume();
+        synthesis.cancel();
+      } catch {
+        /* noop */
+      }
+
+      const preferredVoice = await getAvailableVoice(synthesis);
+
+      for (let sIdx = 0; sIdx < sentencesToSpeak.length; sIdx++) {
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+          try {
+            synthesis.cancel();
+          } catch {
+            /* noop */
+          }
+          return false;
+        }
+
+        const sentence = sentencesToSpeak[sIdx].trim();
+        if (!sentence) continue;
+
+        await new Promise<void>((resolve) => {
+          let settled = false;
+          let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+          let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            if (safetyTimer) clearTimeout(safetyTimer);
+            if (keepAliveInterval) clearInterval(keepAliveInterval);
+            resolve();
+          };
+
+          const utterance = new SpeechSynthesisUtterance(sentence);
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+
+          if (preferredVoice) {
+            utterance.voice = preferredVoice;
+          }
+
+          utterance.onstart = () => {
+            if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+              try {
+                synthesis.cancel();
+              } catch {
+                /* noop */
+              }
+              finish();
+              return;
+            }
+            isSpeakingRef.current = true;
+            setIsSpeaking(true);
+          };
+
+          utterance.onend = finish;
+          utterance.onerror = finish;
+
+          // Android & iOS Chrome/WebKit freeze mitigation
+          keepAliveInterval = setInterval(() => {
+            if (!synthesis.speaking) {
+              finish();
+              return;
+            }
+            if (synthesis.paused) {
+              synthesis.resume();
+            }
+          }, 5000);
+
+          synthesis.speak(utterance);
+          safetyTimer = setTimeout(finish, Math.max(7000, sentence.length * 160));
+        });
+      }
+
+      return true;
+    },
+    [getAvailableVoice],
+  );
 
   /* =======================================================
      HOSTED TTS WITH FALLBACK
@@ -939,10 +1011,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
         recognitionRef.current = null;
       }
+
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
+
       transcriptRef.current = "";
       setIsListening(false);
 
@@ -977,6 +1051,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       let audioGraph: { ctx: AudioContext; analyser: AnalyserNode } | null = null;
       let hostedTtsFailed = getTtsQuotaBlockedUntil() > Date.now();
 
+      // Ensure mobile audio is routed to the loudspeaker rather than the internal earpiece
       const disconnectMicForPlayback = () => {
         if (micSourceRef.current) {
           try {
@@ -985,9 +1060,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             /* noop */
           }
         }
+        if (micStreamRef.current) {
+          micStreamRef.current.getAudioTracks().forEach((track) => {
+            track.enabled = false;
+          });
+        }
       };
 
       const reconnectMicAfterPlayback = () => {
+        if (micStreamRef.current) {
+          micStreamRef.current.getAudioTracks().forEach((track) => {
+            track.enabled = true;
+          });
+        }
         if (!micSourceRef.current || !analyserRef.current) return;
         try {
           micSourceRef.current.connect(analyserRef.current);
@@ -1024,6 +1109,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
 
           audioGraph ??= getAudioContext();
+          if (audioGraph.ctx.state === "suspended") {
+            await audioGraph.ctx.resume();
+          }
+
           return await audioGraph.ctx.decodeAudioData(arrayBuffer);
         } catch {
           hostedTtsFailed = true;
@@ -1064,6 +1153,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             if (!audioGraph) {
               resolve();
               return;
+            }
+
+            if (audioGraph.ctx.state === "suspended") {
+              void audioGraph.ctx.resume();
             }
 
             const source = audioGraph.ctx.createBufferSource();
@@ -1396,11 +1489,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopTranscribeRef.current?.();
     }
 
-    try {
-      getAudioContext();
-    } catch {
-      /* Handled gracefully */
-    }
+    // Direct user-gesture hook: Priming audio context and SpeechSynthesis prevents mobile browser mute
+    primeMobileAudioSession();
 
     isVoiceSessionRef.current = true;
     setIsVoiceSession(true);
@@ -1411,7 +1501,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
 
     void startListeningContinuousRef.current?.();
-  }, [getAudioContext, isLoading, isTranscribing, dismissSuggestionBubble]);
+  }, [isLoading, isTranscribing, primeMobileAudioSession, dismissSuggestionBubble]);
 
   /* =======================================================
      TRANSCRIBE (SPEECH TO TEXT)
@@ -1472,6 +1562,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       alert("Speech recognition is not supported in this browser.");
       return;
     }
+
+    // User gesture prime
+    primeMobileAudioSession();
 
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
@@ -1555,7 +1648,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       console.warn("Transcribe setup warning:", error);
       stopTranscribe();
     }
-  }, [getAudioContext, isLoading, stopVoiceSession, stopTranscribe, dismissSuggestionBubble]);
+  }, [getAudioContext, isLoading, stopVoiceSession, stopTranscribe, dismissSuggestionBubble, primeMobileAudioSession]);
 
   /* =======================================================
      CLEANUP
