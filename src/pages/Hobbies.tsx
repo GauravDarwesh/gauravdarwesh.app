@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
@@ -173,6 +174,15 @@ const CategorySpotlight = () => {
 const Portfolio = () => {
   return (
     <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
+      <Helmet>
+        <title>Experience &amp; Skills — Gaurav Darwesh</title>
+        <meta name="description" content="Gaurav Darwesh's classic resume view: experience, skills, platforms, certifications and extracurriculars." />
+        <link rel="canonical" href="https://gauravdarwesh.app/hobbies" />
+        <meta property="og:title" content="Experience &amp; Skills — Gaurav Darwesh" />
+        <meta property="og:description" content="Experience, skills, platforms and certifications of Gaurav Darwesh." />
+        <meta property="og:url" content="https://gauravdarwesh.app/hobbies" />
+      </Helmet>
+
       {/* Background */}
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
@@ -191,7 +201,7 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <div className="relative w-full mb-8 overflow-hidden">
-          <h1 className="sr-only">Gaurav Darwesh</h1>
+          <h1 className="sr-only">Gaurav Darwesh — Experience &amp; Skills</h1>
 
           {/* Seamless marquee */}
           <div className="overflow-hidden marquee-fade-edges">
