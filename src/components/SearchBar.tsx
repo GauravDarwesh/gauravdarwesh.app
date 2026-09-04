@@ -516,6 +516,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const transcriptRef = useRef("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Android Chrome/Samsung Internet can end SpeechRecognition unexpectedly
+  // even while the user is still actively transcribing. Keep a separate
+  // transcript buffer and generation guard so recognition can safely restart.
+  const transcribeTranscriptRef = useRef("");
+  const transcribeGenerationRef = useRef(0);
+  const transcribeManualStopRef = useRef(false);
+  const transcribeRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const speakTokenRef = useRef(0);
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -882,30 +890,47 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const getAvailableVoice = useCallback((synthesis: SpeechSynthesis): Promise<SpeechSynthesisVoice | null> => {
     return new Promise((resolve) => {
-      const voices = synthesis.getVoices();
-      if (voices && voices.length > 0) {
-        resolve(voices.find((v) => /^en(-|_)/i.test(v.lang)) || voices[0] || null);
+      const pickVoice = () => {
+        const voices = synthesis.getVoices() || [];
+        if (!voices.length) return null;
+
+        // Prefer a local/native English voice where possible. Android often
+        // exposes multiple remote voices, and local voices are more reliable
+        // for browser fallback playback.
+        return (
+          voices.find((voice) => voice.localService && /^en(-|_)/i.test(voice.lang)) ||
+          voices.find((voice) => /^en(-|_)/i.test(voice.lang)) ||
+          voices.find((voice) => voice.localService) ||
+          voices[0] ||
+          null
+        );
+      };
+
+      const immediate = pickVoice();
+      if (immediate) {
+        resolve(immediate);
         return;
       }
 
       let settled = false;
-      const timeout = setTimeout(() => {
+      const finish = () => {
         if (settled) return;
         settled = true;
-        const currentVoices = synthesis.getVoices();
-        resolve(currentVoices.find((v) => /^en(-|_)/i.test(v.lang)) || currentVoices[0] || null);
-      }, 500);
+        clearTimeout(timeout);
+        try {
+          synthesis.removeEventListener("voiceschanged", finish);
+        } catch {
+          /* noop */
+        }
+        resolve(pickVoice());
+      };
+
+      const timeout = setTimeout(finish, 1200);
 
       try {
-        synthesis.onvoiceschanged = () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          const currentVoices = synthesis.getVoices();
-          resolve(currentVoices.find((v) => /^en(-|_)/i.test(v.lang)) || currentVoices[0] || null);
-        };
+        synthesis.addEventListener("voiceschanged", finish, { once: true });
       } catch {
-        /* Fallback to timeout resolution */
+        // Timeout fallback above still resolves.
       }
     });
   }, []);
@@ -931,13 +956,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return new Promise<boolean>((resolve) => {
         let settled = false;
         let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+        let resumeTimer: ReturnType<typeof setInterval> | null = null;
 
-        const finish = () => {
+        const cleanup = () => {
+          if (safetyTimer) clearTimeout(safetyTimer);
+          if (resumeTimer) clearInterval(resumeTimer);
+          activeUtteranceRef.current = null;
+        };
+
+        const finish = (success: boolean) => {
           if (settled) return;
           settled = true;
-          if (safetyTimer) clearTimeout(safetyTimer);
-          activeUtteranceRef.current = null;
-          resolve(true);
+          cleanup();
+          resolve(success);
         };
 
         const utterance = new SpeechSynthesisUtterance(fullTextToSpeak);
@@ -947,6 +978,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         if (preferredVoice) {
           utterance.voice = preferredVoice;
+          utterance.lang = preferredVoice.lang || "en-US";
+        } else {
+          utterance.lang = "en-US";
         }
 
         activeUtteranceRef.current = utterance;
@@ -958,21 +992,59 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             } catch {
               /* noop */
             }
-            finish();
+            finish(false);
             return;
           }
+
           isSpeakingRef.current = true;
           setIsSpeaking(true);
+
+          // Mobile Chrome can pause long utterances by itself. Resuming while
+          // active is harmless on browsers that do not exhibit the issue.
+          resumeTimer = setInterval(() => {
+            if (!settled && token === speakTokenRef.current && isVoiceSessionRef.current) {
+              try {
+                synthesis.resume();
+              } catch {
+                /* noop */
+              }
+            }
+          }, 900);
         };
 
-        utterance.onend = finish;
-        utterance.onerror = finish;
+        utterance.onend = () => {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          finish(true);
+        };
+
+        utterance.onerror = () => {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          finish(false);
+        };
 
         try {
-          synthesis.speak(utterance);
-          safetyTimer = setTimeout(finish, Math.max(10000, fullTextToSpeak.length * 180));
+          // Clear any stale utterance that Android may still consider queued.
+          synthesis.cancel();
+
+          // Give the browser a microtask to process cancel() before queueing.
+          window.setTimeout(() => {
+            if (settled || token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+              finish(false);
+              return;
+            }
+
+            try {
+              synthesis.resume();
+              synthesis.speak(utterance);
+              safetyTimer = setTimeout(finish.bind(null, true), Math.max(12000, fullTextToSpeak.length * 220));
+            } catch {
+              finish(false);
+            }
+          }, 0);
         } catch {
-          finish();
+          finish(false);
         }
       });
     },
@@ -1035,7 +1107,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .filter(Boolean);
 
       let audioGraph: { ctx: AudioContext; analyser: AnalyserNode } | null = null;
-      let hostedTtsFailed = getTtsQuotaBlockedUntil() > Date.now();
+
+      // Every new voice response tests the hosted TTS endpoint first.
+      // Once that request fails, the remainder of this response falls back
+      // to browser/local TTS. A previously stored quota flag never skips
+      // the first live API attempt.
+      let hostedTtsFailed = false;
 
       const disconnectMicForPlayback = () => {
         if (micSourceRef.current) {
@@ -1087,8 +1164,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             return null;
           }
 
+          const contentType = res.headers.get("content-type") || "";
           const arrayBuffer = await res.arrayBuffer();
-          if (!arrayBuffer.byteLength) {
+
+          // If the function accidentally returns JSON/text instead of audio,
+          // fail over immediately instead of trying to decode invalid bytes.
+          if (!arrayBuffer.byteLength || /application\\/(json | text) / i.test(contentType)) {
             hostedTtsFailed = true;
             return null;
           }
@@ -1098,7 +1179,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             await audioGraph.ctx.resume();
           }
 
-          return await audioGraph.ctx.decodeAudioData(arrayBuffer);
+          try {
+            return await audioGraph.ctx.decodeAudioData(arrayBuffer.slice(0));
+          } catch {
+            hostedTtsFailed = true;
+            return null;
+          }
         } catch {
           hostedTtsFailed = true;
           return null;
@@ -1503,6 +1589,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const stopTranscribe = useCallback(() => {
+    transcribeManualStopRef.current = true;
+    transcribeGenerationRef.current += 1;
+
+    if (transcribeRestartTimerRef.current) {
+      clearTimeout(transcribeRestartTimerRef.current);
+      transcribeRestartTimerRef.current = null;
+    }
+
     isTranscribingRef.current = false;
     setIsTranscribing(false);
     setIsListening(false);
@@ -1537,6 +1631,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       micStreamRef.current = null;
     }
 
+    transcribeTranscriptRef.current = "";
+
     setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
@@ -1564,6 +1660,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
 
+    const generation = ++transcribeGenerationRef.current;
+    transcribeManualStopRef.current = false;
+    transcribeTranscriptRef.current = "";
+    setQuery("");
+
     try {
       const { ctx, analyser } = getAudioContext();
 
@@ -1571,6 +1672,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         await ctx.resume();
       }
 
+      // Always request a fresh stream after a completed Android recognition
+      // session. Reusing a stopped stream is a common mobile failure mode.
       if (!micStreamRef.current) {
         micStreamRef.current = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -1598,46 +1701,159 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       isTranscribingRef.current = true;
       setIsListening(true);
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = true;
-      recognition.continuous = true;
-      recognition.maxAlternatives = 1;
-
-      recognitionRef.current = recognition;
-
-      recognition.onresult = (event: any) => {
-        let transcript = "";
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0]?.transcript || "";
+      const startRecognition = () => {
+        if (
+          generation !== transcribeGenerationRef.current ||
+          transcribeManualStopRef.current ||
+          !isTranscribingRef.current
+        ) {
+          return;
         }
 
-        if (transcript) {
-          setQuery(transcript);
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.onend = null;
+            recognitionRef.current.onerror = null;
+            recognitionRef.current.stop();
+          } catch {
+            /* noop */
+          }
+          recognitionRef.current = null;
         }
 
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = setTimeout(() => {
-          stopTranscribe();
-        }, 3000);
+        const recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.maxAlternatives = 1;
+
+        recognitionRef.current = recognition;
+
+        let finalTranscript = transcribeTranscriptRef.current;
+
+        const clearTimer = () => {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
+        };
+
+        const armSilenceStop = () => {
+          clearTimer();
+          silenceTimerRef.current = setTimeout(() => {
+            if (
+              generation === transcribeGenerationRef.current &&
+              isTranscribingRef.current &&
+              !transcribeManualStopRef.current
+            ) {
+              stopTranscribe();
+            }
+          }, 2600);
+        };
+
+        recognition.onstart = () => {
+          if (
+            generation !== transcribeGenerationRef.current ||
+            transcribeManualStopRef.current ||
+            !isTranscribingRef.current
+          ) {
+            try {
+              recognition.stop();
+            } catch {
+              /* noop */
+            }
+            return;
+          }
+
+          setIsListening(true);
+        };
+
+        recognition.onresult = (event: any) => {
+          if (
+            generation !== transcribeGenerationRef.current ||
+            transcribeManualStopRef.current ||
+            !isTranscribingRef.current
+          ) {
+            return;
+          }
+
+          let interimTranscript = "";
+
+          // Android Chrome can resend portions of the result array. Using
+          // resultIndex prevents us from duplicating already-finalized text.
+          const startIndex = Number.isFinite(event.resultIndex) ? event.resultIndex : 0;
+
+          for (let i = startIndex; i < event.results.length; i++) {
+            const piece = event.results[i]?.[0]?.transcript || "";
+
+            if (event.results[i]?.isFinal) {
+              finalTranscript = `${finalTranscript} ${piece}`.trim();
+            } else {
+              interimTranscript += piece;
+            }
+          }
+
+          transcribeTranscriptRef.current = finalTranscript;
+
+          const combined = `${finalTranscript} ${interimTranscript}`.replace(/\s+/g, " ").trim();
+          if (combined) {
+            setQuery(combined);
+            armSilenceStop();
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          const error = event?.error;
+
+          if (error !== "no-speech" && error !== "aborted") {
+            console.warn("Speech recognition transcribe error:", error);
+          }
+
+          if (error === "not-allowed" || error === "service-not-allowed" || error === "audio-capture") {
+            stopTranscribe();
+            return;
+          }
+
+          // Transient Android recognition errors are recovered by onend.
+        };
+
+        recognition.onend = () => {
+          if (
+            generation !== transcribeGenerationRef.current ||
+            transcribeManualStopRef.current ||
+            !isTranscribingRef.current
+          ) {
+            return;
+          }
+
+          // Android Chrome frequently ends a continuous recognition session
+          // on its own. Restart it instead of treating that as "done".
+          if (transcribeRestartTimerRef.current) {
+            clearTimeout(transcribeRestartTimerRef.current);
+          }
+
+          transcribeRestartTimerRef.current = setTimeout(() => {
+            transcribeRestartTimerRef.current = null;
+
+            if (
+              generation === transcribeGenerationRef.current &&
+              !transcribeManualStopRef.current &&
+              isTranscribingRef.current
+            ) {
+              startRecognition();
+            }
+          }, 120);
+        };
+
+        try {
+          recognition.start();
+        } catch {
+          // A duplicate start is expected on some Android builds. onend will
+          // retry when the browser has actually released the recognition slot.
+        }
       };
 
-      recognition.onerror = (event: any) => {
-        if (event.error !== "no-speech" && event.error !== "aborted") {
-          console.warn("Speech recognition transcribe error:", event.error);
-        }
-        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-          stopTranscribe();
-        }
-      };
-
-      recognition.onend = () => {
-        if (isTranscribingRef.current) {
-          stopTranscribe();
-        }
-      };
-
-      recognition.start();
+      startRecognition();
     } catch (error) {
       console.warn("Transcribe setup warning:", error);
       stopTranscribe();
@@ -1653,6 +1869,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       recognitionGenerationRef.current += 1;
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (transcribeRestartTimerRef.current) clearTimeout(transcribeRestartTimerRef.current);
+
+      transcribeManualStopRef.current = true;
+      transcribeGenerationRef.current += 1;
 
       if (recognitionRef.current) {
         try {
@@ -1871,7 +2091,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
     const isExpanded = hasContent && !isLoading;
-    const targetWidth = isExpanded ? "460px" : isVoiceSession || isTranscribing ? "320px" : "360px";
+    // On narrow phones, a 360px normal bar and 320px voice bar become almost
+    // the same visible width, so the width animation looks compressed.
+    // Keep desktop widths unchanged while giving mobile states a meaningful
+    // difference and leaving safe horizontal breathing room.
+    const targetWidth = isExpanded
+      ? "min(460px, 92vw)"
+      : isVoiceSession || isTranscribing
+        ? "min(320px, 78vw)"
+        : "min(360px, 92vw)";
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { isExpanded, targetWidth, targetRadius };
@@ -1911,13 +2139,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
-          maxWidth: "87vw",
+          maxWidth: "92vw",
           borderRadius: layoutValues.targetRadius,
           transition:
             "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
+          touchAction: "manipulation",
         }}
       >
         <div
@@ -2007,14 +2236,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
             {/* Talk with agent voice mode: Waveform WITHOUT timer */}
             {isVoiceSession && !isTranscribing && (
-              <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
+              <div className="flex-1 flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking} />
               </div>
             )}
 
             {/* Transcribe mode: Waveform WITH timer */}
             {isTranscribing && (
-              <div className="flex-1 flex items-center gap-3 pl-3 min-w-0">
+              <div className="flex-1 flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={false} />
                 <RecordingTimer isActive={isTranscribing} />
               </div>
