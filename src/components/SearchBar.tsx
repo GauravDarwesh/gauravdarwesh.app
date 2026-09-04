@@ -165,6 +165,8 @@ const BarWaveform: React.FC<{
   const dimsRef = useRef({ width: 0, height: 0, dpr: 1 });
   const levelsRef = useRef<number[]>([]);
   const noiseRef = useRef<number[]>([]);
+  const historyRef = useRef<number[]>([]);
+  const lastSampleAtRef = useRef(0);
   const phaseRef = useRef(0);
 
   useEffect(() => {
@@ -207,13 +209,20 @@ const BarWaveform: React.FC<{
         const previous = levelsRef.current;
         levelsRef.current = Array.from({ length: barCount }, (_, index) => {
           if (!previous.length) return 0.025;
+
           const sourceIndex = Math.floor((index / Math.max(1, barCount - 1)) * Math.max(0, previous.length - 1));
+
           return previous[sourceIndex] ?? 0.025;
         });
       }
 
       if (noiseRef.current.length !== barCount) {
-        noiseRef.current = Array.from({ length: barCount }, () => 0.86 + Math.random() * 0.28);
+        noiseRef.current = Array.from({ length: barCount }, (_, index) => 0.91 + 0.09 * Math.sin(index * 0.73));
+      }
+
+      const historyLength = Math.max(24, Math.floor(rect.width / 5));
+      if (historyRef.current.length > historyLength) {
+        historyRef.current = historyRef.current.slice(-historyLength);
       }
     };
 
@@ -232,13 +241,8 @@ const BarWaveform: React.FC<{
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    /*
-     * 256 is intentional:
-     * enough samples to derive individual bar energy while keeping
-     * the analyser extremely responsive for live speech.
-     */
-    const timeData = new Uint8Array(256);
-    const frequencyData = new Uint8Array(128);
+    const timeData = new Uint8Array(512);
+    const frequencyData = new Uint8Array(256);
 
     let previousTime = performance.now();
 
@@ -259,111 +263,135 @@ const BarWaveform: React.FC<{
       ctx.clearRect(0, 0, width, height);
 
       const barCount = Math.max(18, Math.floor(width / 4.05));
+      const historyLength = Math.max(24, Math.floor(width / 5));
 
       if (levelsRef.current.length !== barCount) {
         levelsRef.current = Array.from({ length: barCount }, () => 0.025);
       }
 
       if (noiseRef.current.length !== barCount) {
-        noiseRef.current = Array.from({ length: barCount }, () => 0.86 + Math.random() * 0.28);
+        noiseRef.current = Array.from({ length: barCount }, (_, index) => 0.91 + 0.09 * Math.sin(index * 0.73));
       }
 
       /*
-       * A small idle floor makes the waveform visibly alive on the
-       * same frame voice mode opens, even before mic permission / stream
-       * setup has completed.
+       * Instead of drawing every analyser sample as a bar, we sample the
+       * overall voice energy at a deliberately slower visual cadence.
+       * This removes the "hyper-fast" audio-buffer look while keeping the
+       * leading edge responsive.
        */
-      let rawLevels = new Array<number>(barCount).fill(0);
+      let currentEnergy = 0;
 
       if (active && currentAnalyser) {
         if (speaking) {
-          /*
-           * Exact playback energy. We favour low/mid voice frequencies
-           * so consonants do not disappear into the high-end noise floor.
-           */
           currentAnalyser.getByteFrequencyData(frequencyData);
 
-          for (let bar = 0; bar < barCount; bar++) {
-            const start = Math.floor((bar / barCount) * 92);
-            const end = Math.max(start + 1, Math.floor(((bar + 1) / barCount) * 92));
+          let weightedEnergy = 0;
+          let totalWeight = 0;
 
-            let sum = 0;
-            let weight = 0;
-
-            for (let i = start; i < Math.min(end, frequencyData.length); i++) {
-              const normalized = frequencyData[i] / 255;
-              const frequencyWeight = 1.25 - (i / 92) * 0.72;
-              sum += normalized * Math.max(0.25, frequencyWeight);
-              weight += Math.max(0.25, frequencyWeight);
-            }
-
-            rawLevels[bar] = weight > 0 ? sum / weight : 0;
+          for (let i = 0; i < 118; i++) {
+            const normalized = frequencyData[i] / 255;
+            const voiceWeight = 1.35 - (i / 118) * 0.85;
+            weightedEnergy += normalized * Math.max(0.28, voiceWeight);
+            totalWeight += Math.max(0.28, voiceWeight);
           }
+
+          currentEnergy = totalWeight > 0 ? Math.min(1, (weightedEnergy / totalWeight) * 2.15) : 0;
         } else {
-          /*
-           * Live microphone energy:
-           * each bar reads a different slice of the analyser's latest
-           * time-domain buffer. There is no history queue, so the user's
-           * voice reaches the visual essentially on the next frame.
-           */
           currentAnalyser.getByteTimeDomainData(timeData);
 
-          for (let bar = 0; bar < barCount; bar++) {
-            const start = Math.floor((bar / barCount) * timeData.length);
-            const end = Math.max(start + 1, Math.floor(((bar + 1) / barCount) * timeData.length));
+          let sumSquares = 0;
 
-            let sumSquares = 0;
-
-            for (let i = start; i < Math.min(end, timeData.length); i++) {
-              const sample = (timeData[i] - 128) / 128;
-              sumSquares += sample * sample;
-            }
-
-            const rms = Math.sqrt(sumSquares / Math.max(1, end - start));
-
-            /*
-             * Speech RMS is normally small. This lift makes quiet speech
-             * visible without making the entire waveform constantly full.
-             */
-            rawLevels[bar] = Math.min(1, rms * 7.2);
+          for (let i = 0; i < timeData.length; i++) {
+            const sample = (timeData[i] - 128) / 128;
+            sumSquares += sample * sample;
           }
+
+          const rms = Math.sqrt(sumSquares / timeData.length);
+          currentEnergy = Math.min(1, rms * 7.6);
         }
       }
 
-      phaseRef.current += delta * 0.0016;
-
       /*
-       * If the audio signal is not available yet, keep a restrained
-       * breathing floor. The moment real audio arrives, it dominates.
+       * Only append to the history ~24 times per second. This is the main
+       * "slow wave" change: the visual has breathing room between samples
+       * instead of following every tiny acoustic fluctuation.
        */
-      const hasRealSignal = rawLevels.some((value) => value > 0.018);
-      if (active && !hasRealSignal) {
-        const idlePulse = 0.026 + (speaking ? 0.032 : 0.012) * (0.5 + 0.5 * Math.sin(phaseRef.current * 5.8));
+      const sampleInterval = speaking ? 44 : 42;
 
-        rawLevels = rawLevels.map((_, index) => {
-          const edge = index / Math.max(1, barCount - 1);
-          const envelope = 0.4 + 0.6 * Math.sin(edge * Math.PI);
-          return idlePulse * envelope;
-        });
+      if (now - lastSampleAtRef.current >= sampleInterval) {
+        lastSampleAtRef.current = now;
+
+        if (!active) {
+          currentEnergy = 0;
+        } else if (currentEnergy < 0.018) {
+          const idleBase = speaking ? 0.045 : 0.026;
+          currentEnergy = idleBase + (speaking ? 0.026 : 0.012) * (0.5 + 0.5 * Math.sin(phaseRef.current));
+        }
+
+        historyRef.current.push(currentEnergy);
+
+        if (historyRef.current.length > historyLength) {
+          historyRef.current.splice(0, historyRef.current.length - historyLength);
+        }
       }
 
-      const levels = levelsRef.current;
+      if (historyRef.current.length === 0 && active) {
+        historyRef.current = Array.from({ length: historyLength }, (_, index) => 0.02 + 0.012 * Math.sin(index * 0.24));
+      }
 
       /*
-       * Fast attack and slower release.
-       * This is the important responsiveness fix:
-       * speech starts aggressively instead of being hidden by heavy
-       * exponential smoothing.
+       * Very slow phase drift keeps neighbouring bars organic. The phase
+       * changes gently rather than making the waveform visibly race.
        */
+      phaseRef.current += delta * (speaking ? 0.00062 : 0.0005);
+
+      const history = historyRef.current;
+      const levels = levelsRef.current;
+
       for (let i = 0; i < barCount; i++) {
-        const incoming = rawLevels[i] ?? 0;
+        const historyPosition = history.length <= 1 ? 0 : (i / Math.max(1, barCount - 1)) * (history.length - 1);
+
+        const indexA = Math.floor(historyPosition);
+        const indexB = Math.min(history.length - 1, indexA + 1);
+        const mix = historyPosition - indexA;
+
+        const a = history[indexA] ?? currentEnergy;
+        const b = history[indexB] ?? a;
+
+        const historicalEnergy = a + (b - a) * mix;
+
+        const center = (barCount - 1) / 2;
+        const distanceFromCenter = Math.abs(i - center) / Math.max(1, center);
+
+        const spatialEnvelope = 0.42 + 0.58 * Math.pow(Math.max(0, 1 - distanceFromCenter), speaking ? 0.72 : 0.82);
+
+        /*
+         * Small, slow local movement prevents the waveform from looking
+         * like a rigid mirrored meter while remaining visually calm.
+         */
+        const drift =
+          1 + Math.sin(phaseRef.current * 5.5 + i * 0.46 + historicalEnergy * 2.4) * (speaking ? 0.045 : 0.035);
+
+        let target = historicalEnergy * spatialEnvelope * (noiseRef.current[i] || 1) * drift;
+
+        if (speaking) {
+          target *= 1.42;
+        } else if (active) {
+          target *= 1.3;
+        }
+
+        target = Math.max(active ? (speaking ? 0.038 : 0.023) : 0, Math.min(1, target));
+
         const current = levels[i] ?? 0;
 
-        const attack = 1 - Math.pow(0.14, delta / 16.67);
-        const release = 1 - Math.pow(0.62, delta / 16.67);
+        /*
+         * Slow attack + soft release makes the waveform swell naturally.
+         * It reacts on the same frame, but the shape takes time to settle.
+         */
+        const attack = 1 - Math.pow(0.56, delta / 16.67);
+        const release = 1 - Math.pow(0.82, delta / 16.67);
 
-        levels[i] =
-          incoming > current ? current + (incoming - current) * attack : current + (incoming - current) * release;
+        levels[i] = target > current ? current + (target - current) * attack : current + (target - current) * release;
       }
 
       const BAR_WIDTH = 2.15;
@@ -372,50 +400,30 @@ const BarWaveform: React.FC<{
       const startX = (width - totalWidth) / 2;
 
       for (let i = 0; i < barCount; i++) {
-        const distanceFromCenter = Math.abs(i - (barCount - 1) / 2) / Math.max(1, (barCount - 1) / 2);
-
-        const spatialEnvelope = 0.34 + 0.66 * Math.pow(Math.max(0, 1 - distanceFromCenter), 0.62);
-
-        const localNoise = noiseRef.current[i] || 1;
-
-        let value = (levels[i] ?? 0) * spatialEnvelope * localNoise;
-
-        if (speaking) {
-          value *= 1.48;
-        } else if (active) {
-          value *= 1.34;
-        }
-
-        const minimum = active ? (speaking ? 0.038 : 0.024) : 0;
-        value = Math.max(minimum, Math.min(1, value));
+        const left = levels[i - 1] ?? levels[i];
+        const current = levels[i] ?? 0;
+        const right = levels[i + 1] ?? current;
 
         /*
-         * Keep the visual soft and connected rather than spiky.
+         * Blend neighbours to make connected hills instead of independent
+         * rapid spikes.
          */
-        const neighbourAverage =
-          i > 0 && i < barCount - 1 ? ((levels[i - 1] ?? value) + (levels[i + 1] ?? value)) / 2 : value;
+        let value = current * 0.62 + left * 0.19 + right * 0.19;
 
-        value = value * 0.76 + neighbourAverage * 0.24;
+        if (!active) {
+          value *= Math.pow(0.68, delta / 16.67);
+        }
 
-        const barHeight = Math.max(2.5, value * height * 0.88);
+        const barHeight = Math.max(active ? 2.5 : 0, value * height * 0.86);
+
         const x = startX + i * (BAR_WIDTH + BAR_GAP);
         const y = (height - barHeight) / 2;
-        const opacity = 0.27 + Math.min(0.53, value * 0.62);
+        const opacity = active ? 0.25 + Math.min(0.55, value * 0.64) : Math.max(0, 0.18 * value);
 
         ctx.fillStyle = `rgba(255,255,255,${opacity})`;
         ctx.beginPath();
         ctx.roundRect(x, y, BAR_WIDTH, barHeight, 1.15);
         ctx.fill();
-      }
-
-      /*
-       * When the session ends, decay quickly but gracefully instead of
-       * snapping the waveform off.
-       */
-      if (!active) {
-        for (let i = 0; i < levels.length; i++) {
-          levels[i] *= Math.pow(0.78, delta / 16.67);
-        }
       }
     };
 
@@ -425,6 +433,7 @@ const BarWaveform: React.FC<{
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+
       animationFrameRef.current = null;
     };
   }, []);
@@ -977,7 +986,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       };
 
       const utterance = new SpeechSynthesisUtterance(text.trim());
-      utterance.rate = 1.2;
+      utterance.rate = 1.0;
       utterance.pitch = 1;
       utterance.volume = 1;
 
@@ -1193,7 +1202,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
             const source = audioGraph.ctx.createBufferSource();
             source.buffer = buffer;
-            source.playbackRate.value = 1.2;
+            source.playbackRate.value = 1.0;
 
             /*
              * AI playback path:
