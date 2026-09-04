@@ -2,27 +2,73 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
-/* ---------- 0️⃣ TTS endpoint (existing gdx-tts edge function) ---------- */
-const SUPABASE_URL = "https://zdrcjhohalgzhlbufwcl.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkcmNqaG9oYWxnemhsYnVmd2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4ODQ4ODgsImV4cCI6MjA3MTQ2MDg4OH0.dCIOgyiibgCcXZr6OW2hkqGM3340ugtQivXTjofbEmo";
+/* =========================================================
+   0. TTS CONFIG
+   ========================================================= */
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
-const SILENT_MP3 =
-  "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIUdyEqABJRAAA//tQxCADAAABIAAA";
 
-/* ---------- 1️⃣ MARKDOWN → HTML (unchanged) ---------- */
+const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
+const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
+const TTS_KNOWN_PROVIDER_RESET_AT = 1788393600000;
+
+const getTtsQuotaBlockedUntil = (): number => {
+  if (typeof window === "undefined") return 0;
+
+  const knownProviderBlock = TTS_KNOWN_PROVIDER_RESET_AT > Date.now() ? TTS_KNOWN_PROVIDER_RESET_AT : 0;
+
+  try {
+    const value = Number(window.localStorage.getItem(TTS_QUOTA_BLOCK_KEY));
+
+    if (Number.isFinite(value) && value > Date.now()) {
+      return Math.max(value, knownProviderBlock);
+    }
+
+    window.localStorage.removeItem(TTS_QUOTA_BLOCK_KEY);
+  } catch {
+    /* Storage may be unavailable. */
+  }
+
+  return knownProviderBlock;
+};
+
+const rememberTtsQuotaLimit = (responseBody: string) => {
+  const resetMatch = responseBody.match(/X-RateLimit-Reset[^0-9]*(\d{10,13})/i);
+  const parsedReset = resetMatch ? Number(resetMatch[1]) : 0;
+  const resetAt =
+    Number.isFinite(parsedReset) && parsedReset > Date.now() ? parsedReset : Date.now() + TTS_QUOTA_FALLBACK_MS;
+
+  try {
+    window.localStorage.setItem(TTS_QUOTA_BLOCK_KEY, String(resetAt));
+  } catch {
+    /* In-flight fallback still works. */
+  }
+};
+
+/* =========================================================
+   1. MARKDOWN → HTML
+   ========================================================= */
+
 const convertMarkdownToHtml = (text: string): string => {
-  let result = text;
-
   const processInline = (str: string): string => {
     const rules = [
-      { pattern: /\*\*(.*?)\*\*/g, replacement: "<strong>$1</strong>" },
-      { pattern: /\*(.*?)\*/g, replacement: "<em>$1</em>" },
-      { pattern: /`([^`]+)`/g, replacement: '<code class="inline-code">$1</code>' },
+      {
+        pattern: /\*\*(.*?)\*\*/g,
+        replacement: '<strong class="font-normal">$1</strong>',
+      },
+      {
+        pattern: /\*(.*?)\*/g,
+        replacement: "<em>$1</em>",
+      },
+      {
+        pattern: /`([^`]+)`/g,
+        replacement: '<code class="inline-code">$1</code>',
+      },
       {
         pattern: /\[([^\]]+)\]\(([^)]+)\)/g,
         replacement:
@@ -37,37 +83,49 @@ const convertMarkdownToHtml = (text: string): string => {
     return str;
   };
 
-  result = result
+  return text
     .split("\n")
-    .map((line) => {
-      line = line.trim();
+    .map((rawLine) => {
+      const line = rawLine.trim();
       if (!line) return "<br>";
-      if (line.startsWith("### "))
-        return `<h3 class="text-lg font-semibold mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
-      if (line.startsWith("## ")) return `<h2 class="text-xl font-bold mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
-      if (line.startsWith("# ")) return `<h1 class="text-2xl font-bold mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
-      if (line.startsWith("- ") || line.startsWith("* ")) {
-        return `<li class="ml-4 list-disc">${processInline(line.slice(2))}</li>`;
+
+      if (line.startsWith("### ")) {
+        return `<h3 class="text-lg font-normal mt-4 mb-2">${processInline(line.slice(4))}</h3>`;
       }
-      return `<p class="mb-2">${processInline(line)}</p>`;
+      if (line.startsWith("## ")) {
+        return `<h2 class="text-xl font-normal mt-4 mb-2">${processInline(line.slice(3))}</h2>`;
+      }
+      if (line.startsWith("# ")) {
+        return `<h1 class="text-2xl font-normal mt-4 mb-2">${processInline(line.slice(2))}</h1>`;
+      }
+      if (line.startsWith("- ") || line.startsWith("* ")) {
+        return `<li class="ml-4 list-disc font-normal">${processInline(line.slice(2))}</li>`;
+      }
+
+      return `<p class="mb-2 font-normal">${processInline(line)}</p>`;
     })
     .join("");
-
-  return result;
 };
 
-/* ---------- 2️⃣ Fade helper ---------- */
+/* =========================================================
+   2. FADE HELPER
+   ========================================================= */
+
 function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
   const [visible, setVisible] = useState(show);
+
   useEffect(() => {
-    if (show) setVisible(true);
-    else {
-      const t = setTimeout(() => setVisible(false), duration);
-      return () => clearTimeout(t);
+    if (show) {
+      setVisible(true);
+      return;
     }
+
+    const timer = setTimeout(() => setVisible(false), duration);
+    return () => clearTimeout(timer);
   }, [show, duration]);
 
   if (!visible && !show) return null;
+
   return (
     <div
       className={`transition-opacity ${show ? "opacity-100" : "opacity-0"}`}
@@ -78,8 +136,24 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
   );
 }
 
-/* ---------- 3️⃣ ChatGPT-style Vertical Bars Waveform ---------- */
-const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }> = ({ analyser, isActive }) => {
+/* =========================================================
+   3. LOW-LATENCY REACTIVE WAVEFORM
+
+   Voice-specific fixes:
+   - The visual starts immediately when voice mode opens.
+   - Mic waveform uses the live time-domain signal directly instead
+     of a delayed history queue.
+   - Fast attack / slower release keeps speech transients visible.
+   - AudioContext analyser smoothing is intentionally very low.
+   - Hosted TTS is visualised from the exact playback signal.
+   - A tiny synthetic floor is used only before real audio is ready.
+   ========================================================= */
+
+const BarWaveform: React.FC<{
+  analyser: AnalyserNode | null;
+  isActive: boolean;
+  isSpeaking?: boolean;
+}> = ({ analyser, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -272,20 +346,29 @@ const BarWaveform: React.FC<{ analyser: AnalyserNode | null; isActive: boolean }
   );
 };
 
-/* ---------- 3️⃣b Timer Component ---------- */
+/* =========================================================
+   3b. RECORDING TIMER
+   ========================================================= */
+
 const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const [seconds, setSeconds] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (isActive) {
-      setSeconds(0);
-      intervalRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } else {
+    if (!isActive) {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      return;
     }
+
+    setSeconds(0);
+    intervalRef.current = setInterval(() => {
+      setSeconds((current) => current + 1);
+    }, 1000);
+
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
     };
   }, [isActive]);
 
@@ -295,13 +378,16 @@ const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const secs = seconds % 60;
 
   return (
-    <span className="text-sm font-mono text-white/70 tabular-nums shrink-0">
+    <span className="text-sm font-mono font-normal text-white/70 tabular-nums shrink-0">
       {mins}:{secs.toString().padStart(2, "0")}
     </span>
   );
 };
 
-/* ---------- 4️⃣ SearchBar component ---------- */
+/* =========================================================
+   4. SEARCH BAR
+   ========================================================= */
+
 interface SearchBarProps {
   onSearch?: (response: string) => void;
 }
@@ -309,12 +395,16 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const STORAGE_KEY = "searchbar_state";
 
-  /* ----- Load persisted state ----- */
+  /* -------------------------------------------------------
+     Persisted state
+     ------------------------------------------------------- */
+
   const loadPersistedState = useCallback(() => {
     try {
-      const isPageRefresh =
-        (window.performance as any)?.navigation?.type === 1 ||
-        (window.performance?.getEntriesByType("navigation")?.[0] as any)?.type === "reload";
+      const navigation = window.performance?.getEntriesByType("navigation")?.[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+      const isPageRefresh = (window.performance as any)?.navigation?.type === 1 || navigation?.type === "reload";
 
       if (isPageRefresh) {
         localStorage.removeItem(STORAGE_KEY);
@@ -341,6 +431,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     } catch (error) {
       console.warn("Failed to load persisted search state:", error);
     }
+
     return {
       response: null,
       suggestions: [],
@@ -369,17 +460,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
 
-  /* ----- UI state ----- */
+  /* -------------------------------------------------------
+     UI state
+     ------------------------------------------------------- */
+
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(persistedState.response);
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
-
   const [showTypewriter, setShowTypewriter] = useState(false);
-  const [suggestionVisible, setSuggestionVisible] = useState(true);
   const [suggestionPhase, setSuggestionPhase] = useState<"emerging" | "visible" | "retreating" | "hidden">("hidden");
   const [fullText, setFullText] = useState("");
-  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
   const suggestionIndexRef = useRef(0);
   const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
   const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
@@ -387,46 +478,74 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+
+  /* -------------------------------------------------------
+     Voice state
+     ------------------------------------------------------- */
+
+  const [isVoiceSession, setIsVoiceSession] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  /* ----- Rotating placeholder state ----- */
-  const [placeholderText, setPlaceholderText] = useState("Ask anything...");
+  const isVoiceSessionRef = useRef(false);
+  const isLoadingRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+
+  isVoiceSessionRef.current = isVoiceSession;
+  isLoadingRef.current = isLoading;
+  isSpeakingRef.current = isSpeaking;
+
+  /* -------------------------------------------------------
+     Placeholder
+     ------------------------------------------------------- */
+
+  const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to talk with GDx"], []);
+  const [placeholderText, setPlaceholderText] = useState(placeholderTexts[0]);
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
-  const [placeholderTarget, setPlaceholderTarget] = useState(0); // 0 = "Ask anything...", 1 = "Hold to speak"
-  const placeholderTexts = useMemo(() => ["Ask anything...", "hold search/shift to speak"], []);
+  const [placeholderTarget, setPlaceholderTarget] = useState(0);
 
-  /* ----- Audio/waveform refs ----- */
-  const recognitionRef = useRef<any>(null);
+  /* -------------------------------------------------------
+     Audio / recognition refs
+     ------------------------------------------------------- */
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
-  const transcriptRef = useRef<string>(""); // hold transcript during listening
+  const analyserDestinationConnectedRef = useRef(false);
+  const analyserMonitorRef = useRef<GainNode | null>(null);
 
-  /* ----- Speech playback (TTS) state ----- */
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const ttsAudioContextRef = useRef<AudioContext | null>(null);
-  const ttsAnalyserRef = useRef<AnalyserNode | null>(null);
-  const ttsSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const recognitionGenerationRef = useRef(0);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+  const transcriptRef = useRef("");
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const speakTokenRef = useRef(0);
-  const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string) => void>();
-  const stopSpeakingRef = useRef<() => void>();
 
-  /* ----- Hold-to-speak refs ----- */
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoldingRef = useRef(false);
 
-  // Save state to localStorage
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
+  const stopVoiceSessionRef = useRef<(() => void) | null>(null);
+  const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
+
+  /* =======================================================
+     Persist state
+     ======================================================= */
+
   useEffect(() => {
-    const stateToSave = {
+    saveState({
       response,
       suggestions,
       hasInteracted,
       showExpandedSuggestions,
       lastActivityTime,
-    };
-    saveState(stateToSave);
+    });
   }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime, saveState]);
 
   const clearPersistedState = useCallback(() => {
@@ -437,10 +556,68 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
   }, []);
 
-  const searchBarRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  /* =======================================================
+     AUDIO CONTEXT
+     ======================================================= */
 
-  /* ----- Typewriter suggestions ----- */
+  const getAudioContext = useCallback(() => {
+    if (!audioContextRef.current) {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+
+      if (!AudioCtx) {
+        throw new Error("Web Audio is not supported by this browser.");
+      }
+
+      const ctx: AudioContext = new AudioCtx();
+
+      const analyser = ctx.createAnalyser();
+
+      /*
+       * Low smoothing is critical here. Heavy analyser smoothing makes
+       * microphone transients arrive visually late and makes consonants
+       * feel "washed out".
+       */
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.08;
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -8;
+
+      const monitor = ctx.createGain();
+
+      monitor.gain.value = 1;
+
+      /*
+       * DO NOT permanently connect analyser -> destination.
+       *
+       * During microphone listening that would play the user's own
+       * microphone back through the speakers.
+       *
+       * We only connect the analyser to the destination while AI
+       * audio is actually playing.
+       */
+      audioContextRef.current = ctx;
+
+      analyserRef.current = analyser;
+
+      analyserMonitorRef.current = monitor;
+
+      setAnalyserNode(analyser);
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      void audioContextRef.current.resume();
+    }
+
+    return {
+      ctx: audioContextRef.current,
+      analyser: analyserRef.current!,
+    };
+  }, []);
+
+  /* =======================================================
+     ROTATING SUGGESTIONS
+     ======================================================= */
+
   const rotatingSuggestions = useMemo(
     () => [
       "✨ Tell me about Gaurav's Experience",
@@ -476,25 +653,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [],
   );
 
-  /* ----- Rotating placeholder effect ----- */
+  /* =======================================================
+     PLACEHOLDER
+     ======================================================= */
+
   useEffect(() => {
-    if (isLoading || isListening || query) return;
+    if (isLoading || isListening || isVoiceSession || query) return;
 
     const currentTarget = placeholderTexts[placeholderTarget];
 
     if (placeholderPhase === "pause") {
-      const t = setTimeout(() => setPlaceholderPhase("deleting"), 2500);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setPlaceholderPhase("deleting"), 2500);
+      return () => clearTimeout(timer);
     }
 
     if (placeholderPhase === "deleting") {
-      if (placeholderText.length === 0) {
+      if (!placeholderText.length) {
         setPlaceholderTarget((prev) => (prev + 1) % placeholderTexts.length);
         setPlaceholderPhase("typing");
         return;
       }
-      const t = setTimeout(() => setPlaceholderText((p) => p.slice(0, -1)), 30);
-      return () => clearTimeout(t);
+
+      const timer = setTimeout(() => setPlaceholderText((current) => current.slice(0, -1)), 30);
+      return () => clearTimeout(timer);
     }
 
     if (placeholderPhase === "typing") {
@@ -502,40 +683,49 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         setPlaceholderPhase("pause");
         return;
       }
-      const t = setTimeout(() => setPlaceholderText(currentTarget.slice(0, placeholderText.length + 1)), 50);
-      return () => clearTimeout(t);
-    }
-  }, [placeholderText, placeholderPhase, placeholderTarget, placeholderTexts, isLoading, isListening, query]);
 
-  /* ----- Activity tracking ----- */
-  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
+      const timer = setTimeout(() => setPlaceholderText(currentTarget.slice(0, placeholderText.length + 1)), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    placeholderText,
+    placeholderPhase,
+    placeholderTarget,
+    placeholderTexts,
+    isLoading,
+    isListening,
+    isVoiceSession,
+    query,
+  ]);
+
+  /* =======================================================
+     ACTIVITY TRACKING
+     ======================================================= */
+
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
 
   const debouncedSetActivity = useCallback(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    debounceTimeoutRef.current = setTimeout(() => {
-      setLastActivityTime(Date.now());
-    }, 100);
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    debounceTimeoutRef.current = setTimeout(() => setLastActivityTime(Date.now()), 100);
   }, []);
 
   useEffect(() => {
-    const handleMouseMove = debouncedSetActivity;
     const handleImmediate = () => setLastActivityTime(Date.now());
 
-    window.addEventListener("mousemove", handleMouseMove);
-    ["keypress", "click", "scroll"].forEach((e) => window.addEventListener(e, handleImmediate));
+    window.addEventListener("mousemove", debouncedSetActivity);
+    ["keypress", "click", "scroll"].forEach((event) => window.addEventListener(event, handleImmediate));
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      ["keypress", "click", "scroll"].forEach((e) => window.removeEventListener(e, handleImmediate));
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
+      window.removeEventListener("mousemove", debouncedSetActivity);
+      ["keypress", "click", "scroll"].forEach((event) => window.removeEventListener(event, handleImmediate));
+      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
   }, [debouncedSetActivity]);
 
-  /* ----- Auto-submit intro for first-time users ----- */
+  /* =======================================================
+     FIRST VISIT
+     ======================================================= */
+
   useEffect(() => {
     const FIRST_VISIT_KEY = "gd_ai_first_visit";
     const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
@@ -543,71 +733,70 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
       localStorage.setItem(FIRST_VISIT_KEY, "true");
       const timer = setTimeout(() => {
-        handleSubmit(undefined, "introduce the website to the new user");
+        handleSubmit(undefined, "introduce the website to the new user", false);
       }, 1500);
       return () => clearTimeout(timer);
     }
   }, []);
 
-  /* ----- Show typewriter after 10s inactivity (first visit too) ----- */
+  /* =======================================================
+     TYPEWRITER
+     ======================================================= */
+
   useEffect(() => {
-    if (response || suggestions.length > 0) return;
+    if (response || suggestions.length > 0 || isVoiceSession) return;
+
     const timer = setTimeout(() => {
       if (!hasInteracted) setShowTypewriter(true);
     }, 10000);
-    return () => clearTimeout(timer);
-  }, [hasInteracted, response, suggestions]);
 
-  /* ----- Re-show typewriter after inactivity ----- */
+    return () => clearTimeout(timer);
+  }, [hasInteracted, response, suggestions, isVoiceSession]);
+
   useEffect(() => {
     const idleTimer = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      if (response || suggestions.length > 0) return;
+      if (response || suggestions.length > 0 || isVoiceSession) return;
+
       if (idle > 10000 && hasInteracted && !isLoading) {
         setShowTypewriter(true);
       }
     }, 2000);
-    return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions]);
 
-  /* Delay expanded suggestions until 10s inactivity */
+    return () => clearInterval(idleTimer);
+  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions, isVoiceSession]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       const idle = Date.now() - lastActivityTime;
-      const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000;
+      const shouldShow = (response || suggestions.length > 0) && !isLoading && idle > 10000 && !isVoiceSession;
+
       setShowExpandedSuggestions(shouldShow);
     }, 1000);
-    return () => clearInterval(interval);
-  }, [lastActivityTime, response, suggestions, isLoading]);
 
-  /* ----- Suggestion emerge/retreat cycle ----- */
+    return () => clearInterval(interval);
+  }, [lastActivityTime, response, suggestions, isLoading, isVoiceSession]);
+
   useEffect(() => {
-    if (!showTypewriter) {
+    if (!showTypewriter || isVoiceSession) {
       setSuggestionPhase("hidden");
       return;
     }
 
-    // Set initial text and emerge
     if (!fullText) {
       setFullText(rotatingSuggestions[suggestionIndexRef.current]);
     }
+
     setSuggestionPhase("emerging");
 
-    // After emerge animation completes, mark as visible
     const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 800);
-
-    // Total cycle: 800ms emerge + 4000ms visible + 700ms retreat = ~5500ms
     const interval = setInterval(() => {
-      // Retreat back into search bar
       setSuggestionPhase("retreating");
 
-      // After retreat animation, swap text and emerge again
       setTimeout(() => {
         suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
         setFullText(rotatingSuggestions[suggestionIndexRef.current]);
-        setCurrentSuggestionIndex(suggestionIndexRef.current);
         setSuggestionPhase("emerging");
-
         setTimeout(() => setSuggestionPhase("visible"), 800);
       }, 700);
     }, 5500);
@@ -616,278 +805,153 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       clearInterval(interval);
       clearTimeout(emergeTimer);
     };
-  }, [showTypewriter, rotatingSuggestions]);
+  }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession]);
 
-  /* ----- Hold-to-speak: start listening ----- */
-  const startListening = useCallback((stream?: MediaStream) => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn("Speech recognition not supported");
-      return;
-    }
+  /* =======================================================
+     STOP AUDIO
+     ======================================================= */
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognitionRef.current = recognition;
-
-    // Set up audio context for waveform using the already-acquired stream
-    if (stream) {
-      try {
-        streamRef.current = stream;
-        const audioCtx = new AudioContext();
-        audioContextRef.current = audioCtx;
-        const source = audioCtx.createMediaStreamSource(stream);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.72;
-        analyser.minDecibels = -86;
-        analyser.maxDecibels = -12;
-        source.connect(analyser);
-        analyserRef.current = analyser;
-        setAnalyserNode(analyser);
-      } catch (err) {
-        console.warn("Could not set up audio analyser:", err);
-      }
-    }
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setHasInteracted(true);
-      setShowTypewriter(false);
-      setShowExpandedSuggestions(false);
-      transcriptRef.current = "";
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
-        .join("");
-      transcriptRef.current = transcript; // store in ref, don't show yet
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-      // Show the transcribed text now
-      const finalTranscript = transcriptRef.current.trim();
-      if (finalTranscript) {
-        setQuery(finalTranscript);
-      }
-      transcriptRef.current = "";
-      // Blur input to prevent cursor showing
-      inputRef.current?.blur();
-
-      // Cleanup audio
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      analyserRef.current = null;
-      setAnalyserNode(null);
-
-      // Auto-submit the captured transcript
-      if (finalTranscript) {
-        handleSubmitRef.current?.(undefined, finalTranscript);
-      }
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      analyserRef.current = null;
-      setAnalyserNode(null);
-    };
-
-    recognition.start();
-  }, []);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Already stopped
-      }
-    }
-    // Force cleanup in case onend doesn't fire
-    isHoldingRef.current = false;
-  }, []);
-
-  /* ----- Shared hold-to-speak logic ----- */
-  const startHold = useCallback(() => {
-    if (isLoading) return;
-
-    stopSpeakingRef.current?.();
-    isHoldingRef.current = true;
-
-    // CRITICAL: Acquire microphone directly from user gesture context
-    // to satisfy browser security policies, then wait for hold threshold
-    let micStream: MediaStream | null = null;
-    const micPromise = navigator.mediaDevices
-      .getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-      })
-      .then((stream) => {
-        micStream = stream;
-      })
-      .catch((err) => {
-        console.warn("Microphone access denied:", err);
-      });
-
-    holdTimerRef.current = setTimeout(async () => {
-      if (isHoldingRef.current) {
-        inputRef.current?.blur();
-        await micPromise; // ensure mic is ready
-        if (micStream) {
-          startListening(micStream);
-        } else {
-          // Fallback: try without stream (waveform won't work but speech might)
-          startListening();
-        }
-      } else {
-        // User released before threshold — clean up mic
-        if (micStream) {
-          micStream.getTracks().forEach((t) => t.stop());
-        }
-      }
-    }, 400);
-  }, [isLoading, startListening]);
-
-  /* ----- Hold-to-speak handlers (on magnifying glass) ----- */
-  const handleHoldStart = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      // Prevent default to avoid iOS magnifying glass and form submission
-      e.preventDefault();
-      startHold();
-    },
-    [startHold],
-  );
-
-  const handleHoldEnd = useCallback(
-    (e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
-      e?.preventDefault?.();
-      const wasHolding = isHoldingRef.current;
-      isHoldingRef.current = false;
-      if (holdTimerRef.current) {
-        clearTimeout(holdTimerRef.current);
-        holdTimerRef.current = null;
-      }
-      if (isListening) {
-        stopListening();
-      } else if (wasHolding && !isListening) {
-        // Short tap on search icon — submit if there's a query
-        if (query.trim()) {
-          handleSubmit(undefined);
-        }
-      }
-    },
-    [isListening, stopListening, query],
-  );
-
-  /* ----- Desktop: hold Shift to speak ----- */
-  useEffect(() => {
-    const handleShiftDown = (e: KeyboardEvent) => {
-      if (e.key !== "Shift" || isListening || isLoading) return;
-
-      const activeElement = document.activeElement as HTMLElement;
-      const isInputFocused =
-        activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.contentEditable === "true");
-
-      if (isInputFocused) return;
-
-      e.preventDefault();
-      setShowTypewriter(false);
-      setHasInteracted(true);
-      startHold();
-    };
-
-    const handleShiftUp = (e: KeyboardEvent) => {
-      if (e.key !== "Shift") return;
-      handleHoldEnd();
-    };
-
-    window.addEventListener("keydown", handleShiftDown);
-    window.addEventListener("keyup", handleShiftUp);
-    return () => {
-      window.removeEventListener("keydown", handleShiftDown);
-      window.removeEventListener("keyup", handleShiftUp);
-    };
-  }, [isListening, isLoading, startHold, handleHoldEnd]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-      if (recognitionRef.current) recognitionRef.current.stop();
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-      if (audioContextRef.current) audioContextRef.current.close();
-      if (ttsAudioContextRef.current) void ttsAudioContextRef.current.close();
-      stopSpeakingRef.current?.();
-    };
-  }, []);
-
-  /* ----- Text-to-speech engine (gdx-tts + Web Speech fallback) ----- */
-  const stopSpeaking = useCallback(() => {
+  const stopAudioOnly = useCallback(() => {
     speakTokenRef.current += 1;
 
-    try {
-      window.speechSynthesis?.cancel();
-    } catch {
-      /* noop */
-    }
-
-    if (currentAudioRef.current) {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
       try {
-        currentAudioRef.current.pause();
-        currentAudioRef.current.src = "";
+        window.speechSynthesis.cancel();
       } catch {
         /* noop */
       }
-      currentAudioRef.current = null;
     }
 
-    if (ttsSourceRef.current) {
+    if (currentSourceNodeRef.current) {
       try {
-        ttsSourceRef.current.onended = null;
-        ttsSourceRef.current.stop();
-        ttsSourceRef.current.disconnect();
+        currentSourceNodeRef.current.onended = null;
+        currentSourceNodeRef.current.stop();
+        currentSourceNodeRef.current.disconnect();
       } catch {
         /* noop */
       }
-      ttsSourceRef.current = null;
+      currentSourceNodeRef.current = null;
     }
 
-    /*
-     * Keep the analyser alive because the same analyser node is passed
-     * to the waveform during AI playback. It is disconnected simply by
-     * stopping the source.
-     */
+    if (analyserDestinationConnectedRef.current && analyserRef.current && analyserMonitorRef.current) {
+      try {
+        analyserRef.current.disconnect(analyserMonitorRef.current);
+      } catch {
+        /* noop */
+      }
+
+      try {
+        analyserMonitorRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+
+      analyserDestinationConnectedRef.current = false;
+    }
+
+    isSpeakingRef.current = false;
     setIsSpeaking(false);
   }, []);
 
-  const speakResponse = useCallback(
+  /* =======================================================
+     NATIVE BROWSER TTS FALLBACK
+
+     Native TTS does not expose its audio stream. The waveform
+     therefore receives isSpeaking=true and switches to its
+     restrained synthetic voice animation.
+     ======================================================= */
+
+  const speakWithBrowserTTS = useCallback(async (text: string, token: number): Promise<boolean> => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window) || !text.trim()) {
+      return false;
+    }
+
+    const synthesis = window.speechSynthesis;
+    synthesis.cancel();
+
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const finish = (success: boolean) => {
+        if (settled) return;
+        settled = true;
+        if (safetyTimer) clearTimeout(safetyTimer);
+
+        if (token === speakTokenRef.current) {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+        }
+
+        resolve(success);
+      };
+
+      const utterance = new SpeechSynthesisUtterance(text.trim());
+      utterance.rate = 1.0;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      const chooseVoice = () => {
+        const voices = synthesis.getVoices();
+        const preferred = voices.find((voice) => /^en(-|_)/i.test(voice.lang)) || voices[0];
+        if (preferred) utterance.voice = preferred;
+      };
+
+      chooseVoice();
+      if (synthesis.onvoiceschanged !== undefined) {
+        synthesis.addEventListener("voiceschanged", chooseVoice, { once: true });
+      }
+
+      utterance.onstart = () => {
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+          synthesis.cancel();
+          finish(false);
+          return;
+        }
+
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+      };
+
+      utterance.onend = () => finish(true);
+      utterance.onerror = () => finish(false);
+
+      synthesis.speak(utterance);
+
+      safetyTimer = setTimeout(
+        () => {
+          if (!settled) {
+            try {
+              synthesis.cancel();
+            } catch {
+              /* noop */
+            }
+            finish(false);
+          }
+        },
+        Math.max(15000, text.length * 140),
+      );
+    });
+  }, []);
+
+  /* =======================================================
+     HOSTED TTS
+
+     Key fixes:
+     - First sentence is requested immediately.
+     - Up to three sentences are fetched concurrently.
+     - Audio plays as soon as each ordered chunk is ready.
+     - One failed hosted request falls back to native TTS for
+       the remaining response.
+     - Mic analyser input is disconnected while AI speaks,
+       preventing mic silence/echo from masking the AI waveform.
+     ======================================================= */
+
+  const speakVoiceResponse = useCallback(
     async (raw: string) => {
-      stopSpeaking();
+      stopAudioOnly();
 
-      const token = speakTokenRef.current;
-
+      const token = ++speakTokenRef.current;
       const clean = raw
         .replace(/```[\s\S]*?```/g, " ")
         .replace(/`([^`]+)`/g, "$1")
@@ -903,164 +967,174 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .replace(/\s+/g, " ")
         .trim();
 
-      if (!clean) return;
-
-      const sentences = clean
-        .match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g)
-        ?.map((s) => s.trim())
-        .filter(Boolean) || [clean];
-
-      setIsSpeaking(true);
-
-      const speakWithSynthesis = (from: number) =>
-        new Promise<void>((resolve) => {
-          const synth = window.speechSynthesis;
-
-          if (!synth) {
-            resolve();
-            return;
-          }
-
-          let index = from;
-
-          const next = () => {
-            if (token !== speakTokenRef.current || index >= sentences.length) {
-              resolve();
-              return;
-            }
-
-            const utter = new SpeechSynthesisUtterance(sentences[index]);
-            index += 1;
-
-            /*
-             * Normal conversational pace. The hosted TTS path below is
-             * also played at 1.0×, so both paths have the same intended pace.
-             */
-            utter.rate = 1;
-            utter.pitch = 1;
-            utter.volume = 1;
-
-            utter.onend = next;
-            utter.onerror = () => resolve();
-
-            synth.speak(utter);
-          };
-
-          next();
-        });
-
-      const getTtsAudioContext = () => {
-        if (!ttsAudioContextRef.current) {
-          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-
-          if (!AudioCtx) {
-            throw new Error("Web Audio is not supported.");
-          }
-
-          const ctx: AudioContext = new AudioCtx();
-          const analyser = ctx.createAnalyser();
-
-          /*
-           * The AI waveform uses this analyser exactly like the
-           * microphone waveform. No synthetic animation is needed.
-           */
-          analyser.fftSize = 256;
-          analyser.smoothingTimeConstant = 0.72;
-          analyser.minDecibels = -86;
-          analyser.maxDecibels = -12;
-
-          ttsAudioContextRef.current = ctx;
-          ttsAnalyserRef.current = analyser;
-          setAnalyserNode(analyser);
+      if (!clean) {
+        if (isVoiceSessionRef.current) {
+          void startListeningContinuousRef.current?.();
         }
+        return;
+      }
 
-        if (ttsAudioContextRef.current.state === "suspended") {
-          void ttsAudioContextRef.current.resume();
+      const sentences = (clean.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [clean])
+        .map((sentence) => sentence.trim())
+        .filter(Boolean);
+
+      let audioGraph: {
+        ctx: AudioContext;
+        analyser: AnalyserNode;
+      } | null = null;
+
+      let hostedTtsFailed = getTtsQuotaBlockedUntil() > Date.now();
+      let nativeFallbackUsed = false;
+
+      const disconnectMicForPlayback = () => {
+        if (micSourceRef.current) {
+          try {
+            micSourceRef.current.disconnect();
+          } catch {
+            /* noop */
+          }
         }
-
-        return {
-          ctx: ttsAudioContextRef.current,
-          analyser: ttsAnalyserRef.current!,
-        };
       };
+
+      const reconnectMicAfterPlayback = () => {
+        if (!micSourceRef.current || !analyserRef.current) return;
+        try {
+          micSourceRef.current.connect(analyserRef.current);
+        } catch {
+          /* It may already be connected. */
+        }
+      };
+
+      const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
+        if (hostedTtsFailed) return null;
+
+        try {
+          const response = await fetch(TTS_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+              apikey: SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ text: sentence }),
+          });
+
+          if (!response.ok) {
+            const body = await response.text().catch(() => "");
+            if (response.status === 429) rememberTtsQuotaLimit(body);
+            hostedTtsFailed = true;
+            return null;
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          if (!arrayBuffer.byteLength) {
+            hostedTtsFailed = true;
+            return null;
+          }
+
+          audioGraph ??= getAudioContext();
+          return await audioGraph.ctx.decodeAudioData(arrayBuffer);
+        } catch {
+          hostedTtsFailed = true;
+          return null;
+        }
+      };
+
+      /* Fetch a small rolling window instead of waiting for the
+         whole answer. This is the main perceived-latency fix. */
+      const buffers: Array<Promise<AudioBuffer | null> | undefined> = [];
+      let nextToFetch = 0;
+
+      const scheduleNext = () => {
+        if (nextToFetch >= sentences.length || hostedTtsFailed) return;
+        buffers[nextToFetch] = fetchAudioBuffer(sentences[nextToFetch]);
+        nextToFetch += 1;
+      };
+
+      scheduleNext();
+      scheduleNext();
+      scheduleNext();
+
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
 
       try {
         for (let i = 0; i < sentences.length; i++) {
-          if (token !== speakTokenRef.current) return;
-
-          let arrayBuffer: ArrayBuffer;
-
-          try {
-            const res = await fetch(TTS_ENDPOINT, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-                apikey: SUPABASE_ANON_KEY,
-              },
-              body: JSON.stringify({ text: sentences[i] }),
-            });
-
-            if (!res.ok) {
-              throw new Error(`tts ${res.status}`);
-            }
-
-            arrayBuffer = await res.arrayBuffer();
-
-            if (!arrayBuffer.byteLength) {
-              throw new Error("empty audio");
-            }
-          } catch (err) {
-            console.warn("gdx-tts failed, falling back to speechSynthesis:", err);
-
-            /*
-             * Browser speechSynthesis cannot expose its audio stream to
-             * Web Audio in a portable way, so its visual state remains
-             * active while the real hosted path is preferred.
-             */
-            await speakWithSynthesis(i);
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
             return;
           }
 
-          if (token !== speakTokenRef.current) return;
+          const buffer = await buffers[i];
 
-          const { ctx, analyser } = getTtsAudioContext();
-          const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+          if (!buffer) {
+            nativeFallbackUsed = true;
 
-          if (token !== speakTokenRef.current) return;
+            /* Do not leave the user waiting for another hosted request. */
+            const remainingText = sentences.slice(i).join(" ");
+            disconnectMicForPlayback();
+            isSpeakingRef.current = true;
+            setIsSpeaking(true);
+
+            const success = await speakWithBrowserTTS(remainingText, token);
+
+            if (!success) {
+              console.warn("Browser speech synthesis fallback also failed.");
+            }
+
+            return;
+          }
+
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+            return;
+          }
+
+          /* Keep the next chunks warm while the current one speaks. */
+          scheduleNext();
+
+          disconnectMicForPlayback();
+          isSpeakingRef.current = true;
+          setIsSpeaking(true);
 
           await new Promise<void>((resolve) => {
-            if (token !== speakTokenRef.current) {
+            if (!audioGraph) {
               resolve();
               return;
             }
 
-            const source = ctx.createBufferSource();
+            const source = audioGraph.ctx.createBufferSource();
             source.buffer = buffer;
+            source.playbackRate.value = 1.0;
 
             /*
-             * IMPORTANT:
-             * 1.0× = natural playback speed.
-             * The analyser sees this exact AI audio.
+             * AI playback path:
+             *
+             * source → analyser → monitor → speakers
+             *
+             * The analyser therefore sees the exact same audio the
+             * user hears, which gives the AI waveform real speech
+             * movement instead of a guessed sine wave.
              */
-            source.playbackRate.value = 1;
+            const monitor = analyserMonitorRef.current;
 
-            source.connect(analyser);
-            analyser.connect(ctx.destination);
+            if (monitor) {
+              try {
+                if (!analyserDestinationConnectedRef.current) {
+                  audioGraph.analyser.connect(monitor);
+                  monitor.connect(audioGraph.ctx.destination);
+                  analyserDestinationConnectedRef.current = true;
+                }
+              } catch {
+                /* The graph may already be connected. */
+              }
+            }
 
-            ttsSourceRef.current = source;
+            source.connect(audioGraph.analyser);
+            currentSourceNodeRef.current = source;
 
             const finish = () => {
-              try {
-                source.disconnect();
-              } catch {
-                /* noop */
+              if (currentSourceNodeRef.current === source) {
+                currentSourceNodeRef.current = null;
               }
-
-              if (ttsSourceRef.current === source) {
-                ttsSourceRef.current = null;
-              }
-
               resolve();
             };
 
@@ -1075,83 +1149,544 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       } finally {
         if (token === speakTokenRef.current) {
-          if (ttsSourceRef.current) {
+          currentSourceNodeRef.current = null;
+
+          /*
+           * Remove the analyser → speakers monitor before handing
+           * the analyser back to the microphone. This prevents the
+           * microphone from being echoed to the user.
+           */
+          if (analyserDestinationConnectedRef.current && analyserRef.current && analyserMonitorRef.current) {
             try {
-              ttsSourceRef.current.disconnect();
+              analyserRef.current.disconnect(analyserMonitorRef.current);
             } catch {
               /* noop */
             }
-            ttsSourceRef.current = null;
+
+            try {
+              analyserMonitorRef.current.disconnect();
+            } catch {
+              /* noop */
+            }
+
+            analyserDestinationConnectedRef.current = false;
           }
 
-          /*
-           * The analyser node remains available for the currently mounted
-           * waveform. The speaking flag controls whether it is displayed.
-           */
+          isSpeakingRef.current = false;
           setIsSpeaking(false);
+
+          if (!nativeFallbackUsed) {
+            reconnectMicAfterPlayback();
+          }
+
+          if (isVoiceSessionRef.current) {
+            /* Wait one frame so the waveform settles before recognition
+               takes the mic back. This avoids the old speaking/listening
+               race where both states could be true for a moment. */
+            requestAnimationFrame(() => {
+              if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
+                void startListeningContinuousRef.current?.();
+              }
+            });
+          }
         }
       }
     },
-    [stopSpeaking],
+    [getAudioContext, speakWithBrowserTTS, stopAudioOnly],
   );
 
-  /* ----- Submit handler ----- */
+  /* =======================================================
+     CONTINUOUS SPEECH RECOGNITION
 
-  const handleSubmit = async (e?: FormEvent, customQuery?: string) => {
-    e?.preventDefault();
+     Uses refs for loading/speaking state so recognition callbacks
+     never operate on stale render-time values.
+     ======================================================= */
+
+  const startListeningContinuous = useCallback(async () => {
+    if (!isVoiceSessionRef.current) return;
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      console.warn("Speech recognition is not supported in this browser.");
+      stopVoiceSessionRef.current?.();
+      return;
+    }
+
+    const generation = ++recognitionGenerationRef.current;
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    }
+
+    if (!isVoiceSessionRef.current) return;
+
+    try {
+      const { ctx, analyser } = getAudioContext();
+
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+
+      /* Show live-listening state immediately; the mic stream can still
+         take a moment to resolve on the browser side. */
+      setIsListening(true);
+
+      if (!micStreamRef.current) {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      }
+
+      if (!micSourceRef.current && micStreamRef.current) {
+        micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
+      }
+
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.connect(analyser);
+        } catch {
+          /* Already connected. */
+        }
+      }
+    } catch (error) {
+      console.warn("Microphone setup warning:", error);
+      if (!isVoiceSessionRef.current) return;
+    }
+
+    if (!isVoiceSessionRef.current || generation !== recognitionGenerationRef.current) {
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognition.maxAlternatives = 1;
+
+    recognitionRef.current = recognition;
+    transcriptRef.current = "";
+
+    const clearSilenceTimer = () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+    };
+
+    const submitTranscript = () => {
+      clearSilenceTimer();
+
+      if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current) {
+        return;
+      }
+
+      const text = transcriptRef.current.trim();
+      if (!text) return;
+
+      transcriptRef.current = "";
+      setIsListening(false);
+
+      try {
+        recognition.onend = null;
+        recognition.stop();
+      } catch {
+        /* noop */
+      }
+
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
+
+      handleSubmitRef.current?.(undefined, text, true);
+    };
+
+    recognition.onstart = () => {
+      if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current || isSpeakingRef.current) {
+        try {
+          recognition.stop();
+        } catch {
+          /* noop */
+        }
+        return;
+      }
+
+      setIsListening(true);
+      transcriptRef.current = "";
+    };
+
+    recognition.onresult = (event: any) => {
+      if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current || isSpeakingRef.current) {
+        return;
+      }
+
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0]?.transcript || "";
+      }
+
+      transcriptRef.current = transcript;
+      clearSilenceTimer();
+
+      if (transcript.trim()) {
+        silenceTimerRef.current = setTimeout(submitTranscript, 1400);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        console.warn("Speech recognition error:", event.error);
+      }
+
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        stopVoiceSessionRef.current?.();
+      }
+    };
+
+    recognition.onend = () => {
+      clearSilenceTimer();
+
+      if (
+        generation !== recognitionGenerationRef.current ||
+        !isVoiceSessionRef.current ||
+        isLoadingRef.current ||
+        isSpeakingRef.current
+      ) {
+        return;
+      }
+
+      const text = transcriptRef.current.trim();
+      if (text) {
+        submitTranscript();
+        return;
+      }
+
+      /* Safari/Chrome can end continuous recognition spontaneously. */
+      requestAnimationFrame(() => {
+        if (
+          generation === recognitionGenerationRef.current &&
+          isVoiceSessionRef.current &&
+          !isLoadingRef.current &&
+          !isSpeakingRef.current &&
+          recognitionRef.current === recognition
+        ) {
+          try {
+            recognition.start();
+          } catch {
+            /* Browser may already be restarting. */
+          }
+        }
+      });
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      /* A duplicate start is harmless. */
+    }
+  }, [getAudioContext]);
+
+  startListeningContinuousRef.current = startListeningContinuous;
+
+  /* =======================================================
+     STOP VOICE SESSION
+     ======================================================= */
+
+  const stopVoiceSession = useCallback(() => {
+    isVoiceSessionRef.current = false;
+    isHoldingRef.current = false;
+    recognitionGenerationRef.current += 1;
+
+    setIsVoiceSession(false);
+    setIsListening(false);
+
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    }
+
+    transcriptRef.current = "";
+
+    if (micSourceRef.current) {
+      try {
+        micSourceRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+      micSourceRef.current = null;
+    }
+
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
+
+    stopAudioOnly();
+  }, [stopAudioOnly]);
+
+  stopVoiceSessionRef.current = stopVoiceSession;
+
+  /* =======================================================
+     HOLD TO SPEAK
+     ======================================================= */
+
+  const startHold = useCallback(() => {
+    if (isLoading || isVoiceSession) return;
+
+    try {
+      getAudioContext();
+    } catch {
+      /* Voice recognition can still provide its own error path. */
+    }
+
+    isHoldingRef.current = true;
+
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+
+    /*
+     * Enter voice mode immediately.
+     *
+     * The old 350ms gate made the waveform visibly late. We still
+     * keep a ref guard so accidental pointer events cannot start
+     * recognition after the hold has ended.
+     */
+    isVoiceSessionRef.current = true;
+    setIsVoiceSession(true);
+    setResponse(null);
+    setSuggestions([]);
+    setShowTypewriter(false);
+    setShowExpandedSuggestions(false);
+    setHasInteracted(true);
+
+    void startListeningContinuousRef.current?.();
+  }, [getAudioContext, isLoading, isVoiceSession]);
+
+  const handleHoldStart = useCallback(
+    (event: React.MouseEvent | React.TouchEvent) => {
+      event.preventDefault();
+      startHold();
+    },
+    [startHold],
+  );
+
+  const handleHoldEnd = useCallback(
+    (event?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
+      event?.preventDefault?.();
+
+      const wasHolding = isHoldingRef.current;
+      isHoldingRef.current = false;
+
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+
+      if (!isVoiceSessionRef.current && wasHolding && query.trim()) {
+        handleSubmitRef.current?.(undefined, undefined, false);
+      }
+    },
+    [query],
+  );
+
+  /* =======================================================
+     SHIFT TO SPEAK
+     ======================================================= */
+
+  useEffect(() => {
+    const handleShiftDown = (event: KeyboardEvent) => {
+      if (event.key !== "Shift" || event.repeat || isListening || isLoading || isVoiceSession) {
+        return;
+      }
+
+      const activeElement = document.activeElement as HTMLElement | null;
+      const isInputFocused =
+        !!activeElement &&
+        (activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          activeElement.contentEditable === "true");
+
+      if (isInputFocused) return;
+
+      event.preventDefault();
+      startHold();
+    };
+
+    const handleShiftUp = (event: KeyboardEvent) => {
+      if (event.key === "Shift") handleHoldEnd();
+    };
+
+    window.addEventListener("keydown", handleShiftDown);
+    window.addEventListener("keyup", handleShiftUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleShiftDown);
+      window.removeEventListener("keyup", handleShiftUp);
+    };
+  }, [isListening, isLoading, isVoiceSession, startHold, handleHoldEnd]);
+
+  /* =======================================================
+     CLEANUP
+     ======================================================= */
+
+  useEffect(() => {
+    return () => {
+      recognitionGenerationRef.current += 1;
+
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onend = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.stop();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {
+        /* noop */
+      }
+
+      if (currentSourceNodeRef.current) {
+        try {
+          currentSourceNodeRef.current.stop();
+          currentSourceNodeRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  /* =======================================================
+     SUBMIT
+     ======================================================= */
+
+  const handleSubmit = async (event?: FormEvent, customQuery?: string, fromVoice = false) => {
+    event?.preventDefault();
+
     const text = (customQuery ?? query).trim();
     if (!text) return;
 
-    stopSpeaking();
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
+
     if (!customQuery) setQuery("");
 
-    if (response || suggestions.length > 0) {
-      setIsCollapsingToThink(true);
-      await new Promise((r) => setTimeout(r, 500));
-      setResponse(null);
-      setSuggestions([]);
-      await new Promise((r) => setTimeout(r, 200));
-      setIsCollapsingToThink(false);
+    if (!fromVoice) {
+      stopVoiceSession();
+
+      if (response || suggestions.length > 0) {
+        setIsCollapsingToThink(true);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setResponse(null);
+        setSuggestions([]);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setIsCollapsingToThink(false);
+      } else {
+        setResponse(null);
+        setSuggestions([]);
+      }
     } else {
-      setResponse(null);
-      setSuggestions([]);
+      /* Recognition has already stopped before this reaches the API. */
+      setIsListening(false);
     }
 
+    isLoadingRef.current = true;
     setIsLoading(true);
 
     try {
       const result = await sendChatMessage(text);
-      const answer = (result as any)?.response ?? "";
+      const answer = String((result as any)?.response ?? "");
       const suggs = (result as any)?.suggestions || [];
-      setResponse(String(answer));
-      setSuggestions(suggs);
-      setIsRestoredFromStorage(false);
-      onSearch?.(String(answer));
-      void speakResponse(String(answer));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
-      setResponse(msg);
-      setSuggestions([]);
-      setIsRestoredFromStorage(false);
-      onSearch?.(msg);
+
+      if (fromVoice && isVoiceSessionRef.current) {
+        /* Start TTS immediately; don't wait for another render. */
+        void speakVoiceResponse(answer);
+      } else {
+        setResponse(answer);
+        setSuggestions(suggs);
+        setIsRestoredFromStorage(false);
+        onSearch?.(answer);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
+
+      if (fromVoice && isVoiceSessionRef.current) {
+        void speakVoiceResponse(message);
+      } else {
+        setResponse(message);
+        setSuggestions([]);
+        setIsRestoredFromStorage(false);
+        onSearch?.(message);
+      }
     } finally {
+      isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
 
   handleSubmitRef.current = handleSubmit;
-  stopSpeakingRef.current = stopSpeaking;
 
-  /* ----- Interaction helpers ----- */
-  const handleSuggestionClick = useCallback((s: string) => {
+  /* =======================================================
+     INTERACTION HELPERS
+     ======================================================= */
+
+  const handleSuggestionClick = useCallback((suggestion: string) => {
     setQuery("");
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
-    handleSubmit(undefined, s);
+    void handleSubmit(undefined, suggestion, false);
   }, []);
 
   const handleInputFocus = useCallback(() => {
@@ -1160,83 +1695,93 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
   }, []);
 
-  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
+  const handleInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setQuery(event.target.value);
     setHasInteracted(true);
     setShowTypewriter(false);
     setShowExpandedSuggestions(false);
   }, []);
 
-  /* Outside click handler */
+  /* =======================================================
+     OUTSIDE CLICK
+     ======================================================= */
+
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (searchBarRef.current && searchBarRef.current.contains(target)) return;
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
 
-      const el = target as Element;
+      if (searchBarRef.current?.contains(target)) return;
+
+      if (isVoiceSessionRef.current) {
+        stopVoiceSession();
+        return;
+      }
+
+      const element = target as Element;
       const isNavigationClick =
-        !!el?.closest &&
-        (el.closest('[class*="fixed top-6"]') ||
-          el.closest('[class*="fixed bottom-6 right-6"]') ||
-          el.closest('button[aria-label*="Scroll to top"]') ||
-          el.closest('button[aria-label*="Close modal"]'));
+        !!element?.closest &&
+        (element.closest('[class*="fixed top-6"]') ||
+          element.closest('[class*="fixed bottom-6 right-6"]') ||
+          element.closest('button[aria-label*="Scroll to top"]') ||
+          element.closest('button[aria-label*="Close modal"]'));
 
-      if (!isNavigationClick) {
-        // If there's a query in the bar (after voice input), clear it and reset
-        if (query.trim() && !response && suggestions.length === 0) {
-          setQuery("");
-          inputRef.current?.blur();
-          return;
-        }
+      if (isNavigationClick) return;
 
-        // If there's a response/suggestions, collapse them
-        if (response || suggestions.length > 0) {
-          const COLLAPSE_MS = 1400;
-          setIsCollapsing(true);
-          setShowExpandedSuggestions(false);
-          window.setTimeout(() => {
-            setResponse(null);
-            setSuggestions([]);
-            setIsCollapsing(false);
-            clearPersistedState();
-          }, COLLAPSE_MS);
-        }
+      if (query.trim() && !response && suggestions.length === 0) {
+        setQuery("");
+        inputRef.current?.blur();
+        return;
+      }
+
+      if (response || suggestions.length > 0) {
+        const COLLAPSE_MS = 1400;
+        setIsCollapsing(true);
+        setShowExpandedSuggestions(false);
+
+        window.setTimeout(() => {
+          setResponse(null);
+          setSuggestions([]);
+          setIsCollapsing(false);
+          clearPersistedState();
+        }, COLLAPSE_MS);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside as any);
+    document.addEventListener("touchstart", handleClickOutside);
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside as any);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [response, suggestions, query, clearPersistedState]);
+  }, [response, suggestions, query, stopVoiceSession, clearPersistedState]);
 
-  /* ----- Layout calculations ----- */
+  /* =======================================================
+     LAYOUT
+     ======================================================= */
+
   const layoutValues = useMemo(() => {
-    const dynamicWidth = Math.min(300 + query.length * 8, 580);
-    const hasContent = suggestions.length > 0 || response;
+    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession;
     const isExpanded = hasContent && !isLoading;
-    // Ensure enough width for waveform + timer + icon when listening
-    const listeningWidth = isListening ? Math.max(dynamicWidth, 380) : dynamicWidth;
-    const targetWidth = isExpanded ? "580px" : `${listeningWidth}px`;
+    const targetWidth = isExpanded ? "580px" : isVoiceSession ? "420px" : "460px";
     const targetRadius = isExpanded ? "16px" : "999px";
 
-    return { dynamicWidth, isExpanded, targetWidth, targetRadius };
-  }, [query.length, suggestions.length, response, isLoading]);
+    return { isExpanded, targetWidth, targetRadius };
+  }, [suggestions.length, response, isVoiceSession, isLoading]);
 
-  /* ----- Render ----- */
+  /* =======================================================
+     RENDER
+     ======================================================= */
+
   return (
     <div
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {/* ── Suggestion bubble (emerge/retreat from search bar) ── */}
-      {showTypewriter && fullText && suggestionPhase !== "hidden" && (
+      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm text-white px-4 py-2 rounded-full shadow-md
-                     whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
+          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
           style={{
             animation:
               suggestionPhase === "emerging"
@@ -1250,17 +1795,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         </div>
       )}
 
-      {/* ── Search bar container ── */}
       <div
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
-        } ${isListening ? "listening-container" : ""}`}
+        } ${isVoiceSession || isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
           maxWidth: "90vw",
           borderRadius: layoutValues.targetRadius,
           transition:
-            "width 1.2s cubic-bezier(0.25, 1, 0.3, 1), border-radius 1.2s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
@@ -1273,183 +1817,256 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
           }}
         >
-          {/* ── Suggestion list ── */}
-          <Fade show={showExpandedSuggestions && suggestions.length > 0} duration={800}>
+          <Fade show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession} duration={800}>
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.8s ease forwards" }}
             >
-              {suggestions.map((s, i) => (
+              {suggestions.map((suggestion, index) => (
                 <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm rounded-full hover:bg-white/30 transition cursor-pointer"
+                  key={index}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm font-normal rounded-full hover:bg-white/30 transition cursor-pointer"
                   disabled={isLoading}
                 >
-                  {s}
+                  {suggestion}
                 </button>
               ))}
             </div>
           </Fade>
 
-          {/* ── Assistant response ── */}
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response
+              response && !isVoiceSession
                 ? isCollapsing || isCollapsingToThink
                   ? "opacity-0 mb-0"
                   : "opacity-100 mb-5"
                 : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response ? "384px" : "0px",
+              maxHeight: isCollapsing || isCollapsingToThink ? "0px" : response && !isVoiceSession ? "384px" : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
               transitionDelay:
                 response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
-            {response && (
+            {response && !isVoiceSession && (
               <div
-                className="text-foreground text-sm leading-relaxed px-4 overflow-y-auto scrollbar-hide"
+                className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
                   animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
                   maxHeight: "300px",
+                  fontWeight: 400,
                 }}
                 dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
             )}
           </div>
 
-          {/* ── Input form ── */}
           <form
-            onSubmit={(e) => handleSubmit(e)}
-            className="flex items-center gap-2 relative"
+            onSubmit={(event) => handleSubmit(event, undefined, false)}
+            className="flex items-center gap-2 relative min-h-[40px]"
             onFocus={handleInputFocus}
           >
-            {!isListening && !isSpeaking && (
+            {!isVoiceSession && (
               <div className="relative flex-1">
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={isLoading ? "Thinking…" : "hold shift/search to talk with GDx"}
+                  placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 
-                             text-foreground placeholder:text-muted-foreground text-base px-4 h-10 ${
-                               isLoading ? "thinking-placeholder" : ""
-                             }`}
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10 ${
+                    isLoading ? "thinking-placeholder" : ""
+                  }`}
                   disabled={isLoading}
                   aria-label="Ask anything"
+                  style={{ fontWeight: 400 }}
                 />
               </div>
             )}
-            {/* Waveform + timer fill available space when listening */}
-            {(isListening || isSpeaking) && (
+
+            {isVoiceSession && (
               <div className="flex-1 flex items-center gap-2 pl-3 min-w-0">
-                <BarWaveform analyser={analyserNode} isActive={isListening || isSpeaking} />
-                <RecordingTimer isActive={isListening} />
+                <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking} />
+                {isListening && <RecordingTimer isActive={isListening} />}
               </div>
             )}
-            {/* Search icon / hold-to-speak target */}
-            <div
-              className="shrink-0 select-none"
-              onMouseDown={handleHoldStart}
-              onMouseUp={handleHoldEnd}
-              onMouseLeave={handleHoldEnd}
-              onTouchStart={handleHoldStart}
-              onTouchEnd={handleHoldEnd}
-              style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
-            >
-              <div
-                className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 
-                           ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer
-                           ${isListening ? "bg-white/30" : "hover:bg-white/20"}`}
+
+            {isVoiceSession ? (
+              <button
+                type="button"
+                onClick={stopVoiceSession}
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-all active:scale-95 cursor-pointer"
+                title="End voice mode"
+                aria-label="End voice mode"
               >
-                <Search
-                  className={`h-4 w-4 text-white/50 ${isLoading ? "thinking-icon" : ""} ${isListening ? "!text-white" : ""}`}
-                />
+                <span aria-hidden="true" className="relative block h-3.5 w-3.5">
+                  <span className="absolute left-1/2 top-1/2 block h-[1px] w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white/70" />
+                  <span className="absolute left-1/2 top-1/2 block h-[1px] w-3.5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-white/70" />
+                </span>
+              </button>
+            ) : (
+              <div
+                className="shrink-0 select-none"
+                onMouseDown={handleHoldStart}
+                onMouseUp={handleHoldEnd}
+                onMouseLeave={handleHoldEnd}
+                onTouchStart={handleHoldStart}
+                onTouchEnd={handleHoldEnd}
+                style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+              >
+                <div
+                  className={`h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.3,1)] hover:scale-110 active:scale-95 cursor-pointer ${
+                    isListening ? "bg-white/30" : "hover:bg-white/20"
+                  }`}
+                >
+                  <Search
+                    className={`h-4 w-4 text-white/50 ${
+                      isLoading ? "thinking-icon" : ""
+                    } ${isListening ? "!text-white" : ""}`}
+                    strokeWidth={1.5}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </form>
         </div>
       </div>
 
-      {/* ── Shared CSS ── */}
-      <style>{`
-        @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes delayedFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-        .animate-fadeIn { animation: fadeIn 0.8s ease forwards; }
-        .animate-delayedFadeIn { animation: delayedFadeIn 1s ease forwards; animation-delay: 0.1s; }
+      {/* =====================================================
+          EXISTING ANIMATIONS — intentionally preserved
+          ===================================================== */}
 
-        .thinking-container{
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes delayedFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.8s ease forwards;
+        }
+
+        .animate-delayedFadeIn {
+          animation: delayedFadeIn 1s ease forwards;
+          animation-delay: 0.1s;
+        }
+
+        .thinking-container {
           border: 1px solid rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.05);
           animation: glowPulse 2s infinite ease-in-out;
         }
+
         @keyframes glowPulse {
-          0%, 100% { 
-            box-shadow: 0 0 5px rgba(255,255,255,0.1), inset 0 0 10px rgba(255,255,255,0.05);
+          0%, 100% {
+            box-shadow:
+              0 0 5px rgba(255,255,255,0.1),
+              inset 0 0 10px rgba(255,255,255,0.05);
           }
-          50% { 
-            box-shadow: 0 0 20px rgba(255,255,255,0.3), inset 0 0 20px rgba(255,255,255,0.15);
+          50% {
+            box-shadow:
+              0 0 20px rgba(255,255,255,0.3),
+              inset 0 0 20px rgba(255,255,255,0.15);
           }
         }
+
         @keyframes textGlow {
-          0%, 100% { 
+          0%, 100% {
             color: rgba(255,255,255,0.3);
             text-shadow: 0 0 1px rgba(255,255,255,0.2);
           }
-          50% { 
+          50% {
             color: rgba(255,255,255,0.8);
             text-shadow: 0 0 3px rgba(255,255,255,0.6);
           }
         }
-        .thinking-placeholder::placeholder{
+
+        .thinking-placeholder::placeholder {
           color: rgba(255,255,255,0.6);
           animation: textGlow 2s infinite ease-in-out;
+          font-weight: 400;
         }
-        .thinking-placeholder[disabled]{caret-color:transparent;}
+
+        .thinking-placeholder[disabled] {
+          caret-color: transparent;
+        }
+
         .thinking-icon {
           stroke: rgba(255,255,255,0.5);
           filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
           animation: iconGlow 4s infinite ease-in-out;
         }
+
         @keyframes iconGlow {
-          0%, 100% { 
+          0%, 100% {
             stroke: rgba(255,255,255,0.3);
             filter: drop-shadow(0 0 1px rgba(255,255,255,0.2));
           }
-          50% { 
+          50% {
             stroke: rgba(255,255,255,0.8);
             filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
           }
         }
 
-        .inline-code{background:rgba(255,255,255,.04);padding:.05rem .25rem;border-radius:4px;
-                     font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono","Helvetica Neue",monospace;
-                     font-size:.9em;}
+        .inline-code {
+          background: rgba(255,255,255,.04);
+          padding: .05rem .25rem;
+          border-radius: 4px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace;
+          font-size: .9em;
+          font-weight: 400;
+        }
 
-        /* Typewriter cursor */
-        @keyframes blink {0%,50%{opacity:1;}51%,100%{opacity:0;}}
-        .typewriter-cursor{display:inline-block;animation:blink 1s infinite;margin-left:2px;font-weight:normal;}
-        .typewriter-text{display:inline-block;min-height:1.2em;}
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
+        }
 
-        /* Listening styles */
-        .listening-container{
+        .typewriter-cursor {
+          display: inline-block;
+          animation: blink 1s infinite;
+          margin-left: 2px;
+          font-weight: 400;
+        }
+
+        .typewriter-text {
+          display: inline-block;
+          min-height: 1.2em;
+          font-weight: 400;
+        }
+
+        .listening-container {
           border: 1px solid rgba(255,255,255,0.3);
           animation: listeningGlow 1.5s infinite ease-in-out;
         }
+
         @keyframes listeningGlow {
-          0%, 100% { 
-            box-shadow: 0 0 8px rgba(255,255,255,0.15), inset 0 0 12px rgba(255,255,255,0.08);
+          0%, 100% {
+            box-shadow:
+              0 0 8px rgba(255,255,255,0.15),
+              inset 0 0 12px rgba(255,255,255,0.08);
           }
-          50% { 
-            box-shadow: 0 0 25px rgba(255,255,255,0.4), inset 0 0 25px rgba(255,255,255,0.2);
+          50% {
+            box-shadow:
+              0 0 25px rgba(255,255,255,0.4),
+              inset 0 0 25px rgba(255,255,255,0.2);
           }
         }
-        .listening-input{
+
+        .listening-input {
           color: transparent;
         }
 
@@ -1473,6 +2090,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             opacity: 0;
             transform: translateY(12px) scale(0.97);
           }
+        }
+
+        input,
+        button {
+          font-weight: 400;
+        }
+
+        strong,
+        h1,
+        h2,
+        h3 {
+          font-weight: 400;
         }
       `}</style>
     </div>
