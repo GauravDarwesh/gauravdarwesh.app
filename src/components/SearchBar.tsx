@@ -493,7 +493,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      Placeholder
      ------------------------------------------------------- */
 
-  const placeholderTexts = useMemo(() => ["Start a conversation with GDx...", "Ask anything..."], []);
+  const placeholderTexts = useMemo(() => ["Have a dialogue with GDx...", "Ask anything..."], []);
   const [placeholderText, setPlaceholderText] = useState(placeholderTexts[0]);
   const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
   const [placeholderTarget, setPlaceholderTarget] = useState(0);
