@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -284,6 +285,17 @@ export default function Visuals() {
 
   return (
     <div className="h-screen w-full relative overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
+      <Helmet>
+        <title>Visuals — Photography by Gaurav Darwesh</title>
+        <meta name="description" content="Photo and video collections from Gaurav Darwesh's travels, including Japan 2025 and Europe 2016." />
+        <link rel="canonical" href="https://gauravdarwesh.app/visuals" />
+        <meta property="og:title" content="Visuals — Photography by Gaurav Darwesh" />
+        <meta property="og:description" content="Photo and video collections from Gaurav Darwesh's travels." />
+        <meta property="og:url" content="https://gauravdarwesh.app/visuals" />
+      </Helmet>
+
+      <h1 className="sr-only">Visuals — photography collections by Gaurav Darwesh</h1>
+
       {/* Background */}
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none select-none"
@@ -364,6 +376,7 @@ export default function Visuals() {
                   {/* Video layer */}
                   {showVideo && (
                     <video
+                      aria-label="Photo collection video clip"
                       ref={videoRef}
                       key={currentSrc}
                       className="absolute inset-0 w-full h-full object-cover rounded-xl shadow-lg"

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
@@ -191,7 +192,7 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <div className="relative w-full mb-8 overflow-hidden">
-          <h1 className="sr-only">Gaurav Darwesh</h1>
+          <h1 className="sr-only">Gaurav Darwesh — Experience &amp; Skills</h1>
 
           {/* Seamless marquee */}
           <div className="overflow-hidden marquee-fade-edges">

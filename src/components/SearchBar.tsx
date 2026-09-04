@@ -1828,6 +1828,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </button>
             ) : (
               <div
+                role="button"
+                tabIndex={0}
+                aria-label="Search or hold to speak"
                 className="shrink-0 select-none"
                 onMouseDown={handleHoldStart}
                 onMouseUp={handleHoldEnd}

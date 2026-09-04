@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
@@ -22,11 +23,22 @@ const Index = () => {
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
+      <Helmet>
+        <title>Gaurav Darwesh — AI &amp; Product Management Portfolio</title>
+        <meta name="description" content="Gaurav Darwesh builds AI-driven products and leads programs across analytics, automation and product strategy. Ask GDx anything about his work." />
+        <link rel="canonical" href="https://gauravdarwesh.app/" />
+        <meta property="og:title" content="Gaurav Darwesh — AI &amp; Product Management Portfolio" />
+        <meta property="og:description" content="Gaurav Darwesh builds AI-driven products and leads programs across analytics, automation and product strategy." />
+        <meta property="og:url" content="https://gauravdarwesh.app/" />
+      </Helmet>
+
+      <h1 className="sr-only">Gaurav Darwesh — AI and Product Management portfolio</h1>
+
       {/* Background */}
       <div className="fixed inset-0 z-0">
         <img
           src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
-          alt="background"
+          alt=""
           className="w-full h-full object-cover pointer-events-none select-none"
           draggable={false}
           onContextMenu={(e) => e.preventDefault()}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ExternalLink } from "lucide-react";
 
@@ -323,6 +324,7 @@ const Blog = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <iframe
+              title="Notion article"
               src={activeNotion}
               width="100%"
               height="100%"
