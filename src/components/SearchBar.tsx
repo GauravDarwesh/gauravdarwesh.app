@@ -543,7 +543,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const stopVoiceSessionRef = useRef<(() => void) | null>(null);
   const stopTranscribeRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
-  const requestAndroidTranscriptionRef = useRef<((audioBlob: Blob) => Promise<string>) | null>(null);
 
   /* =======================================================
      PERSIST STATE
@@ -631,10 +630,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if ("speechSynthesis" in window) {
       try {
         if (isAndroid) {
-          // Android: synchronously clear stale queued utterances. Do NOT queue
-          // a dummy utterance because it can occupy Chrome's speech engine and
-          // interfere with the real response later.
+          // Android: perform a real synchronous speech-synthesis unlock while
+          // the tap is still active, but keep it inaudible and cancel it as
+          // soon as the engine accepts it. Some tablet builds otherwise
+          // reject later speech after the async chat/TTS request completes.
           window.speechSynthesis.cancel();
+          const unlock = new SpeechSynthesisUtterance(" ");
+          unlock.volume = 0;
+          unlock.lang = "en-US";
+          try {
+            window.speechSynthesis.speak(unlock);
+            window.setTimeout(() => {
+              try {
+                window.speechSynthesis.cancel();
+              } catch {
+                /* noop */
+              }
+            }, 80);
+          } catch {
+            /* Speech synthesis unlock fallback */
+          }
         } else {
           // iOS/Desktop: retain the existing unlock behavior exactly.
           const prime = new SpeechSynthesisUtterance(" ");
@@ -654,8 +669,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       try {
         const audio = new Audio();
         audio.preload = "auto";
+        audio.playsInline = true;
         audio.volume = 1;
         androidPlaybackAudioRef.current = audio;
+
+        // One tiny, inaudible media play initiated directly from the tap
+        // establishes the media element as user-activated on browsers that
+        // otherwise reject a later play() after the async TTS fetch.
+        audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAAA";
+        const unlockPromise = audio.play();
+        if (unlockPromise) {
+          unlockPromise
+            .then(() => {
+              window.setTimeout(() => {
+                try {
+                  audio.pause();
+                  audio.currentTime = 0;
+                } catch {
+                  /* noop */
+                }
+              }, 30);
+            })
+            .catch(() => {
+              /* Some browsers reject the synthetic silent source; hosted
+               playback still has the Web Audio fallback. */
+            });
+        }
       } catch {
         /* Browser may block Audio construction */
       }
@@ -1039,7 +1078,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         if (!chunks.length) return false;
 
-        const preferredVoice = await getAvailableVoice(synthesis);
+        // Do not await voices on Android. Waiting for voiceschanged can
+        // move speech synthesis outside the browser's user-activation
+        // window on some tablet builds. Use the currently available voice
+        // synchronously; the language fallback works when the list is not
+        // populated yet.
+        const availableVoices = synthesis.getVoices?.() || [];
+        const preferredVoice =
+          availableVoices.find((voice) => voice.localService && /^en(-|_)/i.test(voice.lang)) ||
+          availableVoices.find((voice) => /^en(-|_)/i.test(voice.lang)) ||
+          null;
 
         if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
           return false;
@@ -1285,82 +1333,75 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [getAvailableVoice],
   );
 
-  const playHostedAudioOnAndroid = useCallback(async (audioBytes: ArrayBuffer, token: number): Promise<boolean> => {
-    if (!isAndroidRef.current || typeof window === "undefined") return false;
-    if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+  const playHostedAudioOnAndroid = useCallback(
+    async (audioBytes: ArrayBuffer, token: number): Promise<boolean> => {
+      if (!isAndroidRef.current || typeof window === "undefined") return false;
+      if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
 
-    try {
-      const blob = new Blob([audioBytes], { type: "audio/mpeg" });
-      const url = URL.createObjectURL(blob);
-      hostedObjectUrlRef.current = url;
-
-      const audio = androidPlaybackAudioRef.current ?? new Audio();
-      audio.preload = "auto";
-      (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
-      audio.src = url;
-      audio.currentTime = 0;
-      hostedAudioRef.current = audio;
-
-      await new Promise<void>((resolve, reject) => {
-        let settled = false;
-        const finish = (error?: Error) => {
-          if (settled) return;
-          settled = true;
-          audio.onended = null;
-          audio.onerror = null;
-
-          if (error) reject(error);
-          else resolve();
-        };
-
-        audio.onended = () => finish();
-        audio.onerror = () => finish(new Error("Android hosted TTS playback failed"));
-
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
-
-        const playPromise = audio.play();
-        if (playPromise) {
-          playPromise.catch((error) => finish(error instanceof Error ? error : new Error("Playback blocked")));
+      try {
+        // The AudioContext is already opened by the microphone waveform while
+        // the user is interacting with the voice control. Using it here
+        // avoids Android tablet autoplay restrictions that can reject a new
+        // HTMLAudioElement after the async TTS request completes.
+        const { ctx, analyser } = getAudioContext();
+        if (ctx.state === "suspended") {
+          await ctx.resume();
         }
-      });
 
-      isSpeakingRef.current = false;
-      setIsSpeaking(false);
-      return token === speakTokenRef.current;
-    } catch {
-      isSpeakingRef.current = false;
-      setIsSpeaking(false);
-      return false;
-    } finally {
-      if (hostedAudioRef.current === androidPlaybackAudioRef.current) {
-        hostedAudioRef.current = null;
-      } else {
-        hostedAudioRef.current = null;
-      }
+        const buffer = await ctx.decodeAudioData(audioBytes.slice(0));
 
-      if (hostedObjectUrlRef.current) {
-        try {
-          URL.revokeObjectURL(hostedObjectUrlRef.current);
-        } catch {
-          /* noop */
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+
+        // Keep the analyser output path identical to the existing TTS path.
+        const monitor = analyserMonitorRef.current;
+        if (monitor) {
+          try {
+            if (!analyserDestinationConnectedRef.current) {
+              analyser.connect(monitor);
+              monitor.connect(ctx.destination);
+              analyserDestinationConnectedRef.current = true;
+            }
+          } catch {
+            /* Graph may already be connected */
+          }
         }
-        hostedObjectUrlRef.current = null;
-      }
 
-      // Keep the reusable element alive, but clear its source after
-      // playback so it can be unlocked/reused for the next response.
-      if (androidPlaybackAudioRef.current) {
-        try {
-          androidPlaybackAudioRef.current.pause();
-          androidPlaybackAudioRef.current.removeAttribute("src");
-          androidPlaybackAudioRef.current.load();
-        } catch {
-          /* noop */
-        }
+        return await new Promise<boolean>((resolve) => {
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.playbackRate.value = 1;
+          currentSourceNodeRef.current = source;
+
+          let settled = false;
+          const finish = (success: boolean) => {
+            if (settled) return;
+            settled = true;
+            if (currentSourceNodeRef.current === source) {
+              currentSourceNodeRef.current = null;
+            }
+            resolve(success);
+          };
+
+          source.onended = () => finish(true);
+
+          isSpeakingRef.current = true;
+          setIsSpeaking(true);
+
+          try {
+            source.connect(analyser);
+            source.start(0);
+          } catch {
+            finish(false);
+          }
+        });
+      } catch {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        return false;
       }
-    }
-  }, []);
+    },
+    [getAudioContext],
+  );
 
   /* =======================================================
      HOSTED TTS WITH CLEAN LOCAL FALLBACK
@@ -1757,6 +1798,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           try {
             if (recorder.state !== "inactive") {
+              // Flush the last buffered packet before stopping. This matters
+              // on some Android tablet MediaRecorder implementations.
+              recorder.requestData?.();
+            }
+          } catch {
+            /* noop */
+          }
+
+          try {
+            if (recorder.state !== "inactive") {
               recorder.stop();
             }
           } catch {
@@ -1778,7 +1829,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
 
           try {
-            const text = (await requestAndroidTranscriptionRef.current?.(blob)) ?? "";
+            const text = await requestAndroidTranscription(blob);
 
             if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current) {
               return;
@@ -2031,7 +2082,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       });
     };
-  }, [getAudioContext]);
+  }, [getAudioContext, requestAndroidTranscription]);
 
   startListeningContinuousRef.current = startListeningContinuous;
 
@@ -2128,7 +2179,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const requestAndroidTranscription = useCallback(async (audioBlob: Blob): Promise<string> => {
     const formData = new FormData();
-    const extension = audioBlob.type.includes("mp4") ? "m4a" : "webm";
+    const mime = (audioBlob.type || "").toLowerCase();
+    const extension = mime.includes("mp4")
+      ? "mp4"
+      : mime.includes("ogg")
+        ? "ogg"
+        : mime.includes("mpeg") || mime.includes("mp3")
+          ? "mp3"
+          : mime.includes("wav")
+            ? "wav"
+            : mime.includes("aac")
+              ? "aac"
+              : "webm";
+    // Important on some Xiaomi/Android builds: MediaRecorder returns
+    // audio/mp4. Send a .mp4 filename so the existing backend's MIME
+    // detection falls back to the actual File.type (audio/mp4), rather
+    // than treating it as the nonstandard audio/m4a MIME.
     formData.append("audio", audioBlob, `gdx-recording.${extension}`);
     formData.append("language", "en-IN");
 
@@ -2171,6 +2237,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const recorder = androidRecorderRef.current;
 
     if (recorder && recorder.state !== "inactive") {
+      try {
+        // Flush the final buffered chunk first. Some Android tablet
+        // implementations otherwise drop the tail of the recording.
+        recorder.requestData?.();
+      } catch {
+        /* noop */
+      }
       try {
         recorder.stop();
       } catch {
@@ -2233,8 +2306,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       androidRecordedChunksRef.current = [];
     }
   }, [requestAndroidTranscription]);
-
-  requestAndroidTranscriptionRef.current = requestAndroidTranscription;
 
   const stopTranscribe = useCallback(() => {
     transcribeManualStopRef.current = true;
