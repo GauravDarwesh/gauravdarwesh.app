@@ -543,6 +543,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const stopVoiceSessionRef = useRef<(() => void) | null>(null);
   const stopTranscribeRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
+  const requestAndroidTranscriptionRef = useRef<((audioBlob: Blob) => Promise<string>) | null>(null);
 
   /* =======================================================
      PERSIST STATE
@@ -2232,6 +2233,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       androidRecordedChunksRef.current = [];
     }
   }, [requestAndroidTranscription]);
+
+  requestAndroidTranscriptionRef.current = requestAndroidTranscription;
 
   const stopTranscribe = useCallback(() => {
     transcribeManualStopRef.current = true;
