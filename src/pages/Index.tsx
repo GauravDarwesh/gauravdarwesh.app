@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
+import Pet from "@/components/Pet";
 
 const ANIM_MS = 3000; // same duration for all
 
@@ -38,9 +39,14 @@ const Index = () => {
         <NavigationToggle />
       </div>
 
-      {/* Search Bar */}
+      {/* Search Bar + Pet */}
       <div className="fixed top-6 inset-x-0 flex justify-center z-10">
-        <SearchBar />
+        <div className="flex items-center gap-3">
+          <SearchBar />
+          <div className="hidden md:block">
+            <Pet />
+          </div>
+        </div>
       </div>
     </div>
   );
