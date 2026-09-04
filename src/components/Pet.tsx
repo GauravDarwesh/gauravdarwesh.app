@@ -9,7 +9,7 @@ const Pet: React.FC = () => {
   return (
     <div
       aria-hidden
-      className="pointer-events-none select-none relative w-[96px] h-[78px] overflow-hidden"
+      className="pointer-events-none select-none relative w-[72px] h-[78px] overflow-hidden"
       onContextMenu={(e) => e.preventDefault()}
     >
       <style>{`
