@@ -1247,7 +1247,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           // If the function accidentally returns JSON/text instead of audio,
           // fail over immediately instead of trying to decode invalid bytes.
-          if (!arrayBuffer.byteLength || /application\\/(json | text) / i.test(contentType)) {
+          if (!arrayBuffer.byteLength || /application\/(json|text)/i.test(contentType)) {
             hostedTtsFailed = true;
             return null;
           }
