@@ -96,6 +96,17 @@ const Blog = () => {
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
+      <Helmet>
+        <title>Notions — Writing by Gaurav Darwesh</title>
+        <meta name="description" content="Essays and notes by Gaurav Darwesh on learning, growth, goals and building with AI." />
+        <link rel="canonical" href="https://gauravdarwesh.app/blog" />
+        <meta property="og:title" content="Notions — Writing by Gaurav Darwesh" />
+        <meta property="og:description" content="Essays and notes by Gaurav Darwesh on learning, growth, goals and building with AI." />
+        <meta property="og:url" content="https://gauravdarwesh.app/blog" />
+      </Helmet>
+
+      <h1 className="sr-only">Notions — writing by Gaurav Darwesh</h1>
+
       {/* Background */}
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
