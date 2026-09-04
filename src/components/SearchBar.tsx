@@ -2221,6 +2221,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       .trim();
   }, []);
 
+  requestAndroidTranscriptionRef.current = requestAndroidTranscription;
+
+
+
   const finishAndroidTranscription = useCallback(async () => {
     if (!isAndroidRef.current || !isTranscribingRef.current) return;
 
