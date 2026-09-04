@@ -27,7 +27,7 @@ const Index = () => {
         <title>Gaurav Darwesh — Portfolio</title>
         <meta
           name="description"
-          content="Product Manager Analyst specializing in Applied AI, enterprise workflow automation, and analytics. Explore Gaurav Darwesh’s portfolio, systems, and projects."
+          content="Product Manager Analyst specializing in Applied AI, enterprise workflow automation, and analytics. Explore Gaurav Darwesh’s portfolio, writings, and photography."
         />
         <link rel="canonical" href="https://gauravdarwesh.app/" />
         <meta property="og:title" content="Gaurav Darwesh — Portfolio" />
