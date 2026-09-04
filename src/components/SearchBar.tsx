@@ -543,6 +543,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const stopVoiceSessionRef = useRef<(() => void) | null>(null);
   const stopTranscribeRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
+  const requestAndroidTranscriptionRef = useRef<((audioBlob: Blob) => Promise<string>) | null>(null);
 
   /* =======================================================
      PERSIST STATE
@@ -669,7 +670,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       try {
         const audio = new Audio();
         audio.preload = "auto";
-        audio.playsInline = true;
+        (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
         audio.volume = 1;
         androidPlaybackAudioRef.current = audio;
 
@@ -1829,7 +1830,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
 
           try {
-            const text = await requestAndroidTranscription(blob);
+            const text = (await requestAndroidTranscriptionRef.current?.(blob)) ?? "";
 
             if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current) {
               return;
@@ -2082,7 +2083,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       });
     };
-  }, [getAudioContext, requestAndroidTranscription]);
+  }, [getAudioContext]);
 
   startListeningContinuousRef.current = startListeningContinuous;
 
@@ -2219,6 +2220,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       .replace(/\s+/g, " ")
       .trim();
   }, []);
+
+  requestAndroidTranscriptionRef.current = requestAndroidTranscription;
+
+
 
   const finishAndroidTranscription = useCallback(async () => {
     if (!isAndroidRef.current || !isTranscribingRef.current) return;
