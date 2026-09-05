@@ -1937,7 +1937,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return;
     }
 
-    const generation = ++recognitionGenerationRef.current;
+    generation = ++recognitionGenerationRef.current;
 
     if (recognitionRef.current) {
       try {
