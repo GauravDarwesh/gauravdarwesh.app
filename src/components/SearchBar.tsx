@@ -121,90 +121,63 @@ const convertMarkdownToHtml = (text: string): string => {
     .join("");
 };
 
-/* =========================================================
-   VOICE RESPONSE LINK EXTRACTION
-   ========================================================= */
-
-type VoiceResponseLink = {
+type VoiceLink = {
   label: string;
   url: string;
 };
 
-const extractVoiceResponseLinks = (text: string): VoiceResponseLink[] => {
-  const links: VoiceResponseLink[] = [];
+const getVoiceLinkLabel = (url: string, markdownLabel?: string): string => {
+  const cleanMarkdownLabel = markdownLabel?.trim();
+  if (cleanMarkdownLabel) return cleanMarkdownLabel;
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+
+    if (host.includes("linkedin.com")) return "LinkedIn";
+    if (host.includes("instagram.com")) return "Instagram";
+    if (host.includes("github.com")) return "GitHub";
+    if (host.includes("twitter.com") || host.includes("x.com")) return "X";
+    if (host.includes("youtube.com") || host.includes("youtu.be")) return "YouTube";
+    if (host.includes("facebook.com")) return "Facebook";
+    if (host.includes("calendar.app.google") || host.includes("calendly.com")) return "Book a call";
+    if (host.includes("wa.me") || host.includes("whatsapp.com")) return "WhatsApp";
+
+    return host;
+  } catch {
+    return "Open link";
+  }
+};
+
+const extractVoiceLinks = (text: string): VoiceLink[] => {
+  const links: VoiceLink[] = [];
   const seen = new Set<string>();
 
-  const knownLabels: Record<string, string> = {
-    "linkedin.com": "LinkedIn",
-    "instagram.com": "Instagram",
-    "github.com": "GitHub",
-    "youtube.com": "YouTube",
-    "youtu.be": "YouTube",
-    "x.com": "X",
-    "twitter.com": "X",
-    "facebook.com": "Facebook",
-    "threads.net": "Threads",
-    "calendar.app.google": "Book a call",
-    "calendly.com": "Book a call",
-  };
+  const addLink = (url: string, markdownLabel?: string) => {
+    const normalized = url.trim().replace(/[),.!?;:]+$/g, "");
+    if (!/^https?:\/\//i.test(normalized)) return;
 
-  const addLink = (rawLabel: string, rawUrl: string) => {
-    let url = rawUrl.trim();
-    url = url.replace(/[.,!?;:]+$/, "");
-    url = url.replace(/[)\]}]+$/, "");
-
-    if (!/^https?:\/\//i.test(url)) return;
-
-    try {
-      url = new URL(url).toString();
-    } catch {
-      return;
-    }
-
-    const key = url.replace(/\/+$|[?#]$/, "").toLowerCase();
+    const key = normalized.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
 
-    const cleanLabel = rawLabel
-      .replace(/[*_`~]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    let hostname = "";
-    try {
-      hostname = new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
-    } catch {
-      /* URL was already validated above. */
-    }
-
     links.push({
-      label: cleanLabel || knownLabels[hostname] || `Open ${hostname || "link"}`,
-      url,
+      url: normalized,
+      label: getVoiceLinkLabel(normalized, markdownLabel),
     });
   };
 
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi;
-  let match: RegExpExecArray | null;
-
-  while ((match = markdownLinkPattern.exec(text)) !== null) {
-    addLink(match[1], match[2]);
+  for (const match of text.matchAll(markdownLinkPattern)) {
+    addLink(match[2], match[1]);
   }
 
-  const plainUrlPattern = /https?:\/\/[^\s<>"']+/gi;
-  while ((match = plainUrlPattern.exec(text)) !== null) {
-    const url = match[0];
-    let hostname = "";
-    try {
-      hostname = new URL(url.replace(/[.,!?;:]+$/, "").replace(/[)\]}]+$/, "")).hostname
-        .replace(/^www\./i, "")
-        .toLowerCase();
-    } catch {
-      /* addLink will reject malformed URLs. */
-    }
-    addLink(knownLabels[hostname] || "", url);
+  const plainUrlPattern = /https?:\/\/[^\s<>()]+/gi;
+  for (const match of text.matchAll(plainUrlPattern)) {
+    addLink(match[0]);
   }
 
-  return links;
+  return links.slice(0, 4);
 };
 
 /* =========================================================
@@ -522,7 +495,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
-  const [voiceResponseLinks, setVoiceResponseLinks] = useState<VoiceResponseLink[]>([]);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -532,6 +504,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceLinks, setVoiceLinks] = useState<VoiceLink[]>([]);
+  const [voiceLinksVisible, setVoiceLinksVisible] = useState(false);
+  const [voiceLinksExiting, setVoiceLinksExiting] = useState(false);
+
+  const voiceLinksShownRef = useRef(false);
+  const voiceLinksExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isVoiceSessionRef = useRef(false);
   const isTranscribingRef = useRef(false);
@@ -920,6 +898,49 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession, isTranscribing]);
 
   /* =======================================================
+     VOICE RESPONSE LINK BUBBLES
+     ======================================================= */
+
+  const hideVoiceLinkBubbles = useCallback(() => {
+    if (voiceLinksExitTimerRef.current) {
+      clearTimeout(voiceLinksExitTimerRef.current);
+      voiceLinksExitTimerRef.current = null;
+    }
+
+    if (!voiceLinksVisible && !voiceLinks.length) return;
+
+    setVoiceLinksExiting(true);
+
+    voiceLinksExitTimerRef.current = setTimeout(() => {
+      setVoiceLinksVisible(false);
+      setVoiceLinksExiting(false);
+      setVoiceLinks([]);
+      voiceLinksShownRef.current = false;
+      voiceLinksExitTimerRef.current = null;
+    }, 400);
+  }, [voiceLinks.length, voiceLinksVisible]);
+
+  const prepareVoiceLinkBubbles = useCallback((links: VoiceLink[]) => {
+    if (voiceLinksExitTimerRef.current) {
+      clearTimeout(voiceLinksExitTimerRef.current);
+      voiceLinksExitTimerRef.current = null;
+    }
+
+    setVoiceLinks(links);
+    setVoiceLinksVisible(false);
+    setVoiceLinksExiting(false);
+    voiceLinksShownRef.current = false;
+  }, []);
+
+  const revealVoiceLinkBubbles = useCallback(() => {
+    if (voiceLinksShownRef.current || !voiceLinks.length || !isVoiceSessionRef.current) return;
+
+    voiceLinksShownRef.current = true;
+    setVoiceLinksExiting(false);
+    setVoiceLinksVisible(true);
+  }, [voiceLinks]);
+
+  /* =======================================================
      STOP AUDIO
      ======================================================= */
 
@@ -1133,6 +1154,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               activeUtteranceRef.current = utterance;
 
               utterance.onstart = () => {
+                revealVoiceLinkBubbles();
+
                 if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
                   try {
                     synthesis.cancel();
@@ -1274,6 +1297,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         activeUtteranceRef.current = utterance;
 
         utterance.onstart = () => {
+          revealVoiceLinkBubbles();
+
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
             try {
               synthesis.cancel();
@@ -1417,7 +1442,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           const playPromise = audio.play();
           if (playPromise) {
-            playPromise.catch((error) => finish(error instanceof Error ? error : new Error("Playback blocked")));
+            playPromise
+              .then(() => {
+                revealVoiceLinkBubbles();
+              })
+              .catch((error) => finish(error instanceof Error ? error : new Error("Playback blocked")));
+          } else {
+            revealVoiceLinkBubbles();
           }
         });
 
@@ -1492,7 +1523,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsListening(false);
 
       const token = ++speakTokenRef.current;
-      setVoiceResponseLinks(extractVoiceResponseLinks(raw));
+      const extractedVoiceLinks = extractVoiceLinks(raw);
+      prepareVoiceLinkBubbles(extractedVoiceLinks);
 
       const clean = raw
         .replace(/```[\s\S]*?```/g, " ")
@@ -1705,6 +1737,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             source.onended = finish;
 
             try {
+              revealVoiceLinkBubbles();
               source.start(0);
             } catch {
               finish();
@@ -1819,6 +1852,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       isSpeakingRef.current = false;
       setIsSpeaking(false);
+      hideVoiceLinkBubbles();
       reconnectMicAfterPlayback();
 
       if (isVoiceSessionRef.current && allPlayed) {
@@ -1839,7 +1873,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }, 250);
       }
     },
-    [getAudioContext, playHostedAudioOnAndroid, speakWithBrowserTTS, stopAudioOnly],
+    [
+      getAudioContext,
+      playHostedAudioOnAndroid,
+      speakWithBrowserTTS,
+      stopAudioOnly,
+      prepareVoiceLinkBubbles,
+      revealVoiceLinkBubbles,
+      hideVoiceLinkBubbles,
+    ],
   );
 
   /* =======================================================
@@ -2278,7 +2320,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsVoiceSession(false);
     setIsListening(false);
-    setVoiceResponseLinks([]);
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
@@ -2313,7 +2354,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
 
     stopAudioOnly();
-  }, [stopAudioOnly]);
+    hideVoiceLinkBubbles();
+  }, [stopAudioOnly, hideVoiceLinkBubbles]);
 
   stopVoiceSessionRef.current = stopVoiceSession;
 
@@ -2334,7 +2376,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     primeMobileAudioSession();
     setResponse(null);
     setSuggestions([]);
-    setVoiceResponseLinks([]);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
@@ -2724,6 +2765,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     return () => {
       recognitionGenerationRef.current += 1;
 
+      if (voiceLinksExitTimerRef.current) clearTimeout(voiceLinksExitTimerRef.current);
+      voiceLinksExitTimerRef.current = null;
+
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (transcribeRestartTimerRef.current) clearTimeout(transcribeRestartTimerRef.current);
 
@@ -2817,14 +2861,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
 
-    if (!fromVoice) {
-      setVoiceResponseLinks([]);
-    }
-
     if (!customQuery) setQuery("");
 
     if (!fromVoice) {
       stopVoiceSession();
+      hideVoiceLinkBubbles();
 
       if (response || suggestions.length > 0) {
         setIsCollapsingToThink(true);
@@ -2992,24 +3033,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {isVoiceSession && voiceResponseLinks.length > 0 && (
-        <div className="flex gap-2 flex-wrap justify-center max-w-[92vw]" aria-label="Links from GDx response">
-          {voiceResponseLinks.map((link, index) => (
-            <a
-              key={`${link.url}-${index}`}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => event.stopPropagation()}
-              className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-all hover:bg-white/30 active:scale-95"
-              title={link.url}
-            >
-              ↗ {link.label}
-            </a>
-          ))}
-        </div>
-      )}
-
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
@@ -3026,6 +3049,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }}
         >
           {fullText}
+        </div>
+      )}
+
+      {voiceLinks.length > 0 && voiceLinksVisible && isVoiceSession && !isTranscribing && (
+        <div
+          className="flex flex-wrap justify-center gap-2 max-w-[92vw]"
+          style={{
+            animation: voiceLinksExiting
+              ? "suggestionBlurOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+              : "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+          }}
+        >
+          {voiceLinks.map((link) => (
+            <a
+              key={link.url}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis hover:bg-white/30 active:scale-95 transition-all"
+              aria-label={`Open ${link.label}`}
+            >
+              ↗ {link.label}
+            </a>
+          ))}
         </div>
       )}
 
