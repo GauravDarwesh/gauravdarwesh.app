@@ -2367,6 +2367,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const generation = ++transcribeGenerationRef.current;
     transcribeManualStopRef.current = false;
     transcribeTranscriptRef.current = "";
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      alert("Speech recognition is not supported by this browser.");
+      return;
+    }
+
 
     /* -------------------------------------------------------
        ANDROID: MediaRecorder + Web Audio analyser
@@ -2522,7 +2529,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       isTranscribingRef.current = true;
       setIsListening(true);
 
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionCtor();
       recognition.lang = "en-US";
       recognition.interimResults = true;
       recognition.continuous = true;
