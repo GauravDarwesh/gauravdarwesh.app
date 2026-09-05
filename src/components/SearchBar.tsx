@@ -943,6 +943,73 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   /* =======================================================
+     STOP VOICE SESSION (RECORDING + PLAYBACK)
+     ======================================================= */
+
+  const stopVoiceSession = useCallback(() => {
+    recognitionGenerationRef.current += 1;
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    }
+
+    if (androidRecorderRef.current) {
+      try {
+        if (androidRecorderRef.current.state !== "inactive") {
+          androidRecorderRef.current.ondataavailable = null;
+          androidRecorderRef.current.onstop = null;
+          androidRecorderRef.current.onerror = null;
+          androidRecorderRef.current.stop();
+        }
+      } catch {
+        /* noop */
+      }
+      androidRecorderRef.current = null;
+    }
+
+    if (micSourceRef.current) {
+      try {
+        micSourceRef.current.disconnect();
+      } catch {
+        /* noop */
+      }
+      micSourceRef.current = null;
+    }
+
+    if (micStreamRef.current) {
+      try {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {
+        /* noop */
+      }
+      micStreamRef.current = null;
+    }
+
+    stopAudioOnly();
+
+    transcriptRef.current = "";
+    isVoiceSessionRef.current = false;
+    setIsVoiceSession(false);
+    setIsListening(false);
+  }, [stopAudioOnly]);
+
+  useEffect(() => {
+    stopVoiceSessionRef.current = stopVoiceSession;
+  }, [stopVoiceSession]);
+
+  /* =======================================================
      NATIVE BROWSER TTS (SAFE FOR IOS & ANDROID)
      ======================================================= */
 
