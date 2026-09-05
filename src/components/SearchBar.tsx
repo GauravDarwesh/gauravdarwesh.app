@@ -488,7 +488,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const androidRecorderRef = useRef<MediaRecorder | null>(null);
   const androidRecordedChunksRef = useRef<Blob[]>([]);
   const androidRecordingMimeTypeRef = useRef<string>("");
-  const androidRecordingPromiseRef = useRef<Promise<string> | null>(null);
+  const androidRecordingPromiseRef = useRef<Promise<Blob> | null>(null);
   const isXiaomiRef = useRef(
     typeof navigator !== "undefined" && /Xiaomi|Redmi|POCO|MiuiBrowser|MIUI|Mi\s?Pad/i.test(navigator.userAgent || ""),
   );
