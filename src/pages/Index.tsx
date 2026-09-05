@@ -1750,7 +1750,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const startListeningContinuous = useCallback(async () => {
     if (!isVoiceSessionRef.current || isSpeakingRef.current) return;
 
-    const generation = ++recognitionGenerationRef.current;
+    let generation = ++recognitionGenerationRef.current;
 
     /* -------------------------------------------------------
        XIAOMI ONLY: MediaRecorder -> Supabase transcription
