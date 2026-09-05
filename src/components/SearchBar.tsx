@@ -1372,7 +1372,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   );
 
   /* =======================================================
-     HOSTED TTS WITH CLEAN LOCAL FALLBACK (now fetches once)
+     FAST HOSTED TTS WITH SENTENCE QUEUE
+
+     IMPORTANT:
+     - The existing UI / waveform / transcription / Android logic remains untouched.
+     - Voice responses are split into short natural chunks.
+     - TTS for the next chunk is prefetched while the current chunk is speaking.
+     - The first chunk is played as soon as its TTS request finishes.
      ======================================================= */
 
   const speakVoiceResponse = useCallback(
@@ -1421,9 +1427,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return;
       }
 
-      // We'll attempt to fetch the entire response as one audio buffer.
-      let hostedTtsFailed = false;
-
       const disconnectMicForPlayback = () => {
         if (micSourceRef.current) {
           try {
@@ -1453,71 +1456,127 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       };
 
-      // Single fetch for entire text
-      let audioBuffer: AudioBuffer | null = null;
-      let androidPlayed = false;
+      /*
+       * Keep chunks fairly small so the first TTS response is fast, while
+       * keeping enough words together that speech still sounds natural.
+       */
+      const splitForRealtimeSpeech = (text: string): string[] => {
+        const sentenceParts = text
+          .split(/(?<=[.!?])\s+/)
+          .map((part) => part.trim())
+          .filter(Boolean);
 
-      try {
-        const res = await fetch(TTS_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            apikey: SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ text: clean }),
-        });
+        const chunks: string[] = [];
+        let pending = "";
 
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          if (res.status === 429) rememberTtsQuotaLimit(body);
-          hostedTtsFailed = true;
-        } else {
-          const contentType = res.headers.get("content-type") || "";
-          const arrayBuffer = await res.arrayBuffer();
+        const flush = () => {
+          const value = pending.trim();
+          if (value) chunks.push(value);
+          pending = "";
+        };
 
-          if (!arrayBuffer.byteLength || /application\/(json|text)/i.test(contentType)) {
-            hostedTtsFailed = true;
-          } else if (isAndroidRef.current) {
-            // Android: play directly using the reusable audio element or Web Audio
-            androidPlayed = await playHostedAudioOnAndroid(arrayBuffer, token);
-            if (!androidPlayed) hostedTtsFailed = true;
+        for (const sentence of sentenceParts) {
+          if (!pending) {
+            if (sentence.length <= 150) {
+              pending = sentence;
+            } else {
+              const words = sentence.split(/\s+/);
+              let current = "";
+
+              for (const word of words) {
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length > 150 && current) {
+                  chunks.push(current);
+                  current = word;
+                } else {
+                  current = candidate;
+                }
+              }
+
+              pending = current;
+            }
+          } else if (`${pending} ${sentence}`.length <= 190) {
+            pending = `${pending} ${sentence}`;
           } else {
-            const audioGraph = getAudioContext();
-            if (audioGraph.ctx.state === "suspended") await audioGraph.ctx.resume();
-            try {
-              audioBuffer = await audioGraph.ctx.decodeAudioData(arrayBuffer.slice(0));
-            } catch {
-              hostedTtsFailed = true;
+            flush();
+
+            if (sentence.length <= 150) {
+              pending = sentence;
+            } else {
+              const words = sentence.split(/\s+/);
+              let current = "";
+
+              for (const word of words) {
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length > 150 && current) {
+                  chunks.push(current);
+                  current = word;
+                } else {
+                  current = candidate;
+                }
+              }
+
+              pending = current;
             }
           }
         }
-      } catch {
-        hostedTtsFailed = true;
+
+        flush();
+
+        return chunks.length ? chunks : [text];
+      };
+
+      const chunks = splitForRealtimeSpeech(clean);
+      if (!chunks.length) {
+        reconnectMicAfterPlayback();
+        return;
       }
 
-      if (hostedTtsFailed || (!androidPlayed && !audioBuffer && !isAndroidRef.current)) {
-        // Fallback to browser TTS
-        disconnectMicForPlayback();
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
-        await speakWithBrowserTTS(clean, token);
-        isSpeakingRef.current = false;
-        setIsSpeaking(false);
-        reconnectMicAfterPlayback();
-      } else {
-        // Played via hosted TTS (Android or Web Audio)
-        disconnectMicForPlayback();
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
+      /*
+       * Fetch only the requested TTS chunk here. Playback is deliberately
+       * separated so later chunks can be generated while the current one plays.
+       */
+      const fetchHostedAudio = async (text: string): Promise<ArrayBuffer | null> => {
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return null;
 
-        if (androidPlayed) {
-          // Already played; just wait a bit for natural pause
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        } else if (audioBuffer) {
-          // Web Audio playback
+        try {
+          const res = await fetch(TTS_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+              apikey: SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ text }),
+          });
+
+          if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            if (res.status === 429) rememberTtsQuotaLimit(body);
+            return null;
+          }
+
+          const contentType = res.headers.get("content-type") || "";
+          const bytes = await res.arrayBuffer();
+
+          if (!bytes.byteLength || /application\/(json|text)/i.test(contentType)) {
+            return null;
+          }
+
+          return bytes;
+        } catch {
+          return null;
+        }
+      };
+
+      const playDesktopAudio = async (audioBytes: ArrayBuffer): Promise<boolean> => {
+        try {
           const audioGraph = getAudioContext();
           if (audioGraph.ctx.state === "suspended") await audioGraph.ctx.resume();
+
+          const audioBuffer = await audioGraph.ctx.decodeAudioData(audioBytes.slice(0));
+
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
 
           await new Promise<void>((resolve) => {
             const source = audioGraph.ctx.createBufferSource();
@@ -1525,13 +1584,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             source.playbackRate.value = 1.0;
 
             const monitor = analyserMonitorRef.current;
-            if (monitor) {
+            if (monitor && !analyserDestinationConnectedRef.current) {
               try {
-                if (!analyserDestinationConnectedRef.current) {
-                  audioGraph.analyser.connect(monitor);
-                  monitor.connect(audioGraph.ctx.destination);
-                  analyserDestinationConnectedRef.current = true;
-                }
+                audioGraph.analyser.connect(monitor);
+                monitor.connect(audioGraph.ctx.destination);
+                analyserDestinationConnectedRef.current = true;
               } catch {
                 /* noop */
               }
@@ -1540,28 +1597,121 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             source.connect(audioGraph.analyser);
             currentSourceNodeRef.current = source;
 
+            let settled = false;
             const finish = () => {
+              if (settled) return;
+              settled = true;
+              source.onended = null;
               if (currentSourceNodeRef.current === source) {
                 currentSourceNodeRef.current = null;
+              }
+              try {
+                source.disconnect();
+              } catch {
+                /* noop */
               }
               resolve();
             };
 
             source.onended = finish;
+
             try {
               source.start(0);
             } catch {
               finish();
             }
           });
+
+          return true;
+        } catch {
+          return false;
         }
+      };
+
+      const playOneChunk = async (text: string, audioBytesPromise?: Promise<ArrayBuffer | null>): Promise<boolean> => {
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+
+        const audioBytes = audioBytesPromise ? await audioBytesPromise : await fetchHostedAudio(text);
+
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+
+        if (audioBytes) {
+          disconnectMicForPlayback();
+          isSpeakingRef.current = true;
+          setIsSpeaking(true);
+
+          let didPlay = false;
+
+          if (isAndroidRef.current) {
+            didPlay = await playHostedAudioOnAndroid(audioBytes, token);
+          } else {
+            didPlay = await playDesktopAudio(audioBytes);
+          }
+
+          if (didPlay) {
+            return true;
+          }
+
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+        }
+
+        /*
+         * Only this individual chunk falls back to browser TTS. This keeps a
+         * provider hiccup from making the user wait for the whole response.
+         */
+        disconnectMicForPlayback();
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+
+        const fallbackWorked = await speakWithBrowserTTS(text, token);
 
         isSpeakingRef.current = false;
         setIsSpeaking(false);
-        reconnectMicAfterPlayback();
+        return fallbackWorked;
+      };
+
+      /*
+       * Start the first TTS request immediately. As soon as it is playing,
+       * request the next chunk so its network + TTS latency is hidden behind
+       * the user's current audio.
+       */
+      const prefetches: Array<Promise<ArrayBuffer | null> | null> = Array(chunks.length).fill(null);
+
+      prefetches[0] = fetchHostedAudio(chunks[0]);
+
+      disconnectMicForPlayback();
+
+      let allPlayed = true;
+
+      for (let index = 0; index < chunks.length; index++) {
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+          allPlayed = false;
+          break;
+        }
+
+        if (index + 1 < chunks.length && !prefetches[index + 1]) {
+          prefetches[index + 1] = fetchHostedAudio(chunks[index + 1]);
+        }
+
+        const didPlay = await playOneChunk(chunks[index], prefetches[index] ?? undefined);
+
+        if (!didPlay) {
+          allPlayed = false;
+          break;
+        }
+
+        /* Fire the following request while this chunk is still fresh in the queue. */
+        if (index + 2 < chunks.length && !prefetches[index + 2]) {
+          prefetches[index + 2] = fetchHostedAudio(chunks[index + 2]);
+        }
+
+        /* Tiny natural transition; no long artificial delay. */
+        if (index < chunks.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
       }
 
-      // Cleanup analyser connection
       if (analyserDestinationConnectedRef.current && analyserRef.current && analyserMonitorRef.current) {
         try {
           analyserRef.current.disconnect(analyserMonitorRef.current);
@@ -1578,20 +1728,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         analyserDestinationConnectedRef.current = false;
       }
 
-      // Delay to avoid acoustic feedback
-      if (isVoiceSessionRef.current) {
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      reconnectMicAfterPlayback();
+
+      if (isVoiceSessionRef.current && allPlayed) {
         setTimeout(() => {
           if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
             transcriptRef.current = "";
             reconnectMicAfterPlayback();
             void startListeningContinuousRef.current?.();
           }
-        }, 600);
-      } else {
-        reconnectMicAfterPlayback();
+        }, 250);
+      } else if (isVoiceSessionRef.current && !isSpeakingRef.current) {
+        setTimeout(() => {
+          if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
+            transcriptRef.current = "";
+            reconnectMicAfterPlayback();
+            void startListeningContinuousRef.current?.();
+          }
+        }, 250);
       }
     },
-    [getAudioContext, speakWithBrowserTTS, stopAudioOnly, playHostedAudioOnAndroid],
+    [getAudioContext, playHostedAudioOnAndroid, speakWithBrowserTTS, stopAudioOnly],
   );
 
   /* =======================================================
