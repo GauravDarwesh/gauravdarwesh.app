@@ -12,6 +12,7 @@ import { sendChatMessage } from "@/lib/api";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
+const TRANSCRIBE_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-transcribe`;
 
 const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
 const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
@@ -524,6 +525,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const transcribeGenerationRef = useRef(0);
   const transcribeManualStopRef = useRef(false);
   const transcribeRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const androidRecorderRef = useRef<MediaRecorder | null>(null);
+  const androidRecordedChunksRef = useRef<Blob[]>([]);
+  const androidRecordingMimeTypeRef = useRef("audio/webm");
+  const androidRecordingPromiseRef = useRef<Promise<Blob> | null>(null);
+  const androidTranscribeSilenceMonitorRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const hostedAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -538,6 +544,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const stopVoiceSessionRef = useRef<(() => void) | null>(null);
   const stopTranscribeRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
+  const requestAndroidTranscriptionRef = useRef<((audioBlob: Blob) => Promise<string>) | null>(null);
 
   /* =======================================================
      PERSIST STATE
@@ -622,19 +629,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     if (typeof window === "undefined") return;
 
-    if ("speechSynthesis" in window) {
+    // Android intentionally never touches window.speechSynthesis (see
+    // playHostedAudioOnAndroid / speakVoiceResponse) — MIUI/HyperOS binds a
+    // non-functional internal engine that can deadlock onstart/onend, so
+    // there is nothing useful to unlock here on Android.
+    if (!isAndroid && "speechSynthesis" in window) {
       try {
-        if (isAndroid) {
-          // Android: synchronously clear stale queued utterances. Do NOT queue
-          // a dummy utterance because it can occupy Chrome's speech engine and
-          // interfere with the real response later.
-          window.speechSynthesis.cancel();
-        } else {
-          // iOS/Desktop: retain the existing unlock behavior exactly.
-          const prime = new SpeechSynthesisUtterance(" ");
-          prime.volume = 0.01;
-          window.speechSynthesis.speak(prime);
-        }
+        const prime = new SpeechSynthesisUtterance(" ");
+        prime.volume = 0.01;
+        window.speechSynthesis.speak(prime);
       } catch {
         /* Speech synthesis unlock fallback */
       }
@@ -648,8 +651,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       try {
         const audio = new Audio();
         audio.preload = "auto";
+        audio.playsInline = true;
         audio.volume = 1;
         androidPlaybackAudioRef.current = audio;
+
+        // One tiny, inaudible media play initiated directly from the tap
+        // establishes the media element as user-activated on browsers that
+        // otherwise reject a later play() after the async TTS fetch.
+        audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAAA";
+        const unlockPromise = audio.play();
+        if (unlockPromise) {
+          unlockPromise
+            .then(() => {
+              window.setTimeout(() => {
+                try {
+                  audio.pause();
+                  audio.currentTime = 0;
+                } catch {
+                  /* noop */
+                }
+              }, 30);
+            })
+            .catch(() => {
+              /* Some browsers reject the synthetic silent source; hosted
+               playback still has the Web Audio fallback. */
+            });
+        }
       } catch {
         /* Browser may block Audio construction */
       }
@@ -1033,7 +1060,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         if (!chunks.length) return false;
 
-        const preferredVoice = await getAvailableVoice(synthesis);
+        // Do not await voices on Android. Waiting for voiceschanged can
+        // move speech synthesis outside the browser's user-activation
+        // window on some tablet builds. Use the currently available voice
+        // synchronously; the language fallback works when the list is not
+        // populated yet.
+        const availableVoices = synthesis.getVoices?.() || [];
+        const preferredVoice =
+          availableVoices.find((voice) => voice.localService && /^en(-|_)/i.test(voice.lang)) ||
+          availableVoices.find((voice) => /^en(-|_)/i.test(voice.lang)) ||
+          null;
 
         if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
           return false;
@@ -1283,74 +1319,74 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!isAndroidRef.current || typeof window === "undefined") return false;
     if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
 
+    // Play back through the single reusable <audio> element that was
+    // synchronously unlocked inside the user's tap gesture in
+    // primeMobileAudioSession(). Instantiating `new Audio(url)` here
+    // (after this async network round-trip) is exactly what Android/MIUI
+    // autoplay policy blocks, since the transient user-activation token
+    // has already expired by the time this code runs.
+    const audio = androidPlaybackAudioRef.current;
+    if (!audio) return false;
+
+    let objectUrl: string | null = null;
+
     try {
       const blob = new Blob([audioBytes], { type: "audio/mpeg" });
-      const url = URL.createObjectURL(blob);
-      hostedObjectUrlRef.current = url;
+      objectUrl = URL.createObjectURL(blob);
+      hostedObjectUrlRef.current = objectUrl;
 
-      const audio = androidPlaybackAudioRef.current ?? new Audio();
-      audio.preload = "auto";
-      (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
-      audio.src = url;
+      audio.pause();
       audio.currentTime = 0;
+      audio.src = objectUrl;
+      audio.load();
       hostedAudioRef.current = audio;
 
-      await new Promise<void>((resolve, reject) => {
+      const played = await new Promise<boolean>((resolve) => {
         let settled = false;
-        const finish = (error?: Error) => {
+
+        const finish = (success: boolean) => {
           if (settled) return;
           settled = true;
           audio.onended = null;
           audio.onerror = null;
-
-          if (error) reject(error);
-          else resolve();
+          resolve(success);
         };
 
-        audio.onended = () => finish();
-        audio.onerror = () => finish(new Error("Android hosted TTS playback failed"));
+        audio.onended = () => finish(true);
+        audio.onerror = () => finish(false);
 
         isSpeakingRef.current = true;
         setIsSpeaking(true);
 
         const playPromise = audio.play();
-        if (playPromise) {
-          playPromise.catch((error) => finish(error instanceof Error ? error : new Error("Playback blocked")));
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch(() => finish(false));
         }
       });
 
-      isSpeakingRef.current = false;
-      setIsSpeaking(false);
-      return token === speakTokenRef.current;
+      return token === speakTokenRef.current && played;
     } catch {
-      isSpeakingRef.current = false;
-      setIsSpeaking(false);
       return false;
     } finally {
-      if (hostedAudioRef.current === androidPlaybackAudioRef.current) {
-        hostedAudioRef.current = null;
-      } else {
-        hostedAudioRef.current = null;
+      if (token === speakTokenRef.current) {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
       }
 
-      if (hostedObjectUrlRef.current) {
+      try {
+        audio.pause();
+      } catch {
+        /* noop */
+      }
+
+      if (objectUrl) {
         try {
-          URL.revokeObjectURL(hostedObjectUrlRef.current);
+          URL.revokeObjectURL(objectUrl);
         } catch {
           /* noop */
         }
-        hostedObjectUrlRef.current = null;
-      }
-
-      // Keep the reusable element alive, but clear its source after
-      // playback so it can be unlocked/reused for the next response.
-      if (androidPlaybackAudioRef.current) {
-        try {
-          androidPlaybackAudioRef.current.pause();
-          androidPlaybackAudioRef.current.removeAttribute("src");
-          androidPlaybackAudioRef.current.load();
-        } catch {
-          /* noop */
+        if (hostedObjectUrlRef.current === objectUrl) {
+          hostedObjectUrlRef.current = null;
         }
       }
     }
@@ -1519,9 +1555,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             isSpeakingRef.current = true;
             setIsSpeaking(true);
 
-            // Cohesive single pass fallback without looping or stutter
-            const remainingCombined = sentences.slice(i).join(" ");
-            await speakWithBrowserTTS(remainingCombined, token);
+            if (!isAndroidRef.current) {
+              // Cohesive single pass fallback without looping or stutter
+              // (iOS/Desktop only — see Android branch below).
+              const remainingCombined = sentences.slice(i).join(" ");
+              await speakWithBrowserTTS(remainingCombined, token);
+            }
+            // On Android, never fall back to window.speechSynthesis: MIUI/
+            // HyperOS binds a non-functional internal TTS engine that never
+            // fires onstart/onend/onerror, which would deadlock the voice
+            // session in isSpeaking=true forever. Instead, cleanly drop out
+            // of speaking state here — the response text is already shown
+            // in the UI — and let the `finally` block below reconnect the
+            // mic and resume listening.
             return;
           }
 
@@ -1632,14 +1678,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const startListeningContinuous = useCallback(async () => {
     if (!isVoiceSessionRef.current || isSpeakingRef.current) return;
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      console.warn("Speech recognition is not supported in this browser.");
-      stopVoiceSessionRef.current?.();
-      return;
-    }
-
     const generation = ++recognitionGenerationRef.current;
 
     if (recognitionRef.current) {
@@ -1653,42 +1691,268 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       recognitionRef.current = null;
     }
 
-    if (!isVoiceSessionRef.current) return;
+    if (isAndroidRef.current) {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        console.warn("Android audio recording is not supported in this browser.");
+        stopVoiceSessionRef.current?.();
+        return;
+      }
 
-    try {
-      setIsListening(true);
-
-      // Android Chrome can have trouble when getUserMedia and its separate
-      // SpeechRecognition service compete for the microphone. Let recognition
-      // own the microphone on Android; desktop/iOS retain the real analyser.
-      if (!isAndroidRef.current) {
+      try {
         const { ctx, analyser } = getAudioContext();
-
         if (ctx.state === "suspended") {
           await ctx.resume();
         }
 
-        if (!micStreamRef.current) {
-          micStreamRef.current = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              channelCount: 1,
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
-          });
+        // Relaxed constraints on Android: asking for channelCount/
+        // noiseSuppression/autoGainControl on top of echoCancellation makes
+        // Xiaomi's HAL (which runs its own multi-mic beamforming/AGC)
+        // negotiate a silent, all-zero stream instead of rejecting the
+        // unsupported combination.
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true },
+        });
+
+        if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current || isSpeakingRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
         }
 
-        if (!micSourceRef.current && micStreamRef.current) {
-          micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
-        }
+        micStreamRef.current = stream;
 
         if (micSourceRef.current) {
           try {
-            micSourceRef.current.connect(analyser);
+            micSourceRef.current.disconnect();
           } catch {
-            /* Already connected */
+            /* noop */
           }
+        }
+
+        micSourceRef.current = ctx.createMediaStreamSource(stream);
+
+        try {
+          micSourceRef.current.connect(analyser);
+        } catch {
+          /* Already connected */
+        }
+
+        const mimeCandidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"];
+        const supportedMime = mimeCandidates.find((mime) => MediaRecorder.isTypeSupported(mime)) || "";
+
+        androidRecordingMimeTypeRef.current = supportedMime || "audio/webm";
+        androidRecordedChunksRef.current = [];
+
+        const recorder = supportedMime
+          ? new MediaRecorder(stream, { mimeType: supportedMime })
+          : new MediaRecorder(stream);
+
+        androidRecorderRef.current = recorder;
+
+        androidRecordingPromiseRef.current = new Promise<Blob>((resolve, reject) => {
+          recorder.ondataavailable = (event: BlobEvent) => {
+            if (event.data && event.data.size > 0) {
+              androidRecordedChunksRef.current.push(event.data);
+            }
+          };
+
+          recorder.onerror = () => reject(new Error("Android voice recording failed."));
+
+          recorder.onstop = () => {
+            const type = recorder.mimeType || androidRecordingMimeTypeRef.current || "audio/webm";
+            const blob = new Blob(androidRecordedChunksRef.current, { type });
+            androidRecordedChunksRef.current = [];
+            androidRecorderRef.current = null;
+
+            if (!blob.size) {
+              reject(new Error("No voice audio was recorded."));
+              return;
+            }
+
+            resolve(blob);
+          };
+        });
+
+        setIsListening(true);
+        isSpeakingRef.current = false;
+
+        // Record continuously until local audio energy indicates the user
+        // has stopped speaking. This completely bypasses Android's
+        // device-dependent SpeechRecognition implementation. No timeslice
+        // argument: timesliced chunks can truncate/corrupt the WebM cluster
+        // headers on stop() in Blink/Chromium-on-Android, which the
+        // transcription backend then rejects outright. ondataavailable
+        // fires once, with the complete recording, when stop() is called.
+        recorder.start();
+
+        const data = new Uint8Array(analyser.fftSize);
+        let heardSpeech = false;
+        let lastSpeechAt = performance.now();
+        let monitorTimer: ReturnType<typeof setInterval> | null = null;
+
+        const stopSegment = async () => {
+          if (monitorTimer) {
+            clearInterval(monitorTimer);
+            monitorTimer = null;
+          }
+
+          if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current || isSpeakingRef.current) {
+            return;
+          }
+
+          try {
+            if (recorder.state !== "inactive") {
+              // Flush the last buffered packet before stopping. This matters
+              // on some Android tablet MediaRecorder implementations.
+              recorder.requestData?.();
+            }
+          } catch {
+            /* noop */
+          }
+
+          try {
+            if (recorder.state !== "inactive") {
+              recorder.stop();
+            }
+          } catch {
+            /* noop */
+          }
+
+          let blob: Blob | null = null;
+
+          try {
+            blob = androidRecordingPromiseRef.current ? await androidRecordingPromiseRef.current : null;
+          } catch (error) {
+            console.warn("Android voice recording finalization failed:", error);
+          }
+
+          androidRecordingPromiseRef.current = null;
+
+          if (!blob || !blob.size || generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current) {
+            return;
+          }
+
+          try {
+            const text = (await requestAndroidTranscriptionRef.current?.(blob)) ?? "";
+
+            if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current) {
+              return;
+            }
+
+            if (text) {
+              transcriptRef.current = "";
+              setIsListening(false);
+              handleSubmitRef.current?.(undefined, text, true);
+              return;
+            }
+          } catch (error) {
+            console.warn("Android voice transcription failed:", error);
+          }
+
+          // Nothing usable was returned. Give the user another recording
+          // segment instead of killing the voice session.
+          if (
+            generation === recognitionGenerationRef.current &&
+            isVoiceSessionRef.current &&
+            !isSpeakingRef.current &&
+            !isLoadingRef.current
+          ) {
+            setTimeout(() => {
+              if (
+                generation === recognitionGenerationRef.current &&
+                isVoiceSessionRef.current &&
+                !isSpeakingRef.current
+              ) {
+                void startListeningContinuousRef.current?.();
+              }
+            }, 120);
+          }
+        };
+
+        monitorTimer = setInterval(() => {
+          if (
+            generation !== recognitionGenerationRef.current ||
+            !isVoiceSessionRef.current ||
+            isSpeakingRef.current ||
+            isLoadingRef.current
+          ) {
+            if (monitorTimer) {
+              clearInterval(monitorTimer);
+              monitorTimer = null;
+            }
+            return;
+          }
+
+          analyser.getByteTimeDomainData(data);
+
+          let sumSquares = 0;
+          for (let i = 0; i < data.length; i++) {
+            const normalized = (data[i] - 128) / 128;
+            sumSquares += normalized * normalized;
+          }
+
+          const rms = Math.sqrt(sumSquares / data.length);
+          const now = performance.now();
+
+          // Conservative threshold avoids treating device/background noise
+          // as speech. Once speech has started, ~1.8s of consistent silence
+          // is required before finalizing the segment, so the user is never
+          // cut off mid-thought.
+          if (rms > 0.028) {
+            heardSpeech = true;
+            lastSpeechAt = now;
+          } else if (heardSpeech && now - lastSpeechAt > 1800) {
+            void stopSegment();
+          }
+        }, 100);
+      } catch (error) {
+        console.warn("Android voice setup failed:", error);
+        if (generation === recognitionGenerationRef.current) {
+          stopVoiceSessionRef.current?.();
+        }
+      }
+
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      console.warn("Speech recognition is not supported in this browser.");
+      stopVoiceSessionRef.current?.();
+      return;
+    }
+
+    if (!isVoiceSessionRef.current) return;
+
+    try {
+      const { ctx, analyser } = getAudioContext();
+
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+
+      setIsListening(true);
+
+      if (!micStreamRef.current) {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      }
+
+      if (!micSourceRef.current && micStreamRef.current) {
+        micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
+      }
+
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.connect(analyser);
+        } catch {
+          /* Already connected */
         }
       }
     } catch (error) {
@@ -1703,7 +1967,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = !isAndroidRef.current;
+    recognition.continuous = true;
     recognition.maxAlternatives = 1;
 
     recognitionRef.current = recognition;
@@ -1823,12 +2087,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       });
     };
-
-    try {
-      recognition.start();
-    } catch {
-      /* Duplicate start is harmless */
-    }
   }, [getAudioContext]);
 
   startListeningContinuousRef.current = startListeningContinuous;
@@ -1859,6 +2117,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       recognitionRef.current = null;
     }
+
+    if (androidRecorderRef.current && androidRecorderRef.current.state !== "inactive") {
+      try {
+        androidRecorderRef.current.stop();
+      } catch {
+        /* noop */
+      }
+    }
+
+    androidRecorderRef.current = null;
+    androidRecordedChunksRef.current = [];
+    androidRecordingPromiseRef.current = null;
 
     transcriptRef.current = "";
 
@@ -1912,6 +2182,143 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      TRANSCRIBE (SPEECH TO TEXT)
      ======================================================= */
 
+  const requestAndroidTranscription = useCallback(async (audioBlob: Blob): Promise<string> => {
+    const formData = new FormData();
+    const mime = (audioBlob.type || "").toLowerCase();
+    const extension = mime.includes("mp4")
+      ? "mp4"
+      : mime.includes("ogg")
+        ? "ogg"
+        : mime.includes("mpeg") || mime.includes("mp3")
+          ? "mp3"
+          : mime.includes("wav")
+            ? "wav"
+            : mime.includes("aac")
+              ? "aac"
+              : "webm";
+    // Important on some Xiaomi/Android builds: MediaRecorder returns
+    // audio/mp4. Send a .mp4 filename so the existing backend's MIME
+    // detection falls back to the actual File.type (audio/mp4), rather
+    // than treating it as the nonstandard audio/m4a MIME.
+    formData.append("audio", audioBlob, `gdx-recording.${extension}`);
+    formData.append("language", "en-IN");
+
+    const response = await fetch(TRANSCRIBE_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Transcription request failed (${response.status})${body ? `: ${body}` : ""}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    const result = contentType.includes("application/json") ? await response.json() : { text: await response.text() };
+
+    return String(result?.text ?? result?.transcript ?? result?.data?.text ?? result?.data?.transcript ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, []);
+
+  requestAndroidTranscriptionRef.current = requestAndroidTranscription;
+
+  const finishAndroidTranscription = useCallback(async () => {
+    if (!isAndroidRef.current || !isTranscribingRef.current) return;
+
+    const generation = transcribeGenerationRef.current;
+
+    isTranscribingRef.current = false;
+    setIsListening(false);
+    setIsTranscribing(false);
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    if (androidTranscribeSilenceMonitorRef.current) {
+      clearInterval(androidTranscribeSilenceMonitorRef.current);
+      androidTranscribeSilenceMonitorRef.current = null;
+    }
+
+    const recorder = androidRecorderRef.current;
+
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        // Flush the final buffered chunk first. Some Android tablet
+        // implementations otherwise drop the tail of the recording.
+        recorder.requestData?.();
+      } catch {
+        /* noop */
+      }
+      try {
+        recorder.stop();
+      } catch {
+        /* noop */
+      }
+    }
+
+    let audioBlob: Blob | null = null;
+
+    try {
+      if (androidRecordingPromiseRef.current) {
+        audioBlob = await androidRecordingPromiseRef.current;
+      }
+    } catch (error) {
+      console.warn("Android recording finalization failed:", error);
+    }
+
+    androidRecordingPromiseRef.current = null;
+
+    if (!audioBlob || !audioBlob.size || generation !== transcribeGenerationRef.current) {
+      if (generation === transcribeGenerationRef.current) {
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
+      return;
+    }
+
+    try {
+      const transcript = await requestAndroidTranscription(audioBlob);
+
+      if (generation !== transcribeGenerationRef.current) return;
+
+      if (transcript) {
+        setQuery(transcript);
+      }
+
+      setTimeout(() => inputRef.current?.focus(), 50);
+    } catch (error) {
+      console.warn("Android transcription request failed:", error);
+      if (generation === transcribeGenerationRef.current) {
+        setQuery("");
+        alert("I couldn't transcribe that recording. Please try again.");
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
+    } finally {
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+        micSourceRef.current = null;
+      }
+
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+        micStreamRef.current = null;
+      }
+
+      androidRecorderRef.current = null;
+      androidRecordedChunksRef.current = [];
+    }
+  }, [requestAndroidTranscription]);
+
   const stopTranscribe = useCallback(() => {
     transcribeManualStopRef.current = true;
     transcribeGenerationRef.current += 1;
@@ -1930,6 +2337,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       silenceTimerRef.current = null;
     }
 
+    if (androidTranscribeSilenceMonitorRef.current) {
+      clearInterval(androidTranscribeSilenceMonitorRef.current);
+      androidTranscribeSilenceMonitorRef.current = null;
+    }
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onend = null;
@@ -1940,6 +2352,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       recognitionRef.current = null;
     }
+
+    if (androidRecorderRef.current && androidRecorderRef.current.state !== "inactive") {
+      try {
+        androidRecorderRef.current.stop();
+      } catch {
+        /* noop */
+      }
+    }
+
+    androidRecorderRef.current = null;
+    androidRecordedChunksRef.current = [];
+    androidRecordingPromiseRef.current = null;
 
     if (micSourceRef.current) {
       try {
@@ -1971,13 +2395,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopVoiceSession();
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser.");
-      return;
-    }
-
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
@@ -1988,232 +2405,180 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     transcribeTranscriptRef.current = "";
 
     /* -------------------------------------------------------
-       ANDROID: single-shot SpeechRecognition
+       ANDROID: MediaRecorder -> Supabase transcription
        -------------------------------------------------------
-       Android Chrome is substantially more reliable when recognition is
-       started directly from the tap, with continuous=false. We keep one
-       active utterance/session at a time and restart only after onend.
-       No getUserMedia/AudioContext call is made before recognition.start(),
-       so the browser's own recognition service keeps exclusive microphone
-       ownership.
+       Do not use SpeechRecognition on Android. Device/browser
+       implementations are inconsistent across phones/tablets.
+       One getUserMedia stream drives BOTH the existing waveform
+       analyser and MediaRecorder, so there is only one microphone
+       owner.
+
+       The initial recorder.start() happens in the same user gesture
+       as the button press. The actual transcription request is made
+       only after the user presses the existing check button.
        ------------------------------------------------------- */
     if (isAndroidRef.current) {
-      let retryCount = 0;
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        alert("Audio recording is not supported by this browser.");
+        return;
+      }
 
       setIsTranscribing(true);
       isTranscribingRef.current = true;
       setIsListening(true);
 
-      const startAndroidRecognition = () => {
+      try {
+        const { ctx, analyser } = getAudioContext();
+
+        if (ctx.state === "suspended") {
+          await ctx.resume();
+        }
+
+        // Relaxed constraints on Android — see startListeningContinuous for
+        // why the fuller constraint set silently mutes Xiaomi devices.
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true },
+        });
+
         if (
           generation !== transcribeGenerationRef.current ||
           transcribeManualStopRef.current ||
           !isTranscribingRef.current
         ) {
+          stream.getTracks().forEach((track) => track.stop());
           return;
         }
 
-        if (recognitionRef.current) {
+        micStreamRef.current = stream;
+
+        if (micSourceRef.current) {
           try {
-            recognitionRef.current.onend = null;
-            recognitionRef.current.onerror = null;
-            recognitionRef.current.stop();
+            micSourceRef.current.disconnect();
           } catch {
             /* noop */
           }
-          recognitionRef.current = null;
         }
 
-        const recognition = new SpeechRecognition();
-        recognition.lang = "en-IN";
-        recognition.interimResults = true;
-        recognition.continuous = false;
-        recognition.maxAlternatives = 1;
-
-        recognitionRef.current = recognition;
-
-        let sawResult = false;
-        let finalTranscript = transcribeTranscriptRef.current;
-        let interimTranscript = "";
-        let watchdog: ReturnType<typeof setTimeout> | null = null;
-
-        const cleanupWatchdog = () => {
-          if (watchdog) {
-            clearTimeout(watchdog);
-            watchdog = null;
-          }
-        };
-
-        recognition.onstart = () => {
-          if (
-            generation !== transcribeGenerationRef.current ||
-            transcribeManualStopRef.current ||
-            !isTranscribingRef.current
-          ) {
-            try {
-              recognition.stop();
-            } catch {
-              /* noop */
-            }
-            return;
-          }
-
-          retryCount = 0;
-          setIsListening(true);
-
-          // If Android's service starts but never produces an event, do not
-          // leave the UI stuck forever.
-          cleanupWatchdog();
-          watchdog = setTimeout(() => {
-            if (generation === transcribeGenerationRef.current && isTranscribingRef.current && !sawResult) {
-              try {
-                recognition.stop();
-              } catch {
-                /* noop */
-              }
-            }
-          }, 9000);
-        };
-
-        recognition.onresult = (event: any) => {
-          if (
-            generation !== transcribeGenerationRef.current ||
-            transcribeManualStopRef.current ||
-            !isTranscribingRef.current
-          ) {
-            return;
-          }
-
-          sawResult = true;
-          retryCount = 0;
-          cleanupWatchdog();
-
-          for (let i = event.resultIndex || 0; i < event.results.length; i++) {
-            const result = event.results[i];
-            const piece = result?.[0]?.transcript || "";
-
-            if (result?.isFinal) {
-              finalTranscript = `${finalTranscript} ${piece}`.replace(/\s+/g, " ").trim();
-              interimTranscript = "";
-            } else {
-              interimTranscript = `${interimTranscript} ${piece}`.replace(/\s+/g, " ").trim();
-            }
-          }
-
-          transcribeTranscriptRef.current = finalTranscript;
-
-          const combined = `${finalTranscript} ${interimTranscript}`.replace(/\s+/g, " ").trim();
-          if (combined) {
-            setQuery(combined);
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-
-            // Give Android time to emit a final result before we finish.
-            silenceTimerRef.current = setTimeout(() => {
-              if (
-                generation === transcribeGenerationRef.current &&
-                isTranscribingRef.current &&
-                !transcribeManualStopRef.current
-              ) {
-                try {
-                  recognition.stop();
-                } catch {
-                  /* noop */
-                }
-              }
-            }, 1200);
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          cleanupWatchdog();
-
-          const error = event?.error;
-
-          if (error === "not-allowed" || error === "service-not-allowed") {
-            stopTranscribe();
-            return;
-          }
-
-          // Android can emit no-speech/audio-capture/aborted while the service
-          // is restarting. onend handles the recovery.
-          if (error !== "no-speech" && error !== "aborted") {
-            console.warn("Android speech recognition error:", error);
-          }
-        };
-
-        recognition.onend = () => {
-          cleanupWatchdog();
-
-          if (
-            generation !== transcribeGenerationRef.current ||
-            transcribeManualStopRef.current ||
-            !isTranscribingRef.current
-          ) {
-            return;
-          }
-
-          const text = transcribeTranscriptRef.current.trim();
-
-          if (text) {
-            setQuery(text);
-            setIsListening(false);
-            setIsTranscribing(false);
-            isTranscribingRef.current = false;
-            recognitionRef.current = null;
-            transcribeTranscriptRef.current = "";
-            setTimeout(() => inputRef.current?.focus(), 50);
-            return;
-          }
-
-          // No result: restart a few times before giving up. This handles the
-          // Android permission/service warm-up case without affecting iOS.
-          if (retryCount < 3) {
-            retryCount += 1;
-
-            if (transcribeRestartTimerRef.current) {
-              clearTimeout(transcribeRestartTimerRef.current);
-            }
-
-            transcribeRestartTimerRef.current = setTimeout(
-              () => {
-                transcribeRestartTimerRef.current = null;
-                startAndroidRecognition();
-              },
-              250 + retryCount * 150,
-            );
-
-            return;
-          }
-
-          stopTranscribe();
-        };
+        micSourceRef.current = ctx.createMediaStreamSource(stream);
 
         try {
-          // This is intentionally synchronous with the user's tap on the
-          // initial call. Do not move this behind an await on Android.
-          recognition.start();
+          micSourceRef.current.connect(analyser);
         } catch {
-          cleanupWatchdog();
-
-          if (retryCount < 3) {
-            retryCount += 1;
-            transcribeRestartTimerRef.current = setTimeout(() => {
-              transcribeRestartTimerRef.current = null;
-              startAndroidRecognition();
-            }, 300);
-          } else {
-            stopTranscribe();
-          }
+          /* Already connected */
         }
-      };
 
-      startAndroidRecognition();
+        // Prefer WebM/Opus, then WebM, then MP4/AAC for Android browsers.
+        const mimeCandidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"];
+
+        const supportedMime = mimeCandidates.find((mime) => MediaRecorder.isTypeSupported(mime)) || "";
+
+        androidRecordingMimeTypeRef.current = supportedMime || "audio/webm";
+        androidRecordedChunksRef.current = [];
+
+        const recorder = supportedMime
+          ? new MediaRecorder(stream, { mimeType: supportedMime })
+          : new MediaRecorder(stream);
+
+        androidRecorderRef.current = recorder;
+
+        androidRecordingPromiseRef.current = new Promise<Blob>((resolve, reject) => {
+          recorder.ondataavailable = (event: BlobEvent) => {
+            if (event.data && event.data.size > 0) {
+              androidRecordedChunksRef.current.push(event.data);
+            }
+          };
+
+          recorder.onerror = () => {
+            reject(new Error("Android audio recording failed."));
+          };
+
+          recorder.onstop = () => {
+            const type = recorder.mimeType || androidRecordingMimeTypeRef.current || "audio/webm";
+            const blob = new Blob(androidRecordedChunksRef.current, { type });
+
+            androidRecordedChunksRef.current = [];
+            androidRecorderRef.current = null;
+
+            if (!blob.size) {
+              reject(new Error("No audio was recorded."));
+              return;
+            }
+
+            resolve(blob);
+          };
+        });
+
+        // Start immediately, no timeslice argument (see startListeningContinuous
+        // for why: timesliced WebM chunks get corrupted on stop() on Blink/
+        // Chromium-on-Android). No SpeechRecognition call is involved.
+        recorder.start();
+
+        // Requirement 4: manual confirmation (the existing check button ->
+        // finishAndroidTranscription) is always available, PLUS an extended
+        // silence debounce so the user is never left recording forever if
+        // they forget to tap it. 3.5s of silence after speech was actually
+        // heard auto-finalizes, well above the 3-4s minimum.
+        const silenceData = new Uint8Array(analyser.fftSize);
+        let heardSpeech = false;
+        let lastSpeechAt = performance.now();
+
+        if (androidTranscribeSilenceMonitorRef.current) {
+          clearInterval(androidTranscribeSilenceMonitorRef.current);
+        }
+
+        androidTranscribeSilenceMonitorRef.current = setInterval(() => {
+          if (
+            generation !== transcribeGenerationRef.current ||
+            transcribeManualStopRef.current ||
+            !isTranscribingRef.current
+          ) {
+            if (androidTranscribeSilenceMonitorRef.current) {
+              clearInterval(androidTranscribeSilenceMonitorRef.current);
+              androidTranscribeSilenceMonitorRef.current = null;
+            }
+            return;
+          }
+
+          analyser.getByteTimeDomainData(silenceData);
+
+          let sumSquares = 0;
+          for (let i = 0; i < silenceData.length; i++) {
+            const normalized = (silenceData[i] - 128) / 128;
+            sumSquares += normalized * normalized;
+          }
+
+          const rms = Math.sqrt(sumSquares / silenceData.length);
+          const now = performance.now();
+
+          if (rms > 0.028) {
+            heardSpeech = true;
+            lastSpeechAt = now;
+          } else if (heardSpeech && now - lastSpeechAt > 3500) {
+            if (androidTranscribeSilenceMonitorRef.current) {
+              clearInterval(androidTranscribeSilenceMonitorRef.current);
+              androidTranscribeSilenceMonitorRef.current = null;
+            }
+            void finishAndroidTranscription();
+          }
+        }, 100);
+      } catch (error) {
+        console.warn("Android recording setup warning:", error);
+        stopTranscribe();
+      }
+
       return;
     }
 
     /* -------------------------------------------------------
-       EXISTING iOS / DESKTOP PATH — kept as before
+       EXISTING iOS / DESKTOP PATH — intentionally unchanged
        ------------------------------------------------------- */
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
 
     primeMobileAudioSession();
 
@@ -2295,7 +2660,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       console.warn("Transcribe setup warning:", error);
       stopTranscribe();
     }
-  }, [getAudioContext, isLoading, stopVoiceSession, stopTranscribe, dismissSuggestionBubble, primeMobileAudioSession]);
+  }, [
+    getAudioContext,
+    isLoading,
+    stopVoiceSession,
+    stopTranscribe,
+    dismissSuggestionBubble,
+    primeMobileAudioSession,
+    finishAndroidTranscription,
+  ]);
 
   /* =======================================================
      CLEANUP
@@ -2307,6 +2680,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (transcribeRestartTimerRef.current) clearTimeout(transcribeRestartTimerRef.current);
+      if (androidTranscribeSilenceMonitorRef.current) {
+        clearInterval(androidTranscribeSilenceMonitorRef.current);
+        androidTranscribeSilenceMonitorRef.current = null;
+      }
 
       transcribeManualStopRef.current = true;
       transcribeGenerationRef.current += 1;
@@ -2328,6 +2705,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           /* noop */
         }
       }
+
+      if (androidRecorderRef.current && androidRecorderRef.current.state !== "inactive") {
+        try {
+          androidRecorderRef.current.stop();
+        } catch {
+          /* noop */
+        }
+      }
+
+      androidRecorderRef.current = null;
+      androidRecordedChunksRef.current = [];
+      androidRecordingPromiseRef.current = null;
 
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -2722,7 +3111,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             ) : isTranscribing ? (
               <button
                 type="button"
-                onClick={stopTranscribe}
+                onClick={isAndroidRef.current ? finishAndroidTranscription : stopTranscribe}
                 className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="Done transcribing"
                 aria-label="Done transcribing"
