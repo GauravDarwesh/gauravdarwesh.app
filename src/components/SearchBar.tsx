@@ -1933,8 +1933,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return;
     }
 
-    const generation = ++recognitionGenerationRef.current;
-
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onend = null;
