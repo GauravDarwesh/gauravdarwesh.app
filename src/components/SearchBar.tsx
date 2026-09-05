@@ -122,6 +122,92 @@ const convertMarkdownToHtml = (text: string): string => {
 };
 
 /* =========================================================
+   VOICE RESPONSE LINK EXTRACTION
+   ========================================================= */
+
+type VoiceResponseLink = {
+  label: string;
+  url: string;
+};
+
+const extractVoiceResponseLinks = (text: string): VoiceResponseLink[] => {
+  const links: VoiceResponseLink[] = [];
+  const seen = new Set<string>();
+
+  const knownLabels: Record<string, string> = {
+    "linkedin.com": "LinkedIn",
+    "instagram.com": "Instagram",
+    "github.com": "GitHub",
+    "youtube.com": "YouTube",
+    "youtu.be": "YouTube",
+    "x.com": "X",
+    "twitter.com": "X",
+    "facebook.com": "Facebook",
+    "threads.net": "Threads",
+    "calendar.app.google": "Book a call",
+    "calendly.com": "Book a call",
+  };
+
+  const addLink = (rawLabel: string, rawUrl: string) => {
+    let url = rawUrl.trim();
+    url = url.replace(/[.,!?;:]+$/, "");
+    url = url.replace(/[)\]}]+$/, "");
+
+    if (!/^https?:\/\//i.test(url)) return;
+
+    try {
+      url = new URL(url).toString();
+    } catch {
+      return;
+    }
+
+    const key = url.replace(/\/+$|[?#]$/, "").toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const cleanLabel = rawLabel
+      .replace(/[*_`~]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    let hostname = "";
+    try {
+      hostname = new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+    } catch {
+      /* URL was already validated above. */
+    }
+
+    links.push({
+      label: cleanLabel || knownLabels[hostname] || `Open ${hostname || "link"}`,
+      url,
+    });
+  };
+
+  const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = markdownLinkPattern.exec(text)) !== null) {
+    addLink(match[1], match[2]);
+  }
+
+  const plainUrlPattern = /https?:\/\/[^\s<>"']+/gi;
+  while ((match = plainUrlPattern.exec(text)) !== null) {
+    const url = match[0];
+    let hostname = "";
+    try {
+      hostname = new URL(url.replace(/[.,!?;:]+$/, "").replace(/[)\]}]+$/, "")).hostname
+        .replace(/^www\./i, "")
+        .toLowerCase();
+    } catch {
+      /* addLink will reject malformed URLs. */
+    }
+    addLink(knownLabels[hostname] || "", url);
+  }
+
+  return links;
+};
+
+/* =========================================================
    3. FADE HELPER
    ========================================================= */
 
@@ -436,6 +522,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [voiceResponseLinks, setVoiceResponseLinks] = useState<VoiceResponseLink[]>([]);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -1405,6 +1492,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsListening(false);
 
       const token = ++speakTokenRef.current;
+      setVoiceResponseLinks(extractVoiceResponseLinks(raw));
+
       const clean = raw
         .replace(/```[\s\S]*?```/g, " ")
         .replace(/`([^`]+)`/g, "$1")
@@ -2189,6 +2278,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     setIsVoiceSession(false);
     setIsListening(false);
+    setVoiceResponseLinks([]);
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
@@ -2244,6 +2334,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     primeMobileAudioSession();
     setResponse(null);
     setSuggestions([]);
+    setVoiceResponseLinks([]);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
@@ -2726,6 +2817,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
 
+    if (!fromVoice) {
+      setVoiceResponseLinks([]);
+    }
+
     if (!customQuery) setQuery("");
 
     if (!fromVoice) {
@@ -2897,6 +2992,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
+      {isVoiceSession && voiceResponseLinks.length > 0 && (
+        <div className="flex gap-2 flex-wrap justify-center max-w-[92vw]" aria-label="Links from GDx response">
+          {voiceResponseLinks.map((link, index) => (
+            <a
+              key={`${link.url}-${index}`}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-all hover:bg-white/30 active:scale-95"
+              title={link.url}
+            >
+              ↗ {link.label}
+            </a>
+          ))}
+        </div>
+      )}
+
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
