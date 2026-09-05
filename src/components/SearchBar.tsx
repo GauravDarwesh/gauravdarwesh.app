@@ -6,26 +6,11 @@ import { Mic, Check, X } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
-   0. CROSS-RUNTIME ENV & TTS CONFIG
+   0. TTS CONFIG
    ========================================================= */
 
-const getEnv = (key: string, viteFallbackKey: string): string => {
-  if (typeof process !== "undefined" && process.env?.[key]) {
-    return process.env[key] as string;
-  }
-  try {
-    const metaEnv = (import.meta as any)?.env;
-    if (metaEnv?.[viteFallbackKey]) {
-      return metaEnv[viteFallbackKey] as string;
-    }
-  } catch {
-    /* import.meta might be inaccessible in standard CJS/Next environments */
-  }
-  return "";
-};
-
-const SUPABASE_URL = getEnv("NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL");
-const SUPABASE_ANON_KEY = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY");
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 const TRANSCRIBE_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-transcribe`;
 
@@ -40,19 +25,20 @@ const getTtsQuotaBlockedUntil = (): number => {
 
   try {
     const value = Number(window.localStorage.getItem(TTS_QUOTA_BLOCK_KEY));
+
     if (Number.isFinite(value) && value > Date.now()) {
       return Math.max(value, knownProviderBlock);
     }
+
     window.localStorage.removeItem(TTS_QUOTA_BLOCK_KEY);
   } catch {
-    /* Storage may be unavailable */
+    /* Storage may be unavailable. */
   }
 
   return knownProviderBlock;
 };
 
 const rememberTtsQuotaLimit = (responseBody: string) => {
-  if (typeof window === "undefined") return;
   const resetMatch = responseBody.match(/X-RateLimit-Reset[^0-9]*(\d{10,13})/i);
   const parsedReset = resetMatch ? Number(resetMatch[1]) : 0;
   const resetAt =
@@ -61,7 +47,7 @@ const rememberTtsQuotaLimit = (responseBody: string) => {
   try {
     window.localStorage.setItem(TTS_QUOTA_BLOCK_KEY, String(resetAt));
   } catch {
-    /* Storage failure fallback */
+    /* In-flight fallback still works. */
   }
 };
 
@@ -79,22 +65,11 @@ const ChatGPTWaveformIcon: React.FC<{ className?: string }> = ({ className = "h-
 );
 
 /* =========================================================
-   2. SECURE MARKDOWN → HTML CONVERTER (XSS-SAFE)
+   2. MARKDOWN → HTML
    ========================================================= */
-
-const escapeHtml = (text: string): string => {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
 
 const convertMarkdownToHtml = (text: string): string => {
   const processInline = (str: string): string => {
-    let sanitized = escapeHtml(str);
-
     const rules = [
       {
         pattern: /\*\*(.*?)\*\*/g,
@@ -109,17 +84,17 @@ const convertMarkdownToHtml = (text: string): string => {
         replacement: '<code class="inline-code">$1</code>',
       },
       {
-        pattern: /\[([^\]]+)\]\(((?:https?:\/\/|\/)[^)]+)\)/g,
+        pattern: /\[([^\]]+)\]\(([^)]+)\)/g,
         replacement:
           '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>',
       },
     ];
 
     rules.forEach((rule) => {
-      sanitized = sanitized.replace(rule.pattern, rule.replacement);
+      str = str.replace(rule.pattern, rule.replacement);
     });
 
-    return sanitized;
+    return str;
   };
 
   return text
@@ -158,6 +133,7 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
       setVisible(true);
       return;
     }
+
     const timer = setTimeout(() => setVisible(false), duration);
     return () => clearTimeout(timer);
   }, [show, duration]);
@@ -175,7 +151,7 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
 }
 
 /* =========================================================
-   4. REACTIVE WAVEFORM (NO LAYOUT THRASHING)
+   4. REACTIVE WAVEFORM
    ========================================================= */
 
 const BarWaveform: React.FC<{
@@ -187,7 +163,6 @@ const BarWaveform: React.FC<{
   const animFrameRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const displayedLevelsRef = useRef<number[]>([]);
-  const dimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
 
   useEffect(() => {
     if (!isActive || !canvasRef.current || !containerRef.current) return;
@@ -215,22 +190,22 @@ const BarWaveform: React.FC<{
 
     let lastTime = performance.now();
 
-    const updateDimensions = (width: number, height: number) => {
-      if (width <= 0 || height <= 0) return;
-      dimensionsRef.current = { width, height };
+    const resize = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect || rect.width <= 0) return;
 
-      const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2);
-      const targetWidth = Math.max(1, Math.round(width * dpr));
-      const targetHeight = Math.max(1, Math.round(height * dpr));
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const targetWidth = Math.max(1, Math.round(rect.width * dpr));
+      const targetHeight = Math.max(1, Math.round(rect.height * dpr));
 
       if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
         canvas.width = targetWidth;
         canvas.height = targetHeight;
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
       }
 
-      const barCount = Math.max(8, Math.floor(width / (BAR_WIDTH + BAR_GAP)));
+      const barCount = Math.max(8, Math.floor(rect.width / (BAR_WIDTH + BAR_GAP)));
       const prev = displayedLevelsRef.current;
 
       if (prev.length !== barCount) {
@@ -245,24 +220,19 @@ const BarWaveform: React.FC<{
       }
     };
 
-    const initialRect = containerRef.current.getBoundingClientRect();
-    updateDimensions(initialRect.width, initialRect.height);
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        updateDimensions(width, height);
-      }
-    });
+    resize();
+    const resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(containerRef.current);
 
     const draw = (now: number) => {
       animFrameRef.current = requestAnimationFrame(draw);
 
-      const { width: w, height: h } = dimensionsRef.current;
-      if (w <= 0 || h <= 0) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-      const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = rect.width;
+      const h = rect.height;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
@@ -307,12 +277,18 @@ const BarWaveform: React.FC<{
           const spectrumValue = weight > 0 ? sum / weight : 0;
           targetValue = Math.min(1, 0.045 + Math.pow(spectrumValue, 0.78) * 1.48);
         } else if (isSpeaking) {
+          // Same fallback animation for both human speech and AI speech.
+          // This is deliberately identical whether a browser exposes a live
+          // analyser signal or not, so Android gets the same visual language.
           const t = now * 0.005;
-          const speechRhythm = Math.sin(t * 1.8) * Math.sin(t * 3.2);
-          const modulation = Math.max(0.25, 0.6 + 0.4 * speechRhythm);
+          const speechRhythm = Math.sin(t * 1.8) * Math.sin(t * 3.2) + 0.45 * Math.sin(t * 5.1 + 0.7);
+          const modulation = Math.max(0.18, 0.58 + 0.22 * speechRhythm);
+          const center = (barCount - 1) / 2;
+          const distance = Math.abs(i - center) / Math.max(1, center);
+          const barEnvelope = Math.max(0.18, 1 - Math.pow(distance, 1.6));
           const harmonic = Math.sin(t * 4.0 + i * 0.42) * 0.5 + Math.cos(t * 2.2 + i * 0.28) * 0.5;
-          const barEnvelope = Math.sin((i / Math.max(1, barCount - 1)) * Math.PI);
-          targetValue = Math.max(0.08, Math.min(0.9, 0.12 + (harmonic * 0.5 + 0.5) * modulation * barEnvelope * 0.85));
+
+          targetValue = Math.max(0.1, Math.min(0.92, 0.14 + (harmonic * 0.5 + 0.5) * modulation * barEnvelope * 0.92));
         } else {
           const t = now * 0.002;
           const gentleWave = Math.sin(t * 2.0 + i * 0.25) * 0.035;
@@ -405,19 +381,6 @@ const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
 };
 
 /* =========================================================
-   UNIVERSAL AUDIO DECODER (SAFARI / IOS / WINDOWS SAFE)
-   ========================================================= */
-
-const decodeAudioDataSafe = (ctx: AudioContext, buffer: ArrayBuffer): Promise<AudioBuffer> => {
-  return new Promise((resolve, reject) => {
-    const promise = ctx.decodeAudioData(buffer, resolve, reject);
-    if (promise && typeof promise.then === "function") {
-      promise.then(resolve).catch(reject);
-    }
-  });
-};
-
-/* =========================================================
    6. SEARCH BAR MAIN COMPONENT
    ========================================================= */
 
@@ -429,31 +392,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const STORAGE_KEY = "searchbar_state";
 
   /* -------------------------------------------------------
-     UI State (SSR-Safe Init)
+     Persisted state
      ------------------------------------------------------- */
 
-  const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showTypewriter, setShowTypewriter] = useState(false);
-  const [suggestionPhase, setSuggestionPhase] = useState<
-    "emerging" | "visible" | "retreating" | "blurringOut" | "hidden"
-  >("hidden");
-  const [fullText, setFullText] = useState("");
-  const suggestionIndexRef = useRef(0);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(false);
-  const [isCollapsing, setIsCollapsing] = useState(false);
-  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(false);
-  const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
-
-  /* -------------------------------------------------------
-     Hydrate Persisted State Safely on Mount
-     ------------------------------------------------------- */
-
-  useEffect(() => {
+  const loadPersistedState = useCallback(() => {
     try {
       const navigation = window.performance?.getEntriesByType("navigation")?.[0] as
         | PerformanceNavigationTiming
@@ -462,27 +404,78 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (isPageRefresh) {
         localStorage.removeItem(STORAGE_KEY);
-        return;
+        return {
+          response: null,
+          suggestions: [],
+          hasInteracted: false,
+          showExpandedSuggestions: false,
+          lastActivityTime: Date.now(),
+        };
       }
 
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.response) {
-          setResponse(parsed.response);
-          setIsRestoredFromStorage(true);
-        }
-        if (Array.isArray(parsed.suggestions)) setSuggestions(parsed.suggestions);
-        if (typeof parsed.hasInteracted === "boolean") setHasInteracted(parsed.hasInteracted);
-        if (typeof parsed.showExpandedSuggestions === "boolean") {
-          setShowExpandedSuggestions(parsed.showExpandedSuggestions);
-        }
-        if (typeof parsed.lastActivityTime === "number") setLastActivityTime(parsed.lastActivityTime);
+        return {
+          response: parsed.response || null,
+          suggestions: parsed.suggestions || [],
+          hasInteracted: parsed.hasInteracted || false,
+          showExpandedSuggestions: parsed.showExpandedSuggestions || false,
+          lastActivityTime: parsed.lastActivityTime || Date.now(),
+        };
       }
-    } catch {
-      /* Safe fallback on restricted storage */
+    } catch (error) {
+      console.warn("Failed to load persisted search state:", error);
     }
+
+    return {
+      response: null,
+      suggestions: [],
+      hasInteracted: false,
+      showExpandedSuggestions: false,
+      lastActivityTime: Date.now(),
+    };
   }, []);
+
+  const saveState = useCallback(
+    (state: {
+      response: string | null;
+      suggestions: string[];
+      hasInteracted: boolean;
+      showExpandedSuggestions: boolean;
+      lastActivityTime: number;
+    }) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (error) {
+        console.warn("Failed to save search state:", error);
+      }
+    },
+    [],
+  );
+
+  const persistedState = useMemo(() => loadPersistedState(), [loadPersistedState]);
+
+  /* -------------------------------------------------------
+     UI state
+     ------------------------------------------------------- */
+
+  const [query, setQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [response, setResponse] = useState<string | null>(persistedState.response);
+  const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
+  const [showTypewriter, setShowTypewriter] = useState(false);
+  const [suggestionPhase, setSuggestionPhase] = useState<
+    "emerging" | "visible" | "retreating" | "blurringOut" | "hidden"
+  >("hidden");
+  const [fullText, setFullText] = useState("");
+  const suggestionIndexRef = useRef(0);
+  const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
+  const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
+  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
+  const [isCollapsing, setIsCollapsing] = useState(false);
+  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
+  const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -497,22 +490,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const isTranscribingRef = useRef(false);
   const isLoadingRef = useRef(false);
   const isSpeakingRef = useRef(false);
-
-  const isAndroidRef = useRef(false);
-  const isXiaomiRef = useRef(false);
-
-  useEffect(() => {
-    if (typeof navigator !== "undefined") {
-      const ua = navigator.userAgent || "";
-      isAndroidRef.current = /Android/i.test(ua);
-      isXiaomiRef.current = /Xiaomi|Redmi|POCO|MiuiBrowser|MIUI|Mi\s?Pad/i.test(ua);
-    }
-  }, []);
-
+  const isAndroidRef = useRef(typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent || ""));
   const androidRecorderRef = useRef<MediaRecorder | null>(null);
   const androidRecordedChunksRef = useRef<Blob[]>([]);
   const androidRecordingMimeTypeRef = useRef<string>("");
   const androidRecordingPromiseRef = useRef<Promise<Blob> | null>(null);
+  const isXiaomiRef = useRef(
+    typeof navigator !== "undefined" && /Xiaomi|Redmi|POCO|MiuiBrowser|MIUI|Mi\s?Pad/i.test(navigator.userAgent || ""),
+  );
 
   isVoiceSessionRef.current = isVoiceSession;
   isTranscribingRef.current = isTranscribing;
@@ -546,21 +531,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const transcriptRef = useRef("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Android Chrome/Samsung Internet can end SpeechRecognition unexpectedly
+  // even while the user is still actively transcribing. Keep a separate
+  // transcript buffer and generation guard so recognition can safely restart.
   const transcribeTranscriptRef = useRef("");
   const transcribeGenerationRef = useRef(0);
   const transcribeManualStopRef = useRef(false);
-  const transcribeRecorderRef = useRef<MediaRecorder | null>(null);
-  const transcribeChunksRef = useRef<Blob[]>([]);
-  const transcribeMimeTypeRef = useRef<string>("");
-  const transcribeRecordingPromiseRef = useRef<Promise<Blob> | null>(null);
+  const transcribeRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const hostedAudioRef = useRef<HTMLAudioElement | null>(null);
   const androidPlaybackAudioRef = useRef<HTMLAudioElement | null>(null);
   const hostedObjectUrlRef = useRef<string | null>(null);
   const speakTokenRef = useRef(0);
-
-  // Global GC pinned anchor for SpeechSynthesis
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const searchBarRef = useRef<HTMLDivElement>(null);
@@ -573,23 +556,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   /* =======================================================
      PERSIST STATE
      ======================================================= */
-
-  const saveState = useCallback(
-    (state: {
-      response: string | null;
-      suggestions: string[];
-      hasInteracted: boolean;
-      showExpandedSuggestions: boolean;
-      lastActivityTime: number;
-    }) => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (error) {
-        console.warn("Failed to save search state:", error);
-      }
-    },
-    [],
-  );
 
   useEffect(() => {
     saveState({
@@ -610,12 +576,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   /* =======================================================
-     AUDIO CONTEXT & HARDWARE UNLOCK (IOS / ANDROID / DESKTOP)
+     AUDIO CONTEXT & MOBILE HARDWARE UNLOCKING
      ======================================================= */
 
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+
       if (!AudioCtx) {
         throw new Error("Web Audio is not supported by this browser.");
       }
@@ -651,6 +618,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const primeMobileAudioSession = useCallback(() => {
     const isAndroid = isAndroidRef.current;
 
+    // Keep the existing Web Audio/iOS unlocking behavior intact.
     try {
       const { ctx } = getAudioContext();
       if (ctx.state === "suspended") {
@@ -671,21 +639,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if ("speechSynthesis" in window) {
       try {
         if (isAndroid) {
+          // Android: synchronously clear stale queued utterances. Do NOT queue
+          // a dummy utterance because it can occupy Chrome's speech engine and
+          // interfere with the real response later.
           window.speechSynthesis.cancel();
-          window.speechSynthesis.resume();
         } else {
-          // iOS Safari primed unlock
-          window.speechSynthesis.cancel();
-          const prime = new SpeechSynthesisUtterance("");
+          // iOS/Desktop: retain the existing unlock behavior exactly.
+          const prime = new SpeechSynthesisUtterance(" ");
           prime.volume = 0.01;
           window.speechSynthesis.speak(prime);
-          window.speechSynthesis.resume();
         }
       } catch {
         /* Speech synthesis unlock fallback */
       }
     }
 
+    // Prepare one reusable HTMLAudioElement on Android. The element is
+    // created during the user's tap and reused later when hosted TTS returns,
+    // which is considerably more reliable than creating a brand-new media
+    // element after an asynchronous fetch.
     if (isAndroid && !androidPlaybackAudioRef.current) {
       try {
         const audio = new Audio();
@@ -693,45 +665,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         audio.volume = 1;
         androidPlaybackAudioRef.current = audio;
       } catch {
-        /* Construction fallback */
+        /* Browser may block Audio construction */
       }
     }
   }, [getAudioContext]);
-
-  /* =======================================================
-     TRANSCRIBE CONFIRMATION TONE
-     ======================================================= */
-
-  const playTranscribeTone = useCallback(
-    (kind: "start" | "done") => {
-      if (!isAndroidRef.current) return;
-
-      try {
-        const { ctx } = getAudioContext();
-        if (ctx.state === "suspended") void ctx.resume();
-
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const now = ctx.currentTime;
-
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(kind === "start" ? 880 : 660, now);
-        if (kind === "done") oscillator.frequency.exponentialRampToValueAtTime(990, now + 0.09);
-
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.075, now + 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
-
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start(now);
-        oscillator.stop(now + 0.12);
-      } catch {
-        /* Notification tone fallback */
-      }
-    },
-    [getAudioContext],
-  );
 
   /* =======================================================
      ROTATING SUGGESTIONS
@@ -787,7 +724,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [suggestionPhase]);
 
   /* =======================================================
-     PLACEHOLDER ROTATION
+     PLACEHOLDER
      ======================================================= */
 
   useEffect(() => {
@@ -833,7 +770,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   ]);
 
   /* =======================================================
-     ACTIVITY TRACKING (MOBILE TOUCH + DESKTOP)
+     ACTIVITY TRACKING
      ======================================================= */
 
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
@@ -845,18 +782,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   useEffect(() => {
     const handleImmediate = () => setLastActivityTime(Date.now());
-    const passiveOption = { passive: true };
 
-    window.addEventListener("mousemove", debouncedSetActivity, passiveOption);
-    window.addEventListener("touchmove", debouncedSetActivity, passiveOption);
-
-    const interactiveEvents = ["keypress", "click", "scroll", "touchstart"];
-    interactiveEvents.forEach((event) => window.addEventListener(event, handleImmediate, passiveOption));
+    window.addEventListener("mousemove", debouncedSetActivity);
+    ["keypress", "click", "scroll"].forEach((event) => window.addEventListener(event, handleImmediate));
 
     return () => {
       window.removeEventListener("mousemove", debouncedSetActivity);
-      window.removeEventListener("touchmove", debouncedSetActivity);
-      interactiveEvents.forEach((event) => window.removeEventListener(event, handleImmediate));
+      ["keypress", "click", "scroll"].forEach((event) => window.removeEventListener(event, handleImmediate));
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
   }, [debouncedSetActivity]);
@@ -867,19 +799,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   useEffect(() => {
     const FIRST_VISIT_KEY = "gd_ai_first_visit";
-    try {
-      const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
-      if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
-        localStorage.setItem(FIRST_VISIT_KEY, "true");
-        const timer = setTimeout(() => {
-          handleSubmitRef.current?.(undefined, "introduce the website to the new user", false);
-        }, 1500);
-        return () => clearTimeout(timer);
-      }
-    } catch {
-      /* Storage restricted fallback */
+    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
+
+    if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
+      localStorage.setItem(FIRST_VISIT_KEY, "true");
+      const timer = setTimeout(() => {
+        handleSubmit(undefined, "introduce the website to the new user", false);
+      }, 1500);
+      return () => clearTimeout(timer);
     }
-  }, [response, suggestions.length, isLoading]);
+  }, []);
 
   /* =======================================================
      TYPEWRITER & ROTATING BUBBLE
@@ -962,7 +891,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       try {
         window.speechSynthesis.cancel();
-        window.speechSynthesis.resume();
       } catch {
         /* noop */
       }
@@ -1021,7 +949,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   /* =======================================================
-     NATIVE BROWSER TTS
+     NATIVE BROWSER TTS (SAFE FOR IOS & ANDROID)
      ======================================================= */
 
   const getAvailableVoice = useCallback((synthesis: SpeechSynthesis): Promise<SpeechSynthesisVoice | null> => {
@@ -1030,6 +958,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         const voices = synthesis.getVoices() || [];
         if (!voices.length) return null;
 
+        // Prefer a local/native English voice where possible. Android often
+        // exposes multiple remote voices, and local voices are more reliable
+        // for browser fallback playback.
         return (
           voices.find((voice) => voice.localService && /^en(-|_)/i.test(voice.lang)) ||
           voices.find((voice) => /^en(-|_)/i.test(voice.lang)) ||
@@ -1063,7 +994,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       try {
         synthesis.addEventListener("voiceschanged", finish, { once: true });
       } catch {
-        /* fallback */
+        // Timeout fallback above still resolves.
       }
     });
   }, []);
@@ -1075,15 +1006,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       const synthesis = window.speechSynthesis;
+
       if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
         return false;
       }
 
       const isAndroid = isAndroidRef.current;
 
-      /* ANDROID LOCAL CHUNKING */
+      /* -----------------------------------------------------
+         ANDROID LOCAL TTS
+         ----------------------------------------------------- */
       if (isAndroid) {
         const cleanText = fullTextToSpeak.replace(/\s+/g, " ").trim();
+
+        // Android Chrome can be unreliable with one large utterance.
+        // Keep chunks short and speak them sequentially.
         const chunks = cleanText
           .split(/(?<=[.!?])\s+/)
           .flatMap((sentence) => {
@@ -1111,6 +1048,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         if (!chunks.length) return false;
 
         const preferredVoice = await getAvailableVoice(synthesis);
+
         if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
           return false;
         }
@@ -1152,6 +1090,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               utterance.pitch = 1.0;
               utterance.volume = 1.0;
 
+              // On retry, intentionally omit the voice. Some Android builds
+              // reject a voice object even though default speech works.
               if (attempt === 0 && preferredVoice) {
                 utterance.voice = preferredVoice;
                 utterance.lang = preferredVoice.lang || "en-IN";
@@ -1171,6 +1111,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   finish(false);
                   return;
                 }
+
                 isSpeakingRef.current = true;
                 setIsSpeaking(true);
               };
@@ -1185,6 +1126,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 isSpeakingRef.current = false;
                 setIsSpeaking(false);
 
+                // Canceled/interrupted can be a stale Android queue event.
                 if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
                   finish(false);
                   return;
@@ -1216,17 +1158,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
                 timer = setTimeout(
                   () => {
+                    // If Android never emits onstart/onend, do one final
+                    // default-voice attempt rather than leaving the session stuck.
                     if (!settled && attempt === 0) {
                       attempt = 1;
                       cleanup();
+
                       try {
                         synthesis.cancel();
                       } catch {
                         /* noop */
                       }
+
                       retryTimer = setTimeout(() => speakAttempt(), 120);
                       return;
                     }
+
                     finish(false);
                   },
                   Math.max(12000, chunk.length * 220),
@@ -1244,8 +1191,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             speakAttempt();
           });
 
-          if (!didSpeak) return false;
+          if (!didSpeak) {
+            return false;
+          }
 
+          // Tiny gap prevents some Android TTS engines from swallowing the
+          // first phoneme of the next utterance.
           if (index < chunks.length - 1) {
             await new Promise((resolve) => setTimeout(resolve, 70));
           }
@@ -1254,8 +1205,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return true;
       }
 
-      /* iOS / DESKTOP (WINDOWS & MAC) PATH */
+      /* -----------------------------------------------------
+         EXISTING iOS / DESKTOP PATH — kept unchanged
+         ----------------------------------------------------- */
+
       const preferredVoice = await getAvailableVoice(synthesis);
+
       if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
         return false;
       }
@@ -1319,11 +1274,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         };
 
         try {
-          synthesis.cancel();
-          synthesis.resume();
           synthesis.speak(utterance);
-
-          // Prevent Chromium voice queue freeze on Windows & Mac
           resumeTimer = setInterval(() => {
             if (!settled && token === speakTokenRef.current && isVoiceSessionRef.current) {
               try {
@@ -1333,7 +1284,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               }
             }
           }, 900);
-
           safetyTimer = setTimeout(() => finish(true), Math.max(10000, fullTextToSpeak.length * 180));
         } catch {
           finish(false);
@@ -1348,12 +1298,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (!isAndroidRef.current || typeof window === "undefined") return false;
       if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
 
+      // Xiaomi-only hosted playback: prefer Web Audio because some MIUI/HyperOS
+      // browser builds are stricter about delayed HTMLAudioElement.play().
       if (isXiaomiRef.current) {
         try {
           const { ctx, analyser } = getAudioContext();
           if (ctx.state === "suspended") await ctx.resume();
 
-          const decoded = await decodeAudioDataSafe(ctx, audioBytes.slice(0));
+          const decoded = await ctx.decodeAudioData(audioBytes.slice(0));
+
           if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
 
           return await new Promise<boolean>((resolve) => {
@@ -1402,7 +1355,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }
           });
         } catch (error) {
-          console.warn("Xiaomi Web Audio TTS playback failed; falling back:", error);
+          console.warn("Xiaomi Web Audio TTS playback failed; using existing Android audio fallback:", error);
           isSpeakingRef.current = false;
           setIsSpeaking(false);
         }
@@ -1427,6 +1380,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             settled = true;
             audio.onended = null;
             audio.onerror = null;
+
             if (error) reject(error);
             else resolve();
           };
@@ -1451,7 +1405,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         setIsSpeaking(false);
         return false;
       } finally {
-        hostedAudioRef.current = null;
+        if (hostedAudioRef.current === androidPlaybackAudioRef.current) {
+          hostedAudioRef.current = null;
+        } else {
+          hostedAudioRef.current = null;
+        }
 
         if (hostedObjectUrlRef.current) {
           try {
@@ -1462,6 +1420,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           hostedObjectUrlRef.current = null;
         }
 
+        // Keep the reusable element alive, but clear its source after
+        // playback so it can be unlocked/reused for the next response.
         if (androidPlaybackAudioRef.current) {
           try {
             androidPlaybackAudioRef.current.pause();
@@ -1532,6 +1492,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .filter(Boolean);
 
       let audioGraph: { ctx: AudioContext; analyser: AnalyserNode } | null = null;
+
+      // Every new voice response tests the hosted TTS endpoint first.
+      // Once that request fails, the remainder of this response falls back
+      // to browser/local TTS. A previously stored quota flag never skips
+      // the first live API attempt.
       let hostedTtsFailed = false;
 
       const disconnectMicForPlayback = () => {
@@ -1587,6 +1552,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           const contentType = res.headers.get("content-type") || "";
           const arrayBuffer = await res.arrayBuffer();
 
+          // If the function accidentally returns JSON/text instead of audio,
+          // fail over immediately instead of trying to decode invalid bytes.
           if (!arrayBuffer.byteLength || /application\/(json|text)/i.test(contentType)) {
             hostedTtsFailed = true;
             return null;
@@ -1605,7 +1572,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
 
           try {
-            return await decodeAudioDataSafe(audioGraph.ctx, arrayBuffer.slice(0));
+            return await audioGraph.ctx.decodeAudioData(arrayBuffer.slice(0));
           } catch {
             hostedTtsFailed = true;
             return null;
@@ -1632,6 +1599,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             isSpeakingRef.current = true;
             setIsSpeaking(true);
 
+            // Cohesive single pass fallback without looping or stutter
             const remainingCombined = sentences.slice(i).join(" ");
             await speakWithBrowserTTS(remainingCombined, token);
             return;
@@ -1719,6 +1687,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           isSpeakingRef.current = false;
           setIsSpeaking(false);
 
+          // Buffer delay to avoid acoustic feedback from the phone's speaker
           if (isVoiceSessionRef.current) {
             setTimeout(() => {
               if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
@@ -1733,33 +1702,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       }
     },
-    [getAudioContext, playHostedAudioOnAndroid, speakWithBrowserTTS, stopAudioOnly],
+    [getAudioContext, speakWithBrowserTTS, stopAudioOnly],
   );
 
   /* =======================================================
-     TRANSCRIPTION API
+     XIAOMI TRANSCRIPTION REQUEST
      ======================================================= */
 
-  const requestTranscription = useCallback(async (audioBlob: Blob): Promise<string> => {
+  const requestXiaomiTranscription = useCallback(async (audioBlob: Blob): Promise<string> => {
     const formData = new FormData();
     const mime = (audioBlob.type || "").toLowerCase();
-    const extension =
-      mime.includes("mp4") || mime.includes("m4a")
-        ? "mp4"
-        : mime.includes("ogg")
-          ? "ogg"
-          : mime.includes("mpeg") || mime.includes("mp3")
-            ? "mp3"
-            : mime.includes("wav")
-              ? "wav"
-              : mime.includes("aac")
-                ? "aac"
-                : "webm";
+    const extension = mime.includes("mp4")
+      ? "mp4"
+      : mime.includes("ogg")
+        ? "ogg"
+        : mime.includes("mpeg") || mime.includes("mp3")
+          ? "mp3"
+          : mime.includes("wav")
+            ? "wav"
+            : mime.includes("aac")
+              ? "aac"
+              : "webm";
 
-    formData.append("audio", audioBlob, `gdx-transcribe.${extension}`);
+    formData.append("audio", audioBlob, `gdx-xiaomi.${extension}`);
     formData.append("language", "en-IN");
 
-    const res = await fetch(TRANSCRIBE_ENDPOINT, {
+    const response = await fetch(TRANSCRIBE_ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
@@ -1768,25 +1736,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       body: formData,
     });
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`Transcription failed (${res.status})${body ? `: ${body}` : ""}`);
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Xiaomi transcription failed (${response.status})${body ? `: ${body}` : ""}`);
     }
 
-    const contentType = res.headers.get("content-type") || "";
-    const result = contentType.includes("application/json") ? await res.json() : { text: await res.text() };
+    const contentType = response.headers.get("content-type") || "";
+    const result = contentType.includes("application/json") ? await response.json() : { text: await response.text() };
 
     return String(result?.text ?? result?.transcript ?? result?.data?.text ?? result?.data?.transcript ?? "")
       .replace(/\s+/g, " ")
       .trim();
-  }, []);
-
-  const getSupportedRecordingMimeType = useCallback(() => {
-    if (typeof MediaRecorder === "undefined") return "";
-
-    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/mpeg", "audio/aac"];
-
-    return candidates.find((mime) => MediaRecorder.isTypeSupported(mime)) || "";
   }, []);
 
   /* =======================================================
@@ -1798,7 +1758,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     const generation = ++recognitionGenerationRef.current;
 
-    /* XIAOMI HARDWARE COMPATIBILITY */
+    /* -------------------------------------------------------
+       XIAOMI ONLY: MediaRecorder -> Supabase transcription
+       ------------------------------------------------------- */
     if (isXiaomiRef.current) {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
         console.warn("Xiaomi audio recording is not supported in this browser.");
@@ -1871,7 +1833,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         setIsListening(true);
         recorder.start();
 
-        const data = new Uint8Array(new ArrayBuffer(analyser.fftSize));
+        const data = new Uint8Array(analyser.fftSize);
         let heardSpeech = false;
         let lastSpeechAt = performance.now();
         let monitorTimer: ReturnType<typeof setInterval> | null = null;
@@ -1881,9 +1843,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             clearInterval(monitorTimer);
             monitorTimer = null;
           }
-          if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current || isSpeakingRef.current) {
+          if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current || isSpeakingRef.current)
             return;
-          }
 
           try {
             recorder.requestData?.();
@@ -1904,12 +1865,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
           androidRecordingPromiseRef.current = null;
 
-          if (!blob || !blob.size || generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current) {
+          if (!blob || !blob.size || generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current)
             return;
-          }
 
           try {
-            const transcript = await requestTranscription(blob);
+            const transcript = await requestXiaomiTranscription(blob);
             if (generation !== recognitionGenerationRef.current || !isVoiceSessionRef.current) return;
             if (transcript) {
               setIsListening(false);
@@ -1975,7 +1935,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return;
     }
 
-    /* STANDARD RECOGNITION (IOS, ANDROID CHROME, MACOS, WINDOWS) */
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
@@ -2000,15 +1959,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       setIsListening(true);
 
-      // On Android and iOS WebKit, avoid dual mic locking between getUserMedia
-      // and native speech recognition. Desktop Web Audio connects normally.
-      const isMobile =
-        isAndroidRef.current ||
-        (typeof navigator !== "undefined" &&
-          (/iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)));
-
-      if (!isMobile) {
+      // Android Chrome can have trouble when getUserMedia and its separate
+      // SpeechRecognition service compete for the microphone. Let recognition
+      // own the microphone on Android; desktop/iOS retain the real analyser.
+      if (!isAndroidRef.current) {
         const { ctx, analyser } = getAudioContext();
 
         if (ctx.state === "suspended") {
@@ -2174,9 +2128,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       recognition.start();
     } catch {
-      /* Handled gracefully */
+      /* Duplicate start is harmless */
     }
-  }, [getAudioContext, requestTranscription]);
+  }, [getAudioContext, requestXiaomiTranscription]);
 
   startListeningContinuousRef.current = startListeningContinuous;
 
@@ -2239,9 +2193,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopTranscribeRef.current?.();
     }
 
+    // Set the ref before any asynchronous work. Android fallback TTS and
+    // recognition both use this ref as their authoritative session flag.
     isVoiceSessionRef.current = true;
     setIsVoiceSession(true);
 
+    // Must remain inside the button's user gesture.
     primeMobileAudioSession();
     setResponse(null);
     setSuggestions([]);
@@ -2256,33 +2213,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      TRANSCRIBE (SPEECH TO TEXT)
      ======================================================= */
 
-  const stopTranscribe = useCallback(() => {
+  const finishAndroidTranscription = useCallback(() => {
+    if (!isAndroidRef.current || !isTranscribingRef.current) return;
+
     transcribeManualStopRef.current = true;
     transcribeGenerationRef.current += 1;
     isTranscribingRef.current = false;
 
-    setIsTranscribing(false);
-    setIsListening(false);
-
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
+    if (transcribeRestartTimerRef.current) {
+      clearTimeout(transcribeRestartTimerRef.current);
+      transcribeRestartTimerRef.current = null;
     }
-
-    if (transcribeRecorderRef.current) {
-      try {
-        transcribeRecorderRef.current.ondataavailable = null;
-        transcribeRecorderRef.current.onerror = null;
-        transcribeRecorderRef.current.onstop = null;
-        if (transcribeRecorderRef.current.state !== "inactive") transcribeRecorderRef.current.stop();
-      } catch {
-        /* noop */
-      }
-      transcribeRecorderRef.current = null;
-    }
-    transcribeRecordingPromiseRef.current = null;
-    transcribeChunksRef.current = [];
-    transcribeMimeTypeRef.current = "";
 
     if (recognitionRef.current) {
       const recognition = recognitionRef.current;
@@ -2296,6 +2237,59 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       recognitionRef.current = null;
     }
+
+    setIsTranscribing(false);
+    setIsListening(false);
+
+    // The Android transcription path uses the browser's speech engine again
+    // because that is what reliably produces text on devices such as Nothing
+    // Phone. Completion is still manual: this button is the only thing that
+    // ends transcription.
+    transcribeTranscriptRef.current = query.trim();
+
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [query]);
+
+  const stopTranscribe = useCallback(() => {
+    transcribeManualStopRef.current = true;
+    transcribeGenerationRef.current += 1;
+
+    if (transcribeRestartTimerRef.current) {
+      clearTimeout(transcribeRestartTimerRef.current);
+      transcribeRestartTimerRef.current = null;
+    }
+
+    isTranscribingRef.current = false;
+    setIsTranscribing(false);
+    setIsListening(false);
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    }
+
+    const recorder = androidRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        recorder.stop();
+      } catch {
+        /* noop */
+      }
+    }
+    androidRecorderRef.current = null;
+    androidRecordingPromiseRef.current = null;
+    androidRecordedChunksRef.current = [];
 
     if (micSourceRef.current) {
       try {
@@ -2312,258 +2306,265 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }
 
     transcribeTranscriptRef.current = "";
+
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
   stopTranscribeRef.current = stopTranscribe;
 
-  const finishAndroidTranscription = useCallback(async () => {
-    if (!isAndroidRef.current || !isTranscribingRef.current) return;
-
-    transcribeManualStopRef.current = true;
-    isTranscribingRef.current = false;
-    setIsTranscribing(false);
-    setIsListening(false);
-
-    const recorder = transcribeRecorderRef.current;
-    if (!recorder) {
-      playTranscribeTone("done");
-      return;
-    }
-
-    try {
-      recorder.requestData?.();
-    } catch {
-      /* noop */
-    }
-
-    try {
-      if (recorder.state !== "inactive") recorder.stop();
-    } catch {
-      /* noop */
-    }
-
-    let blob: Blob | null = null;
-    try {
-      blob = transcribeRecordingPromiseRef.current ? await transcribeRecordingPromiseRef.current : null;
-    } catch (error) {
-      console.warn("Android recording finalization failed:", error);
-    }
-
-    transcribeRecordingPromiseRef.current = null;
-    transcribeRecorderRef.current = null;
-
-    try {
-      if (!blob || !blob.size) {
-        playTranscribeTone("done");
-        alert("I couldn't capture that recording. Please try again.");
-        return;
-      }
-
-      const transcript = await requestTranscription(blob);
-      setQuery(transcript);
-      playTranscribeTone("done");
-    } catch (error) {
-      console.warn("Android transcription request failed:", error);
-      playTranscribeTone("done");
-      alert("I couldn't transcribe that recording. Please try again.");
-    } finally {
-      if (micSourceRef.current) {
-        try {
-          micSourceRef.current.disconnect();
-        } catch {
-          /* noop */
-        }
-        micSourceRef.current = null;
-      }
-      if (micStreamRef.current) {
-        micStreamRef.current.getTracks().forEach((track) => track.stop());
-        micStreamRef.current = null;
-      }
-      transcribeChunksRef.current = [];
-      transcribeMimeTypeRef.current = "";
-      transcribeTranscriptRef.current = "";
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [playTranscribeTone, requestTranscription]);
-
-  const finishIosTranscription = useCallback(() => {
-    if (isAndroidRef.current || !isTranscribingRef.current) return;
-
-    transcribeManualStopRef.current = true;
-    isTranscribingRef.current = false;
-    setIsTranscribing(false);
-    setIsListening(false);
-
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-
-    const text = transcribeTranscriptRef.current.trim();
-
-    if (recognitionRef.current) {
-      const recognition = recognitionRef.current;
-      try {
-        recognition.onend = null;
-        recognition.onerror = null;
-        recognition.onresult = null;
-        recognition.stop();
-      } catch {
-        /* noop */
-      }
-      recognitionRef.current = null;
-    }
-
-    if (micSourceRef.current) {
-      try {
-        micSourceRef.current.disconnect();
-      } catch {
-        /* noop */
-      }
-      micSourceRef.current = null;
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((track) => track.stop());
-      micStreamRef.current = null;
-    }
-
-    setQuery(text);
-    transcribeTranscriptRef.current = "";
-    setTimeout(() => inputRef.current?.focus(), 50);
-  }, []);
-
   const startTranscribe = useCallback(async () => {
     if (isLoading) return;
 
-    if (isVoiceSessionRef.current) stopVoiceSession();
+    if (isVoiceSessionRef.current) {
+      stopVoiceSession();
+    }
 
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
     setQuery("");
 
+    const generation = ++transcribeGenerationRef.current;
     transcribeManualStopRef.current = false;
     transcribeTranscriptRef.current = "";
-    transcribeChunksRef.current = [];
-    transcribeRecordingPromiseRef.current = null;
-    transcribeGenerationRef.current += 1;
 
-    try {
-      primeMobileAudioSession();
+    /* -------------------------------------------------------
+       ANDROID: native browser SpeechRecognition
+       -------------------------------------------------------
+       Keep the speech engine that works reliably on Android devices such
+       as Nothing Phone, but NEVER allow it to submit on its own.
 
-      const { ctx, analyser } = getAudioContext();
-      if (ctx.state === "suspended") await ctx.resume();
+       The browser may end recognition after a pause. We simply restart it
+       while the user remains in transcribe mode and preserve the transcript.
+       The check button above is the ONLY completion action.
+       ------------------------------------------------------- */
+    if (isAndroidRef.current) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      if (!navigator.mediaDevices?.getUserMedia) {
-        alert("Microphone access is not supported in this browser.");
+      if (!SpeechRecognition) {
+        alert("Speech recognition is not supported on this Android browser.");
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      primeMobileAudioSession();
 
-      micStreamRef.current = stream;
+      setIsTranscribing(true);
+      isTranscribingRef.current = true;
+      setIsListening(true);
+      transcribeManualStopRef.current = false;
+      transcribeTranscriptRef.current = "";
+      setQuery("");
+
+      const localGeneration = generation;
+
+      const startAndroidRecognition = () => {
+        if (
+          localGeneration !== transcribeGenerationRef.current ||
+          !isTranscribingRef.current ||
+          transcribeManualStopRef.current
+        ) {
+          return;
+        }
+
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.onend = null;
+            recognitionRef.current.onerror = null;
+            recognitionRef.current.onresult = null;
+            recognitionRef.current.stop();
+          } catch {
+            /* noop */
+          }
+          recognitionRef.current = null;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = true;
+        recognition.continuous = false;
+        recognition.maxAlternatives = 1;
+
+        recognitionRef.current = recognition;
+
+        let interimTranscript = "";
+
+        recognition.onstart = () => {
+          if (
+            localGeneration !== transcribeGenerationRef.current ||
+            !isTranscribingRef.current ||
+            transcribeManualStopRef.current
+          ) {
+            try {
+              recognition.stop();
+            } catch {
+              /* noop */
+            }
+            return;
+          }
+
+          setIsListening(true);
+        };
+
+        recognition.onresult = (event: any) => {
+          if (
+            localGeneration !== transcribeGenerationRef.current ||
+            !isTranscribingRef.current ||
+            transcribeManualStopRef.current
+          ) {
+            return;
+          }
+
+          interimTranscript = "";
+
+          for (let i = event.resultIndex ?? 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            const transcript = result?.[0]?.transcript || "";
+
+            if (result?.isFinal) {
+              transcribeTranscriptRef.current = `${transcribeTranscriptRef.current} ${transcript}`
+                .replace(/\s+/g, " ")
+                .trim();
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+
+          const visibleText = `${transcribeTranscriptRef.current} ${interimTranscript}`.replace(/\s+/g, " ").trim();
+
+          if (visibleText) {
+            setQuery(visibleText);
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          if (
+            localGeneration !== transcribeGenerationRef.current ||
+            !isTranscribingRef.current ||
+            transcribeManualStopRef.current
+          ) {
+            return;
+          }
+
+          if (event.error !== "no-speech" && event.error !== "aborted") {
+            console.warn("Android speech recognition error:", event.error);
+          }
+
+          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            stopTranscribe();
+            return;
+          }
+
+          // Other Android recognition errors are recoverable while the user
+          // remains in transcribe mode. Restart without submitting anything.
+          if (transcribeRestartTimerRef.current) {
+            clearTimeout(transcribeRestartTimerRef.current);
+          }
+
+          transcribeRestartTimerRef.current = setTimeout(() => {
+            transcribeRestartTimerRef.current = null;
+            startAndroidRecognition();
+          }, 250);
+        };
+
+        recognition.onend = () => {
+          if (
+            localGeneration !== transcribeGenerationRef.current ||
+            !isTranscribingRef.current ||
+            transcribeManualStopRef.current
+          ) {
+            return;
+          }
+
+          if (transcribeRestartTimerRef.current) {
+            clearTimeout(transcribeRestartTimerRef.current);
+          }
+
+          transcribeRestartTimerRef.current = setTimeout(() => {
+            transcribeRestartTimerRef.current = null;
+            startAndroidRecognition();
+          }, 150);
+        };
+
+        try {
+          recognition.start();
+        } catch {
+          // Chrome can report an already-started recognition object.
+        }
+      };
+
+      startAndroidRecognition();
+      return;
+    }
+
+    /* -------------------------------------------------------
+       EXISTING iOS / DESKTOP PATH — kept as before
+       ------------------------------------------------------- */
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    primeMobileAudioSession();
+
+    try {
+      const { ctx, analyser } = getAudioContext();
+
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+
+      if (!micStreamRef.current) {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      }
+
+      if (!micSourceRef.current && micStreamRef.current) {
+        micSourceRef.current = ctx.createMediaStreamSource(micStreamRef.current);
+      }
+
       if (micSourceRef.current) {
         try {
-          micSourceRef.current.disconnect();
+          micSourceRef.current.connect(analyser);
         } catch {
-          /* noop */
+          /* Already connected */
         }
-      }
-      micSourceRef.current = ctx.createMediaStreamSource(stream);
-      try {
-        micSourceRef.current.connect(analyser);
-      } catch {
-        /* noop */
       }
 
       setIsTranscribing(true);
       isTranscribingRef.current = true;
       setIsListening(true);
 
-      if (isAndroidRef.current) {
-        if (typeof MediaRecorder === "undefined") {
-          stopTranscribe();
-          alert("Audio recording is not supported on this Android browser.");
-          return;
-        }
-
-        const supportedMime = getSupportedRecordingMimeType();
-        transcribeMimeTypeRef.current = supportedMime || "audio/webm";
-
-        const recorder = supportedMime
-          ? new MediaRecorder(stream, { mimeType: supportedMime })
-          : new MediaRecorder(stream);
-
-        transcribeRecorderRef.current = recorder;
-        transcribeRecordingPromiseRef.current = new Promise<Blob>((resolve, reject) => {
-          recorder.ondataavailable = (event: BlobEvent) => {
-            if (event.data && event.data.size > 0) transcribeChunksRef.current.push(event.data);
-          };
-          recorder.onerror = () => reject(new Error("Voice recording failed."));
-          recorder.onstop = () => {
-            const type = recorder.mimeType || transcribeMimeTypeRef.current || "audio/webm";
-            const blob = new Blob(transcribeChunksRef.current, { type });
-            if (!blob.size) reject(new Error("No voice audio was recorded."));
-            else resolve(blob);
-          };
-        });
-
-        playTranscribeTone("start");
-        recorder.start();
-        return;
-      }
-
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        stopTranscribe();
-        alert("Speech recognition is not supported in this browser.");
-        return;
-      }
-
       const recognition = new SpeechRecognition();
       recognition.lang = "en-US";
       recognition.interimResults = true;
       recognition.continuous = true;
       recognition.maxAlternatives = 1;
+
       recognitionRef.current = recognition;
 
-      recognition.onstart = () => {
-        if (isTranscribingRef.current && !transcribeManualStopRef.current) setIsListening(true);
-      };
-
       recognition.onresult = (event: any) => {
-        if (!isTranscribingRef.current || transcribeManualStopRef.current) return;
-
-        let finalText = transcribeTranscriptRef.current;
-        let interim = "";
-
-        for (let i = event.resultIndex ?? 0; i < event.results.length; i++) {
-          const result = event.results[i];
-          const value = result?.[0]?.transcript || "";
-          if (result?.isFinal) {
-            finalText = `${finalText} ${value}`.replace(/\s+/g, " ").trim();
-          } else {
-            interim += value;
-          }
+        let transcript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0]?.transcript || "";
         }
 
-        transcribeTranscriptRef.current = finalText;
-        const visible = `${finalText} ${interim}`.replace(/\s+/g, " ").trim();
-        if (visible) setQuery(visible);
+        if (transcript) {
+          setQuery(transcript);
+        }
       };
 
       recognition.onerror = (event: any) => {
-        if (transcribeManualStopRef.current || !isTranscribingRef.current) return;
         if (event.error !== "no-speech" && event.error !== "aborted") {
-          console.warn("Speech recognition error:", event.error);
+          console.warn("Speech recognition transcribe error:", event.error);
         }
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
           stopTranscribe();
@@ -2571,28 +2572,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       };
 
       recognition.onend = () => {
-        if (!isTranscribingRef.current || transcribeManualStopRef.current) return;
-        try {
-          recognition.start();
-        } catch {
-          /* already restarting */
+        if (isTranscribingRef.current && !transcribeManualStopRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            /* Browser may already be restarting */
+          }
         }
       };
 
       recognition.start();
     } catch (error) {
-      console.warn("Transcribe setup failed:", error);
+      console.warn("Transcribe setup warning:", error);
       stopTranscribe();
     }
   }, [
-    dismissSuggestionBubble,
     getAudioContext,
-    getSupportedRecordingMimeType,
     isLoading,
-    playTranscribeTone,
-    primeMobileAudioSession,
-    stopTranscribe,
     stopVoiceSession,
+    stopTranscribe,
+    dismissSuggestionBubble,
+    primeMobileAudioSession,
+    requestXiaomiTranscription,
   ]);
 
   /* =======================================================
@@ -2604,22 +2605,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       recognitionGenerationRef.current += 1;
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (transcribeRestartTimerRef.current) clearTimeout(transcribeRestartTimerRef.current);
+
       transcribeManualStopRef.current = true;
       transcribeGenerationRef.current += 1;
-
-      if (transcribeRecorderRef.current) {
-        try {
-          transcribeRecorderRef.current.ondataavailable = null;
-          transcribeRecorderRef.current.onerror = null;
-          transcribeRecorderRef.current.onstop = null;
-          if (transcribeRecorderRef.current.state !== "inactive") transcribeRecorderRef.current.stop();
-        } catch {
-          /* noop */
-        }
-      }
-      transcribeRecorderRef.current = null;
-      transcribeRecordingPromiseRef.current = null;
-      transcribeChunksRef.current = [];
 
       if (recognitionRef.current) {
         try {
@@ -2661,8 +2650,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (androidPlaybackAudioRef.current) {
         try {
           androidPlaybackAudioRef.current.pause();
-          androidPlaybackAudioRef.current.removeAttribute("src");
-          androidPlaybackAudioRef.current.load();
         } catch {
           /* noop */
         }
@@ -2694,94 +2681,80 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      SUBMIT
      ======================================================= */
 
-  const handleSubmit = useCallback(
-    async (event?: FormEvent, customQuery?: string, fromVoice = false) => {
-      event?.preventDefault();
+  const handleSubmit = async (event?: FormEvent, customQuery?: string, fromVoice = false) => {
+    event?.preventDefault();
 
-      if (isLoadingRef.current) return;
+    if (isLoadingRef.current) return;
 
-      if (isTranscribingRef.current) {
-        stopTranscribe();
-      }
+    if (isTranscribingRef.current) {
+      stopTranscribe();
+    }
 
-      const text = (customQuery ?? query).trim();
-      if (!text) return;
+    const text = (customQuery ?? query).trim();
+    if (!text) return;
 
-      setHasInteracted(true);
-      dismissSuggestionBubble();
-      setShowExpandedSuggestions(false);
+    setHasInteracted(true);
+    dismissSuggestionBubble();
+    setShowExpandedSuggestions(false);
 
-      if (!customQuery) setQuery("");
+    if (!customQuery) setQuery("");
 
-      if (!fromVoice) {
-        stopVoiceSession();
+    if (!fromVoice) {
+      stopVoiceSession();
 
-        if (response || suggestions.length > 0) {
-          setIsCollapsingToThink(true);
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          setResponse(null);
-          setSuggestions([]);
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          setIsCollapsingToThink(false);
-        } else {
-          setResponse(null);
-          setSuggestions([]);
-        }
+      if (response || suggestions.length > 0) {
+        setIsCollapsingToThink(true);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setResponse(null);
+        setSuggestions([]);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setIsCollapsingToThink(false);
       } else {
-        setIsListening(false);
+        setResponse(null);
+        setSuggestions([]);
       }
+    } else {
+      setIsListening(false);
+    }
 
-      isLoadingRef.current = true;
-      setIsLoading(true);
+    isLoadingRef.current = true;
+    setIsLoading(true);
 
-      try {
-        const result = await sendChatMessage(text);
-        const answer = String((result as any)?.response ?? "");
-        const suggs = (result as any)?.suggestions || [];
+    try {
+      const result = await sendChatMessage(text);
+      const answer = String((result as any)?.response ?? "");
+      const suggs = (result as any)?.suggestions || [];
 
-        if (fromVoice && isVoiceSessionRef.current) {
-          void speakVoiceResponse(answer);
-        } else {
-          setResponse(answer);
-          setSuggestions(suggs);
-          setIsRestoredFromStorage(false);
-          onSearch?.(answer);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
-
-        if (fromVoice && isVoiceSessionRef.current) {
-          void speakVoiceResponse(message);
-        } else {
-          setResponse(message);
-          setSuggestions([]);
-          setIsRestoredFromStorage(false);
-          onSearch?.(message);
-        }
-      } finally {
-        isLoadingRef.current = false;
-        setIsLoading(false);
+      if (fromVoice && isVoiceSessionRef.current) {
+        void speakVoiceResponse(answer);
+      } else {
+        setResponse(answer);
+        setSuggestions(suggs);
+        setIsRestoredFromStorage(false);
+        onSearch?.(answer);
       }
-    },
-    [
-      query,
-      response,
-      suggestions.length,
-      dismissSuggestionBubble,
-      stopTranscribe,
-      stopVoiceSession,
-      speakVoiceResponse,
-      onSearch,
-    ],
-  );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
 
-  useEffect(() => {
-    handleSubmitRef.current = handleSubmit;
-  }, [handleSubmit]);
+      if (fromVoice && isVoiceSessionRef.current) {
+        void speakVoiceResponse(message);
+      } else {
+        setResponse(message);
+        setSuggestions([]);
+        setIsRestoredFromStorage(false);
+        onSearch?.(message);
+      }
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoading(false);
+    }
+  };
 
-  /* -------------------------------------------------------
-     Interaction Handlers
-     ------------------------------------------------------- */
+  handleSubmitRef.current = handleSubmit;
+
+  /* =======================================================
+     INTERACTION HELPERS
+     ======================================================= */
 
   const handleSuggestionClick = useCallback(
     (suggestion: string) => {
@@ -2791,7 +2764,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setShowExpandedSuggestions(false);
       void handleSubmit(undefined, suggestion, false);
     },
-    [dismissSuggestionBubble, handleSubmit],
+    [dismissSuggestionBubble],
   );
 
   const handleInputFocus = useCallback(() => {
@@ -2810,9 +2783,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     [dismissSuggestionBubble],
   );
 
-  /* -------------------------------------------------------
-     Outside Click Listener
-     ------------------------------------------------------- */
+  /* =======================================================
+     OUTSIDE CLICK
+     ======================================================= */
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
@@ -2861,7 +2834,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    document.addEventListener("touchstart", handleClickOutside);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -2869,13 +2842,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     };
   }, [response, suggestions, query, stopVoiceSession, stopTranscribe, clearPersistedState]);
 
-  /* -------------------------------------------------------
-     Layout Values
-     ------------------------------------------------------- */
+  /* =======================================================
+     LAYOUT
+     ======================================================= */
 
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
     const isExpanded = hasContent && !isLoading;
+    // On narrow phones, a 360px normal bar and 320px voice bar become almost
+    // the same visible width, so the width animation looks compressed.
+    // Keep desktop widths unchanged while giving mobile states a meaningful
+    // difference and leaving safe horizontal breathing room.
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
       : isVoiceSession || isTranscribing
@@ -3015,12 +2992,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
+            {/* Talk with agent voice mode: Waveform WITHOUT timer */}
             {isVoiceSession && !isTranscribing && (
               <div className="flex-1 flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking || isListening} />
               </div>
             )}
 
+            {/* Transcribe mode: Waveform WITH timer */}
             {isTranscribing && (
               <div className="flex-1 flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={isListening} />
@@ -3028,6 +3007,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
+            {/* Action buttons */}
             {isVoiceSession ? (
               <button
                 type="button"
@@ -3041,7 +3021,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             ) : isTranscribing ? (
               <button
                 type="button"
-                onClick={isAndroidRef.current ? finishAndroidTranscription : finishIosTranscription}
+                onClick={isAndroidRef.current ? finishAndroidTranscription : stopTranscribe}
                 className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="Done transcribing"
                 aria-label="Done transcribing"
@@ -3050,6 +3030,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </button>
             ) : (
               <div className="flex items-center gap-1.5 shrink-0 pr-1">
+                {/* Transcribe mic button */}
                 <button
                   type="button"
                   onClick={startTranscribe}
@@ -3060,6 +3041,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   <Mic className="h-5 w-5" strokeWidth={2} />
                 </button>
 
+                {/* Talk with agent button (ChatGPT style) */}
                 <button
                   type="button"
                   onClick={startVoiceSession}
