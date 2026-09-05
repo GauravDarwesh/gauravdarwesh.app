@@ -201,7 +201,7 @@ const BarWaveform: React.FC<{
     const MIN_HEIGHT = 3;
 
     let bufferLength = 0;
-    let dataArray: Uint8Array | null = null;
+    let dataArray: Uint8Array<ArrayBuffer> | null = null;
 
     if (analyser) {
       analyser.fftSize = 256;
@@ -210,7 +210,7 @@ const BarWaveform: React.FC<{
       analyser.maxDecibels = -12;
 
       bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
+      dataArray = new Uint8Array(new ArrayBuffer(bufferLength));
     }
 
     let lastTime = performance.now();
@@ -1871,7 +1871,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         setIsListening(true);
         recorder.start();
 
-        const data = new Uint8Array(analyser.fftSize);
+        const data = new Uint8Array(new ArrayBuffer(analyser.fftSize));
         let heardSpeech = false;
         let lastSpeechAt = performance.now();
         let monitorTimer: ReturnType<typeof setInterval> | null = null;
