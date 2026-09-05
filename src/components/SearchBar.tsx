@@ -151,7 +151,7 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
 }
 
 /* =========================================================
-   4. REACTIVE WAVEFORM
+   4. REACTIVE WAVEFORM (now synthetic-only for consistency)
    ========================================================= */
 
 const BarWaveform: React.FC<{
@@ -175,18 +175,8 @@ const BarWaveform: React.FC<{
     const BAR_GAP = 2;
     const MIN_HEIGHT = 3;
 
-    let bufferLength = 0;
-    let dataArray: Uint8Array<ArrayBuffer> | null = null;
-
-    if (analyser) {
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.65;
-      analyser.minDecibels = -86;
-      analyser.maxDecibels = -12;
-
-      bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(new ArrayBuffer(bufferLength));
-    }
+    // Remove real analyser dependency for visual consistency
+    // We will always use the synthetic speech animation when isSpeaking is true.
 
     let lastTime = performance.now();
 
@@ -245,41 +235,11 @@ const BarWaveform: React.FC<{
       const delta = Math.min(32, Math.max(8, now - lastTime));
       lastTime = now;
 
-      let realAudioEnergy = 0;
-      if (analyser && dataArray && bufferLength > 0) {
-        analyser.getByteFrequencyData(dataArray);
-        for (let j = 0; j < Math.min(32, bufferLength); j++) {
-          realAudioEnergy += dataArray[j];
-        }
-      }
-
-      const hasRealSignal = realAudioEnergy > 15;
-
       for (let i = 0; i < barCount; i++) {
         let targetValue = 0.08;
 
-        if (hasRealSignal && analyser && dataArray && bufferLength > 0) {
-          const normalizedPosition = i / Math.max(1, barCount - 1);
-          const low = Math.floor(Math.pow(normalizedPosition, 1.65) * (bufferLength * 0.88));
-          const high = Math.max(low + 1, Math.floor(Math.pow((i + 1) / barCount, 1.65) * (bufferLength * 0.88)));
-
-          let sum = 0;
-          let weight = 0;
-
-          for (let j = low; j < Math.min(high, bufferLength); j++) {
-            const frequencyPosition = j / Math.max(1, bufferLength - 1);
-            const voiceWeight = 1.2 - frequencyPosition * 0.78;
-            const sample = dataArray[j] / 255;
-            sum += sample * Math.max(0.28, voiceWeight);
-            weight += Math.max(0.28, voiceWeight);
-          }
-
-          const spectrumValue = weight > 0 ? sum / weight : 0;
-          targetValue = Math.min(1, 0.045 + Math.pow(spectrumValue, 0.78) * 1.48);
-        } else if (isSpeaking) {
-          // Same fallback animation for both human speech and AI speech.
-          // This is deliberately identical whether a browser exposes a live
-          // analyser signal or not, so Android gets the same visual language.
+        if (isSpeaking) {
+          // Synthetic speech animation – identical for human and AI speech.
           const t = now * 0.005;
           const speechRhythm = Math.sin(t * 1.8) * Math.sin(t * 3.2) + 0.45 * Math.sin(t * 5.1 + 0.7);
           const modulation = Math.max(0.18, 0.58 + 0.22 * speechRhythm);
@@ -618,7 +578,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const primeMobileAudioSession = useCallback(() => {
     const isAndroid = isAndroidRef.current;
 
-    // Keep the existing Web Audio/iOS unlocking behavior intact.
     try {
       const { ctx } = getAudioContext();
       if (ctx.state === "suspended") {
@@ -639,12 +598,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if ("speechSynthesis" in window) {
       try {
         if (isAndroid) {
-          // Android: synchronously clear stale queued utterances. Do NOT queue
-          // a dummy utterance because it can occupy Chrome's speech engine and
-          // interfere with the real response later.
           window.speechSynthesis.cancel();
         } else {
-          // iOS/Desktop: retain the existing unlock behavior exactly.
           const prime = new SpeechSynthesisUtterance(" ");
           prime.volume = 0.01;
           window.speechSynthesis.speak(prime);
@@ -654,10 +609,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
     }
 
-    // Prepare one reusable HTMLAudioElement on Android. The element is
-    // created during the user's tap and reused later when hosted TTS returns,
-    // which is considerably more reliable than creating a brand-new media
-    // element after an asynchronous fetch.
     if (isAndroid && !androidPlaybackAudioRef.current) {
       try {
         const audio = new Audio();
@@ -958,9 +909,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         const voices = synthesis.getVoices() || [];
         if (!voices.length) return null;
 
-        // Prefer a local/native English voice where possible. Android often
-        // exposes multiple remote voices, and local voices are more reliable
-        // for browser fallback playback.
         return (
           voices.find((voice) => voice.localService && /^en(-|_)/i.test(voice.lang)) ||
           voices.find((voice) => /^en(-|_)/i.test(voice.lang)) ||
@@ -1019,8 +967,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (isAndroid) {
         const cleanText = fullTextToSpeak.replace(/\s+/g, " ").trim();
 
-        // Android Chrome can be unreliable with one large utterance.
-        // Keep chunks short and speak them sequentially.
         const chunks = cleanText
           .split(/(?<=[.!?])\s+/)
           .flatMap((sentence) => {
@@ -1090,8 +1036,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               utterance.pitch = 1.0;
               utterance.volume = 1.0;
 
-              // On retry, intentionally omit the voice. Some Android builds
-              // reject a voice object even though default speech works.
               if (attempt === 0 && preferredVoice) {
                 utterance.voice = preferredVoice;
                 utterance.lang = preferredVoice.lang || "en-IN";
@@ -1126,7 +1070,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 isSpeakingRef.current = false;
                 setIsSpeaking(false);
 
-                // Canceled/interrupted can be a stale Android queue event.
                 if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
                   finish(false);
                   return;
@@ -1158,8 +1101,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
                 timer = setTimeout(
                   () => {
-                    // If Android never emits onstart/onend, do one final
-                    // default-voice attempt rather than leaving the session stuck.
                     if (!settled && attempt === 0) {
                       attempt = 1;
                       cleanup();
@@ -1195,8 +1136,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             return false;
           }
 
-          // Tiny gap prevents some Android TTS engines from swallowing the
-          // first phoneme of the next utterance.
           if (index < chunks.length - 1) {
             await new Promise((resolve) => setTimeout(resolve, 70));
           }
@@ -1298,8 +1237,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       if (!isAndroidRef.current || typeof window === "undefined") return false;
       if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
 
-      // Xiaomi-only hosted playback: prefer Web Audio because some MIUI/HyperOS
-      // browser builds are stricter about delayed HTMLAudioElement.play().
       if (isXiaomiRef.current) {
         try {
           const { ctx, analyser } = getAudioContext();
@@ -1420,8 +1357,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           hostedObjectUrlRef.current = null;
         }
 
-        // Keep the reusable element alive, but clear its source after
-        // playback so it can be unlocked/reused for the next response.
         if (androidPlaybackAudioRef.current) {
           try {
             androidPlaybackAudioRef.current.pause();
@@ -1437,7 +1372,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   );
 
   /* =======================================================
-     HOSTED TTS WITH CLEAN LOCAL FALLBACK
+     HOSTED TTS WITH CLEAN LOCAL FALLBACK (now fetches once)
      ======================================================= */
 
   const speakVoiceResponse = useCallback(
@@ -1486,17 +1421,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return;
       }
 
-      const sentences = clean
-        .split(/(?<=[.!?])\s+/)
-        .map((sentence) => sentence.trim())
-        .filter(Boolean);
-
-      let audioGraph: { ctx: AudioContext; analyser: AnalyserNode } | null = null;
-
-      // Every new voice response tests the hosted TTS endpoint first.
-      // Once that request fails, the remainder of this response falls back
-      // to browser/local TTS. A previously stored quota flag never skips
-      // the first live API attempt.
+      // We'll attempt to fetch the entire response as one audio buffer.
       let hostedTtsFailed = false;
 
       const disconnectMicForPlayback = () => {
@@ -1528,107 +1453,75 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       };
 
-      const fetchAudioBuffer = async (sentence: string): Promise<AudioBuffer | null> => {
-        if (hostedTtsFailed) return null;
+      // Single fetch for entire text
+      let audioBuffer: AudioBuffer | null = null;
+      let androidPlayed = false;
 
-        try {
-          const res = await fetch(TTS_ENDPOINT, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-              apikey: SUPABASE_ANON_KEY,
-            },
-            body: JSON.stringify({ text: sentence }),
-          });
+      try {
+        const res = await fetch(TTS_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            apikey: SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ text: clean }),
+        });
 
-          if (!res.ok) {
-            const body = await res.text().catch(() => "");
-            if (res.status === 429) rememberTtsQuotaLimit(body);
-            hostedTtsFailed = true;
-            return null;
-          }
-
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          if (res.status === 429) rememberTtsQuotaLimit(body);
+          hostedTtsFailed = true;
+        } else {
           const contentType = res.headers.get("content-type") || "";
           const arrayBuffer = await res.arrayBuffer();
 
-          // If the function accidentally returns JSON/text instead of audio,
-          // fail over immediately instead of trying to decode invalid bytes.
           if (!arrayBuffer.byteLength || /application\/(json|text)/i.test(contentType)) {
             hostedTtsFailed = true;
-            return null;
+          } else if (isAndroidRef.current) {
+            // Android: play directly using the reusable audio element or Web Audio
+            androidPlayed = await playHostedAudioOnAndroid(arrayBuffer, token);
+            if (!androidPlayed) hostedTtsFailed = true;
+          } else {
+            const audioGraph = getAudioContext();
+            if (audioGraph.ctx.state === "suspended") await audioGraph.ctx.resume();
+            try {
+              audioBuffer = await audioGraph.ctx.decodeAudioData(arrayBuffer.slice(0));
+            } catch {
+              hostedTtsFailed = true;
+            }
           }
-
-          if (isAndroidRef.current) {
-            const played = await playHostedAudioOnAndroid(arrayBuffer, token);
-            if (played) return { __androidPlayed: true } as any;
-            hostedTtsFailed = true;
-            return null;
-          }
-
-          audioGraph ??= getAudioContext();
-          if (audioGraph.ctx.state === "suspended") {
-            await audioGraph.ctx.resume();
-          }
-
-          try {
-            return await audioGraph.ctx.decodeAudioData(arrayBuffer.slice(0));
-          } catch {
-            hostedTtsFailed = true;
-            return null;
-          }
-        } catch {
-          hostedTtsFailed = true;
-          return null;
         }
-      };
+      } catch {
+        hostedTtsFailed = true;
+      }
 
-      isSpeakingRef.current = true;
-      setIsSpeaking(true);
+      if (hostedTtsFailed || (!androidPlayed && !audioBuffer && !isAndroidRef.current)) {
+        // Fallback to browser TTS
+        disconnectMicForPlayback();
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+        await speakWithBrowserTTS(clean, token);
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        reconnectMicAfterPlayback();
+      } else {
+        // Played via hosted TTS (Android or Web Audio)
+        disconnectMicForPlayback();
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
 
-      try {
-        for (let i = 0; i < sentences.length; i++) {
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
-            return;
-          }
-
-          const buffer = await fetchAudioBuffer(sentences[i]);
-
-          if (!buffer) {
-            disconnectMicForPlayback();
-            isSpeakingRef.current = true;
-            setIsSpeaking(true);
-
-            // Cohesive single pass fallback without looping or stutter
-            const remainingCombined = sentences.slice(i).join(" ");
-            await speakWithBrowserTTS(remainingCombined, token);
-            return;
-          }
-
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
-            return;
-          }
-
-          if (isAndroidRef.current && (buffer as any)?.__androidPlayed) {
-            continue;
-          }
-
-          disconnectMicForPlayback();
-          isSpeakingRef.current = true;
-          setIsSpeaking(true);
+        if (androidPlayed) {
+          // Already played; just wait a bit for natural pause
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        } else if (audioBuffer) {
+          // Web Audio playback
+          const audioGraph = getAudioContext();
+          if (audioGraph.ctx.state === "suspended") await audioGraph.ctx.resume();
 
           await new Promise<void>((resolve) => {
-            if (!audioGraph) {
-              resolve();
-              return;
-            }
-
-            if (audioGraph.ctx.state === "suspended") {
-              void audioGraph.ctx.resume();
-            }
-
             const source = audioGraph.ctx.createBufferSource();
-            source.buffer = buffer;
+            source.buffer = audioBuffer;
             source.playbackRate.value = 1.0;
 
             const monitor = analyserMonitorRef.current;
@@ -1640,7 +1533,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   analyserDestinationConnectedRef.current = true;
                 }
               } catch {
-                /* Graph may already be connected */
+                /* noop */
               }
             }
 
@@ -1662,47 +1555,43 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }
           });
         }
-      } catch (err) {
-        console.warn("TTS playback error:", err);
-      } finally {
-        if (token === speakTokenRef.current) {
-          currentSourceNodeRef.current = null;
 
-          if (analyserDestinationConnectedRef.current && analyserRef.current && analyserMonitorRef.current) {
-            try {
-              analyserRef.current.disconnect(analyserMonitorRef.current);
-            } catch {
-              /* noop */
-            }
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        reconnectMicAfterPlayback();
+      }
 
-            try {
-              analyserMonitorRef.current.disconnect();
-            } catch {
-              /* noop */
-            }
-
-            analyserDestinationConnectedRef.current = false;
-          }
-
-          isSpeakingRef.current = false;
-          setIsSpeaking(false);
-
-          // Buffer delay to avoid acoustic feedback from the phone's speaker
-          if (isVoiceSessionRef.current) {
-            setTimeout(() => {
-              if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
-                transcriptRef.current = "";
-                reconnectMicAfterPlayback();
-                void startListeningContinuousRef.current?.();
-              }
-            }, 600);
-          } else {
-            reconnectMicAfterPlayback();
-          }
+      // Cleanup analyser connection
+      if (analyserDestinationConnectedRef.current && analyserRef.current && analyserMonitorRef.current) {
+        try {
+          analyserRef.current.disconnect(analyserMonitorRef.current);
+        } catch {
+          /* noop */
         }
+
+        try {
+          analyserMonitorRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+
+        analyserDestinationConnectedRef.current = false;
+      }
+
+      // Delay to avoid acoustic feedback
+      if (isVoiceSessionRef.current) {
+        setTimeout(() => {
+          if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
+            transcriptRef.current = "";
+            reconnectMicAfterPlayback();
+            void startListeningContinuousRef.current?.();
+          }
+        }, 600);
+      } else {
+        reconnectMicAfterPlayback();
       }
     },
-    [getAudioContext, speakWithBrowserTTS, stopAudioOnly],
+    [getAudioContext, speakWithBrowserTTS, stopAudioOnly, playHostedAudioOnAndroid],
   );
 
   /* =======================================================
@@ -1959,9 +1848,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       setIsListening(true);
 
-      // Android Chrome can have trouble when getUserMedia and its separate
-      // SpeechRecognition service compete for the microphone. Let recognition
-      // own the microphone on Android; desktop/iOS retain the real analyser.
       if (!isAndroidRef.current) {
         const { ctx, analyser } = getAudioContext();
 
@@ -2193,12 +2079,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopTranscribeRef.current?.();
     }
 
-    // Set the ref before any asynchronous work. Android fallback TTS and
-    // recognition both use this ref as their authoritative session flag.
     isVoiceSessionRef.current = true;
     setIsVoiceSession(true);
 
-    // Must remain inside the button's user gesture.
     primeMobileAudioSession();
     setResponse(null);
     setSuggestions([]);
@@ -2241,10 +2124,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsTranscribing(false);
     setIsListening(false);
 
-    // The Android transcription path uses the browser's speech engine again
-    // because that is what reliably produces text on devices such as Nothing
-    // Phone. Completion is still manual: this button is the only thing that
-    // ends transcription.
     transcribeTranscriptRef.current = query.trim();
 
     setTimeout(() => inputRef.current?.focus(), 50);
@@ -2330,13 +2209,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     /* -------------------------------------------------------
        ANDROID: native browser SpeechRecognition
-       -------------------------------------------------------
-       Keep the speech engine that works reliably on Android devices such
-       as Nothing Phone, but NEVER allow it to submit on its own.
-
-       The browser may end recognition after a pause. We simply restart it
-       while the user remains in transcribe mode and preserve the transcript.
-       The check button above is the ONLY completion action.
        ------------------------------------------------------- */
     if (isAndroidRef.current) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -2454,8 +2326,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             return;
           }
 
-          // Other Android recognition errors are recoverable while the user
-          // remains in transcribe mode. Restart without submitting anything.
           if (transcribeRestartTimerRef.current) {
             clearTimeout(transcribeRestartTimerRef.current);
           }
@@ -2849,10 +2719,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
     const isExpanded = hasContent && !isLoading;
-    // On narrow phones, a 360px normal bar and 320px voice bar become almost
-    // the same visible width, so the width animation looks compressed.
-    // Keep desktop widths unchanged while giving mobile states a meaningful
-    // difference and leaving safe horizontal breathing room.
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
       : isVoiceSession || isTranscribing
