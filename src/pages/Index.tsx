@@ -532,10 +532,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const currentSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const hostedAudioRef = useRef<HTMLAudioElement | null>(null);
   const androidPlaybackAudioRef = useRef<HTMLAudioElement | null>(null);
-  const androidRecorderRef = useRef<MediaRecorder | null>(null);
-  const androidRecordedChunksRef = useRef<Blob[]>([]);
-  const androidRecordingMimeTypeRef = useRef<string>("audio/webm");
-  const androidRecordingPromiseRef = useRef<Promise<Blob> | null>(null);
   const hostedObjectUrlRef = useRef<string | null>(null);
   const speakTokenRef = useRef(0);
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -1750,7 +1746,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const startListeningContinuous = useCallback(async () => {
     if (!isVoiceSessionRef.current || isSpeakingRef.current) return;
 
-    let generation = ++recognitionGenerationRef.current;
+    const generation = ++recognitionGenerationRef.current;
 
     /* -------------------------------------------------------
        XIAOMI ONLY: MediaRecorder -> Supabase transcription
@@ -1937,7 +1933,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return;
     }
 
-    generation = ++recognitionGenerationRef.current;
+    const generation = ++recognitionGenerationRef.current;
 
     if (recognitionRef.current) {
       try {
