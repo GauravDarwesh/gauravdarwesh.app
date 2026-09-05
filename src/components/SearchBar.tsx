@@ -485,6 +485,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const isLoadingRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const isAndroidRef = useRef(typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent || ""));
+  const androidRecorderRef = useRef<MediaRecorder | null>(null);
+  const androidRecordedChunksRef = useRef<Blob[]>([]);
+  const androidRecordingMimeTypeRef = useRef<string>("");
+  const androidRecordingPromiseRef = useRef<Promise<Blob> | null>(null);
   const isXiaomiRef = useRef(
     typeof navigator !== "undefined" && /Xiaomi|Redmi|POCO|MiuiBrowser|MIUI|Mi\s?Pad/i.test(navigator.userAgent || ""),
   );
@@ -1932,8 +1936,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopVoiceSessionRef.current?.();
       return;
     }
-
-    const generation = ++recognitionGenerationRef.current;
 
     if (recognitionRef.current) {
       try {
