@@ -518,6 +518,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const micStreamRef = useRef<MediaStream | null>(null);
   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
+  // Android/Xiaomi MediaRecorder-based transcription state
+  const androidRecorderRef = useRef<MediaRecorder | null>(null);
+  const androidRecordedChunksRef = useRef<Blob[]>([]);
+  const androidRecordingMimeTypeRef = useRef("");
+  const androidRecordingPromiseRef = useRef<Promise<Blob> | null>(null);
+
   const transcriptRef = useRef("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
