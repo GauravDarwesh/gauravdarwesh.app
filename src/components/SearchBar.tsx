@@ -1852,7 +1852,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       isSpeakingRef.current = false;
       setIsSpeaking(false);
-      hideVoiceLinkBubbles();
       reconnectMicAfterPlayback();
 
       if (isVoiceSessionRef.current && allPlayed) {
