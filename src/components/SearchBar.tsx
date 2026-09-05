@@ -165,11 +165,6 @@ const BarWaveform: React.FC<{
   const displayedLevelsRef = useRef<number[]>([]);
 
   useEffect(() => {
-    // One visual engine for every device and every audio mode. The analyser
-    // remains available to the audio graph, but the canvas never switches
-    // to a platform-specific renderer.
-    void analyser;
-
     if (!isActive || !canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
@@ -179,6 +174,20 @@ const BarWaveform: React.FC<{
     const BAR_WIDTH = 2;
     const BAR_GAP = 2;
     const MIN_HEIGHT = 3;
+
+    let bufferLength = 0;
+    let dataArray: Uint8Array<ArrayBuffer> | null = null;
+
+    if (analyser) {
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.65;
+      analyser.minDecibels = -86;
+      analyser.maxDecibels = -12;
+
+      bufferLength = analyser.frequencyBinCount;
+      dataArray = new Uint8Array(new ArrayBuffer(bufferLength));
+    }
+
     let lastTime = performance.now();
 
     const resize = () => {
@@ -198,6 +207,7 @@ const BarWaveform: React.FC<{
 
       const barCount = Math.max(8, Math.floor(rect.width / (BAR_WIDTH + BAR_GAP)));
       const prev = displayedLevelsRef.current;
+
       if (prev.length !== barCount) {
         displayedLevelsRef.current = Array.from({ length: barCount }, (_, index) => {
           if (!prev.length) return 0.08;
@@ -211,7 +221,7 @@ const BarWaveform: React.FC<{
     };
 
     resize();
-    const resizeObserver = new ResizeObserver(resize);
+    const resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(containerRef.current);
 
     const draw = (now: number) => {
@@ -223,6 +233,7 @@ const BarWaveform: React.FC<{
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = rect.width;
       const h = rect.height;
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
@@ -234,27 +245,54 @@ const BarWaveform: React.FC<{
       const delta = Math.min(32, Math.max(8, now - lastTime));
       lastTime = now;
 
-      const t = now * 0.005;
-      const center = (barCount - 1) / 2;
-      const activePulse = isSpeaking
-        ? 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(t * 1.35))
-        : 0.48 + 0.1 * (0.5 + 0.5 * Math.sin(t * 1.0));
+      let realAudioEnergy = 0;
+      if (analyser && dataArray && bufferLength > 0) {
+        analyser.getByteFrequencyData(dataArray);
+        for (let j = 0; j < Math.min(32, bufferLength); j++) {
+          realAudioEnergy += dataArray[j];
+        }
+      }
+
+      const hasRealSignal = realAudioEnergy > 15;
 
       for (let i = 0; i < barCount; i++) {
-        const distance = Math.abs(i - center) / Math.max(1, center);
-        const envelope = Math.max(0.18, 1 - Math.pow(distance, 1.6));
-        const harmonic =
-          Math.sin(t * 4.0 + i * 0.42) * 0.5 +
-          Math.cos(t * 2.2 + i * 0.28) * 0.5 +
-          Math.sin(t * 1.55 + i * 0.17) * 0.22;
-        const ripple = 0.5 + 0.5 * harmonic;
-        const targetValue = isSpeaking
-          ? Math.max(0.1, Math.min(0.94, 0.14 + ripple * activePulse * envelope * 0.92))
-          : Math.max(0.06, Math.min(0.24, 0.07 + ripple * activePulse * envelope * 0.28));
+        let targetValue = 0.08;
+
+        if (hasRealSignal && analyser && dataArray && bufferLength > 0) {
+          const normalizedPosition = i / Math.max(1, barCount - 1);
+          const low = Math.floor(Math.pow(normalizedPosition, 1.65) * (bufferLength * 0.88));
+          const high = Math.max(low + 1, Math.floor(Math.pow((i + 1) / barCount, 1.65) * (bufferLength * 0.88)));
+
+          let sum = 0;
+          let weight = 0;
+
+          for (let j = low; j < Math.min(high, bufferLength); j++) {
+            const frequencyPosition = j / Math.max(1, bufferLength - 1);
+            const voiceWeight = 1.2 - frequencyPosition * 0.78;
+            const sample = dataArray[j] / 255;
+            sum += sample * Math.max(0.28, voiceWeight);
+            weight += Math.max(0.28, voiceWeight);
+          }
+
+          const spectrumValue = weight > 0 ? sum / weight : 0;
+          targetValue = Math.min(1, 0.045 + Math.pow(spectrumValue, 0.78) * 1.48);
+        } else if (isSpeaking) {
+          const t = now * 0.005;
+          const speechRhythm = Math.sin(t * 1.8) * Math.sin(t * 3.2);
+          const modulation = Math.max(0.25, 0.6 + 0.4 * speechRhythm);
+          const harmonic = Math.sin(t * 4.0 + i * 0.42) * 0.5 + Math.cos(t * 2.2 + i * 0.28) * 0.5;
+          const barEnvelope = Math.sin((i / Math.max(1, barCount - 1)) * Math.PI);
+          targetValue = Math.max(0.08, Math.min(0.9, 0.12 + (harmonic * 0.5 + 0.5) * modulation * barEnvelope * 0.85));
+        } else {
+          const t = now * 0.002;
+          const gentleWave = Math.sin(t * 2.0 + i * 0.25) * 0.035;
+          targetValue = 0.07 + gentleWave;
+        }
 
         const current = displayedLevelsRef.current[i] ?? 0.08;
         const attack = 1 - Math.pow(0.18, delta / 16.67);
         const release = 1 - Math.pow(0.45, delta / 16.67);
+
         displayedLevelsRef.current[i] =
           targetValue > current
             ? current + (targetValue - current) * attack
@@ -262,6 +300,7 @@ const BarWaveform: React.FC<{
 
         const value = Math.max(0.05, Math.min(1, displayedLevelsRef.current[i]));
         const barHeight = Math.max(MIN_HEIGHT, value * (h * 0.85));
+
         const x = i * (BAR_WIDTH + BAR_GAP);
         const y = (h - barHeight) / 2;
         const radius = Math.min(1, barHeight / 2);
@@ -281,7 +320,9 @@ const BarWaveform: React.FC<{
 
     return () => {
       resizeObserver.disconnect();
-      if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current);
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
       animFrameRef.current = null;
     };
   }, [analyser, isActive, isSpeaking]);
@@ -2220,24 +2261,38 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsTranscribing(false);
     setIsListening(false);
 
-    const recorder = transcribeRecorderRef.current;
-    transcribeRecorderRef.current = null;
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
 
-    if (recorder) {
+    if (transcribeRecorderRef.current) {
       try {
-        recorder.ondataavailable = null;
-        recorder.onerror = null;
-        recorder.onstop = null;
-        if (recorder.state !== "inactive") recorder.stop();
+        transcribeRecorderRef.current.ondataavailable = null;
+        transcribeRecorderRef.current.onerror = null;
+        transcribeRecorderRef.current.onstop = null;
+        if (transcribeRecorderRef.current.state !== "inactive") transcribeRecorderRef.current.stop();
       } catch {
         /* noop */
       }
+      transcribeRecorderRef.current = null;
     }
-
     transcribeRecordingPromiseRef.current = null;
     transcribeChunksRef.current = [];
     transcribeMimeTypeRef.current = "";
-    transcribeTranscriptRef.current = "";
+
+    if (recognitionRef.current) {
+      const recognition = recognitionRef.current;
+      try {
+        recognition.onend = null;
+        recognition.onerror = null;
+        recognition.onresult = null;
+        recognition.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    }
 
     if (micSourceRef.current) {
       try {
@@ -2252,33 +2307,34 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
     }
+
+    transcribeTranscriptRef.current = "";
+    setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
   stopTranscribeRef.current = stopTranscribe;
 
-  const finishTranscription = useCallback(async () => {
-    if (!isTranscribingRef.current || isLoadingRef.current) return;
+  const finishAndroidTranscription = useCallback(async () => {
+    if (!isAndroidRef.current || !isTranscribingRef.current) return;
 
     transcribeManualStopRef.current = true;
-    transcribeGenerationRef.current += 1;
     isTranscribingRef.current = false;
     setIsTranscribing(false);
     setIsListening(false);
 
     const recorder = transcribeRecorderRef.current;
-    transcribeRecorderRef.current = null;
-
     if (!recorder) {
-      stopTranscribe();
+      playTranscribeTone("done");
       return;
     }
 
     try {
-      try {
-        recorder.requestData?.();
-      } catch {
-        /* noop */
-      }
+      recorder.requestData?.();
+    } catch {
+      /* noop */
+    }
+
+    try {
       if (recorder.state !== "inactive") recorder.stop();
     } catch {
       /* noop */
@@ -2288,10 +2344,73 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       blob = transcribeRecordingPromiseRef.current ? await transcribeRecordingPromiseRef.current : null;
     } catch (error) {
-      console.warn("Transcription recording finalization failed:", error);
+      console.warn("Android recording finalization failed:", error);
     }
 
     transcribeRecordingPromiseRef.current = null;
+    transcribeRecorderRef.current = null;
+
+    try {
+      if (!blob || !blob.size) {
+        playTranscribeTone("done");
+        alert("I couldn't capture that recording. Please try again.");
+        return;
+      }
+
+      const transcript = await requestTranscription(blob);
+      setQuery(transcript);
+      playTranscribeTone("done");
+    } catch (error) {
+      console.warn("Android transcription request failed:", error);
+      playTranscribeTone("done");
+      alert("I couldn't transcribe that recording. Please try again.");
+    } finally {
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+        micSourceRef.current = null;
+      }
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+        micStreamRef.current = null;
+      }
+      transcribeChunksRef.current = [];
+      transcribeMimeTypeRef.current = "";
+      transcribeTranscriptRef.current = "";
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [playTranscribeTone, requestTranscription]);
+
+  const finishIosTranscription = useCallback(() => {
+    if (isAndroidRef.current || !isTranscribingRef.current) return;
+
+    transcribeManualStopRef.current = true;
+    isTranscribingRef.current = false;
+    setIsTranscribing(false);
+    setIsListening(false);
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    const text = transcribeTranscriptRef.current.trim();
+
+    if (recognitionRef.current) {
+      const recognition = recognitionRef.current;
+      try {
+        recognition.onend = null;
+        recognition.onerror = null;
+        recognition.onresult = null;
+        recognition.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    }
 
     if (micSourceRef.current) {
       try {
@@ -2301,34 +2420,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
       micSourceRef.current = null;
     }
-
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
     }
 
-    transcribeChunksRef.current = [];
-
-    if (!blob || !blob.size) {
-      playTranscribeTone("done");
-      setQuery("");
-      return;
-    }
-
-    try {
-      const transcript = await requestTranscription(blob);
-      setQuery(transcript);
-      playTranscribeTone("done");
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } catch (error) {
-      console.warn("Transcription request failed:", error);
-      playTranscribeTone("done");
-      setQuery("");
-    } finally {
-      transcribeMimeTypeRef.current = "";
-      transcribeTranscriptRef.current = "";
-    }
-  }, [playTranscribeTone, requestTranscription, stopTranscribe]);
+    setQuery(text);
+    transcribeTranscriptRef.current = "";
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
 
   const startTranscribe = useCallback(async () => {
     if (isLoading) return;
@@ -2340,22 +2440,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     setQuery("");
 
-    const localGeneration = ++transcribeGenerationRef.current;
     transcribeManualStopRef.current = false;
     transcribeTranscriptRef.current = "";
     transcribeChunksRef.current = [];
     transcribeRecordingPromiseRef.current = null;
-
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      alert("Audio recording is not supported in this browser.");
-      return;
-    }
+    transcribeGenerationRef.current += 1;
 
     try {
       primeMobileAudioSession();
 
       const { ctx, analyser } = getAudioContext();
       if (ctx.state === "suspended") await ctx.resume();
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        alert("Microphone access is not supported in this browser.");
+        return;
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -2365,11 +2465,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           autoGainControl: true,
         },
       });
-
-      if (localGeneration !== transcribeGenerationRef.current || transcribeManualStopRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
 
       micStreamRef.current = stream;
       if (micSourceRef.current) {
@@ -2386,38 +2481,108 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         /* noop */
       }
 
-      const supportedMime = getSupportedRecordingMimeType();
-      transcribeMimeTypeRef.current = supportedMime || "audio/webm";
-
-      const recorder = supportedMime
-        ? new MediaRecorder(stream, { mimeType: supportedMime })
-        : new MediaRecorder(stream);
-
-      transcribeRecorderRef.current = recorder;
-      transcribeRecordingPromiseRef.current = new Promise<Blob>((resolve, reject) => {
-        recorder.ondataavailable = (event: BlobEvent) => {
-          if (event.data && event.data.size > 0) transcribeChunksRef.current.push(event.data);
-        };
-        recorder.onerror = () => reject(new Error("Voice recording failed."));
-        recorder.onstop = () => {
-          const type = recorder.mimeType || transcribeMimeTypeRef.current || "audio/webm";
-          const result = new Blob(transcribeChunksRef.current, { type });
-          if (!result.size) {
-            reject(new Error("No voice audio was recorded."));
-            return;
-          }
-          resolve(result);
-        };
-      });
-
-      // Play the single Android start tone before recording begins so the
-      // notification itself is not included in the transcription audio.
-      playTranscribeTone("start");
-
-      recorder.start();
-      isTranscribingRef.current = true;
       setIsTranscribing(true);
+      isTranscribingRef.current = true;
       setIsListening(true);
+
+      // Android: one MediaRecorder session; pauses never restart anything.
+      if (isAndroidRef.current) {
+        if (typeof MediaRecorder === "undefined") {
+          stopTranscribe();
+          alert("Audio recording is not supported on this Android browser.");
+          return;
+        }
+
+        const supportedMime = getSupportedRecordingMimeType();
+        transcribeMimeTypeRef.current = supportedMime || "audio/webm";
+
+        const recorder = supportedMime
+          ? new MediaRecorder(stream, { mimeType: supportedMime })
+          : new MediaRecorder(stream);
+
+        transcribeRecorderRef.current = recorder;
+        transcribeRecordingPromiseRef.current = new Promise<Blob>((resolve, reject) => {
+          recorder.ondataavailable = (event: BlobEvent) => {
+            if (event.data && event.data.size > 0) transcribeChunksRef.current.push(event.data);
+          };
+          recorder.onerror = () => reject(new Error("Voice recording failed."));
+          recorder.onstop = () => {
+            const type = recorder.mimeType || transcribeMimeTypeRef.current || "audio/webm";
+            const blob = new Blob(transcribeChunksRef.current, { type });
+            if (!blob.size) reject(new Error("No voice audio was recorded."));
+            else resolve(blob);
+          };
+        });
+
+        // Only Android gets the confirmation sounds.
+        playTranscribeTone("start");
+        recorder.start();
+        return;
+      }
+
+      // iPhone/Safari: keep the proven browser speech-recognition path, but
+      // remove every auto-submit / silence timer. The tick is the only finish.
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        stopTranscribe();
+        alert("Speech recognition is not supported in this browser.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+      recognition.maxAlternatives = 1;
+      recognitionRef.current = recognition;
+
+      recognition.onstart = () => {
+        if (isTranscribingRef.current && !transcribeManualStopRef.current) setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        if (!isTranscribingRef.current || transcribeManualStopRef.current) return;
+
+        let finalText = transcribeTranscriptRef.current;
+        let interim = "";
+
+        for (let i = event.resultIndex ?? 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          const value = result?.[0]?.transcript || "";
+          if (result?.isFinal) {
+            finalText = `${finalText} ${value}`.replace(/\s+/g, " ").trim();
+          } else {
+            interim += value;
+          }
+        }
+
+        transcribeTranscriptRef.current = finalText;
+        const visible = `${finalText} ${interim}`.replace(/\s+/g, " ").trim();
+        if (visible) setQuery(visible);
+      };
+
+      recognition.onerror = (event: any) => {
+        if (transcribeManualStopRef.current || !isTranscribingRef.current) return;
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+          console.warn("iOS speech recognition error:", event.error);
+        }
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          stopTranscribe();
+        }
+      };
+
+      recognition.onend = () => {
+        if (!isTranscribingRef.current || transcribeManualStopRef.current) return;
+        // Safari can end recognition after silence. Restart only to continue
+        // listening; this never submits and never invokes the completion tone.
+        try {
+          recognition.start();
+        } catch {
+          /* already restarting */
+        }
+      };
+
+      recognition.start();
     } catch (error) {
       console.warn("Transcribe setup failed:", error);
       stopTranscribe();
@@ -2870,7 +3035,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             ) : isTranscribing ? (
               <button
                 type="button"
-                onClick={finishTranscription}
+                onClick={isAndroidRef.current ? finishAndroidTranscription : finishIosTranscription}
                 className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="Done transcribing"
                 aria-label="Done transcribing"
