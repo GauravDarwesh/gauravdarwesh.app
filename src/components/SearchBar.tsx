@@ -1871,7 +1871,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         setIsListening(true);
         recorder.start();
 
-        const data = new Uint8Array(analyser.fftSize);
+        const data = new Uint8Array(new ArrayBuffer(analyser.fftSize));
         let heardSpeech = false;
         let lastSpeechAt = performance.now();
         let monitorTimer: ReturnType<typeof setInterval> | null = null;
