@@ -509,6 +509,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [voiceLinksExiting, setVoiceLinksExiting] = useState(false);
 
   const voiceLinksShownRef = useRef(false);
+  const voiceLinksRef = useRef<VoiceLink[]>([]);
   const voiceLinksExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isVoiceSessionRef = useRef(false);
@@ -915,6 +916,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setVoiceLinksVisible(false);
       setVoiceLinksExiting(false);
       setVoiceLinks([]);
+      voiceLinksRef.current = [];
       voiceLinksShownRef.current = false;
       voiceLinksExitTimerRef.current = null;
     }, 400);
@@ -926,6 +928,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       voiceLinksExitTimerRef.current = null;
     }
 
+    voiceLinksRef.current = links;
     setVoiceLinks(links);
     setVoiceLinksVisible(false);
     setVoiceLinksExiting(false);
@@ -933,12 +936,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, []);
 
   const revealVoiceLinkBubbles = useCallback(() => {
-    if (voiceLinksShownRef.current || !voiceLinks.length || !isVoiceSessionRef.current) return;
+    const links = voiceLinksRef.current;
+
+    if (voiceLinksShownRef.current || !links.length || !isVoiceSessionRef.current) return;
 
     voiceLinksShownRef.current = true;
     setVoiceLinksExiting(false);
     setVoiceLinksVisible(true);
-  }, [voiceLinks]);
+  }, []);
 
   /* =======================================================
      STOP AUDIO
@@ -1531,6 +1536,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .replace(/`([^`]+)`/g, "$1")
         .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/https?:\/\/[^\s<>()]+/gi, " ")
+        .replace(/\bwww\.[^\s<>()]+/gi, " ")
+        .replace(/\b(?:linkedin|instagram|github|twitter|x|youtube|facebook)\.com\/[^\s<>()]+/gi, " ")
         .replace(/^\s{0,3}#{1,6}\s*/gm, "")
         .replace(/^\s{0,3}>\s?/gm, "")
         .replace(/^\s*[-*+]\s+/gm, "")
@@ -2766,6 +2774,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (voiceLinksExitTimerRef.current) clearTimeout(voiceLinksExitTimerRef.current);
       voiceLinksExitTimerRef.current = null;
+      voiceLinksRef.current = [];
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (transcribeRestartTimerRef.current) clearTimeout(transcribeRestartTimerRef.current);
@@ -3064,9 +3073,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             <a
               key={link.url}
               href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.location.assign(link.url);
+              }}
               className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis hover:bg-white/30 active:scale-95 transition-all"
               aria-label={`Open ${link.label}`}
             >
