@@ -2522,7 +2522,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       isTranscribingRef.current = true;
       setIsListening(true);
 
-      const recognition = new SpeechRecognition();
+      const RecognitionCtor =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new RecognitionCtor();
       recognition.lang = "en-US";
       recognition.interimResults = true;
       recognition.continuous = true;
