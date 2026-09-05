@@ -1995,7 +1995,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       return;
     }
 
-    const recognition = new SpeechRecognitionCtor();
+    const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.interimResults = true;
     recognition.continuous = !isAndroidRef.current;
