@@ -15,14 +15,14 @@ const Blog = () => {
   // Prevent background scrolling when modal is open
   useEffect(() => {
     if (activeNotion) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
 
     // Cleanup function to reset overflow when component unmounts
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [activeNotion]);
 
@@ -49,8 +49,7 @@ const Blog = () => {
       description:
         "In today’s world of endless social media and distractions, finding time to read books feels harder than ever. Yet, with the right habits, anyone can finish multiple books a year without feeling overwhelmed. In this post, I’ll share practical tips to read more, enjoy the process, and make books a powerful part of your growth.",
       tags: ["Life", "Books", "Growth"],
-      notionUrl:
-        "https://olive-zircon-d34.notion.site/ebd//af37b2ddb019405c873004b8a91a9137",
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd//af37b2ddb019405c873004b8a91a9137",
     },
     {
       date: "July 26, 2020",
@@ -58,8 +57,7 @@ const Blog = () => {
       description:
         "Learning any new skill starts with the courage to try, the patience to practice, and the mindset to embrace mistakes. In this post, I share how taking small opportunities, staying consistent, and welcoming discomfort can shape your growth. These lessons will guide you to build confidence and carve your own career path.",
       tags: ["Career", "Learning", "Growth"],
-      notionUrl:
-        "https://olive-zircon-d34.notion.site/ebd//b4225891b21343bf8328dfce2ba7bd10",
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd//b4225891b21343bf8328dfce2ba7bd10",
     },
     {
       date: "January 2, 2021",
@@ -67,8 +65,7 @@ const Blog = () => {
       description:
         "Setting goals isn't about ambition alone — it's about clarity, systems, and alignment with who you want to become.\n\nThis post breaks down how to define meaningful goals, turn them into daily actions, and stay flexible without losing direction.\n\nA practical guide to building goals that actually guide your life, not just your intentions.",
       tags: ["Life", "Growth", "Learning"],
-      notionUrl:
-        "https://olive-zircon-d34.notion.site/ebd//dac76e5b23be436c8d730c6e33fcde44",
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd//dac76e5b23be436c8d730c6e33fcde44",
     },
   ];
 
@@ -85,9 +82,7 @@ const Blog = () => {
   const filteredPosts = (
     selectedTags.length === 0
       ? blogPosts
-      : blogPosts.filter((post) =>
-          selectedTags.every((tag) => post.tags.includes(tag))
-        )
+      : blogPosts.filter((post) => selectedTags.every((tag) => post.tags.includes(tag)))
   ).sort((a, b) => {
     const dateA = new Date(a.date).getTime();
     const dateB = new Date(b.date).getTime();
@@ -98,10 +93,16 @@ const Blog = () => {
     <div className="site-page min-h-screen w-full relative overflow-hidden">
       <Helmet>
         <title>Notions — Writing by Gaurav Darwesh</title>
-        <meta name="description" content="Essays and notes by Gaurav Darwesh on learning, growth, goals and building with AI." />
+        <meta
+          name="description"
+          content="Essays and notes by Gaurav Darwesh on learning, growth, goals and building with AI."
+        />
         <link rel="canonical" href="https://gauravdarwesh.app/blog" />
         <meta property="og:title" content="Notions — Writing by Gaurav Darwesh" />
-        <meta property="og:description" content="Essays and notes by Gaurav Darwesh on learning, growth, goals and building with AI." />
+        <meta
+          property="og:description"
+          content="Essays and notes by Gaurav Darwesh on learning, growth, goals and building with AI."
+        />
         <meta property="og:url" content="https://gauravdarwesh.app/blog" />
       </Helmet>
 
@@ -116,8 +117,8 @@ const Blog = () => {
       />
 
       {/* Navigation Toggle */}
-      <NavigationToggle 
-        isModalOpen={!!activeNotion} 
+      <NavigationToggle
+        isModalOpen={!!activeNotion}
         onCloseModal={() => setActiveNotion(null)}
         isBlurred={filterOpen || sortOpen || !!activeNotion}
       />
@@ -128,8 +129,7 @@ const Blog = () => {
         <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-12">
           <div className="text-center">
             <p className="text-base sm:text-lg text-white/90 max-w-2xl mx-auto leading-relaxed">
-              Thoughts, insights, and stories from my journey in technology,
-              business and beyond.
+              Thoughts, insights, and stories from my journey in technology, business and beyond.
             </p>
           </div>
         </div>
@@ -152,7 +152,7 @@ const Blog = () => {
                       setFilterOpen(true);
                     }
                   }}
-                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? 'relative z-[57]' : ''}`}
+                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? "relative z-[57]" : ""}`}
                   aria-expanded={filterOpen}
                   aria-controls="blog-filter-dropdown"
                 >
@@ -161,7 +161,7 @@ const Blog = () => {
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => setSelectedTags([])}
-                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? 'relative z-[57]' : ''}`}
+                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? "relative z-[57]" : ""}`}
                   >
                     Clear All
                   </button>
@@ -170,13 +170,10 @@ const Blog = () => {
                 {selectedTags.map((tag) => (
                   <span
                     key={tag}
-                    className={`flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm ${filterOpen ? 'relative z-[57]' : ''}`}
+                    className={`flex items-center gap-2 h-9 px-3 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm ${filterOpen ? "relative z-[57]" : ""}`}
                   >
                     {tag}
-                    <button
-                      onClick={() => toggleTag(tag)}
-                      className="text-white/70 hover:text-white"
-                    >
+                    <button onClick={() => toggleTag(tag)} className="text-white/70 hover:text-white">
                       ✕
                     </button>
                   </span>
@@ -195,7 +192,7 @@ const Blog = () => {
                       setSortOpen(true);
                     }
                   }}
-                  className={`ml-auto h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${sortOpen ? 'relative z-[57]' : ''}`}
+                  className={`ml-auto h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${sortOpen ? "relative z-[57]" : ""}`}
                   aria-expanded={sortOpen}
                   aria-controls="blog-sort-dropdown"
                 >
@@ -207,7 +204,7 @@ const Blog = () => {
               {(filterOpen || sortOpen) && (
                 <div
                   className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[55] transition-all duration-300 ease-out ${
-                    (isAnimating || isSortAnimating) ? 'opacity-0' : 'opacity-100'
+                    isAnimating || isSortAnimating ? "opacity-0" : "opacity-100"
                   }`}
                   onClick={() => {
                     if (filterOpen) {
@@ -230,12 +227,10 @@ const Blog = () => {
 
               {/* Filter Dropdown */}
               {filterOpen && (
-                <div 
-                  id="blog-filter-dropdown" 
+                <div
+                  id="blog-filter-dropdown"
                   className={`absolute mt-3 left-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
-                    isAnimating 
-                      ? 'opacity-0 scale-95 translate-y-2' 
-                      : 'opacity-100 scale-100 translate-y-0'
+                    isAnimating ? "opacity-0 scale-95 translate-y-2" : "opacity-100 scale-100 translate-y-0"
                   }`}
                 >
                   <div className="flex flex-wrap gap-2">
@@ -258,17 +253,22 @@ const Blog = () => {
 
               {/* Sort Dropdown */}
               {sortOpen && (
-                <div 
-                  id="blog-sort-dropdown" 
+                <div
+                  id="blog-sort-dropdown"
                   className={`absolute mt-3 right-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg transition-all duration-300 ease-out ${
-                    isSortAnimating 
-                      ? 'opacity-0 scale-95 translate-y-2' 
-                      : 'opacity-100 scale-100 translate-y-0'
+                    isSortAnimating ? "opacity-0 scale-95 translate-y-2" : "opacity-100 scale-100 translate-y-0"
                   }`}
                 >
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setSortOrder("newer"); setIsSortAnimating(true); setTimeout(() => { setSortOpen(false); setIsSortAnimating(false); }, 300); }}
+                      onClick={() => {
+                        setSortOrder("newer");
+                        setIsSortAnimating(true);
+                        setTimeout(() => {
+                          setSortOpen(false);
+                          setIsSortAnimating(false);
+                        }, 300);
+                      }}
                       className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
                         sortOrder === "newer"
                           ? "bg-white/30 text-white border-white/30"
@@ -278,7 +278,14 @@ const Blog = () => {
                       Newer
                     </button>
                     <button
-                      onClick={() => { setSortOrder("older"); setIsSortAnimating(true); setTimeout(() => { setSortOpen(false); setIsSortAnimating(false); }, 300); }}
+                      onClick={() => {
+                        setSortOrder("older");
+                        setIsSortAnimating(true);
+                        setTimeout(() => {
+                          setSortOpen(false);
+                          setIsSortAnimating(false);
+                        }, 300);
+                      }}
                       className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
                         sortOrder === "older"
                           ? "bg-white/30 text-white border-white/30"
@@ -300,18 +307,14 @@ const Blog = () => {
                 >
                   <div className="notion-writing-copy mb-4">
                     <span className="text-white/70 text-sm">{post.date}</span>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mt-2 mb-3">
-                      {post.title}
-                    </h2>
-                    <p className="text-white/90 leading-relaxed text-base sm:text-lg">
-                      {post.description}
-                    </p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white mt-2 mb-3">{post.title}</h2>
+                    <p className="text-white/90 leading-relaxed text-base sm:text-lg">{post.description}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {post.tags.map((tag, i) => (
                       <span
                         key={i}
-                        className="notion-writing-tag px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full"
+                        className="notion-writing-tag px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full border border-white/20"
                       >
                         {tag}
                       </span>
