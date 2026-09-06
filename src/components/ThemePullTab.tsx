@@ -6,13 +6,13 @@ const PULL_THRESHOLD = 42;
 
 const ThemePullTab = () => {
   const { isMinimal, toggleTheme } = useSiteTheme();
-  const startYRef = useRef<number | null>(null);
+  const startPositionRef = useRef<number | null>(null);
   const draggedRef = useRef(false);
   const [pullDistance, setPullDistance] = useState(0);
 
   const finishPull = (pointerId?: number, target?: EventTarget | null) => {
     const shouldToggle = pullDistance >= PULL_THRESHOLD;
-    startYRef.current = null;
+    startPositionRef.current = null;
     setPullDistance(0);
 
     if (pointerId !== undefined && target instanceof HTMLElement && target.hasPointerCapture(pointerId)) {
@@ -39,26 +39,24 @@ const ThemePullTab = () => {
         if (!draggedRef.current) toggleTheme();
       }}
       onPointerDown={(event) => {
-        startYRef.current = event.clientY;
+        startPositionRef.current = window.matchMedia("(max-width: 640px)").matches
+          ? event.clientX
+          : event.clientY;
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
-        if (startYRef.current === null) return;
-        const distance = Math.max(0, Math.min(68, event.clientY - startYRef.current));
+        if (startPositionRef.current === null) return;
+        const currentPosition = window.matchMedia("(max-width: 640px)").matches
+          ? event.clientX
+          : event.clientY;
+        const distance = Math.max(0, Math.min(68, currentPosition - startPositionRef.current));
         setPullDistance(distance);
       }}
       onPointerUp={(event) => finishPull(event.pointerId, event.currentTarget)}
       onPointerCancel={(event) => finishPull(event.pointerId, event.currentTarget)}
       style={{ "--pull-distance": `${pullDistance}px` } as CSSProperties}
     >
-      <span className="theme-pull-tab__mark" aria-hidden="true">
-        <span />
-        <span />
-      </span>
-      <span className="theme-pull-tab__cord" aria-hidden="true" />
-      <span className="theme-pull-tab__label" aria-hidden="true">
-        {isMinimal ? "COLOR" : "MONO"}
-      </span>
+      <span className="sr-only">{isMinimal ? "Use colorful theme" : "Use monochrome theme"}</span>
     </Button>
   );
 };

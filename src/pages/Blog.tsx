@@ -296,7 +296,7 @@ const Blog = () => {
                 <article
                   key={idx}
                   onClick={() => setActiveNotion(post.notionUrl)}
-                  className="cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
+                  className="notion-writing-card cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
                 >
                   <div className="mb-4">
                     <span className="text-white/70 text-sm">{post.date}</span>
