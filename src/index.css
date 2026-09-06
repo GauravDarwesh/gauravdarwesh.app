@@ -507,23 +507,31 @@ body,
 
 @media (max-width: 640px) {
   .theme-pull-tab {
-    left: 10px;
-    width: 36px;
-    height: 74px;
+    left: 3px;
+    width: 25px;
+    height: 68px;
   }
 
   .theme-pull-tab__mark {
+    width: 10px;
+    height: 10px;
     top: 12px;
   }
 
+  .theme-pull-tab__mark span {
+    width: 10px;
+    top: 4px;
+  }
+
   .theme-pull-tab__cord {
-    top: 31px;
-    height: 13px;
+    top: 28px;
+    height: 12px;
   }
 
   .theme-pull-tab__label {
-    bottom: 8px;
-    font-size: 7px;
+    bottom: 7px;
+    font-size: 5px;
+    letter-spacing: 0.08em;
   }
 }
 
