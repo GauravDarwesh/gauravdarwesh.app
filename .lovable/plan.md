@@ -1,28 +1,33 @@
+# Add a sitewide monochrome pull-tab theme
 
+## Overview
+Add a small bookmark-style pull tab at the top-left of the GDx page. Pulling or clicking it switches all four main pages between the existing orange glass style and a persistent minimal black-and-white style.
 
-## Add Sort By Button to Blog Page
+## Changes
 
-### Overview
-Add a "Sort by" button on the right side of the filter bar, visually identical to the existing "Filter" button. When clicked, it expands a dropdown toward the left (mirroring the filter's rightward expansion) with options to sort posts by date (Newer/Older).
+1. **Theme state and persistence**
+   - Add a shared theme provider at the app root.
+   - Store the visitor’s choice locally so it remains active while moving between GDx, Classic, Notions, and Visuals and after reopening the site.
+   - Apply the mode through one root attribute so every page changes together.
 
-### Changes (single file: `src/pages/Blog.tsx`)
+2. **Pull-tab interaction**
+   - Add a slim bookmark tab only on the GDx page, fixed at the top-left.
+   - Support pointer dragging downward/upward as well as click/keyboard activation.
+   - Animate the tab and a brief page-level color transition; respect reduced-motion preferences.
+   - Keep it clear of navigation and existing search interactions.
 
-1. **New state**: Add `sortOrder` state (`"newer"` | `"older"`, default `"newer"`), plus `sortOpen` and `isSortAnimating` booleans to mirror the filter's open/close animation pattern.
+3. **Minimal black-and-white appearance**
+   - Replace the orange image with a clean white background in minimal mode.
+   - Make text, icons, outlines, controls, tags, suggestion bubbles, cards, and modal surfaces black/white with crisp solid borders.
+   - Remove backdrop blur, translucent glass, colored glow, and decorative shadows in minimal mode.
+   - Preserve photography/video content on Visuals while simplifying its frame and controls.
+   - Leave the existing colorful glass mode unchanged.
 
-2. **Sort button**: Place a "Sort by" button on the far right of the filter bar row using `ml-auto` to push it to the opposite end from "Filter". Styled identically -- same `h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20` classes.
+4. **Validation**
+   - Check all four pages at desktop and mobile widths.
+   - Verify theme persistence, pull/click/keyboard behavior, readable contrast, overlays, and the current build status.
 
-3. **Sort dropdown**: When open, render:
-   - A backdrop overlay (same as filter's `bg-black/40 backdrop-blur-sm` with fade animation)
-   - A dropdown panel anchored to the right (`right-0`) with the same glassmorphism style (`bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20`), containing two buttons: "Newer" and "Older"
-   - Uses the same scale/opacity/translate animation pattern as the filter dropdown
-   - The sort button gets `z-40` when open (same as filter button behavior)
-
-4. **Sort logic**: After filtering by tags, sort `filteredPosts` by date -- parse the date strings and sort descending for "newer" (default) or ascending for "older".
-
-### Technical Details
-
-- The filter bar container already uses `flex-wrap justify-start`. The sort button will use `ml-auto` to align right.
-- Both dropdowns share the same overlay; if one is open, clicking the overlay closes it. Opening one will not interfere with the other since they use independent state.
-- Date parsing uses `new Date(post.date)` which handles the existing format ("August 8, 2020", "January 2, 2021", etc.).
-- The active sort option will be highlighted with `bg-white/30 border-white/30` (same as active filter tags).
-
+## Technical details
+- Add a small React context/provider and a focused pull-tab component.
+- Use semantic CSS overrides under a root `data-theme="minimal"` attribute to avoid invasive edits to the large SearchBar component.
+- Add stable theme hook classes only where global selectors cannot safely target an element.
