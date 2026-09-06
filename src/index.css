@@ -456,11 +456,12 @@ body,
   background-color: hsl(var(--foreground)) !important;
 }
 
+/* Theme transition accessibility */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --theme-transition-duration: 0ms;
   }
-
+}
 
 /* ------------------------------------------------------------
    GDx theme easter egg
