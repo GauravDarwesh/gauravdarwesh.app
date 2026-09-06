@@ -311,3 +311,236 @@ html {
     animation: none;
   }
 }
+
+/* Sitewide monochrome mode */
+:root {
+  --theme-transition-duration: 520ms;
+}
+
+:root[data-theme="minimal"] {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --primary: 0 0% 4%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 4%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 36%;
+  --accent: 0 0% 4%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 8%;
+  --input: 0 0% 8%;
+  --ring: 0 0% 4%;
+}
+
+body,
+.site-page,
+.site-background,
+.site-page [class*="bg-white/"],
+.site-page [class*="text-white"],
+.site-page [class*="border-white"],
+[data-gdx-search] [class*="bg-white/"],
+[data-gdx-search] [class*="text-white"],
+[data-gdx-search] [class*="border-white"] {
+  transition-property: color, background-color, border-color, opacity, box-shadow, filter, backdrop-filter;
+  transition-duration: var(--theme-transition-duration);
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-theme="minimal"] body,
+:root[data-theme="minimal"] .site-page {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+:root[data-theme="minimal"] .site-background {
+  opacity: 0;
+}
+
+:root[data-theme="minimal"] .site-page [class*="text-white"],
+:root[data-theme="minimal"] .site-page [class*="text-gray"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="text-white"] {
+  color: hsl(var(--foreground)) !important;
+  text-shadow: none !important;
+}
+
+:root[data-theme="minimal"] .site-page [class*="bg-white/"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="bg-white/"] {
+  background-color: hsl(var(--background)) !important;
+}
+
+:root[data-theme="minimal"] .site-page [class*="border-white"],
+:root[data-theme="minimal"] .site-page [class*="border-foreground"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="border-white"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="border-foreground"] {
+  border-color: hsl(var(--foreground)) !important;
+}
+
+:root[data-theme="minimal"] .site-page [class*="backdrop-blur"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-theme="minimal"] .site-page [class*="shadow"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+:root[data-theme="minimal"] .site-page [class*="bg-black/"] {
+  background-color: hsl(var(--background) / 0.92) !important;
+}
+
+:root[data-theme="minimal"] [data-gdx-search] button,
+:root[data-theme="minimal"] [data-gdx-search] a {
+  background-color: hsl(var(--background)) !important;
+  border-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="minimal"] [data-gdx-search] button:hover,
+:root[data-theme="minimal"] [data-gdx-search] a:hover,
+:root[data-theme="minimal"] .site-page button:hover,
+:root[data-theme="minimal"] .site-page article:hover {
+  background-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--background)) !important;
+}
+
+:root[data-theme="minimal"] .site-page article,
+:root[data-theme="minimal"] .site-page [role="dialog"] {
+  background-color: hsl(var(--background)) !important;
+  border-color: hsl(var(--foreground)) !important;
+}
+
+:root[data-theme="minimal"] .spotlight-progress {
+  background-color: hsl(var(--foreground)) !important;
+}
+
+/* Pull-tab theme control */
+.theme-pull-tab {
+  --pull-distance: 0px;
+  position: fixed;
+  top: -1px;
+  left: clamp(12px, 2.5vw, 28px);
+  z-index: 80;
+  width: 42px;
+  height: 88px;
+  padding: 0;
+  border: 1px solid hsl(0 0% 100% / 0.35);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  background: hsl(0 0% 100% / 0.12);
+  color: hsl(0 0% 100%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px hsl(0 0% 0% / 0.14);
+  transform: translateY(var(--pull-distance));
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), background-color var(--theme-transition-duration), color var(--theme-transition-duration), border-color var(--theme-transition-duration), box-shadow var(--theme-transition-duration);
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.theme-pull-tab:active {
+  cursor: grabbing;
+}
+
+.theme-pull-tab:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+.theme-pull-tab__mark {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%);
+}
+
+.theme-pull-tab__mark span {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 14px;
+  height: 1px;
+  background: currentColor;
+}
+
+.theme-pull-tab__mark span:last-child {
+  transform: rotate(90deg);
+}
+
+.theme-pull-tab__cord {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  width: 1px;
+  height: 17px;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.theme-pull-tab__label {
+  position: absolute;
+  bottom: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+:root[data-theme="minimal"] .theme-pull-tab {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  border-color: hsl(var(--foreground));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .theme-pull-tab {
+    left: 3px;
+    width: 25px;
+    height: 68px;
+  }
+
+  .theme-pull-tab__mark {
+    width: 10px;
+    height: 10px;
+    top: 12px;
+  }
+
+  .theme-pull-tab__mark span {
+    width: 10px;
+    top: 4px;
+  }
+
+  .theme-pull-tab__cord {
+    top: 28px;
+    height: 12px;
+  }
+
+  .theme-pull-tab__label {
+    bottom: 7px;
+    font-size: 5px;
+    letter-spacing: 0.08em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --theme-transition-duration: 0ms;
+  }
+
+  .theme-pull-tab {
+    transition: none;
+  }
+}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
+import ThemePullTab from "@/components/ThemePullTab";
 
 const ANIM_MS = 3000;
 
@@ -19,7 +20,7 @@ const Index = () => {
 
   return (
     <div
-      className={`h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
+      className={`site-page h-[100dvh] w-full flex flex-col items-center justify-center relative overflow-hidden ${
         animate ? "animate-slowFadeIn" : ""
       }`}
     >
@@ -61,7 +62,7 @@ const Index = () => {
       <h1 className="sr-only">Gaurav Darwesh — Portfolio</h1>
 
       {/* Background */}
-      <div className="fixed inset-0 z-0">
+      <div className="site-background fixed inset-0 z-0">
         <img
           src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt=""
@@ -70,6 +71,8 @@ const Index = () => {
           onContextMenu={(e) => e.preventDefault()}
         />
       </div>
+
+      <ThemePullTab />
 
       {/* Navigation Toggle */}
       <div className="relative z-20">

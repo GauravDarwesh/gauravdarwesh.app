@@ -65,6 +65,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
     <>
       {/* Navigation buttons (fade only on allowed paths) */}
       <div
+  data-site-navigation
   className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 
     transition-all duration-700 ease-out
     ${enabledOnThisPath && showScrollTop
@@ -101,6 +102,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
 
       {/* Floating round translucent ball (scroll to top or close modal) */}
       <button
+        data-site-floating-control
         onClick={isModalOpen ? onCloseModal : scrollToTop}
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
         className={`

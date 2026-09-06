@@ -95,7 +95,7 @@ const Blog = () => {
   });
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden">
+    <div className="site-page min-h-screen w-full relative overflow-hidden">
       <Helmet>
         <title>Notions — Writing by Gaurav Darwesh</title>
         <meta name="description" content="Essays and notes by Gaurav Darwesh on learning, growth, goals and building with AI." />
@@ -109,7 +109,7 @@ const Blog = () => {
 
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}

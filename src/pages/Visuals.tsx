@@ -284,7 +284,7 @@ export default function Visuals() {
   const showVideo = isVideo(currentSrc);
 
   return (
-    <div className="h-screen w-full relative overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
+    <div className="site-page h-screen w-full relative overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
       <Helmet>
         <title>Visuals — Photography by Gaurav Darwesh</title>
         <meta name="description" content="Photo and video collections from Gaurav Darwesh's travels, including Japan 2025 and Europe 2016." />
@@ -298,7 +298,7 @@ export default function Visuals() {
 
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none select-none"
+        className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none select-none"
         style={{
           backgroundImage:
             "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
