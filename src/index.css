@@ -441,8 +441,15 @@ body,
 }
 
 :root[data-theme="minimal"] .notion-writing-card:hover,
-:root[data-theme="minimal"] .notion-writing-card:hover * {
+:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy,
+:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy * {
   color: hsl(var(--background)) !important;
+}
+
+:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-tag {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--background)) !important;
 }
 
 :root[data-theme="minimal"] .spotlight-progress {
