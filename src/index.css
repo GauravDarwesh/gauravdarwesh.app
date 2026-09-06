@@ -475,19 +475,23 @@ body,
 .gdx-theme-hint::after {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: -3px;
-  width: 3px;
-  height: 3px;
+  bottom: -5px;
+  width: 4px;
+  height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   pointer-events: none;
   transform: translateX(-50%) scale(0.6);
   opacity: 0;
   animation: gdxThemeDoubleTap 2.8s ease-in-out infinite;
 }
 
+.gdx-theme-hint::before {
+  left: calc(50% - 5px);
+}
+
 .gdx-theme-hint::after {
+  left: calc(50% + 5px);
   animation-delay: 120ms;
 }
 
@@ -584,5 +588,6 @@ body,
   .gdx-theme-hint::before,
   .gdx-theme-hint::after {
     animation: none;
+    opacity: 0;
   }
 }
