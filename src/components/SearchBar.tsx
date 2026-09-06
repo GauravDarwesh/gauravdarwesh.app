@@ -330,7 +330,8 @@ const BarWaveform: React.FC<{
         const y = (h - barHeight) / 2;
         const radius = Math.min(1, barHeight / 2);
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + value * 0.5})`;
+        const waveformColor = document.documentElement.dataset.theme === "minimal" ? "0, 0, 0" : "255, 255, 255";
+        ctx.fillStyle = `rgba(${waveformColor}, ${0.3 + value * 0.5})`;
         ctx.beginPath();
         if (typeof ctx.roundRect === "function") {
           ctx.roundRect(x, y, BAR_WIDTH, barHeight, radius);
@@ -3047,6 +3048,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   return (
     <div
       ref={searchBarRef}
+      data-gdx-search
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (

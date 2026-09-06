@@ -1,5 +1,6 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { useSiteTheme } from "@/components/SiteThemeProvider";
+import { Button } from "@/components/ui/button";
 
 const PULL_THRESHOLD = 42;
 
@@ -28,7 +29,7 @@ const ThemePullTab = () => {
   };
 
   return (
-    <button
+    <Button
       type="button"
       className="theme-pull-tab"
       aria-label={isMinimal ? "Pull to use colorful theme" : "Pull to use minimal black and white theme"}
@@ -58,7 +59,7 @@ const ThemePullTab = () => {
       <span className="theme-pull-tab__label" aria-hidden="true">
         {isMinimal ? "COLOR" : "MONO"}
       </span>
-    </button>
+    </Button>
   );
 };
 

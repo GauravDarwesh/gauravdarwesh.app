@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react";
 
 type SiteTheme = "glass" | "minimal";
 
@@ -19,7 +19,7 @@ const getInitialTheme = (): SiteTheme => {
 export const SiteThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setTheme] = useState<SiteTheme>(getInitialTheme);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme === "minimal" ? "light" : "dark";
     window.localStorage.setItem(STORAGE_KEY, theme);
