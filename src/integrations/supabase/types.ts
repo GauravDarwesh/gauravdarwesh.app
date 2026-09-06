@@ -79,25 +79,31 @@ export type Database = {
       }
       gd_knowledge_base: {
         Row: {
+          category: string | null
           content: string
           created_at: string
           embedding: string | null
           id: number
           source: string
+          title: string | null
         }
         Insert: {
+          category?: string | null
           content: string
           created_at?: string
           embedding?: string | null
           id?: never
           source: string
+          title?: string | null
         }
         Update: {
+          category?: string | null
           content?: string
           created_at?: string
           embedding?: string | null
           id?: never
           source?: string
+          title?: string | null
         }
         Relationships: []
       }
@@ -242,10 +248,12 @@ export type Database = {
           query_embedding: string
         }
         Returns: {
+          category: string
           content: string
           id: number
           similarity: number
           source: string
+          title: string
         }[]
       }
       match_user_messages: {
