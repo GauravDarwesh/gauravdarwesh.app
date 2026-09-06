@@ -296,9 +296,9 @@ const Blog = () => {
                 <article
                   key={idx}
                   onClick={() => setActiveNotion(post.notionUrl)}
-                  className="cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
+                  className="notion-writing-card cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
                 >
-                  <div className="mb-4">
+                  <div className="notion-writing-copy mb-4">
                     <span className="text-white/70 text-sm">{post.date}</span>
                     <h2 className="text-xl sm:text-2xl font-bold text-white mt-2 mb-3">
                       {post.title}
@@ -311,7 +311,7 @@ const Blog = () => {
                     {post.tags.map((tag, i) => (
                       <span
                         key={i}
-                        className="px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full"
+                        className="notion-writing-tag px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full"
                       >
                         {tag}
                       </span>

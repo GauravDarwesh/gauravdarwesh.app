@@ -3054,7 +3054,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-all"
+          className="gdx-suggestion-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full border border-white/20 shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-all"
           style={{
             animation:
               suggestionPhase === "emerging"
@@ -3251,7 +3251,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <button
                   type="button"
                   onClick={startVoiceSession}
-                  className="h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] transition-all active:scale-95 shadow-sm cursor-pointer"
+                   className="gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] border border-transparent transition-all active:scale-95 shadow-sm cursor-pointer"
                   title="Talk with GDx"
                   aria-label="Talk with GDx"
                 >
