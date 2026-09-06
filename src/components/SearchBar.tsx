@@ -3348,6 +3348,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
+        /* Monochrome mode: make the voice-session exit X a visible black circle. */
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] {
+          background-color: #000 !important;
+          border: 1px solid #000 !important;
+          color: #fff !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"]:hover {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] svg {
+          color: #fff !important;
+        }
+
         :root[data-theme="minimal"] [data-gdx-search] .thinking-placeholder::placeholder {
           color: rgba(0,0,0,0.48) !important;
           animation: textGlowMinimal 2s infinite ease-in-out;
