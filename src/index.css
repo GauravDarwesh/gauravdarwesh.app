@@ -471,6 +471,26 @@ body,
   animation: gdxThemePulse 2.8s ease-in-out infinite;
 }
 
+.gdx-theme-hint::before,
+.gdx-theme-hint::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  transform: translateX(-50%) scale(0.6);
+  opacity: 0;
+  animation: gdxThemeDoubleTap 2.8s ease-in-out infinite;
+}
+
+.gdx-theme-hint::after {
+  animation-delay: 120ms;
+}
+
 @keyframes gdxThemePulse {
   0%,
   100% {
@@ -480,16 +500,89 @@ body,
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
-  50% {
-    transform: scale(1.025);
+  15% {
+    transform: scale(1.018);
     box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.05),
-      0 0 18px rgba(255, 255, 255, 0.16);
+      0 0 0 2px rgba(255, 255, 255, 0.045),
+      0 0 10px rgba(255, 255, 255, 0.1);
+  }
+
+  27% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
+  }
+
+  39% {
+    transform: scale(1.018);
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.045),
+      0 0 10px rgba(255, 255, 255, 0.1);
+  }
+
+  51% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
   }
 }
 
+@keyframes gdxThemeDoubleTap {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+
+  9%,
+  17% {
+    opacity: 0.78;
+    transform: translateX(-50%) scale(1);
+  }
+
+  26%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+}
+
+.gdx-theme-hint::after {
+  animation-name: gdxThemeDoubleTapSecond;
+}
+
+@keyframes gdxThemeDoubleTapSecond {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+
+  15%,
+  23% {
+    opacity: 0.78;
+    transform: translateX(-50%) scale(1);
+  }
+
+  32%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+}
+
+/* Keep the hint visible in monochrome mode while matching the black-on-white aesthetic. */
+:root[data-theme="minimal"] .gdx-theme-hint::before,
+:root[data-theme="minimal"] .gdx-theme-hint::after {
+  background: rgba(0, 0, 0, 0.58);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .gdx-theme-hint {
+  .gdx-theme-hint,
+  .gdx-theme-hint::before,
+  .gdx-theme-hint::after {
     animation: none;
   }
 }
