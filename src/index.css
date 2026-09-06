@@ -456,75 +456,11 @@ body,
   background-color: hsl(var(--foreground)) !important;
 }
 
-/* Pull-tab theme control */
-.theme-pull-tab {
-  --pull-distance: 0px;
-  position: fixed;
-  top: -1px;
-  left: clamp(12px, 2.5vw, 28px);
-  z-index: 80;
-  width: 38px;
-  height: 76px;
-  padding: 0;
-  border: 0;
-  border-top: 0;
-  border-radius: 0;
-  background: hsl(0 0% 100%);
-  color: hsl(0 0% 100%);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: 0 7px 18px hsl(0 0% 0% / 0.12);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
-  transform: translateY(var(--pull-distance));
-  transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--theme-transition-duration),
-    color var(--theme-transition-duration),
-    border-color var(--theme-transition-duration),
-    box-shadow var(--theme-transition-duration);
-  touch-action: none;
-  user-select: none;
-  cursor: grab;
-}
-
-.theme-pull-tab:active {
-  cursor: grabbing;
-}
-
-.theme-pull-tab:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 4px;
-}
-
-:root[data-theme="minimal"] .theme-pull-tab {
-  background-image: url("https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg");
-  background-position: center;
-  background-size: cover;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: 0 7px 18px hsl(var(--foreground) / 0.14);
-}
-
-@media (max-width: 640px) {
-  .theme-pull-tab {
-    top: clamp(112px, 18vh, 154px);
-    left: -1px;
-    width: 64px;
-    height: 32px;
-    clip-path: polygon(0 0, 100% 0, 82% 50%, 100% 100%, 0 100%);
-    transform: translateX(var(--pull-distance));
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   :root {
     --theme-transition-duration: 0ms;
   }
 
-  .theme-pull-tab {
-    transition: none;
-  }
-}
 
 /* ------------------------------------------------------------
    GDx theme easter egg
@@ -534,46 +470,25 @@ body,
   animation: gdxThemePulse 2.8s ease-in-out infinite;
 }
 
-.gdx-theme-glow {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 0 0 0 rgba(255, 255, 255, 0),
-    0 0 0 0 rgba(255, 255, 255, 0);
-
-  animation: gdxThemeGlow 2.8s ease-in-out infinite;
-}
-
 @keyframes gdxThemePulse {
   0%,
   100% {
     transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
   }
 
   50% {
     transform: scale(1.025);
-  }
-}
-
-@keyframes gdxThemeGlow {
-  0%,
-  100% {
-    opacity: 0.2;
     box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 10px 0 rgba(255, 255, 255, 0);
-  }
-
-  50% {
-    opacity: 0.8;
-    box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.035),
-      0 0 18px 0 rgba(255, 255, 255, 0.12);
+      0 0 0 3px rgba(255, 255, 255, 0.05),
+      0 0 18px rgba(255, 255, 255, 0.16);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gdx-theme-hint,
-  .gdx-theme-glow {
+  .gdx-theme-hint {
     animation: none;
   }
 }

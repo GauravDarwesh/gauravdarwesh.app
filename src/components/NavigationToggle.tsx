@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronUp, X } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useSiteTheme } from "@/components/SiteThemeProvider";
 
 interface NavigationToggleProps {
@@ -11,10 +10,12 @@ interface NavigationToggleProps {
   isBlurred?: boolean;
 }
 
+const GDx_DOUBLE_CLICK_WINDOW = 260;
+const GDx_EASTER_EGG_KEY = "gdx-theme-easter-egg-discovered";
+
 const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false }: NavigationToggleProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
   const { toggleTheme } = useSiteTheme();
 
   // ------------------------------------------------------------
@@ -28,44 +29,38 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   // ------------------------------------------------------------
-  // GDx easter-egg state
+  // GDx theme easter egg
   // ------------------------------------------------------------
 
-  const [showThemeHint, setShowThemeHint] = useState(true);
+  const [showThemeHint, setShowThemeHint] = useState(() => {
+    if (typeof window === "undefined") return true;
+
+    return window.localStorage.getItem(GDx_EASTER_EGG_KEY) !== "true";
+  });
 
   const gdClickTimerRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    // Once the user has discovered the interaction,
-    // stop showing the hint permanently for this session.
-    const discovered = window.sessionStorage.getItem("gdx-theme-easter-egg-discovered");
-
-    if (discovered === "true") {
-      setShowThemeHint(false);
-    }
-  }, []);
-
   const handleGdxClick = () => {
+    // Second click within the allowed window:
+    // toggle theme instead of navigating.
     if (gdClickTimerRef.current !== null) {
       window.clearTimeout(gdClickTimerRef.current);
       gdClickTimerRef.current = null;
 
-      // Second click within the double-click window:
-      // toggle theme instead of navigating twice.
       toggleTheme();
 
-      window.sessionStorage.setItem("gdx-theme-easter-egg-discovered", "true");
-
+      window.localStorage.setItem(GDx_EASTER_EGG_KEY, "true");
       setShowThemeHint(false);
+
       return;
     }
 
-    // Wait briefly before treating the first click
-    // as a normal navigation click.
+    // First click:
+    // wait briefly to see whether this becomes a double-click.
     gdClickTimerRef.current = window.setTimeout(() => {
       gdClickTimerRef.current = null;
       navigate("/");
-    }, 260);
+    }, GDx_DOUBLE_CLICK_WINDOW);
   };
 
   useEffect(() => {
@@ -88,7 +83,9 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
       }
 
       const doc = document.documentElement;
+
       const hasScrollableContent = doc.scrollHeight - window.innerHeight > 4;
+
       const scrolledPastThreshold = window.scrollY > 30;
 
       setShowScrollTop(hasScrollableContent && scrolledPastThreshold);
@@ -151,9 +148,11 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
           return (
             <Button
               key={option.name}
+              type="button"
               onClick={isGdx ? handleGdxClick : () => navigate(option.path)}
               variant="ghost"
               size="sm"
+              aria-label={isGdx ? "GDx" : option.name}
               className={`
                 relative
                 w-20 h-9
@@ -173,20 +172,6 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
               `}
             >
               {option.name}
-
-              {/* Subtle hidden interaction indicator */}
-              {isGdx && showThemeHint && (
-                <span
-                  aria-hidden="true"
-                  className="
-                    absolute
-                    inset-0
-                    rounded-full
-                    pointer-events-none
-                    gdx-theme-glow
-                  "
-                />
-              )}
             </Button>
           );
         })}
@@ -194,6 +179,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
 
       {/* Floating round translucent ball */}
       <button
+        type="button"
         data-site-floating-control
         onClick={isModalOpen ? onCloseModal : scrollToTop}
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}

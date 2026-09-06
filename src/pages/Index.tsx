@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
-import ThemePullTab from "@/components/ThemePullTab";
 
 const ANIM_MS = 3000;
 
@@ -71,8 +70,6 @@ const Index = () => {
           onContextMenu={(e) => e.preventDefault()}
         />
       </div>
-
-      <ThemePullTab />
 
       {/* Navigation Toggle */}
       <div className="relative z-20">
