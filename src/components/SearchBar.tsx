@@ -1505,7 +1505,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const speakVoiceResponse = useCallback(
-    async (raw: string) => {
+    async (raw: string, linkSource: string = raw) => {
       stopAudioOnly();
 
       if (recognitionRef.current) {
@@ -1528,7 +1528,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsListening(false);
 
       const token = ++speakTokenRef.current;
-      const extractedVoiceLinks = extractVoiceLinks(raw);
+      const extractedVoiceLinks = extractVoiceLinks(linkSource);
       prepareVoiceLinkBubbles(extractedVoiceLinks);
 
       const clean = raw
@@ -2894,12 +2894,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
 
     try {
-      const result = await sendChatMessage(text);
+      const chatRequest = sendChatMessage as unknown as (
+        message: string,
+        options?: { mode?: "text" | "voice" },
+      ) => Promise<any>;
+
+      const result = await chatRequest(text, {
+        mode: fromVoice ? "voice" : "text",
+      });
       const answer = String((result as any)?.response ?? "");
+      const voiceAnswer = String((result as any)?.voice_response ?? answer);
       const suggs = (result as any)?.suggestions || [];
 
       if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(answer);
+        void speakVoiceResponse(voiceAnswer, answer);
       } else {
         setResponse(answer);
         setSuggestions(suggs);
