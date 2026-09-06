@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { useSiteTheme } from "@/components/SiteThemeProvider";
 
 const PULL_THRESHOLD = 42;
@@ -48,7 +48,7 @@ const ThemePullTab = () => {
       }}
       onPointerUp={(event) => finishPull(event.pointerId, event.currentTarget)}
       onPointerCancel={(event) => finishPull(event.pointerId, event.currentTarget)}
-      style={{ "--pull-distance": `${pullDistance}px` } as React.CSSProperties}
+      style={{ "--pull-distance": `${pullDistance}px` } as CSSProperties}
     >
       <span className="theme-pull-tab__mark" aria-hidden="true">
         <span />

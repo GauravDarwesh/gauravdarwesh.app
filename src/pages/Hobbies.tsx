@@ -173,7 +173,7 @@ const CategorySpotlight = () => {
 
 const Portfolio = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
+    <div className="site-page min-h-screen w-full flex flex-col items-center relative overflow-hidden">
       <Helmet>
         <title>Experience &amp; Skills — Gaurav Darwesh</title>
         <meta name="description" content="Gaurav Darwesh's classic resume view: experience, skills, platforms, certifications and extracurriculars." />
@@ -185,7 +185,7 @@ const Portfolio = () => {
 
       {/* Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}

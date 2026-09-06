@@ -10,28 +10,31 @@ import Blog from "./pages/Blog";
 import Visuals from "./pages/Visuals";
 import SessionTest from "./pages/SessionTest";
 import NotFound from "./pages/NotFound";
+import { SiteThemeProvider } from "@/components/SiteThemeProvider";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/hobbies" element={<Hobbies />} />
-          <Route path="/others" element={<Others />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/visuals" element={<Visuals />} />
-          <Route path="/session-test" element={<SessionTest />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <SiteThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/hobbies" element={<Hobbies />} />
+            <Route path="/others" element={<Others />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/visuals" element={<Visuals />} />
+            <Route path="/session-test" element={<SessionTest />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </SiteThemeProvider>
 );
 
 export default App;
