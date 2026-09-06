@@ -3251,7 +3251,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <button
                   type="button"
                   onClick={startVoiceSession}
-                   className="gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] border border-transparent transition-all active:scale-95 shadow-sm cursor-pointer"
+                  className="gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] border border-transparent transition-all active:scale-95 shadow-sm cursor-pointer"
                   title="Talk with GDx"
                   aria-label="Talk with GDx"
                 >
@@ -3326,6 +3326,42 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         .thinking-placeholder[disabled] {
           caret-color: transparent;
+        }
+
+        /* Monochrome mode: keep the existing thinking UI visible on the white surface. */
+        :root[data-theme="minimal"] [data-gdx-search] .thinking-container {
+          border-color: rgba(0,0,0,0.18);
+          background: rgba(0,0,0,0.04);
+          animation: glowPulseMinimal 2s infinite ease-in-out;
+        }
+
+        @keyframes glowPulseMinimal {
+          0%, 100% {
+            box-shadow:
+              0 0 5px rgba(0,0,0,0.06),
+              inset 0 0 10px rgba(0,0,0,0.03);
+          }
+          50% {
+            box-shadow:
+              0 0 20px rgba(0,0,0,0.18),
+              inset 0 0 20px rgba(0,0,0,0.08);
+          }
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .thinking-placeholder::placeholder {
+          color: rgba(0,0,0,0.48) !important;
+          animation: textGlowMinimal 2s infinite ease-in-out;
+        }
+
+        @keyframes textGlowMinimal {
+          0%, 100% {
+            color: rgba(0,0,0,0.32);
+            text-shadow: 0 0 1px rgba(0,0,0,0.08);
+          }
+          50% {
+            color: rgba(0,0,0,0.72);
+            text-shadow: 0 0 3px rgba(0,0,0,0.18);
+          }
         }
 
         .inline-code {
