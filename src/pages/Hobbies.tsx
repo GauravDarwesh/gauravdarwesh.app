@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
+import wallpaperAsset from "@/assets/orange-charcoal-wallpaper.jpg.asset.json";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
 
@@ -187,7 +188,7 @@ const Portfolio = () => {
       <div
         className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
+          backgroundImage: `url(${wallpaperAsset.url})`,
         }}
       />
 
