@@ -72,18 +72,16 @@ const CustomCursor = () => {
   return (
     <div ref={cursorRef} className="custom-cursor" aria-hidden="true">
       <svg
-        width="28"
-        height="28"
-        viewBox="0 0 28 28"
+        width="26"
+        height="26"
+        viewBox="0 0 26 26"
         xmlns="http://www.w3.org/2000/svg"
         className="custom-cursor-arrow"
       >
-        {/* classic arrow pointer, rounded joins, no separate stroke to avoid artifacts */}
+        {/* classic arrow pointer with fully rounded corners, single fill = no artifacts */}
         <path
-          d="M8.2 3.6c0-1.05 1.24-1.58 1.96-.84l15.2 15.2c.72.72.2 1.96-.85 1.96h-6.3a1.8 1.8 0 0 0-1.55.87l-3.86 5.79c-.66.99-2.12.42-2.12-.8L8.2 3.6z"
+          d="M7.1 2.2c-.04-1.06 1.14-1.63 1.86-.81l13.9 14.1c.73.74.2 1.95-.85 1.97h-5.35c-.5.01-.98.22-1.31.58l-3.6 3.7c-.69.7-1.88.22-1.87-.79L7.1 2.2z"
           fill="currentColor"
-          stroke="currentColor"
-          strokeWidth="3.2"
           strokeLinejoin="round"
         />
       </svg>
