@@ -151,16 +151,15 @@ const CustomCursor = () => {
      * SiteThemeProvider sets:
      *   data-theme="glass"
      *   data-theme="minimal"
+     *
+     * NOTE: this is only ever called while custom-cursor mode is
+     * active (i.e. Notion is confirmed absent), so it no longer
+     * needs to re-check for the iframe itself.
      */
     const updateCursorColor = () => {
       const cursor = cursorRef.current;
 
       if (!cursor) return;
-
-      // Never do custom cursor work while Notion is open.
-      const notionIframe = document.querySelector('iframe[title="Notion article"]');
-
-      if (notionIframe) return;
 
       const isMinimal = root.dataset.theme === "minimal";
 
@@ -181,23 +180,28 @@ const CustomCursor = () => {
     // Notion iframe detection
     // ------------------------------------------------------------
 
-    /**
-     * When the Notion iframe exists, completely restore the
-     * browser's native cursor.
-     *
-     * We intentionally do NOT try to follow the pointer inside
-     * the iframe because the parent page cannot receive its
-     * mouse events reliably.
-     */
-    const updateNotionCursorState = () => {
-      const notionIframe = document.querySelector('iframe[title="Notion article"]');
+    const NOTION_SELECTOR = 'iframe[title="Notion article"]';
 
-      if (notionIframe) {
+    // Tracks the last known presence of the Notion iframe so we can
+    // ignore unrelated DOM mutations (route changes, button state,
+    // scroll-driven class toggles, etc.) and only react to a real
+    // open/close transition. Reacting to every mutation was the
+    // cause of the cursor flicker on button clicks / scrolling.
+    let notionActive = false;
+
+    const applyNotionState = (hasNotion: boolean) => {
+      if (hasNotion === notionActive) return;
+
+      notionActive = hasNotion;
+
+      if (hasNotion) {
         setCustomCursorMode(false);
       } else {
         setCustomCursorMode(true);
 
-        // Start hidden until the next mouse movement.
+        // Start hidden until the next mouse movement, since we
+        // don't know if the pointer is still over the page/at a
+        // valid position after Notion closes.
         visible.current = false;
 
         if (cursorRef.current) {
@@ -208,12 +212,25 @@ const CustomCursor = () => {
       }
     };
 
-    /**
-     * Watch for Notion being opened / closed.
-     */
-    const notionObserver = new MutationObserver(() => {
-      updateNotionCursorState();
-    });
+    const checkNotion = () => {
+      applyNotionState(!!document.querySelector(NOTION_SELECTOR));
+    };
+
+    // Coalesce bursts of mutations (a route change can fire dozens)
+    // into a single check per animation frame instead of one check
+    // per mutation record.
+    let notionCheckRaf = 0;
+
+    const scheduleNotionCheck = () => {
+      if (notionCheckRaf) return;
+
+      notionCheckRaf = requestAnimationFrame(() => {
+        notionCheckRaf = 0;
+        checkNotion();
+      });
+    };
+
+    const notionObserver = new MutationObserver(scheduleNotionCheck);
 
     notionObserver.observe(document.body, {
       childList: true,
@@ -225,13 +242,9 @@ const CustomCursor = () => {
     // ------------------------------------------------------------
 
     const onMove = (e: MouseEvent) => {
-      /**
-       * If Notion exists, native cursor mode is active.
-       * Do not update the custom cursor at all.
-       */
-      const notionIframe = document.querySelector('iframe[title="Notion article"]');
-
-      if (notionIframe) {
+      // If Notion is open, native cursor mode is active — don't
+      // update the custom cursor at all.
+      if (notionActive) {
         return;
       }
 
@@ -256,12 +269,7 @@ const CustomCursor = () => {
     };
 
     const onEnter = () => {
-      /**
-       * If Notion exists, leave the browser cursor alone.
-       */
-      const notionIframe = document.querySelector('iframe[title="Notion article"]');
-
-      if (notionIframe) {
+      if (notionActive) {
         return;
       }
 
@@ -278,11 +286,13 @@ const CustomCursor = () => {
     // Theme observer
     // ------------------------------------------------------------
 
-    const observer = new MutationObserver(() => {
-      updateCursorColor();
+    const themeObserver = new MutationObserver(() => {
+      if (!notionActive) {
+        updateCursorColor();
+      }
     });
 
-    observer.observe(root, {
+    themeObserver.observe(root, {
       attributes: true,
       attributeFilter: ["data-theme"],
     });
@@ -323,7 +333,7 @@ const CustomCursor = () => {
     // Initial state
     // ------------------------------------------------------------
 
-    updateNotionCursorState();
+    checkNotion();
 
     // ------------------------------------------------------------
     // Cleanup
@@ -340,7 +350,11 @@ const CustomCursor = () => {
 
       cancelAnimationFrame(rafRef.current);
 
-      observer.disconnect();
+      if (notionCheckRaf) {
+        cancelAnimationFrame(notionCheckRaf);
+      }
+
+      themeObserver.disconnect();
       notionObserver.disconnect();
 
       if (style.parentNode) {
