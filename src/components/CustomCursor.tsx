@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Custom glowing white cursor for desktop pointers.
+ * Custom glowing white/black cursor for desktop pointers.
  * Follows the mouse with a soft, fluid lag for a very smooth feel.
  * Disabled for touch devices.
+ *
+ * Normal mode:
+ *   - White cursor
+ *
+ * Monochrome mode:
+ *   - Black cursor
+ *   - Automatically becomes white when hovering over a dark/black element
+ *     so that it remains visible.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
@@ -21,13 +29,16 @@ const CustomCursor = () => {
     setEnabled(true);
 
     const root = document.documentElement;
+
     root.classList.add("has-custom-cursor");
 
     // Hide the native cursor everywhere while the custom cursor is active.
     // This prevents the native cursor from appearing during fast scrolling
-    // or when moving across different elements on macOS.
+    // or when moving between different elements on macOS.
     const style = document.createElement("style");
+
     style.setAttribute("data-custom-cursor", "true");
+
     style.textContent = `
       html.has-custom-cursor,
       html.has-custom-cursor *,
@@ -36,11 +47,120 @@ const CustomCursor = () => {
         cursor: none !important;
       }
     `;
+
     document.head.appendChild(style);
+
+    /**
+     * Determines whether the page is currently using monochrome mode.
+     *
+     * This checks common class naming patterns without changing any
+     * existing theme implementation.
+     */
+    const isMonochromeMode = () => {
+      const htmlClass = root.className.toString().toLowerCase();
+      const bodyClass = document.body?.className.toString().toLowerCase() || "";
+
+      return (
+        htmlClass.includes("monochrome") ||
+        htmlClass.includes("mono-mode") ||
+        htmlClass.includes("monochrome-mode") ||
+        bodyClass.includes("monochrome") ||
+        bodyClass.includes("mono-mode") ||
+        bodyClass.includes("monochrome-mode")
+      );
+    };
+
+    /**
+     * Converts an RGB color into perceived luminance.
+     * Lower values = darker element.
+     */
+    const getLuminance = (r: number, g: number, b: number) => {
+      const rs = r / 255;
+      const gs = g / 255;
+      const bs = b / 255;
+
+      const rLinear = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
+
+      const gLinear = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4);
+
+      const bLinear = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4);
+
+      return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+    };
+
+    /**
+     * Finds the effective visible background underneath the cursor.
+     *
+     * It walks up the DOM so transparent elements do not incorrectly
+     * prevent detection of the darker element underneath them.
+     */
+    const isOverDarkElement = (x: number, y: number) => {
+      // Temporarily hide the custom cursor so elementFromPoint()
+      // does not detect the cursor itself.
+      const cursor = cursorRef.current;
+
+      if (cursor) {
+        cursor.style.visibility = "hidden";
+      }
+
+      const element = document.elementFromPoint(x, y);
+
+      if (cursor) {
+        cursor.style.visibility = "visible";
+      }
+
+      if (!element) return false;
+
+      let current: Element | null = element;
+
+      while (current && current !== document.documentElement) {
+        const styles = window.getComputedStyle(current);
+        const background = styles.backgroundColor;
+
+        // Ignore transparent backgrounds and keep looking upward.
+        if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)") {
+          const match = background.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+
+          if (match) {
+            const r = Number(match[1]);
+            const g = Number(match[2]);
+            const b = Number(match[3]);
+
+            return getLuminance(r, g, b) < 0.12;
+          }
+        }
+
+        current = current.parentElement;
+      }
+
+      return false;
+    };
+
+    /**
+     * Updates the cursor color based on the current theme and
+     * whatever is underneath the pointer.
+     */
+    const updateCursorColor = () => {
+      if (!cursorRef.current) return;
+
+      const monochrome = isMonochromeMode();
+
+      let color = "#ffffff";
+
+      if (monochrome) {
+        const overDarkElement = isOverDarkElement(target.current.x, target.current.y);
+
+        color = overDarkElement ? "#ffffff" : "#000000";
+      }
+
+      cursorRef.current.style.color = color;
+    };
 
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
+
+      updateCursorColor();
 
       if (!visible.current && cursorRef.current) {
         visible.current = true;
@@ -61,8 +181,29 @@ const CustomCursor = () => {
 
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "1";
+        updateCursorColor();
       }
     };
+
+    /**
+     * Watch for theme changes so the cursor immediately follows
+     * monochrome/normal mode changes.
+     */
+    const observer = new MutationObserver(() => {
+      updateCursorColor();
+    });
+
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    if (document.body) {
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+    }
 
     // Very smooth easing loop (lerp) + time-delta independent
     let last = performance.now();
@@ -98,6 +239,8 @@ const CustomCursor = () => {
 
       cancelAnimationFrame(rafRef.current);
 
+      observer.disconnect();
+
       if (style.parentNode) {
         style.parentNode.removeChild(style);
       }
@@ -122,14 +265,11 @@ const CustomCursor = () => {
         xmlns="http://www.w3.org/2000/svg"
         className="custom-cursor-arrow"
       >
-        {/* White arrow with black outline for visibility on all backgrounds */}
+        {/* Exact original cursor shape — color changes dynamically */}
         <path
           d="M7.1 2.2c-.04-1.06 1.14-1.63 1.86-.81l13.9 14.1c.73.74.2 1.95-.85 1.97h-5.35c-.5.01-.98.22-1.31.58l-3.6 3.7c-.69.7-1.88.22-1.87-.79L7.1 2.2z"
-          fill="#ffffff"
-          stroke="#000000"
-          strokeWidth="1.5"
+          fill="currentColor"
           strokeLinejoin="round"
-          strokeLinecap="round"
         />
       </svg>
     </div>
