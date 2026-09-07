@@ -577,3 +577,43 @@ body,
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------
+   Custom desktop cursor (white with subtle glow)
+   ------------------------------------------------------------ */
+@media (pointer: fine) {
+  .has-custom-cursor,
+  .has-custom-cursor * {
+    cursor: none !important;
+  }
+}
+
+.custom-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  will-change: transform;
+  color: #ffffff;
+}
+
+.custom-cursor-arrow {
+  display: block;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.9))
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.45));
+}
+
+/* Minimal (monochrome) theme: flip to black with dark glow */
+:root[data-theme="minimal"] .custom-cursor {
+  color: #0a0a0a;
+}
+
+:root[data-theme="minimal"] .custom-cursor-arrow {
+  filter:
+    drop-shadow(0 0 3px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 8px rgba(0, 0, 0, 0.3));
+}
