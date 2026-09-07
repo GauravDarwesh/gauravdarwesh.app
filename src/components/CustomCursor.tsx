@@ -78,6 +78,7 @@ const CustomCursor = () => {
     return () => {
       document.documentElement.classList.remove("has-custom-cursor");
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
       document.documentElement.removeEventListener("mouseleave", onLeave);
       document.documentElement.removeEventListener("mouseenter", onEnter);
       cancelAnimationFrame(rafRef.current);
