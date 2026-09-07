@@ -11,14 +11,26 @@ import { useEffect, useRef, useState } from "react";
  *   - White cursor when hovering over a dark/black surface
  *
  * Disabled for touch devices.
+ *
+ * When the pointer is over the Notion iframe,
+ * the custom cursor is hidden so Notion can use
+ * its own native cursor.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
+
   const cursorRef = useRef<HTMLDivElement>(null);
+
   const pos = useRef({ x: -100, y: -100 });
+
   const target = useRef({ x: -100, y: -100 });
+
   const rafRef = useRef<number>(0);
+
   const visible = useRef(false);
+
+  // NEW: track whether pointer is inside Notion iframe
+  const overNotion = useRef(false);
 
   useEffect(() => {
     // Only enable for fine pointers such as mouse / trackpad
@@ -45,6 +57,11 @@ const CustomCursor = () => {
       html.has-custom-cursor *::before,
       html.has-custom-cursor *::after {
         cursor: none !important;
+      }
+
+      /* Keep the native cursor inside the Notion iframe */
+      html.has-custom-cursor iframe[title="Notion article"] {
+        cursor: auto !important;
       }
     `;
 
@@ -94,6 +111,7 @@ const CustomCursor = () => {
 
       while (current) {
         const styles = window.getComputedStyle(current);
+
         const background = styles.backgroundColor;
 
         if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)") {
@@ -115,6 +133,21 @@ const CustomCursor = () => {
       }
 
       return false;
+    };
+
+    /**
+     * NEW:
+     * Returns true if the pointer is currently
+     * inside the Notion iframe.
+     */
+    const isOverNotionIframe = (x: number, y: number) => {
+      const notionIframe = document.querySelector('iframe[title="Notion article"]') as HTMLIFrameElement | null;
+
+      if (!notionIframe) return false;
+
+      const rect = notionIframe.getBoundingClientRect();
+
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     };
 
     /**
@@ -148,6 +181,22 @@ const CustomCursor = () => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
 
+      // NEW:
+      // Detect whether the pointer is over the Notion iframe.
+      const currentlyOverNotion = isOverNotionIframe(e.clientX, e.clientY);
+
+      overNotion.current = currentlyOverNotion;
+
+      // NEW:
+      // Hide custom cursor over Notion.
+      if (currentlyOverNotion) {
+        if (cursorRef.current) {
+          cursorRef.current.style.opacity = "0";
+        }
+
+        return;
+      }
+
       updateCursorColor();
 
       if (!visible.current && cursorRef.current) {
@@ -167,8 +216,15 @@ const CustomCursor = () => {
     const onEnter = () => {
       visible.current = true;
 
+      // Don't show custom cursor if pointer
+      // is currently over Notion.
+      if (overNotion.current) {
+        return;
+      }
+
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "1";
+
         updateCursorColor();
       }
     };
@@ -181,6 +237,11 @@ const CustomCursor = () => {
      *   minimal -> black/white depending on surface
      */
     const observer = new MutationObserver(() => {
+      // Don't update/show the cursor over Notion.
+      if (overNotion.current) {
+        return;
+      }
+
       updateCursorColor();
     });
 
