@@ -3387,6 +3387,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           color: #fff !important;
         }
 
+        /* Monochrome mode: make the transcribe Done/check button visible with a black circular edge. */
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] {
+          border: 1px solid #000 !important;
+          color: #000 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] svg {
+          color: #000 !important;
+        }
+
         :root[data-theme="minimal"] [data-gdx-search] .thinking-placeholder::placeholder {
           color: rgba(0,0,0,0.48) !important;
           animation: textGlowMinimal 2s infinite ease-in-out;
