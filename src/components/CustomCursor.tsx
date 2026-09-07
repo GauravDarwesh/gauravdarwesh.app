@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Custom glowing white/black cursor for desktop pointers.
- * Follows the mouse with a soft, fluid lag for a very smooth feel.
- * Disabled for touch devices.
+ * Custom glowing cursor for desktop pointers.
  *
- * Normal mode:
+ * Glass mode:
  *   - White cursor
  *
- * Monochrome mode:
+ * Minimal / monochrome mode:
  *   - Black cursor
- *   - Automatically becomes white when hovering over a dark/black element
- *     so that it remains visible.
+ *   - White cursor when hovering over a dark/black surface
+ *
+ * Disabled for touch devices.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
@@ -22,8 +21,9 @@ const CustomCursor = () => {
   const visible = useRef(false);
 
   useEffect(() => {
-    // Only for fine (mouse/trackpad) pointers
+    // Only enable for fine pointers such as mouse / trackpad
     const mq = window.matchMedia("(pointer: fine)");
+
     if (!mq.matches) return;
 
     setEnabled(true);
@@ -34,7 +34,7 @@ const CustomCursor = () => {
 
     // Hide the native cursor everywhere while the custom cursor is active.
     // This prevents the native cursor from appearing during fast scrolling
-    // or when moving between different elements on macOS.
+    // or while moving across different elements on macOS.
     const style = document.createElement("style");
 
     style.setAttribute("data-custom-cursor", "true");
@@ -51,28 +51,8 @@ const CustomCursor = () => {
     document.head.appendChild(style);
 
     /**
-     * Determines whether the page is currently using monochrome mode.
-     *
-     * This checks common class naming patterns without changing any
-     * existing theme implementation.
-     */
-    const isMonochromeMode = () => {
-      const htmlClass = root.className.toString().toLowerCase();
-      const bodyClass = document.body?.className.toString().toLowerCase() || "";
-
-      return (
-        htmlClass.includes("monochrome") ||
-        htmlClass.includes("mono-mode") ||
-        htmlClass.includes("monochrome-mode") ||
-        bodyClass.includes("monochrome") ||
-        bodyClass.includes("mono-mode") ||
-        bodyClass.includes("monochrome-mode")
-      );
-    };
-
-    /**
-     * Converts an RGB color into perceived luminance.
-     * Lower values = darker element.
+     * Get the background luminance of a color.
+     * Lower luminance = darker color.
      */
     const getLuminance = (r: number, g: number, b: number) => {
       const rs = r / 255;
@@ -89,16 +69,15 @@ const CustomCursor = () => {
     };
 
     /**
-     * Finds the effective visible background underneath the cursor.
+     * Returns true when the pointer is over a dark/black surface.
      *
-     * It walks up the DOM so transparent elements do not incorrectly
-     * prevent detection of the darker element underneath them.
+     * Transparent elements are skipped so the function can continue
+     * looking up the DOM tree for the actual visible background.
      */
-    const isOverDarkElement = (x: number, y: number) => {
-      // Temporarily hide the custom cursor so elementFromPoint()
-      // does not detect the cursor itself.
+    const isOverDarkSurface = (x: number, y: number) => {
       const cursor = cursorRef.current;
 
+      // Prevent the custom cursor itself from being detected.
       if (cursor) {
         cursor.style.visibility = "hidden";
       }
@@ -113,11 +92,10 @@ const CustomCursor = () => {
 
       let current: Element | null = element;
 
-      while (current && current !== document.documentElement) {
+      while (current) {
         const styles = window.getComputedStyle(current);
         const background = styles.backgroundColor;
 
-        // Ignore transparent backgrounds and keep looking upward.
         if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)") {
           const match = background.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
 
@@ -126,7 +104,10 @@ const CustomCursor = () => {
             const g = Number(match[2]);
             const b = Number(match[3]);
 
-            return getLuminance(r, g, b) < 0.12;
+            const luminance = getLuminance(r, g, b);
+
+            // Dark enough that a black cursor would be difficult to see.
+            return luminance < 0.15;
           }
         }
 
@@ -137,23 +118,30 @@ const CustomCursor = () => {
     };
 
     /**
-     * Updates the cursor color based on the current theme and
-     * whatever is underneath the pointer.
+     * Update the cursor color according to the actual site theme.
+     *
+     * SiteThemeProvider sets:
+     *   data-theme="glass"
+     *   data-theme="minimal"
      */
     const updateCursorColor = () => {
-      if (!cursorRef.current) return;
+      const cursor = cursorRef.current;
 
-      const monochrome = isMonochromeMode();
+      if (!cursor) return;
 
-      let color = "#ffffff";
+      const isMinimal = root.dataset.theme === "minimal";
 
-      if (monochrome) {
-        const overDarkElement = isOverDarkElement(target.current.x, target.current.y);
-
-        color = overDarkElement ? "#ffffff" : "#000000";
+      // Glass mode is always white.
+      if (!isMinimal) {
+        cursor.style.color = "#ffffff";
+        return;
       }
 
-      cursorRef.current.style.color = color;
+      // Minimal mode is black unless the pointer is directly
+      // over a dark surface.
+      const overDarkSurface = isOverDarkSurface(target.current.x, target.current.y);
+
+      cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
 
     const onMove = (e: MouseEvent) => {
@@ -186,8 +174,11 @@ const CustomCursor = () => {
     };
 
     /**
-     * Watch for theme changes so the cursor immediately follows
-     * monochrome/normal mode changes.
+     * Watch the data-theme attribute used by SiteThemeProvider.
+     *
+     * This makes the cursor immediately switch between:
+     *   glass -> white
+     *   minimal -> black/white depending on surface
      */
     const observer = new MutationObserver(() => {
       updateCursorColor();
@@ -195,26 +186,21 @@ const CustomCursor = () => {
 
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ["class"],
+      attributeFilter: ["data-theme"],
     });
-
-    if (document.body) {
-      observer.observe(document.body, {
-        attributes: true,
-        attributeFilter: ["class"],
-      });
-    }
 
     // Very smooth easing loop (lerp) + time-delta independent
     let last = performance.now();
 
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 16.667, 3);
+
       last = now;
 
       const ease = 1 - Math.pow(1 - 0.38, dt);
 
       pos.current.x += (target.current.x - pos.current.x) * ease;
+
       pos.current.y += (target.current.y - pos.current.y) * ease;
 
       if (cursorRef.current) {
@@ -227,14 +213,21 @@ const CustomCursor = () => {
     rafRef.current = requestAnimationFrame(tick);
 
     window.addEventListener("mousemove", onMove, { passive: true });
+
     root.addEventListener("mouseleave", onLeave);
+
     root.addEventListener("mouseenter", onEnter);
+
+    // Set the correct initial color.
+    updateCursorColor();
 
     return () => {
       root.classList.remove("has-custom-cursor");
 
       window.removeEventListener("mousemove", onMove);
+
       root.removeEventListener("mouseleave", onLeave);
+
       root.removeEventListener("mouseenter", onEnter);
 
       cancelAnimationFrame(rafRef.current);
@@ -265,7 +258,7 @@ const CustomCursor = () => {
         xmlns="http://www.w3.org/2000/svg"
         className="custom-cursor-arrow"
       >
-        {/* Exact original cursor shape — color changes dynamically */}
+        {/* Original cursor shape — unchanged */}
         <path
           d="M7.1 2.2c-.04-1.06 1.14-1.63 1.86-.81l13.9 14.1c.73.74.2 1.95-.85 1.97h-5.35c-.5.01-.98.22-1.31.58l-3.6 3.7c-.69.7-1.88.22-1.87-.79L7.1 2.2z"
           fill="currentColor"
