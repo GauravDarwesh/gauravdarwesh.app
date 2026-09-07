@@ -11,6 +11,11 @@ import { useEffect, useRef, useState } from "react";
  *   - White cursor when hovering over a dark/black surface
  *
  * Disabled for touch devices.
+ *
+ * When entering an iframe (such as the embedded Notion page),
+ * the custom cursor is temporarily hidden because the parent
+ * document can no longer receive mousemove events from inside
+ * the iframe. It reappears seamlessly when the pointer returns.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
@@ -19,6 +24,7 @@ const CustomCursor = () => {
   const target = useRef({ x: -100, y: -100 });
   const rafRef = useRef<number>(0);
   const visible = useRef(false);
+  const insideIframe = useRef(false);
 
   useEffect(() => {
     // Only enable for fine pointers such as mouse / trackpad
@@ -127,7 +133,7 @@ const CustomCursor = () => {
     const updateCursorColor = () => {
       const cursor = cursorRef.current;
 
-      if (!cursor) return;
+      if (!cursor || insideIframe.current) return;
 
       const isMinimal = root.dataset.theme === "minimal";
 
@@ -144,9 +150,44 @@ const CustomCursor = () => {
       cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
 
+    /**
+     * Hide the custom cursor while the pointer is inside an iframe.
+     *
+     * The parent document does not receive mousemove events from
+     * inside the iframe, so leaving the cursor visible would make
+     * it appear frozen at its last position.
+     */
+    const hideForIframe = () => {
+      insideIframe.current = true;
+      visible.current = false;
+
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = "0";
+      }
+    };
+
+    /**
+     * Restore the cursor when the pointer returns to the parent page.
+     *
+     * The first mousemove after returning snaps the internal position
+     * directly to the real pointer location, preventing the cursor
+     * from flying in from its previous position.
+     */
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
+
+      if (insideIframe.current) {
+        insideIframe.current = false;
+
+        // Start exactly where the pointer currently is.
+        pos.current.x = e.clientX;
+        pos.current.y = e.clientY;
+
+        if (cursorRef.current) {
+          cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+        }
+      }
 
       updateCursorColor();
 
@@ -172,6 +213,25 @@ const CustomCursor = () => {
         updateCursorColor();
       }
     };
+
+    /**
+     * Detect when the pointer enters an iframe.
+     *
+     * Notion is embedded through an iframe, so the parent page cannot
+     * continue receiving mousemove events once the pointer is inside it.
+     */
+    const iframeElements = Array.from(document.querySelectorAll("iframe"));
+
+    const iframeHandlers = iframeElements.map((iframe) => {
+      const handler = () => hideForIframe();
+
+      iframe.addEventListener("mouseenter", handler);
+
+      return {
+        iframe,
+        handler,
+      };
+    });
 
     /**
      * Watch the data-theme attribute used by SiteThemeProvider.
@@ -200,10 +260,9 @@ const CustomCursor = () => {
       const ease = 1 - Math.pow(1 - 0.38, dt);
 
       pos.current.x += (target.current.x - pos.current.x) * ease;
-
       pos.current.y += (target.current.y - pos.current.y) * ease;
 
-      if (cursorRef.current) {
+      if (cursorRef.current && !insideIframe.current) {
         cursorRef.current.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
       }
 
@@ -229,6 +288,10 @@ const CustomCursor = () => {
       root.removeEventListener("mouseleave", onLeave);
 
       root.removeEventListener("mouseenter", onEnter);
+
+      iframeHandlers.forEach(({ iframe, handler }) => {
+        iframe.removeEventListener("mouseenter", handler);
+      });
 
       cancelAnimationFrame(rafRef.current);
 
