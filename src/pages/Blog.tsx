@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ExternalLink } from "lucide-react";
-import wallpaperAsset from "@/assets/orange-charcoal-wallpaper.jpg.asset.json";
 
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
@@ -113,7 +112,7 @@ const Blog = () => {
       <div
         className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url(${wallpaperAsset.url})`,
+          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
         }}
       />
 

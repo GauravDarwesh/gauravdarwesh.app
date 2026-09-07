@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
-import wallpaperAsset from "@/assets/orange-charcoal-wallpaper.jpg.asset.json";
 
 const ANIM_MS = 3000;
 
@@ -64,10 +63,8 @@ const Index = () => {
       {/* Background */}
       <div className="site-background fixed inset-0 z-0">
         <img
-          src={wallpaperAsset.url}
+          src="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg"
           alt=""
-          width={1536}
-          height={1536}
           className="w-full h-full object-cover pointer-events-none select-none"
           draggable={false}
           onContextMenu={(e) => e.preventDefault()}
