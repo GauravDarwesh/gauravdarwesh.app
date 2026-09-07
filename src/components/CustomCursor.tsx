@@ -19,9 +19,6 @@ const CustomCursor = () => {
   const target = useRef({ x: -100, y: -100 });
   const rafRef = useRef<number>(0);
   const visible = useRef(false);
-  const hasPointerPosition = useRef(false);
-  const returningFromIframe = useRef(false);
-  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Only enable for fine pointers such as mouse / trackpad
@@ -147,119 +144,9 @@ const CustomCursor = () => {
       cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
 
-    /**
-     * Hide the custom cursor while the pointer is inside a cross-origin
-     * iframe such as the Notion article.
-     */
-    const hideCustomCursor = () => {
-      visible.current = false;
-      returningFromIframe.current = true;
-
-      if (fadeTimerRef.current) {
-        clearTimeout(fadeTimerRef.current);
-        fadeTimerRef.current = null;
-      }
-
-      if (cursorRef.current) {
-        cursorRef.current.style.opacity = "0";
-      }
-    };
-
-    /**
-     * The iframe is cross-origin, so the parent page cannot track the
-     * pointer while it is inside Notion.
-     *
-     * We therefore wait for the first real mouse event after leaving the
-     * iframe. At that moment we position the cursor exactly at the actual
-     * pointer and fade it back in.
-     */
-    const showCustomCursor = () => {
-      returningFromIframe.current = true;
-    };
-
-    /**
-     * Attach the clean cursor handoff to an iframe.
-     *
-     * This does not attempt to access the iframe's document, which would
-     * violate the browser's same-origin boundary for the Notion iframe.
-     */
-    const attachIframeBoundary = (iframe: HTMLIFrameElement) => {
-      iframe.addEventListener("mouseenter", hideCustomCursor);
-      iframe.addEventListener("mouseleave", showCustomCursor);
-
-      return () => {
-        iframe.removeEventListener("mouseenter", hideCustomCursor);
-        iframe.removeEventListener("mouseleave", showCustomCursor);
-      };
-    };
-
-    const iframeCleanups = new Map<HTMLIFrameElement, () => void>();
-
-    const attachExistingIframes = () => {
-      document.querySelectorAll("iframe").forEach((iframe) => {
-        if (!iframeCleanups.has(iframe)) {
-          iframeCleanups.set(iframe, attachIframeBoundary(iframe));
-        }
-      });
-    };
-
-    attachExistingIframes();
-
-    /**
-     * Watch for dynamically mounted iframes such as the Notion modal.
-     */
-    const iframeObserver = new MutationObserver(() => {
-      attachExistingIframes();
-    });
-
-    iframeObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
-
-      /*
-       * First real pointer event.
-       *
-       * This is especially important after leaving the Notion iframe:
-       * the pointer may have travelled a large distance while the parent
-       * page could not see it.
-       *
-       * Position the cursor directly under the real pointer so there is
-       * no visible jump from a stale position.
-       */
-      if (!hasPointerPosition.current || returningFromIframe.current) {
-        pos.current.x = e.clientX;
-        pos.current.y = e.clientY;
-
-        if (cursorRef.current) {
-          cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
-
-          cursorRef.current.style.transition = "opacity 220ms ease-out";
-          cursorRef.current.style.opacity = "1";
-
-          if (fadeTimerRef.current) {
-            clearTimeout(fadeTimerRef.current);
-          }
-
-          fadeTimerRef.current = setTimeout(() => {
-            if (cursorRef.current) {
-              cursorRef.current.style.transition = "";
-            }
-            fadeTimerRef.current = null;
-          }, 230);
-        }
-
-        hasPointerPosition.current = true;
-        returningFromIframe.current = false;
-        visible.current = true;
-
-        updateCursorColor();
-        return;
-      }
 
       updateCursorColor();
 
@@ -271,33 +158,18 @@ const CustomCursor = () => {
 
     const onLeave = () => {
       visible.current = false;
-      hasPointerPosition.current = false;
-      returningFromIframe.current = false;
-
-      if (fadeTimerRef.current) {
-        clearTimeout(fadeTimerRef.current);
-        fadeTimerRef.current = null;
-      }
 
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "0";
-        cursorRef.current.style.transition = "";
       }
     };
 
     const onEnter = () => {
-      /*
-       * Do not show the cursor until we have an actual pointer position.
-       */
-      if (!hasPointerPosition.current) return;
+      visible.current = true;
 
-      if (!returningFromIframe.current) {
-        visible.current = true;
-
-        if (cursorRef.current) {
-          cursorRef.current.style.opacity = "1";
-          updateCursorColor();
-        }
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = "1";
+        updateCursorColor();
       }
     };
 
@@ -317,7 +189,7 @@ const CustomCursor = () => {
       attributeFilter: ["data-theme"],
     });
 
-    // Original smooth easing loop.
+    // Very smooth easing loop (lerp) + time-delta independent
     let last = performance.now();
 
     const tick = (now: number) => {
@@ -356,19 +228,11 @@ const CustomCursor = () => {
 
       root.removeEventListener("mouseleave", onLeave);
 
+      root.removeEventListener("mouseenter", onEnter);
+
       cancelAnimationFrame(rafRef.current);
 
       observer.disconnect();
-
-      iframeObserver.disconnect();
-
-      iframeCleanups.forEach((cleanup) => cleanup());
-      iframeCleanups.clear();
-
-      if (fadeTimerRef.current) {
-        clearTimeout(fadeTimerRef.current);
-        fadeTimerRef.current = null;
-      }
 
       if (style.parentNode) {
         style.parentNode.removeChild(style);
