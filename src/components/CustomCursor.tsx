@@ -19,6 +19,7 @@ const CustomCursor = () => {
   const target = useRef({ x: -100, y: -100 });
   const rafRef = useRef<number>(0);
   const visible = useRef(false);
+  const hasPointerPosition = useRef(false);
 
   useEffect(() => {
     // Only enable for fine pointers such as mouse / trackpad
@@ -153,6 +154,7 @@ const CustomCursor = () => {
      */
     const hideCustomCursor = () => {
       visible.current = false;
+      hasPointerPosition.current = false;
 
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "0";
@@ -160,6 +162,8 @@ const CustomCursor = () => {
     };
 
     const showCustomCursor = () => {
+      if (!hasPointerPosition.current) return;
+
       visible.current = true;
 
       if (cursorRef.current) {
@@ -212,6 +216,24 @@ const CustomCursor = () => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
 
+      /*
+       * On the first real pointer event, place the rendered cursor
+       * directly at the pointer before starting the smooth animation.
+       *
+       * This prevents the cursor from visually popping in from an old
+       * position when returning from an iframe or when the page first loads.
+       */
+      if (!hasPointerPosition.current) {
+        pos.current.x = e.clientX;
+        pos.current.y = e.clientY;
+
+        if (cursorRef.current) {
+          cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+        }
+
+        hasPointerPosition.current = true;
+      }
+
       updateCursorColor();
 
       if (!visible.current && cursorRef.current) {
@@ -222,6 +244,7 @@ const CustomCursor = () => {
 
     const onLeave = () => {
       visible.current = false;
+      hasPointerPosition.current = false;
 
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "0";
@@ -229,6 +252,13 @@ const CustomCursor = () => {
     };
 
     const onEnter = () => {
+      /*
+       * Do not show the cursor until a fresh mouse position is received.
+       * This prevents it from appearing at a stale position immediately
+       * after crossing a page/iframe boundary.
+       */
+      if (!hasPointerPosition.current) return;
+
       visible.current = true;
 
       if (cursorRef.current) {
@@ -253,7 +283,7 @@ const CustomCursor = () => {
       attributeFilter: ["data-theme"],
     });
 
-    // Very smooth easing loop (lerp) + time-delta independent
+    // Smooth easing loop with time-delta independence.
     let last = performance.now();
 
     const tick = (now: number) => {
@@ -261,13 +291,19 @@ const CustomCursor = () => {
 
       last = now;
 
-      const ease = 1 - Math.pow(1 - 0.38, dt);
+      /*
+       * Smooth exponential interpolation.
+       *
+       * Using a delta-time based interpolation keeps the cursor movement
+       * consistent across different refresh rates and avoids the visible
+       * stepping/jumping that can happen with frame-dependent movement.
+       */
+      const ease = 1 - Math.pow(1 - 0.45, dt);
 
       pos.current.x += (target.current.x - pos.current.x) * ease;
-
       pos.current.y += (target.current.y - pos.current.y) * ease;
 
-      if (cursorRef.current) {
+      if (cursorRef.current && hasPointerPosition.current) {
         cursorRef.current.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
       }
 
