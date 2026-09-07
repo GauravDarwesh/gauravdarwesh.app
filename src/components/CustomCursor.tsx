@@ -12,7 +12,6 @@ const CustomCursor = () => {
   const target = useRef({ x: -100, y: -100 });
   const rafRef = useRef<number>(0);
   const visible = useRef(false);
-  const lastMouse = useRef({ x: -100, y: -100 });
 
   useEffect(() => {
     // Only for fine (mouse/trackpad) pointers
@@ -24,24 +23,9 @@ const CustomCursor = () => {
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
-      lastMouse.current.x = e.clientX;
-      lastMouse.current.y = e.clientY;
       if (!visible.current && cursorRef.current) {
         visible.current = true;
         cursorRef.current.style.opacity = "1";
-      }
-    };
-
-    // During scroll the mouse doesn't move, but the page does.
-    // Keep the custom cursor glued to the same page point so it
-    // never desyncs — and keep the native cursor suppressed.
-    const onScroll = () => {
-      target.current.x = lastMouse.current.x;
-      target.current.y = lastMouse.current.y;
-      pos.current.x = lastMouse.current.x;
-      pos.current.y = lastMouse.current.y;
-      if (cursorRef.current) {
-        cursorRef.current.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
       }
     };
 
@@ -71,14 +55,12 @@ const CustomCursor = () => {
     rafRef.current = requestAnimationFrame(tick);
 
     window.addEventListener("mousemove", onMove, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
     document.documentElement.addEventListener("mouseleave", onLeave);
     document.documentElement.addEventListener("mouseenter", onEnter);
 
     return () => {
       document.documentElement.classList.remove("has-custom-cursor");
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
       document.documentElement.removeEventListener("mouseleave", onLeave);
       document.documentElement.removeEventListener("mouseenter", onEnter);
       cancelAnimationFrame(rafRef.current);
