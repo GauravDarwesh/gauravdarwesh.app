@@ -11,27 +11,9 @@ import { useEffect, useRef, useState } from "react";
  *   - White cursor when hovering over a dark/black surface
  *
  * Disabled for touch devices.
- *
- * When the Notion iframe exists:
- *   - The custom cursor is completely disabled.
- *   - The browser's native cursor is restored everywhere.
- *   - This remains active for the entire Notion interaction.
- *
- * Once the Notion iframe is removed:
- *   - The custom cursor is restored.
- *
- * Browser quirk handled here:
- *   Safari and Chrome both have long-standing bugs where a bare
- *   `cursor: none` is ignored on native form controls (button, a,
- *   input, [role="button"]), especially around hover/active/focus.
- *   Safari tends to get stuck showing both cursors; Chrome drops the
- *   custom cursor until the next mousemove. The fix is to supply a
- *   URL fallback ahead of `none` — `cursor: url(...), none` — which
- *   both engines respect far more reliably than the bare keyword.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
-
   const cursorRef = useRef<HTMLDivElement>(null);
   const pos = useRef({ x: -100, y: -100 });
   const target = useRef({ x: -100, y: -100 });
@@ -48,60 +30,21 @@ const CustomCursor = () => {
 
     const root = document.documentElement;
 
-    /**
-     * Enable / disable the global custom-cursor mode.
-     *
-     * When disabled, the native browser cursor is restored.
-     */
-    const setCustomCursorMode = (active: boolean) => {
-      if (active) {
-        root.classList.add("has-custom-cursor");
-      } else {
-        root.classList.remove("has-custom-cursor");
+    root.classList.add("has-custom-cursor");
 
-        visible.current = false;
-
-        if (cursorRef.current) {
-          cursorRef.current.style.opacity = "0";
-        }
-      }
-    };
-
-    // ------------------------------------------------------------
-    // Native cursor suppression
-    // ------------------------------------------------------------
-
+    // Hide the native cursor everywhere while the custom cursor is active.
+    // This prevents the native cursor from appearing during fast scrolling
+    // or while moving across different elements on macOS.
     const style = document.createElement("style");
 
     style.setAttribute("data-custom-cursor", "true");
-
-    // A 1x1 transparent gif as the URL fallback. Safari/Chrome honor
-    // `cursor: url(...), none` far more consistently than a bare
-    // `cursor: none`, particularly on native form controls.
-    const NONE_CURSOR = "url('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='), none";
 
     style.textContent = `
       html.has-custom-cursor,
       html.has-custom-cursor *,
       html.has-custom-cursor *::before,
       html.has-custom-cursor *::after {
-        cursor: ${NONE_CURSOR} !important;
-      }
-
-      html.has-custom-cursor button,
-      html.has-custom-cursor a,
-      html.has-custom-cursor input,
-      html.has-custom-cursor textarea,
-      html.has-custom-cursor select,
-      html.has-custom-cursor [role="button"],
-      html.has-custom-cursor button:hover,
-      html.has-custom-cursor button:active,
-      html.has-custom-cursor button:focus,
-      html.has-custom-cursor button:focus-visible,
-      html.has-custom-cursor a:hover,
-      html.has-custom-cursor a:active,
-      html.has-custom-cursor a:focus {
-        cursor: ${NONE_CURSOR} !important;
+        cursor: none !important;
       }
     `;
 
@@ -151,7 +94,6 @@ const CustomCursor = () => {
 
       while (current) {
         const styles = window.getComputedStyle(current);
-
         const background = styles.backgroundColor;
 
         if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)") {
@@ -181,10 +123,6 @@ const CustomCursor = () => {
      * SiteThemeProvider sets:
      *   data-theme="glass"
      *   data-theme="minimal"
-     *
-     * Only ever called while custom-cursor mode is active (i.e.
-     * Notion is confirmed absent), so it doesn't need to re-check
-     * for the iframe itself.
      */
     const updateCursorColor = () => {
       const cursor = cursorRef.current;
@@ -206,78 +144,7 @@ const CustomCursor = () => {
       cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
 
-    // ------------------------------------------------------------
-    // Notion iframe detection
-    // ------------------------------------------------------------
-
-    const NOTION_SELECTOR = 'iframe[title="Notion article"]';
-
-    // Tracks the last known presence of the Notion iframe so we can
-    // ignore unrelated DOM mutations (route changes, button state,
-    // scroll-driven class toggles, etc.) and only react to a real
-    // open/close transition. Reacting to every mutation was the
-    // original cause of the flicker on button clicks / scrolling.
-    let notionActive = false;
-
-    const applyNotionState = (hasNotion: boolean) => {
-      if (hasNotion === notionActive) return;
-
-      notionActive = hasNotion;
-
-      if (hasNotion) {
-        setCustomCursorMode(false);
-      } else {
-        setCustomCursorMode(true);
-
-        // Start hidden until the next mouse movement, since we
-        // don't know if the pointer is still over the page/at a
-        // valid position after Notion closes.
-        visible.current = false;
-
-        if (cursorRef.current) {
-          cursorRef.current.style.opacity = "0";
-        }
-
-        updateCursorColor();
-      }
-    };
-
-    const checkNotion = () => {
-      applyNotionState(!!document.querySelector(NOTION_SELECTOR));
-    };
-
-    // Coalesce bursts of mutations (a route change can fire dozens)
-    // into a single check per animation frame instead of one check
-    // per mutation record.
-    let notionCheckRaf = 0;
-
-    const scheduleNotionCheck = () => {
-      if (notionCheckRaf) return;
-
-      notionCheckRaf = requestAnimationFrame(() => {
-        notionCheckRaf = 0;
-        checkNotion();
-      });
-    };
-
-    const notionObserver = new MutationObserver(scheduleNotionCheck);
-
-    notionObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    // ------------------------------------------------------------
-    // Pointer events
-    // ------------------------------------------------------------
-
     const onMove = (e: MouseEvent) => {
-      // If Notion is open, native cursor mode is active — don't
-      // update the custom cursor at all.
-      if (notionActive) {
-        return;
-      }
-
       target.current.x = e.clientX;
       target.current.y = e.clientY;
 
@@ -285,32 +152,11 @@ const CustomCursor = () => {
 
       if (!visible.current && cursorRef.current) {
         visible.current = true;
-
         cursorRef.current.style.opacity = "1";
       }
     };
 
-    /**
-     * Fires when the pointer truly leaves the viewport.
-     *
-     * Uses `mouseout` on `document` with a `relatedTarget` check
-     * instead of `mouseleave` on `<html>`. `mouseleave` on the root
-     * element can behave inconsistently across engines when the
-     * pointer moves rapidly across/into native controls (buttons,
-     * links) — this is more robust against that class of quirk.
-     * `relatedTarget === null` (or outside the document) means the
-     * pointer actually left the window, not just moved between
-     * internal elements.
-     */
-    const onDocumentMouseOut = (e: MouseEvent) => {
-      const related = e.relatedTarget as Node | null;
-
-      if (related && document.documentElement.contains(related)) {
-        // Moved to another element still inside the page — not a
-        // real "left the window" event.
-        return;
-      }
-
+    const onLeave = () => {
       visible.current = false;
 
       if (cursorRef.current) {
@@ -319,38 +165,31 @@ const CustomCursor = () => {
     };
 
     const onEnter = () => {
-      if (notionActive) {
-        return;
-      }
-
       visible.current = true;
 
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "1";
-
         updateCursorColor();
       }
     };
 
-    // ------------------------------------------------------------
-    // Theme observer
-    // ------------------------------------------------------------
-
-    const themeObserver = new MutationObserver(() => {
-      if (!notionActive) {
-        updateCursorColor();
-      }
+    /**
+     * Watch the data-theme attribute used by SiteThemeProvider.
+     *
+     * This makes the cursor immediately switch between:
+     *   glass -> white
+     *   minimal -> black/white depending on surface
+     */
+    const observer = new MutationObserver(() => {
+      updateCursorColor();
     });
 
-    themeObserver.observe(root, {
+    observer.observe(root, {
       attributes: true,
       attributeFilter: ["data-theme"],
     });
 
-    // ------------------------------------------------------------
-    // Very smooth easing loop
-    // ------------------------------------------------------------
-
+    // Very smooth easing loop (lerp) + time-delta independent
     let last = performance.now();
 
     const tick = (now: number) => {
@@ -375,37 +214,25 @@ const CustomCursor = () => {
 
     window.addEventListener("mousemove", onMove, { passive: true });
 
-    document.addEventListener("mouseout", onDocumentMouseOut);
+    root.addEventListener("mouseleave", onLeave);
 
     root.addEventListener("mouseenter", onEnter);
 
-    // ------------------------------------------------------------
-    // Initial state
-    // ------------------------------------------------------------
-
-    checkNotion();
-
-    // ------------------------------------------------------------
-    // Cleanup
-    // ------------------------------------------------------------
+    // Set the correct initial color.
+    updateCursorColor();
 
     return () => {
       root.classList.remove("has-custom-cursor");
 
       window.removeEventListener("mousemove", onMove);
 
-      document.removeEventListener("mouseout", onDocumentMouseOut);
+      root.removeEventListener("mouseleave", onLeave);
 
       root.removeEventListener("mouseenter", onEnter);
 
       cancelAnimationFrame(rafRef.current);
 
-      if (notionCheckRaf) {
-        cancelAnimationFrame(notionCheckRaf);
-      }
-
-      themeObserver.disconnect();
-      notionObserver.disconnect();
+      observer.disconnect();
 
       if (style.parentNode) {
         style.parentNode.removeChild(style);
