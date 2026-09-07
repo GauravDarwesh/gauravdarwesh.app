@@ -44,7 +44,7 @@ const CustomCursor = () => {
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 16.667, 3); // normalize to 60fps steps
       last = now;
-      const ease = 1 - Math.pow(1 - 0.22, dt); // buttery trailing
+      const ease = 1 - Math.pow(1 - 0.38, dt); // buttery trailing
       pos.current.x += (target.current.x - pos.current.x) * ease;
       pos.current.y += (target.current.y - pos.current.y) * ease;
       if (cursorRef.current) {
@@ -74,16 +74,14 @@ const CustomCursor = () => {
       <svg
         width="26"
         height="26"
-        viewBox="0 0 24 24"
-        fill="none"
+        viewBox="0 0 26 26"
         xmlns="http://www.w3.org/2000/svg"
         className="custom-cursor-arrow"
       >
+        {/* classic arrow pointer with fully rounded corners, single fill = no artifacts */}
         <path
-          d="M5 3.5c0-.9 1.06-1.36 1.68-.72l13.06 13.06c.62.62.16 1.68-.72 1.68h-5.48c-.5 0-.98.2-1.33.55l-3.4 3.4c-.65.65-1.81.19-1.81-.73V3.5z"
+          d="M7.1 2.2c-.04-1.06 1.14-1.63 1.86-.81l13.9 14.1c.73.74.2 1.95-.85 1.97h-5.35c-.5.01-.98.22-1.31.58l-3.6 3.7c-.69.7-1.88.22-1.87-.79L7.1 2.2z"
           fill="currentColor"
-          stroke="currentColor"
-          strokeWidth="1.6"
           strokeLinejoin="round"
         />
       </svg>
