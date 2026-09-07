@@ -12,6 +12,7 @@ const CustomCursor = () => {
   const target = useRef({ x: -100, y: -100 });
   const rafRef = useRef<number>(0);
   const visible = useRef(false);
+  const lastMouse = useRef({ x: -100, y: -100 });
 
   useEffect(() => {
     // Only for fine (mouse/trackpad) pointers
