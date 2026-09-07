@@ -923,18 +923,36 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 400);
   }, [voiceLinks.length, voiceLinksVisible]);
 
-  const prepareVoiceLinkBubbles = useCallback((links: VoiceLink[]) => {
-    if (voiceLinksExitTimerRef.current) {
-      clearTimeout(voiceLinksExitTimerRef.current);
-      voiceLinksExitTimerRef.current = null;
-    }
+  const prepareVoiceLinkBubbles = useCallback(
+    (links: VoiceLink[]) => {
+      if (voiceLinksExitTimerRef.current) {
+        clearTimeout(voiceLinksExitTimerRef.current);
+        voiceLinksExitTimerRef.current = null;
+      }
 
-    voiceLinksRef.current = links;
-    setVoiceLinks(links);
-    setVoiceLinksVisible(false);
-    setVoiceLinksExiting(false);
-    voiceLinksShownRef.current = false;
-  }, []);
+      if (voiceLinksVisible && voiceLinks.length > 0) {
+        setVoiceLinksExiting(true);
+
+        voiceLinksExitTimerRef.current = setTimeout(() => {
+          voiceLinksRef.current = links;
+          setVoiceLinks(links);
+          setVoiceLinksVisible(false);
+          setVoiceLinksExiting(false);
+          voiceLinksShownRef.current = false;
+          voiceLinksExitTimerRef.current = null;
+        }, 400);
+
+        return;
+      }
+
+      voiceLinksRef.current = links;
+      setVoiceLinks(links);
+      setVoiceLinksVisible(false);
+      setVoiceLinksExiting(false);
+      voiceLinksShownRef.current = false;
+    },
+    [voiceLinks.length, voiceLinksVisible],
+  );
 
   const revealVoiceLinkBubbles = useCallback(() => {
     const links = voiceLinksRef.current;
@@ -3088,7 +3106,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 event.stopPropagation();
                 window.location.assign(link.url);
               }}
-              className="cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis hover:bg-white/30 active:scale-95 transition-all"
+              className="gdx-voice-link-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis hover:bg-white/30 active:scale-95 transition-all"
               aria-label={`Open ${link.label}`}
             >
               ↗ {link.label}
@@ -3346,6 +3364,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               0 0 20px rgba(0,0,0,0.18),
               inset 0 0 20px rgba(0,0,0,0.08);
           }
+        }
+
+        /* Monochrome mode: make voice response link bubbles visible with a black border. */
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-voice-link-bubble {
+          border: 1px solid #000 !important;
         }
 
         /* Monochrome mode: make the voice-session exit X a visible black circle. */
