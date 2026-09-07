@@ -11,9 +11,6 @@ import { useEffect, useRef, useState } from "react";
  *   - White cursor when hovering over a dark/black surface
  *
  * Disabled for touch devices.
- *
- * When the Notion modal is open, the custom cursor is completely
- * disabled and the browser's standard cursor is restored.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
@@ -177,53 +174,6 @@ const CustomCursor = () => {
     };
 
     /**
-     * Enable / disable the custom cursor.
-     *
-     * When the Notion iframe exists, the browser's native cursor
-     * is restored completely.
-     */
-    const updateNotionCursorState = () => {
-      const notionIframe = document.querySelector('iframe[title="Notion article"]');
-
-      if (notionIframe) {
-        // Stop using the custom cursor.
-        visible.current = false;
-
-        if (cursorRef.current) {
-          cursorRef.current.style.opacity = "0";
-        }
-
-        root.classList.remove("has-custom-cursor");
-        setEnabled(false);
-      } else {
-        // Restore the custom cursor once the Notion modal closes.
-        root.classList.add("has-custom-cursor");
-        setEnabled(true);
-
-        if (cursorRef.current) {
-          cursorRef.current.style.opacity = "0";
-        }
-
-        visible.current = false;
-      }
-    };
-
-    /**
-     * Watch the DOM for the Notion modal being opened or closed.
-     *
-     * The Blog component already renders the Notion iframe only when
-     * activeNotion is set, so no changes are required there.
-     */
-    const notionObserver = new MutationObserver(() => {
-      updateNotionCursorState();
-    });
-
-    notionObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    /**
      * Watch the data-theme attribute used by SiteThemeProvider.
      *
      * This makes the cursor immediately switch between:
@@ -271,9 +221,6 @@ const CustomCursor = () => {
     // Set the correct initial color.
     updateCursorColor();
 
-    // Check initial Notion state.
-    updateNotionCursorState();
-
     return () => {
       root.classList.remove("has-custom-cursor");
 
@@ -286,8 +233,6 @@ const CustomCursor = () => {
       cancelAnimationFrame(rafRef.current);
 
       observer.disconnect();
-
-      notionObserver.disconnect();
 
       if (style.parentNode) {
         style.parentNode.removeChild(style);
