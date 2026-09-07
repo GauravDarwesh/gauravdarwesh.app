@@ -1,3 +1,4 @@
+```tsx
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -12,10 +13,8 @@ import { useEffect, useRef, useState } from "react";
  *
  * Disabled for touch devices.
  *
- * When entering an iframe (such as the embedded Notion page),
- * the custom cursor is temporarily hidden because the parent
- * document can no longer receive mousemove events from inside
- * the iframe. It reappears seamlessly when the pointer returns.
+ * When the Notion modal is open, the custom cursor is completely
+ * disabled and the browser's standard cursor is restored.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
@@ -24,7 +23,6 @@ const CustomCursor = () => {
   const target = useRef({ x: -100, y: -100 });
   const rafRef = useRef<number>(0);
   const visible = useRef(false);
-  const insideIframe = useRef(false);
 
   useEffect(() => {
     // Only enable for fine pointers such as mouse / trackpad
@@ -65,13 +63,26 @@ const CustomCursor = () => {
       const gs = g / 255;
       const bs = b / 255;
 
-      const rLinear = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
+      const rLinear =
+        rs <= 0.03928
+          ? rs / 12.92
+          : Math.pow((rs + 0.055) / 1.055, 2.4);
 
-      const gLinear = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4);
+      const gLinear =
+        gs <= 0.03928
+          ? gs / 12.92
+          : Math.pow((gs + 0.055) / 1.055, 2.4);
 
-      const bLinear = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4);
+      const bLinear =
+        bs <= 0.03928
+          ? bs / 12.92
+          : Math.pow((bs + 0.055) / 1.055, 2.4);
 
-      return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+      return (
+        0.2126 * rLinear +
+        0.7152 * gLinear +
+        0.0722 * bLinear
+      );
     };
 
     /**
@@ -102,8 +113,14 @@ const CustomCursor = () => {
         const styles = window.getComputedStyle(current);
         const background = styles.backgroundColor;
 
-        if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)") {
-          const match = background.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+        if (
+          background &&
+          background !== "transparent" &&
+          background !== "rgba(0, 0, 0, 0)"
+        ) {
+          const match = background.match(
+            /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/
+          );
 
           if (match) {
             const r = Number(match[1]);
@@ -133,7 +150,7 @@ const CustomCursor = () => {
     const updateCursorColor = () => {
       const cursor = cursorRef.current;
 
-      if (!cursor || insideIframe.current) return;
+      if (!cursor) return;
 
       const isMinimal = root.dataset.theme === "minimal";
 
@@ -145,49 +162,17 @@ const CustomCursor = () => {
 
       // Minimal mode is black unless the pointer is directly
       // over a dark surface.
-      const overDarkSurface = isOverDarkSurface(target.current.x, target.current.y);
+      const overDarkSurface = isOverDarkSurface(
+        target.current.x,
+        target.current.y
+      );
 
       cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
 
-    /**
-     * Hide the custom cursor while the pointer is inside an iframe.
-     *
-     * The parent document does not receive mousemove events from
-     * inside the iframe, so leaving the cursor visible would make
-     * it appear frozen at its last position.
-     */
-    const hideForIframe = () => {
-      insideIframe.current = true;
-      visible.current = false;
-
-      if (cursorRef.current) {
-        cursorRef.current.style.opacity = "0";
-      }
-    };
-
-    /**
-     * Restore the cursor when the pointer returns to the parent page.
-     *
-     * The first mousemove after returning snaps the internal position
-     * directly to the real pointer location, preventing the cursor
-     * from flying in from its previous position.
-     */
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
-
-      if (insideIframe.current) {
-        insideIframe.current = false;
-
-        // Start exactly where the pointer currently is.
-        pos.current.x = e.clientX;
-        pos.current.y = e.clientY;
-
-        if (cursorRef.current) {
-          cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
-        }
-      }
 
       updateCursorColor();
 
@@ -215,22 +200,52 @@ const CustomCursor = () => {
     };
 
     /**
-     * Detect when the pointer enters an iframe.
+     * Enable / disable the custom cursor.
      *
-     * Notion is embedded through an iframe, so the parent page cannot
-     * continue receiving mousemove events once the pointer is inside it.
+     * When the Notion iframe exists, the browser's native cursor
+     * is restored completely.
      */
-    const iframeElements = Array.from(document.querySelectorAll("iframe"));
+    const updateNotionCursorState = () => {
+      const notionIframe = document.querySelector(
+        'iframe[title="Notion article"]'
+      );
 
-    const iframeHandlers = iframeElements.map((iframe) => {
-      const handler = () => hideForIframe();
+      if (notionIframe) {
+        // Stop using the custom cursor.
+        visible.current = false;
 
-      iframe.addEventListener("mouseenter", handler);
+        if (cursorRef.current) {
+          cursorRef.current.style.opacity = "0";
+        }
 
-      return {
-        iframe,
-        handler,
-      };
+        root.classList.remove("has-custom-cursor");
+        setEnabled(false);
+      } else {
+        // Restore the custom cursor once the Notion modal closes.
+        root.classList.add("has-custom-cursor");
+        setEnabled(true);
+
+        if (cursorRef.current) {
+          cursorRef.current.style.opacity = "0";
+        }
+
+        visible.current = false;
+      }
+    };
+
+    /**
+     * Watch the DOM for the Notion modal being opened or closed.
+     *
+     * The Blog component already renders the Notion iframe only when
+     * activeNotion is set, so no changes are required there.
+     */
+    const notionObserver = new MutationObserver(() => {
+      updateNotionCursorState();
+    });
+
+    notionObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
     });
 
     /**
@@ -260,9 +275,10 @@ const CustomCursor = () => {
       const ease = 1 - Math.pow(1 - 0.38, dt);
 
       pos.current.x += (target.current.x - pos.current.x) * ease;
+
       pos.current.y += (target.current.y - pos.current.y) * ease;
 
-      if (cursorRef.current && !insideIframe.current) {
+      if (cursorRef.current) {
         cursorRef.current.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
       }
 
@@ -280,6 +296,9 @@ const CustomCursor = () => {
     // Set the correct initial color.
     updateCursorColor();
 
+    // Check initial Notion state.
+    updateNotionCursorState();
+
     return () => {
       root.classList.remove("has-custom-cursor");
 
@@ -289,13 +308,11 @@ const CustomCursor = () => {
 
       root.removeEventListener("mouseenter", onEnter);
 
-      iframeHandlers.forEach(({ iframe, handler }) => {
-        iframe.removeEventListener("mouseenter", handler);
-      });
-
       cancelAnimationFrame(rafRef.current);
 
       observer.disconnect();
+
+      notionObserver.disconnect();
 
       if (style.parentNode) {
         style.parentNode.removeChild(style);
@@ -333,3 +350,4 @@ const CustomCursor = () => {
 };
 
 export default CustomCursor;
+```
