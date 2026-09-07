@@ -19,6 +19,15 @@ import { useEffect, useRef, useState } from "react";
  *
  * Once the Notion iframe is removed:
  *   - The custom cursor is restored.
+ *
+ * Browser quirk handled here:
+ *   Safari and Chrome both have long-standing bugs where a bare
+ *   `cursor: none` is ignored on native form controls (button, a,
+ *   input, [role="button"]), especially around hover/active/focus.
+ *   Safari tends to get stuck showing both cursors; Chrome drops the
+ *   custom cursor until the next mousemove. The fix is to supply a
+ *   URL fallback ahead of `none` — `cursor: url(...), none` — which
+ *   both engines respect far more reliably than the bare keyword.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
@@ -66,12 +75,33 @@ const CustomCursor = () => {
 
     style.setAttribute("data-custom-cursor", "true");
 
+    // A 1x1 transparent gif as the URL fallback. Safari/Chrome honor
+    // `cursor: url(...), none` far more consistently than a bare
+    // `cursor: none`, particularly on native form controls.
+    const NONE_CURSOR = "url('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='), none";
+
     style.textContent = `
       html.has-custom-cursor,
       html.has-custom-cursor *,
       html.has-custom-cursor *::before,
       html.has-custom-cursor *::after {
-        cursor: none !important;
+        cursor: ${NONE_CURSOR} !important;
+      }
+
+      html.has-custom-cursor button,
+      html.has-custom-cursor a,
+      html.has-custom-cursor input,
+      html.has-custom-cursor textarea,
+      html.has-custom-cursor select,
+      html.has-custom-cursor [role="button"],
+      html.has-custom-cursor button:hover,
+      html.has-custom-cursor button:active,
+      html.has-custom-cursor button:focus,
+      html.has-custom-cursor button:focus-visible,
+      html.has-custom-cursor a:hover,
+      html.has-custom-cursor a:active,
+      html.has-custom-cursor a:focus {
+        cursor: ${NONE_CURSOR} !important;
       }
     `;
 
@@ -152,9 +182,9 @@ const CustomCursor = () => {
      *   data-theme="glass"
      *   data-theme="minimal"
      *
-     * NOTE: this is only ever called while custom-cursor mode is
-     * active (i.e. Notion is confirmed absent), so it no longer
-     * needs to re-check for the iframe itself.
+     * Only ever called while custom-cursor mode is active (i.e.
+     * Notion is confirmed absent), so it doesn't need to re-check
+     * for the iframe itself.
      */
     const updateCursorColor = () => {
       const cursor = cursorRef.current;
@@ -186,7 +216,7 @@ const CustomCursor = () => {
     // ignore unrelated DOM mutations (route changes, button state,
     // scroll-driven class toggles, etc.) and only react to a real
     // open/close transition. Reacting to every mutation was the
-    // cause of the cursor flicker on button clicks / scrolling.
+    // original cause of the flicker on button clicks / scrolling.
     let notionActive = false;
 
     const applyNotionState = (hasNotion: boolean) => {
@@ -260,7 +290,27 @@ const CustomCursor = () => {
       }
     };
 
-    const onLeave = () => {
+    /**
+     * Fires when the pointer truly leaves the viewport.
+     *
+     * Uses `mouseout` on `document` with a `relatedTarget` check
+     * instead of `mouseleave` on `<html>`. `mouseleave` on the root
+     * element can behave inconsistently across engines when the
+     * pointer moves rapidly across/into native controls (buttons,
+     * links) — this is more robust against that class of quirk.
+     * `relatedTarget === null` (or outside the document) means the
+     * pointer actually left the window, not just moved between
+     * internal elements.
+     */
+    const onDocumentMouseOut = (e: MouseEvent) => {
+      const related = e.relatedTarget as Node | null;
+
+      if (related && document.documentElement.contains(related)) {
+        // Moved to another element still inside the page — not a
+        // real "left the window" event.
+        return;
+      }
+
       visible.current = false;
 
       if (cursorRef.current) {
@@ -325,7 +375,7 @@ const CustomCursor = () => {
 
     window.addEventListener("mousemove", onMove, { passive: true });
 
-    root.addEventListener("mouseleave", onLeave);
+    document.addEventListener("mouseout", onDocumentMouseOut);
 
     root.addEventListener("mouseenter", onEnter);
 
@@ -344,7 +394,7 @@ const CustomCursor = () => {
 
       window.removeEventListener("mousemove", onMove);
 
-      root.removeEventListener("mouseleave", onLeave);
+      document.removeEventListener("mouseout", onDocumentMouseOut);
 
       root.removeEventListener("mouseenter", onEnter);
 
