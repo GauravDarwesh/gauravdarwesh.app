@@ -17,12 +17,31 @@ const CustomCursor = () => {
     // Only for fine (mouse/trackpad) pointers
     const mq = window.matchMedia("(pointer: fine)");
     if (!mq.matches) return;
+
     setEnabled(true);
-    document.documentElement.classList.add("has-custom-cursor");
+
+    const root = document.documentElement;
+    root.classList.add("has-custom-cursor");
+
+    // Hide the native cursor everywhere while the custom cursor is active.
+    // This prevents the native cursor from appearing during fast scrolling
+    // or when moving across different elements on macOS.
+    const style = document.createElement("style");
+    style.setAttribute("data-custom-cursor", "true");
+    style.textContent = `
+      html.has-custom-cursor,
+      html.has-custom-cursor *,
+      html.has-custom-cursor *::before,
+      html.has-custom-cursor *::after {
+        cursor: none !important;
+      }
+    `;
+    document.head.appendChild(style);
 
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
+
       if (!visible.current && cursorRef.current) {
         visible.current = true;
         cursorRef.current.style.opacity = "1";
@@ -31,46 +50,71 @@ const CustomCursor = () => {
 
     const onLeave = () => {
       visible.current = false;
-      if (cursorRef.current) cursorRef.current.style.opacity = "0";
+
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = "0";
+      }
     };
 
     const onEnter = () => {
       visible.current = true;
-      if (cursorRef.current) cursorRef.current.style.opacity = "1";
+
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = "1";
+      }
     };
 
     // Very smooth easing loop (lerp) + time-delta independent
     let last = performance.now();
+
     const tick = (now: number) => {
-      const dt = Math.min((now - last) / 16.667, 3); // normalize to 60fps steps
+      const dt = Math.min((now - last) / 16.667, 3);
       last = now;
-      const ease = 1 - Math.pow(1 - 0.38, dt); // buttery trailing
+
+      const ease = 1 - Math.pow(1 - 0.38, dt);
+
       pos.current.x += (target.current.x - pos.current.x) * ease;
       pos.current.y += (target.current.y - pos.current.y) * ease;
+
       if (cursorRef.current) {
         cursorRef.current.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
       }
+
       rafRef.current = requestAnimationFrame(tick);
     };
+
     rafRef.current = requestAnimationFrame(tick);
 
     window.addEventListener("mousemove", onMove, { passive: true });
-    document.documentElement.addEventListener("mouseleave", onLeave);
-    document.documentElement.addEventListener("mouseenter", onEnter);
+    root.addEventListener("mouseleave", onLeave);
+    root.addEventListener("mouseenter", onEnter);
 
     return () => {
-      document.documentElement.classList.remove("has-custom-cursor");
+      root.classList.remove("has-custom-cursor");
+
       window.removeEventListener("mousemove", onMove);
-      document.documentElement.removeEventListener("mouseleave", onLeave);
-      document.documentElement.removeEventListener("mouseenter", onEnter);
+      root.removeEventListener("mouseleave", onLeave);
+      root.removeEventListener("mouseenter", onEnter);
+
       cancelAnimationFrame(rafRef.current);
+
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
     };
   }, []);
 
   if (!enabled) return null;
 
   return (
-    <div ref={cursorRef} className="custom-cursor" aria-hidden="true">
+    <div
+      ref={cursorRef}
+      className="custom-cursor"
+      aria-hidden="true"
+      style={{
+        pointerEvents: "none",
+      }}
+    >
       <svg
         width="26"
         height="26"
@@ -78,11 +122,14 @@ const CustomCursor = () => {
         xmlns="http://www.w3.org/2000/svg"
         className="custom-cursor-arrow"
       >
-        {/* classic arrow pointer with fully rounded corners, single fill = no artifacts */}
+        {/* White arrow with black outline for visibility on all backgrounds */}
         <path
           d="M7.1 2.2c-.04-1.06 1.14-1.63 1.86-.81l13.9 14.1c.73.74.2 1.95-.85 1.97h-5.35c-.5.01-.98.22-1.31.58l-3.6 3.7c-.69.7-1.88.22-1.87-.79L7.1 2.2z"
-          fill="currentColor"
+          fill="#ffffff"
+          stroke="#000000"
+          strokeWidth="1.5"
           strokeLinejoin="round"
+          strokeLinecap="round"
         />
       </svg>
     </div>
