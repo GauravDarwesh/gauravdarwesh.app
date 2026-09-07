@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import wallpaperAsset from "@/assets/orange-charcoal-wallpaper.jpg.asset.json";
 
 /* Change this to adjust speed for images */
 const SLIDE_INTERVAL = 2000; // 2000 ms = 2 seconds
@@ -300,8 +301,7 @@ export default function Visuals() {
       <div
         className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none select-none"
         style={{
-          backgroundImage:
-            "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
+          backgroundImage: `url(${wallpaperAsset.url})`,
           WebkitTouchCallout: "none",
         }}
       />
