@@ -144,6 +144,70 @@ const CustomCursor = () => {
       cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
 
+    /**
+     * Temporarily hand control back to the native cursor when the
+     * pointer enters a cross-origin iframe such as the Notion article.
+     *
+     * The iframe has its own document, so mousemove events inside it
+     * cannot be tracked by this parent page.
+     */
+    const hideCustomCursor = () => {
+      visible.current = false;
+
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = "0";
+      }
+    };
+
+    const showCustomCursor = () => {
+      visible.current = true;
+
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = "1";
+        updateCursorColor();
+      }
+    };
+
+    /**
+     * Attach the clean cursor handoff to an iframe.
+     *
+     * This does not attempt to access the iframe's document, which would
+     * violate the browser's same-origin boundary for the Notion iframe.
+     */
+    const attachIframeBoundary = (iframe: HTMLIFrameElement) => {
+      iframe.addEventListener("mouseenter", hideCustomCursor);
+      iframe.addEventListener("mouseleave", showCustomCursor);
+
+      return () => {
+        iframe.removeEventListener("mouseenter", hideCustomCursor);
+        iframe.removeEventListener("mouseleave", showCustomCursor);
+      };
+    };
+
+    const iframeCleanups = new Map<HTMLIFrameElement, () => void>();
+
+    const attachExistingIframes = () => {
+      document.querySelectorAll("iframe").forEach((iframe) => {
+        if (!iframeCleanups.has(iframe)) {
+          iframeCleanups.set(iframe, attachIframeBoundary(iframe));
+        }
+      });
+    };
+
+    attachExistingIframes();
+
+    /**
+     * Watch for dynamically mounted iframes such as the Notion modal.
+     */
+    const iframeObserver = new MutationObserver(() => {
+      attachExistingIframes();
+    });
+
+    iframeObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
@@ -228,11 +292,14 @@ const CustomCursor = () => {
 
       root.removeEventListener("mouseleave", onLeave);
 
-      root.removeEventListener("mouseenter", onEnter);
-
       cancelAnimationFrame(rafRef.current);
 
       observer.disconnect();
+
+      iframeObserver.disconnect();
+
+      iframeCleanups.forEach((cleanup) => cleanup());
+      iframeCleanups.clear();
 
       if (style.parentNode) {
         style.parentNode.removeChild(style);
