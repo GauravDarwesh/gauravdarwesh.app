@@ -21,6 +21,10 @@ const CustomCursor = () => {
   const visible = useRef(false);
   const hasPointerPosition = useRef(false);
 
+  // True while the pointer is returning from an iframe.
+  // The cursor stays invisible until it catches up smoothly.
+  const returningFromIframe = useRef(false);
+
   useEffect(() => {
     // Only enable for fine pointers such as mouse / trackpad
     const mq = window.matchMedia("(pointer: fine)");
@@ -146,30 +150,34 @@ const CustomCursor = () => {
     };
 
     /**
-     * Temporarily hand control back to the native cursor when the
-     * pointer enters a cross-origin iframe such as the Notion article.
-     *
-     * The iframe has its own document, so mousemove events inside it
-     * cannot be tracked by this parent page.
+     * Hide the custom cursor while the pointer is inside a cross-origin
+     * iframe such as the Notion article.
      */
     const hideCustomCursor = () => {
       visible.current = false;
-      hasPointerPosition.current = false;
+      returningFromIframe.current = true;
 
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "0";
       }
     };
 
+    /**
+     * We do not immediately show the cursor here.
+     *
+     * When leaving an iframe quickly, the parent window may not receive
+     * the pointer movement that happened inside the iframe. The first
+     * mousemove outside it can therefore arrive at a position far away
+     * from the last tracked position.
+     *
+     * The animation loop will bring the custom cursor smoothly toward
+     * the new position while it remains invisible, then fade it in when
+     * it is close enough.
+     */
     const showCustomCursor = () => {
       if (!hasPointerPosition.current) return;
 
-      visible.current = true;
-
-      if (cursorRef.current) {
-        cursorRef.current.style.opacity = "1";
-        updateCursorColor();
-      }
+      returningFromIframe.current = true;
     };
 
     /**
@@ -217,11 +225,11 @@ const CustomCursor = () => {
       target.current.y = e.clientY;
 
       /*
-       * On the first real pointer event, place the rendered cursor
-       * directly at the pointer before starting the smooth animation.
+       * First real pointer event:
+       * place the cursor directly at the mouse position.
        *
-       * This prevents the cursor from visually popping in from an old
-       * position when returning from an iframe or when the page first loads.
+       * This is only used when there is no previous cursor position,
+       * such as the initial page entry.
        */
       if (!hasPointerPosition.current) {
         pos.current.x = e.clientX;
@@ -232,19 +240,28 @@ const CustomCursor = () => {
         }
 
         hasPointerPosition.current = true;
+        returningFromIframe.current = false;
       }
 
       updateCursorColor();
 
-      if (!visible.current && cursorRef.current) {
-        visible.current = true;
-        cursorRef.current.style.opacity = "1";
+      /*
+       * When returning from Notion, do not make the cursor visible
+       * immediately. The animation loop will reveal it once the cursor
+       * has smoothly caught up with the pointer.
+       */
+      if (!returningFromIframe.current) {
+        if (!visible.current && cursorRef.current) {
+          visible.current = true;
+          cursorRef.current.style.opacity = "1";
+        }
       }
     };
 
     const onLeave = () => {
       visible.current = false;
       hasPointerPosition.current = false;
+      returningFromIframe.current = false;
 
       if (cursorRef.current) {
         cursorRef.current.style.opacity = "0";
@@ -253,17 +270,18 @@ const CustomCursor = () => {
 
     const onEnter = () => {
       /*
-       * Do not show the cursor until a fresh mouse position is received.
-       * This prevents it from appearing at a stale position immediately
-       * after crossing a page/iframe boundary.
+       * Do not immediately show the cursor.
+       * Wait for the first actual mouse position.
        */
       if (!hasPointerPosition.current) return;
 
-      visible.current = true;
+      if (!returningFromIframe.current) {
+        visible.current = true;
 
-      if (cursorRef.current) {
-        cursorRef.current.style.opacity = "1";
-        updateCursorColor();
+        if (cursorRef.current) {
+          cursorRef.current.style.opacity = "1";
+          updateCursorColor();
+        }
       }
     };
 
@@ -283,7 +301,7 @@ const CustomCursor = () => {
       attributeFilter: ["data-theme"],
     });
 
-    // Smooth easing loop with time-delta independence.
+    // Smooth easing loop.
     let last = performance.now();
 
     const tick = (now: number) => {
@@ -294,9 +312,8 @@ const CustomCursor = () => {
       /*
        * Smooth exponential interpolation.
        *
-       * Using a delta-time based interpolation keeps the cursor movement
-       * consistent across different refresh rates and avoids the visible
-       * stepping/jumping that can happen with frame-dependent movement.
+       * This keeps the cursor movement smooth regardless of the
+       * monitor refresh rate.
        */
       const ease = 1 - Math.pow(1 - 0.45, dt);
 
@@ -305,6 +322,34 @@ const CustomCursor = () => {
 
       if (cursorRef.current && hasPointerPosition.current) {
         cursorRef.current.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
+
+        /*
+         * When returning from the Notion iframe, keep the cursor hidden
+         * until it has nearly reached the real pointer position.
+         *
+         * This removes the visible jump that happens on very fast exits.
+         */
+        if (returningFromIframe.current) {
+          const dx = target.current.x - pos.current.x;
+          const dy = target.current.y - pos.current.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance <= 8) {
+            returningFromIframe.current = false;
+            visible.current = true;
+
+            cursorRef.current.style.transition = "opacity 140ms ease-out";
+            cursorRef.current.style.opacity = "1";
+
+            window.setTimeout(() => {
+              if (cursorRef.current) {
+                cursorRef.current.style.transition = "";
+              }
+            }, 160);
+          } else {
+            cursorRef.current.style.opacity = "0";
+          }
+        }
       }
 
       rafRef.current = requestAnimationFrame(tick);
