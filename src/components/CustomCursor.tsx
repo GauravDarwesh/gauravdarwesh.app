@@ -1,61 +1,103 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Custom glowing cursor for desktop pointers.
+ * Custom glowing cursor for desktop / fine pointers.
  *
  * Glass mode:
  *   - White cursor
  *
  * Minimal / monochrome mode:
  *   - Black cursor
- *   - White cursor when hovering over a dark/black surface
+ *   - White cursor over dark surfaces
  *
- * Disabled for touch devices.
+ * The native cursor is hidden globally while the custom cursor
+ * is active.
  *
- * When the Notion modal is open, the custom cursor is completely
- * disabled and the browser's standard cursor is restored.
+ * Notion iframe:
+ *   - The custom cursor remains active everywhere else.
+ *   - When the pointer enters the Notion iframe, the native cursor
+ *     is restored because the iframe owns its own document.
  */
 const CustomCursor = () => {
   const [enabled, setEnabled] = useState(false);
+
   const cursorRef = useRef<HTMLDivElement>(null);
+
   const pos = useRef({ x: -100, y: -100 });
   const target = useRef({ x: -100, y: -100 });
-  const rafRef = useRef<number>(0);
+
+  const rafRef = useRef<number | null>(null);
+
   const visible = useRef(false);
+  const pointerInsideWindow = useRef(false);
+  const overNotionIframe = useRef(false);
+
+  const styleRef = useRef<HTMLStyleElement | null>(null);
+  const notionIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
-    // Only enable for fine pointers such as mouse / trackpad
     const mq = window.matchMedia("(pointer: fine)");
 
-    if (!mq.matches) return;
+    if (!mq.matches) {
+      setEnabled(false);
+      return;
+    }
 
     setEnabled(true);
 
     const root = document.documentElement;
 
+    // ------------------------------------------------------------
+    // Global native-cursor suppression
+    // ------------------------------------------------------------
+
     root.classList.add("has-custom-cursor");
 
-    // Hide the native cursor everywhere while the custom cursor is active.
-    // This prevents the native cursor from appearing during fast scrolling
-    // or while moving across different elements on macOS.
     const style = document.createElement("style");
 
     style.setAttribute("data-custom-cursor", "true");
 
     style.textContent = `
       html.has-custom-cursor,
+      html.has-custom-cursor body,
       html.has-custom-cursor *,
       html.has-custom-cursor *::before,
       html.has-custom-cursor *::after {
         cursor: none !important;
       }
+
+      html.has-custom-cursor iframe[title="Notion article"] {
+        cursor: auto !important;
+      }
     `;
 
     document.head.appendChild(style);
+    styleRef.current = style;
+
+    // ------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------
+
+    const setCursorOpacity = (opacity: number) => {
+      const cursor = cursorRef.current;
+
+      if (!cursor) return;
+
+      cursor.style.opacity = String(opacity);
+    };
+
+    const setCursorVisible = (nextVisible: boolean) => {
+      visible.current = nextVisible;
+
+      const cursor = cursorRef.current;
+
+      if (!cursor) return;
+
+      cursor.style.opacity = nextVisible && !overNotionIframe.current ? "1" : "0";
+    };
 
     /**
-     * Get the background luminance of a color.
-     * Lower luminance = darker color.
+     * WCAG-style relative luminance calculation.
      */
     const getLuminance = (r: number, g: number, b: number) => {
       const rs = r / 255;
@@ -72,15 +114,14 @@ const CustomCursor = () => {
     };
 
     /**
-     * Returns true when the pointer is over a dark/black surface.
+     * Determines whether the actual page surface beneath the pointer
+     * is sufficiently dark that a black cursor would disappear.
      *
-     * Transparent elements are skipped so the function can continue
-     * looking up the DOM tree for the actual visible background.
+     * Transparent layers are skipped while walking upward.
      */
     const isOverDarkSurface = (x: number, y: number) => {
       const cursor = cursorRef.current;
 
-      // Prevent the custom cursor itself from being detected.
       if (cursor) {
         cursor.style.visibility = "hidden";
       }
@@ -88,7 +129,7 @@ const CustomCursor = () => {
       const element = document.elementFromPoint(x, y);
 
       if (cursor) {
-        cursor.style.visibility = "visible";
+        cursor.style.visibility = "";
       }
 
       if (!element) return false;
@@ -107,10 +148,7 @@ const CustomCursor = () => {
             const g = Number(match[2]);
             const b = Number(match[3]);
 
-            const luminance = getLuminance(r, g, b);
-
-            // Dark enough that a black cursor would be difficult to see.
-            return luminance < 0.15;
+            return getLuminance(r, g, b) < 0.15;
           }
         }
 
@@ -121,11 +159,47 @@ const CustomCursor = () => {
     };
 
     /**
-     * Update the cursor color according to the actual site theme.
-     *
-     * SiteThemeProvider sets:
-     *   data-theme="glass"
-     *   data-theme="minimal"
+     * Returns true if the pointer coordinates currently sit inside
+     * the Notion iframe.
+     */
+    const isPointInsideIframe = (iframe: HTMLIFrameElement, x: number, y: number) => {
+      const rect = iframe.getBoundingClientRect();
+
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    };
+
+    /**
+     * Find the Notion iframe currently rendered by the application.
+     */
+    const getNotionIframe = () => {
+      return document.querySelector('iframe[title="Notion article"]') as HTMLIFrameElement | null;
+    };
+
+    /**
+     * Updates whether the custom cursor should yield control
+     * to the browser/iframe cursor.
+     */
+    const updateIframeState = (x: number, y: number) => {
+      const iframe = getNotionIframe();
+
+      notionIframeRef.current = iframe;
+
+      const inside = !!iframe && isPointInsideIframe(iframe, x, y);
+
+      if (inside !== overNotionIframe.current) {
+        overNotionIframe.current = inside;
+
+        if (inside) {
+          setCursorOpacity(0);
+        } else if (pointerInsideWindow.current) {
+          setCursorOpacity(visible.current ? 1 : 0);
+        }
+      }
+    };
+
+    /**
+     * Updates the visual color of the cursor according to theme
+     * and the surface beneath it.
      */
     const updateCursorColor = () => {
       const cursor = cursorRef.current;
@@ -140,82 +214,107 @@ const CustomCursor = () => {
         return;
       }
 
-      // Minimal mode is black unless the pointer is directly
-      // over a dark surface.
-      const overDarkSurface = isOverDarkSurface(target.current.x, target.current.y);
+      const x = target.current.x;
+      const y = target.current.y;
+
+      const overDarkSurface = isOverDarkSurface(x, y);
 
       cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
+
+    // ------------------------------------------------------------
+    // Pointer events
+    // ------------------------------------------------------------
 
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
 
+      pointerInsideWindow.current = true;
+
+      updateIframeState(e.clientX, e.clientY);
       updateCursorColor();
 
-      if (!visible.current && cursorRef.current) {
-        visible.current = true;
-        cursorRef.current.style.opacity = "1";
-      }
-    };
-
-    const onLeave = () => {
-      visible.current = false;
-
-      if (cursorRef.current) {
-        cursorRef.current.style.opacity = "0";
+      if (!visible.current) {
+        setCursorVisible(true);
       }
     };
 
     const onEnter = () => {
-      visible.current = true;
+      pointerInsideWindow.current = true;
 
-      if (cursorRef.current) {
-        cursorRef.current.style.opacity = "1";
+      if (!overNotionIframe.current) {
+        setCursorVisible(true);
         updateCursorColor();
       }
     };
 
-    /**
-     * Enable / disable the custom cursor.
-     *
-     * When the Notion iframe exists, the browser's native cursor
-     * is restored completely.
-     */
-    const updateNotionCursorState = () => {
-      const notionIframe = document.querySelector('iframe[title="Notion article"]');
-
-      if (notionIframe) {
-        // Stop using the custom cursor.
-        visible.current = false;
-
-        if (cursorRef.current) {
-          cursorRef.current.style.opacity = "0";
-        }
-
-        root.classList.remove("has-custom-cursor");
-        setEnabled(false);
-      } else {
-        // Restore the custom cursor once the Notion modal closes.
-        root.classList.add("has-custom-cursor");
-        setEnabled(true);
-
-        if (cursorRef.current) {
-          cursorRef.current.style.opacity = "0";
-        }
-
-        visible.current = false;
-      }
+    const onLeave = () => {
+      pointerInsideWindow.current = false;
+      setCursorVisible(false);
     };
 
-    /**
-     * Watch the DOM for the Notion modal being opened or closed.
-     *
-     * The Blog component already renders the Notion iframe only when
-     * activeNotion is set, so no changes are required there.
-     */
+    // ------------------------------------------------------------
+    // Notion iframe handling
+    // ------------------------------------------------------------
+
+    const attachIframeListeners = () => {
+      const iframe = getNotionIframe();
+
+      notionIframeRef.current = iframe;
+
+      if (!iframe) return;
+
+      iframe.style.cursor = "auto";
+
+      /**
+       * Mouse events from inside an iframe do not bubble into the parent,
+       * therefore explicitly hide our cursor when entering it.
+       */
+      iframe.addEventListener(
+        "mouseenter",
+        () => {
+          overNotionIframe.current = true;
+          setCursorOpacity(0);
+        },
+        { passive: true },
+      );
+
+      iframe.addEventListener(
+        "mouseleave",
+        () => {
+          overNotionIframe.current = false;
+
+          if (pointerInsideWindow.current) {
+            setCursorOpacity(visible.current ? 1 : 0);
+            updateCursorColor();
+          }
+        },
+        { passive: true },
+      );
+    };
+
+    // ------------------------------------------------------------
+    // Theme observer
+    // ------------------------------------------------------------
+
+    const themeObserver = new MutationObserver(() => {
+      updateCursorColor();
+    });
+
+    themeObserver.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
+    // ------------------------------------------------------------
+    // DOM observer
+    // ------------------------------------------------------------
+
     const notionObserver = new MutationObserver(() => {
-      updateNotionCursorState();
+      attachIframeListeners();
+
+      updateIframeState(target.current.x, target.current.y);
     });
 
     notionObserver.observe(document.body, {
@@ -223,38 +322,39 @@ const CustomCursor = () => {
       subtree: true,
     });
 
-    /**
-     * Watch the data-theme attribute used by SiteThemeProvider.
-     *
-     * This makes the cursor immediately switch between:
-     *   glass -> white
-     *   minimal -> black/white depending on surface
-     */
-    const observer = new MutationObserver(() => {
-      updateCursorColor();
-    });
+    // ------------------------------------------------------------
+    // Smooth animation
+    // ------------------------------------------------------------
 
-    observer.observe(root, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-
-    // Very smooth easing loop (lerp) + time-delta independent
-    let last = performance.now();
+    let previousTime = performance.now();
 
     const tick = (now: number) => {
-      const dt = Math.min((now - last) / 16.667, 3);
+      const cursor = cursorRef.current;
 
-      last = now;
+      const elapsed = Math.min(now - previousTime, 40);
 
-      const ease = 1 - Math.pow(1 - 0.38, dt);
+      previousTime = now;
 
-      pos.current.x += (target.current.x - pos.current.x) * ease;
+      /**
+       * Frame-rate independent exponential smoothing.
+       *
+       * Faster than the previous interpolation while remaining
+       * soft enough to avoid the cursor feeling robotic.
+       */
+      const smoothing = 1 - Math.exp(-elapsed / 28);
 
-      pos.current.y += (target.current.y - pos.current.y) * ease;
+      pos.current.x += (target.current.x - pos.current.x) * smoothing;
 
-      if (cursorRef.current) {
-        cursorRef.current.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
+      pos.current.y += (target.current.y - pos.current.y) * smoothing;
+
+      if (cursor) {
+        cursor.style.transform = `
+          translate3d(
+            ${pos.current.x}px,
+            ${pos.current.y}px,
+            0
+          )
+        `;
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -262,36 +362,54 @@ const CustomCursor = () => {
 
     rafRef.current = requestAnimationFrame(tick);
 
-    window.addEventListener("mousemove", onMove, { passive: true });
+    // ------------------------------------------------------------
+    // Initial state
+    // ------------------------------------------------------------
 
-    root.addEventListener("mouseleave", onLeave);
+    attachIframeListeners();
 
-    root.addEventListener("mouseenter", onEnter);
-
-    // Set the correct initial color.
     updateCursorColor();
 
-    // Check initial Notion state.
-    updateNotionCursorState();
+    // ------------------------------------------------------------
+    // Listeners
+    // ------------------------------------------------------------
+
+    window.addEventListener("mousemove", onMove, {
+      passive: true,
+    });
+
+    window.addEventListener("mouseenter", onEnter);
+
+    window.addEventListener("mouseleave", onLeave);
+
+    // ------------------------------------------------------------
+    // Cleanup
+    // ------------------------------------------------------------
 
     return () => {
       root.classList.remove("has-custom-cursor");
 
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseenter", onEnter);
+      window.removeEventListener("mouseleave", onLeave);
 
-      root.removeEventListener("mouseleave", onLeave);
-
-      root.removeEventListener("mouseenter", onEnter);
-
-      cancelAnimationFrame(rafRef.current);
-
-      observer.disconnect();
-
+      themeObserver.disconnect();
       notionObserver.disconnect();
 
-      if (style.parentNode) {
-        style.parentNode.removeChild(style);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
       }
+
+      if (styleRef.current?.parentNode) {
+        styleRef.current.parentNode.removeChild(styleRef.current);
+      }
+
+      styleRef.current = null;
+      notionIframeRef.current = null;
+
+      visible.current = false;
+      pointerInsideWindow.current = false;
+      overNotionIframe.current = false;
     };
   }, []);
 
@@ -303,7 +421,15 @@ const CustomCursor = () => {
       className="custom-cursor"
       aria-hidden="true"
       style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
         pointerEvents: "none",
+        zIndex: 2147483647,
+        opacity: 0,
+        willChange: "transform, opacity, color",
+        transform: "translate3d(-100px, -100px, 0)",
+        transition: "opacity 180ms ease, color 180ms ease",
       }}
     >
       <svg
@@ -312,8 +438,11 @@ const CustomCursor = () => {
         viewBox="0 0 26 26"
         xmlns="http://www.w3.org/2000/svg"
         className="custom-cursor-arrow"
+        style={{
+          display: "block",
+          overflow: "visible",
+        }}
       >
-        {/* Original cursor shape — unchanged */}
         <path
           d="M7.1 2.2c-.04-1.06 1.14-1.63 1.86-.81l13.9 14.1c.73.74.2 1.95-.85 1.97h-5.35c-.5.01-.98.22-1.31.58l-3.6 3.7c-.69.7-1.88.22-1.87-.79L7.1 2.2z"
           fill="currentColor"
