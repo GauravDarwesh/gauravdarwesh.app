@@ -1518,9 +1518,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
      IMPORTANT:
      - The existing UI / waveform / transcription / Android logic remains untouched.
-     - Voice responses are split into short natural chunks.
-     - TTS for the next chunk is prefetched while the current chunk is speaking.
-     - The first chunk is played as soon as its TTS request finishes.
+     - Android and Xiaomi hosted-audio playback remain unchanged.
+     - Desktop hosted-audio playback remains unchanged.
+     - Browser TTS remains the per-chunk fallback.
+     - The queue is optimized to reduce time-to-first-audio without
+       replacing the existing audio architecture.
      ======================================================= */
 
   const speakVoiceResponse = useCallback(
@@ -1583,6 +1585,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             /* noop */
           }
         }
+
         if (micStreamRef.current) {
           micStreamRef.current.getAudioTracks().forEach((track) => {
             track.enabled = false;
@@ -1596,7 +1599,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             track.enabled = true;
           });
         }
+
         if (!micSourceRef.current || !analyserRef.current) return;
+
         try {
           micSourceRef.current.connect(analyserRef.current);
         } catch {
@@ -1604,11 +1609,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       };
 
-      /*
-       * Keep chunks fairly small so the first TTS response is fast, while
-       * keeping enough words together that speech still sounds natural.
-       */
+      /* -----------------------------------------------------
+         LOW-LATENCY SENTENCE CHUNKING
+         -----------------------------------------------------
+
+         The first chunk is intentionally smaller than subsequent
+         chunks. This reduces the amount of text Deepgram must process
+         before the first hosted audio file can be returned.
+
+         We still prefer complete sentences wherever possible so the
+         existing Android/Desktop playback does not become choppy.
+         ----------------------------------------------------- */
+
       const splitForRealtimeSpeech = (text: string): string[] => {
+        const FIRST_CHUNK_MAX = 120;
+        const NORMAL_CHUNK_MAX = 180;
+        const HARD_SENTENCE_MAX = 150;
+
         const sentenceParts = text
           .split(/(?<=[.!?])\s+/)
           .map((part) => part.trim())
@@ -1617,75 +1634,95 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         const chunks: string[] = [];
         let pending = "";
 
-        const flush = () => {
+        const flushPending = () => {
           const value = pending.trim();
           if (value) chunks.push(value);
           pending = "";
         };
 
-        for (const sentence of sentenceParts) {
-          if (!pending) {
-            if (sentence.length <= 150) {
-              pending = sentence;
+        const splitLongSentence = (sentence: string, maxLength: number): string[] => {
+          if (sentence.length <= maxLength) return [sentence];
+
+          const words = sentence.split(/\s+/);
+          const result: string[] = [];
+          let current = "";
+
+          for (const word of words) {
+            const candidate = current ? `${current} ${word}` : word;
+
+            if (candidate.length > maxLength && current) {
+              result.push(current);
+              current = word;
             } else {
-              const words = sentence.split(/\s+/);
-              let current = "";
-
-              for (const word of words) {
-                const candidate = current ? `${current} ${word}` : word;
-                if (candidate.length > 150 && current) {
-                  chunks.push(current);
-                  current = word;
-                } else {
-                  current = candidate;
-                }
-              }
-
-              pending = current;
+              current = candidate;
             }
-          } else if (`${pending} ${sentence}`.length <= 190) {
-            pending = `${pending} ${sentence}`;
-          } else {
-            flush();
+          }
 
-            if (sentence.length <= 150) {
-              pending = sentence;
+          if (current) result.push(current);
+          return result;
+        };
+
+        for (const sentence of sentenceParts) {
+          if (chunks.length === 0 && !pending) {
+            const firstParts = splitLongSentence(sentence, FIRST_CHUNK_MAX);
+
+            if (firstParts.length > 1) {
+              chunks.push(...firstParts.slice(0, -1));
+              pending = firstParts[firstParts.length - 1];
             } else {
-              const words = sentence.split(/\s+/);
-              let current = "";
+              pending = sentence;
+            }
 
-              for (const word of words) {
-                const candidate = current ? `${current} ${word}` : word;
-                if (candidate.length > 150 && current) {
-                  chunks.push(current);
-                  current = word;
-                } else {
-                  current = candidate;
-                }
-              }
+            continue;
+          }
 
-              pending = current;
+          const queueParts = splitLongSentence(sentence, HARD_SENTENCE_MAX);
+
+          for (const part of queueParts) {
+            if (!pending) {
+              pending = part;
+              continue;
+            }
+
+            const combined = `${pending} ${part}`;
+
+            if (combined.length <= NORMAL_CHUNK_MAX) {
+              pending = combined;
+            } else {
+              flushPending();
+              pending = part;
             }
           }
         }
 
-        flush();
+        flushPending();
 
         return chunks.length ? chunks : [text];
       };
 
       const chunks = splitForRealtimeSpeech(clean);
+
       if (!chunks.length) {
         reconnectMicAfterPlayback();
         return;
       }
 
-      /*
-       * Fetch only the requested TTS chunk here. Playback is deliberately
-       * separated so later chunks can be generated while the current one plays.
-       */
+      /* -----------------------------------------------------
+         HOSTED TTS REQUEST
+         ----------------------------------------------------- */
+
       const fetchHostedAudio = async (text: string): Promise<ArrayBuffer | null> => {
-        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return null;
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+          return null;
+        }
+
+        /*
+         * If this browser already knows that the hosted provider is
+         * rate-limited, do not add another avoidable network wait.
+         */
+        if (getTtsQuotaBlockedUntil() > Date.now()) {
+          return null;
+        }
 
         try {
           const res = await fetch(TTS_ENDPOINT, {
@@ -1700,7 +1737,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           if (!res.ok) {
             const body = await res.text().catch(() => "");
-            if (res.status === 429) rememberTtsQuotaLimit(body);
+
+            if (res.status === 429) {
+              rememberTtsQuotaLimit(body);
+            }
+
             return null;
           }
 
@@ -1717,14 +1758,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       };
 
+      /* -----------------------------------------------------
+         DESKTOP HOSTED AUDIO
+         ----------------------------------------------------- */
+
       const playDesktopAudio = async (audioBytes: ArrayBuffer): Promise<boolean> => {
         try {
           const audioGraph = getAudioContext();
-          if (audioGraph.ctx.state === "suspended") await audioGraph.ctx.resume();
+
+          if (audioGraph.ctx.state === "suspended") {
+            await audioGraph.ctx.resume();
+          }
 
           const audioBuffer = await audioGraph.ctx.decodeAudioData(audioBytes.slice(0));
 
-          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+          if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+            return false;
+          }
 
           await new Promise<void>((resolve) => {
             const source = audioGraph.ctx.createBufferSource();
@@ -1732,6 +1782,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             source.playbackRate.value = 1.0;
 
             const monitor = analyserMonitorRef.current;
+
             if (monitor && !analyserDestinationConnectedRef.current) {
               try {
                 audioGraph.analyser.connect(monitor);
@@ -1746,18 +1797,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             currentSourceNodeRef.current = source;
 
             let settled = false;
+
             const finish = () => {
               if (settled) return;
               settled = true;
+
               source.onended = null;
+
               if (currentSourceNodeRef.current === source) {
                 currentSourceNodeRef.current = null;
               }
+
               try {
                 source.disconnect();
               } catch {
                 /* noop */
               }
+
               resolve();
             };
 
@@ -1777,20 +1833,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       };
 
+      /* -----------------------------------------------------
+         PLAY ONE CHUNK
+         ----------------------------------------------------- */
+
       const playOneChunk = async (text: string, audioBytesPromise?: Promise<ArrayBuffer | null>): Promise<boolean> => {
-        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+          return false;
+        }
 
         const audioBytes = audioBytesPromise ? await audioBytesPromise : await fetchHostedAudio(text);
 
-        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) return false;
+        if (token !== speakTokenRef.current || !isVoiceSessionRef.current) {
+          return false;
+        }
 
         if (audioBytes) {
           disconnectMicForPlayback();
+
           isSpeakingRef.current = true;
           setIsSpeaking(true);
 
           let didPlay = false;
 
+          /*
+           * IMPORTANT:
+           * Existing device-specific playback paths are preserved.
+           */
           if (isAndroidRef.current) {
             didPlay = await playHostedAudioOnAndroid(audioBytes, token);
           } else {
@@ -1805,11 +1874,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           setIsSpeaking(false);
         }
 
-        /*
-         * Only this individual chunk falls back to browser TTS. This keeps a
-         * provider hiccup from making the user wait for the whole response.
-         */
+        /* ---------------------------------------------------
+           PER-CHUNK BROWSER TTS FALLBACK
+           --------------------------------------------------- */
+
         disconnectMicForPlayback();
+
         isSpeakingRef.current = true;
         setIsSpeaking(true);
 
@@ -1817,17 +1887,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         isSpeakingRef.current = false;
         setIsSpeaking(false);
+
         return fallbackWorked;
       };
 
-      /*
-       * Start the first TTS request immediately. As soon as it is playing,
-       * request the next chunk so its network + TTS latency is hidden behind
-       * the user's current audio.
-       */
-      const prefetches: Array<Promise<ArrayBuffer | null> | null> = Array(chunks.length).fill(null);
+      /* -----------------------------------------------------
+         CONTROLLED PREFETCH
+         -----------------------------------------------------
 
-      prefetches[0] = fetchHostedAudio(chunks[0]);
+         We keep exactly one future hosted request in flight.
+         This preserves the existing queue architecture while avoiding
+         a burst of parallel provider requests.
+         ----------------------------------------------------- */
+
+      const firstAudioPromise = fetchHostedAudio(chunks[0]);
+      let nextPrefetch: Promise<ArrayBuffer | null> | null = null;
 
       disconnectMicForPlayback();
 
@@ -1839,25 +1913,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           break;
         }
 
-        if (index + 1 < chunks.length && !prefetches[index + 1]) {
-          prefetches[index + 1] = fetchHostedAudio(chunks[index + 1]);
+        const currentAudioPromise = index === 0 ? firstAudioPromise : nextPrefetch;
+
+        nextPrefetch = null;
+
+        /*
+         * Start only the next request ahead of playback. It can finish
+         * while the current chunk is being spoken.
+         */
+        if (index + 1 < chunks.length) {
+          nextPrefetch = fetchHostedAudio(chunks[index + 1]);
         }
 
-        const didPlay = await playOneChunk(chunks[index], prefetches[index] ?? undefined);
+        const didPlay = await playOneChunk(chunks[index], currentAudioPromise ?? undefined);
 
         if (!didPlay) {
           allPlayed = false;
           break;
         }
 
-        /* Fire the following request while this chunk is still fresh in the queue. */
-        if (index + 2 < chunks.length && !prefetches[index + 2]) {
-          prefetches[index + 2] = fetchHostedAudio(chunks[index + 2]);
-        }
-
-        /* Tiny natural transition; no long artificial delay. */
+        /* Keep the transition effectively seamless. */
         if (index < chunks.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 20));
+          await new Promise((resolve) => setTimeout(resolve, 15));
         }
       }
 
@@ -1881,22 +1958,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsSpeaking(false);
       reconnectMicAfterPlayback();
 
-      if (isVoiceSessionRef.current && allPlayed) {
-        setTimeout(() => {
-          if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
-            transcriptRef.current = "";
-            reconnectMicAfterPlayback();
-            void startListeningContinuousRef.current?.();
-          }
-        }, 250);
-      } else if (isVoiceSessionRef.current && !isSpeakingRef.current) {
-        setTimeout(() => {
-          if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
-            transcriptRef.current = "";
-            reconnectMicAfterPlayback();
-            void startListeningContinuousRef.current?.();
-          }
-        }, 250);
+      const restartListening = () => {
+        if (isVoiceSessionRef.current && !isLoadingRef.current && !isSpeakingRef.current) {
+          transcriptRef.current = "";
+          reconnectMicAfterPlayback();
+          void startListeningContinuousRef.current?.();
+        }
+      };
+
+      if (isVoiceSessionRef.current) {
+        /*
+         * Preserve the existing 250ms handoff so microphone/browser state
+         * remains stable across Android, Xiaomi, iOS, and desktop.
+         */
+        if (allPlayed || !isSpeakingRef.current) {
+          setTimeout(restartListening, 250);
+        }
       }
     },
     [
