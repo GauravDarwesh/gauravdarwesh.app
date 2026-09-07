@@ -71,6 +71,7 @@ const CustomCursor = () => {
     rafRef.current = requestAnimationFrame(tick);
 
     window.addEventListener("mousemove", onMove, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
     document.documentElement.addEventListener("mouseleave", onLeave);
     document.documentElement.addEventListener("mouseenter", onEnter);
 
