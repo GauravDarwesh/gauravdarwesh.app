@@ -11,7 +11,6 @@ import Visuals from "./pages/Visuals";
 import SessionTest from "./pages/SessionTest";
 import NotFound from "./pages/NotFound";
 import { SiteThemeProvider } from "@/components/SiteThemeProvider";
-import CustomCursor from "@/components/CustomCursor";
 
 const queryClient = new QueryClient();
 
@@ -19,7 +18,6 @@ const App = () => (
   <SiteThemeProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <CustomCursor />
         <Toaster />
         <Sonner />
         <BrowserRouter>
