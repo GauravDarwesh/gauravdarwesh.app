@@ -583,7 +583,15 @@ body,
    ------------------------------------------------------------ */
 @media (pointer: fine) {
   .has-custom-cursor,
-  .has-custom-cursor * {
+  .has-custom-cursor *,
+  .has-custom-cursor *:hover,
+  .has-custom-cursor *:active,
+  .has-custom-cursor *:focus,
+  .has-custom-cursor *::before,
+  .has-custom-cursor *::after,
+  .has-custom-cursor ::-webkit-scrollbar,
+  .has-custom-cursor ::-webkit-scrollbar-thumb,
+  .has-custom-cursor ::-webkit-scrollbar-track {
     cursor: none !important;
   }
 }
