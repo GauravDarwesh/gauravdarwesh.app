@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronUp, X } from "lucide-react";
@@ -10,7 +10,6 @@ interface NavigationToggleProps {
   isBlurred?: boolean;
 }
 
-const GDx_DOUBLE_CLICK_WINDOW = 260;
 const GDx_EASTER_EGG_KEY = "gdx-theme-easter-egg-discovered";
 
 const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false }: NavigationToggleProps) => {
@@ -38,38 +37,38 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
     return window.localStorage.getItem(GDx_EASTER_EGG_KEY) !== "true";
   });
 
-  const gdClickTimerRef = useRef<number | null>(null);
+  const isGdxPage = location.pathname === "/";
 
   const handleGdxClick = () => {
-    // Second click within the allowed window:
-    // toggle theme instead of navigating.
-    if (gdClickTimerRef.current !== null) {
-      window.clearTimeout(gdClickTimerRef.current);
-      gdClickTimerRef.current = null;
-
-      toggleTheme();
-
-      window.localStorage.setItem(GDx_EASTER_EGG_KEY, "true");
-      setShowThemeHint(false);
-
+    /*
+     * When already on GDx, clicking once does nothing.
+     * This keeps the single click instant and allows the native
+     * double-click event to handle the theme easter egg.
+     *
+     * When on another page, clicking GDx navigates immediately.
+     */
+    if (isGdxPage) {
       return;
     }
 
-    // First click:
-    // wait briefly to see whether this becomes a double-click.
-    gdClickTimerRef.current = window.setTimeout(() => {
-      gdClickTimerRef.current = null;
-      navigate("/");
-    }, GDx_DOUBLE_CLICK_WINDOW);
+    navigate("/");
   };
 
-  useEffect(() => {
-    return () => {
-      if (gdClickTimerRef.current !== null) {
-        window.clearTimeout(gdClickTimerRef.current);
-      }
-    };
-  }, []);
+  const handleGdxDoubleClick = () => {
+    /*
+     * The theme easter egg only works while already on the GDx page.
+     * This prevents double-clicking GDx from another tab from
+     * changing the theme.
+     */
+    if (!isGdxPage) {
+      return;
+    }
+
+    toggleTheme();
+
+    window.localStorage.setItem(GDx_EASTER_EGG_KEY, "true");
+    setShowThemeHint(false);
+  };
 
   // ------------------------------------------------------------
   // Scroll-to-top behaviour
@@ -150,6 +149,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
               key={option.name}
               type="button"
               onClick={isGdx ? handleGdxClick : () => navigate(option.path)}
+              onDoubleClick={isGdx ? handleGdxDoubleClick : undefined}
               variant="ghost"
               size="sm"
               aria-label={isGdx ? "GDx" : option.name}
