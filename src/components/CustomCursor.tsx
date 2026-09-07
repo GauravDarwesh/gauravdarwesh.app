@@ -1,4 +1,3 @@
-```tsx
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -63,26 +62,13 @@ const CustomCursor = () => {
       const gs = g / 255;
       const bs = b / 255;
 
-      const rLinear =
-        rs <= 0.03928
-          ? rs / 12.92
-          : Math.pow((rs + 0.055) / 1.055, 2.4);
+      const rLinear = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
 
-      const gLinear =
-        gs <= 0.03928
-          ? gs / 12.92
-          : Math.pow((gs + 0.055) / 1.055, 2.4);
+      const gLinear = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4);
 
-      const bLinear =
-        bs <= 0.03928
-          ? bs / 12.92
-          : Math.pow((bs + 0.055) / 1.055, 2.4);
+      const bLinear = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4);
 
-      return (
-        0.2126 * rLinear +
-        0.7152 * gLinear +
-        0.0722 * bLinear
-      );
+      return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
     };
 
     /**
@@ -113,14 +99,8 @@ const CustomCursor = () => {
         const styles = window.getComputedStyle(current);
         const background = styles.backgroundColor;
 
-        if (
-          background &&
-          background !== "transparent" &&
-          background !== "rgba(0, 0, 0, 0)"
-        ) {
-          const match = background.match(
-            /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/
-          );
+        if (background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)") {
+          const match = background.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
 
           if (match) {
             const r = Number(match[1]);
@@ -162,10 +142,7 @@ const CustomCursor = () => {
 
       // Minimal mode is black unless the pointer is directly
       // over a dark surface.
-      const overDarkSurface = isOverDarkSurface(
-        target.current.x,
-        target.current.y
-      );
+      const overDarkSurface = isOverDarkSurface(target.current.x, target.current.y);
 
       cursor.style.color = overDarkSurface ? "#ffffff" : "#000000";
     };
@@ -206,9 +183,7 @@ const CustomCursor = () => {
      * is restored completely.
      */
     const updateNotionCursorState = () => {
-      const notionIframe = document.querySelector(
-        'iframe[title="Notion article"]'
-      );
+      const notionIframe = document.querySelector('iframe[title="Notion article"]');
 
       if (notionIframe) {
         // Stop using the custom cursor.
@@ -350,4 +325,3 @@ const CustomCursor = () => {
 };
 
 export default CustomCursor;
-```
