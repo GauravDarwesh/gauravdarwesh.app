@@ -89,6 +89,7 @@ All colors MUST be HSL.
   width: 100%;
   min-height: 100vh;
   overflow: hidden;
+
   background:
     radial-gradient(
       ellipse 72% 48% at 18% 7%,
@@ -122,6 +123,32 @@ All colors MUST be HSL.
       transparent 100%
     ),
     linear-gradient(132deg, #ff4d20 0%, #e21c12 20%, #970914 38%, #500714 55%, #26030f 72%, #0d020b 100%);
+
+  /*
+   * The background itself is deliberately oversized so the entire wallpaper
+   * can drift slowly without exposing edges.
+   */
+  background-size:
+    138% 132%,
+    148% 140%,
+    136% 144%,
+    132% 148%,
+    138% 138%;
+
+  background-position:
+    0% 0%,
+    0% 18%,
+    100% 50%,
+    100% 50%,
+    0% 0%;
+
+  /*
+   * Very subtle tonal breathing:
+   * - tiny hue movement keeps it warm rather than psychedelic
+   * - saturation/brightness gently rise and fall
+   */
+  animation: orangeBaseAtmosphere 48s ease-in-out infinite;
+  will-change: background-position, filter;
 }
 
 /* Page backgrounds must stay outside document flow so content is not pushed
@@ -136,50 +163,58 @@ All colors MUST be HSL.
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -25%;
+  inset: -30%;
   pointer-events: none;
 
   background:
     /* Large warm moving mass */
     radial-gradient(
       ellipse 60% 32% at 18% 8%,
-      rgba(255, 90, 35, 0.92) 0%,
-      rgba(248, 51, 20, 0.78) 30%,
-      rgba(190, 15, 16, 0.42) 58%,
+      rgba(255, 90, 35, 0.94) 0%,
+      rgba(248, 51, 20, 0.8) 30%,
+      rgba(190, 15, 16, 0.44) 58%,
       transparent 82%
     ),
     /* Main moving red wave */
     radial-gradient(
         ellipse 68% 38% at 38% 30%,
-        rgba(190, 13, 18, 0.72) 0%,
-        rgba(126, 7, 19, 0.62) 35%,
-        rgba(65, 4, 16, 0.35) 65%,
+        rgba(190, 13, 18, 0.74) 0%,
+        rgba(126, 7, 19, 0.64) 35%,
+        rgba(65, 4, 16, 0.36) 65%,
         transparent 85%
       ),
     /* Dark wave pushing from the right */
     radial-gradient(
         ellipse 65% 40% at 78% 34%,
-        rgba(30, 2, 13, 0.8) 0%,
-        rgba(20, 2, 12, 0.68) 40%,
-        rgba(38, 3, 15, 0.3) 68%,
+        rgba(30, 2, 13, 0.82) 0%,
+        rgba(20, 2, 12, 0.7) 40%,
+        rgba(38, 3, 15, 0.32) 68%,
         transparent 86%
-      );
+      ),
+    /* Very broad atmospheric warmth */
+    radial-gradient(ellipse 72% 48% at 52% 78%, rgba(142, 9, 18, 0.22) 0%, rgba(95, 5, 17, 0.16) 46%, transparent 78%);
 
   background-size:
     115% 105%,
     120% 110%,
-    125% 115%;
+    125% 115%,
+    135% 130%;
 
   background-position:
     0% 0%,
     40% 20%,
-    100% 30%;
+    100% 30%,
+    52% 78%;
 
   transform: scale(1.15);
   transform-origin: center;
 
-  animation: orangeWave 24s ease-in-out infinite;
-  will-change: transform, background-position;
+  /*
+   * Slightly slower than before so the wallpaper feels like one continuous
+   * liquid atmosphere instead of an obvious animation.
+   */
+  animation: orangeWave 34s ease-in-out infinite;
+  will-change: transform, background-position, opacity;
 }
 
 /* Subtle continuous film grain. */
@@ -201,6 +236,111 @@ All colors MUST be HSL.
 }
 
 /* =========================================
+   SLOW WALLPAPER + TONE MOVEMENT
+   ========================================= */
+
+@keyframes orangeBaseAtmosphere {
+  0% {
+    background-position:
+      0% 0%,
+      0% 18%,
+      100% 50%,
+      100% 50%,
+      0% 0%;
+
+    filter: hue-rotate(0deg) saturate(1) brightness(1);
+  }
+
+  12.5% {
+    background-position:
+      7% 3%,
+      4% 23%,
+      95% 47%,
+      96% 52%,
+      4% 2%;
+
+    filter: hue-rotate(-1deg) saturate(1.025) brightness(1.008);
+  }
+
+  25% {
+    background-position:
+      15% 7%,
+      9% 29%,
+      89% 43%,
+      91% 56%,
+      8% 5%;
+
+    filter: hue-rotate(-2deg) saturate(1.045) brightness(1.015);
+  }
+
+  37.5% {
+    background-position:
+      21% 4%,
+      14% 33%,
+      82% 39%,
+      85% 60%,
+      12% 7%;
+
+    filter: hue-rotate(-1deg) saturate(1.06) brightness(1.01);
+  }
+
+  50% {
+    background-position:
+      27% 0%,
+      20% 36%,
+      75% 35%,
+      78% 63%,
+      16% 9%;
+
+    filter: hue-rotate(0deg) saturate(1.075) brightness(1.02);
+  }
+
+  62.5% {
+    background-position:
+      21% 4%,
+      14% 33%,
+      82% 39%,
+      85% 60%,
+      12% 7%;
+
+    filter: hue-rotate(2deg) saturate(1.055) brightness(1.012);
+  }
+
+  75% {
+    background-position:
+      15% 7%,
+      9% 29%,
+      89% 43%,
+      91% 56%,
+      8% 5%;
+
+    filter: hue-rotate(3deg) saturate(1.035) brightness(1.005);
+  }
+
+  87.5% {
+    background-position:
+      7% 3%,
+      4% 23%,
+      95% 47%,
+      96% 52%,
+      4% 2%;
+
+    filter: hue-rotate(2deg) saturate(1.015) brightness(1);
+  }
+
+  100% {
+    background-position:
+      0% 0%,
+      0% 18%,
+      100% 50%,
+      100% 50%,
+      0% 0%;
+
+    filter: hue-rotate(0deg) saturate(1) brightness(1);
+  }
+}
+
+/* =========================================
    VISIBLE ORGANIC WAVE
    ========================================= */
 
@@ -211,7 +351,10 @@ All colors MUST be HSL.
     background-position:
       0% 0%,
       40% 20%,
-      100% 30%;
+      100% 30%,
+      52% 78%;
+
+    opacity: 0.98;
   }
 
   12.5% {
@@ -220,7 +363,10 @@ All colors MUST be HSL.
     background-position:
       8% 4%,
       34% 27%,
-      93% 35%;
+      93% 35%,
+      46% 72%;
+
+    opacity: 1;
   }
 
   25% {
@@ -229,7 +375,10 @@ All colors MUST be HSL.
     background-position:
       16% 8%,
       27% 34%,
-      85% 41%;
+      85% 41%,
+      40% 66%;
+
+    opacity: 0.97;
   }
 
   37.5% {
@@ -238,7 +387,10 @@ All colors MUST be HSL.
     background-position:
       23% 4%,
       21% 29%,
-      76% 46%;
+      76% 46%,
+      35% 61%;
+
+    opacity: 1;
   }
 
   50% {
@@ -247,7 +399,10 @@ All colors MUST be HSL.
     background-position:
       30% 0%,
       16% 20%,
-      68% 51%;
+      68% 51%,
+      30% 56%;
+
+    opacity: 0.98;
   }
 
   62.5% {
@@ -256,7 +411,10 @@ All colors MUST be HSL.
     background-position:
       23% 4%,
       21% 29%,
-      76% 46%;
+      76% 46%,
+      35% 61%;
+
+    opacity: 1;
   }
 
   75% {
@@ -265,7 +423,10 @@ All colors MUST be HSL.
     background-position:
       16% 8%,
       27% 34%,
-      85% 41%;
+      85% 41%,
+      40% 66%;
+
+    opacity: 0.97;
   }
 
   87.5% {
@@ -274,7 +435,10 @@ All colors MUST be HSL.
     background-position:
       8% 4%,
       34% 27%,
-      93% 35%;
+      93% 35%,
+      46% 72%;
+
+    opacity: 1;
   }
 
   100% {
@@ -283,7 +447,10 @@ All colors MUST be HSL.
     background-position:
       0% 0%,
       40% 20%,
-      100% 30%;
+      100% 30%,
+      52% 78%;
+
+    opacity: 0.98;
   }
 }
 
@@ -315,6 +482,7 @@ All colors MUST be HSL.
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .orange-bg,
   .orange-bg::before,
   .orange-bg::after {
     animation: none;
