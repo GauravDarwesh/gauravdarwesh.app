@@ -1,17 +1,19 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import MarqueeAlongSvgPath from "@/components/fancy/blocks/marquee-along-svg-path";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const path =
-  "M1 209.434C58.5872 255.935 387.926 325.938 482.583 209.434C600.905 63.8051 525.516 -43.2211 427.332 19.9613C329.149 83.1436 352.902 242.723 515.041 267.302C644.752 286.966 943.56 181.94 995 156.5";
+/* Change this to adjust speed for images */
+const SLIDE_INTERVAL = 2000; // 2000 ms = 2 seconds
 
+const VIDEO_EXTENSIONS = [".mov", ".mp4", ".webm", ".ogg"];
+
+const isVideo = (url: string) => VIDEO_EXTENSIONS.some((ext) => url.toLowerCase().endsWith(ext));
+
+// Collections
 const collections = [
   {
     title: "Japan 2025 Collection",
-    location: "Japan",
-    year: "2025",
     items: [
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/A6AE9E26-5645-4F8A-BC54-E8A5B6311D7C.jpg",
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/D3FD6C99-BF7F-4001-9E8A-3F1F3B25666D.JPG",
@@ -23,8 +25,6 @@ const collections = [
   },
   {
     title: "Japan 2024 Collection",
-    location: "Japan",
-    year: "2024",
     items: [
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
@@ -44,8 +44,6 @@ const collections = [
   },
   {
     title: "Europe 2016 Collection",
-    location: "Europe",
-    year: "2016",
     items: [
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160614_135031.jpg",
       "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160616_115817.jpg",
@@ -61,125 +59,234 @@ const collections = [
   },
 ];
 
-const Visuals = () => {
+export default function Visuals() {
   const [currentCollection, setCurrentCollection] = useState(0);
+  const items = collections[currentCollection].items;
+  const title = collections[currentCollection].title;
 
-  const [activeImage, setActiveImage] = useState<{
-    src: string;
-    index: number;
-  } | null>(null);
+  // Current visible index (state-driven for video/image rendering)
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
-  const wasDraggedRef = useRef(false);
+  // layer refs (for image crossfade)
+  const layerARef = useRef<HTMLDivElement | null>(null);
+  const layerBRef = useRef<HTMLDivElement | null>(null);
 
-  const collection = collections[currentCollection];
+  // refs to hold state without re-rendering
+  const activeLayerRef = useRef<"A" | "B">("A");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cacheRef = useRef(new Set<string>());
+  const indexRef = useRef(0);
+  const isVideoPlayingRef = useRef(false);
 
-  const collectionLabel = useMemo(() => {
-    return `${collection.location} — ${collection.year}`;
-  }, [collection]);
+  // video ref
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  /*
-   * Lock page scrolling while the image viewer is open.
-   */
-  useEffect(() => {
-    if (activeImage) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
+  // small piece of state used only for title update render
+  const [collectionTitle, setCollectionTitle] = useState(title);
+
+  // dynamic fade: 20% of interval but clamped
+  const FADE_MS = Math.max(80, Math.min(500, Math.round(SLIDE_INTERVAL * 0.2)));
+
+  // Preload helper
+  const preload = useCallback(
+    (src: string, timeout = 3000): Promise<void> =>
+      new Promise<void>((resolve) => {
+        if (!src || isVideo(src)) return resolve();
+        if (cacheRef.current.has(src)) return resolve();
+        const img = new Image();
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          cacheRef.current.add(src);
+          resolve();
+        };
+        img.onload = finish;
+        img.onerror = finish;
+        img.src = src;
+        setTimeout(finish, timeout);
+      }),
+    [],
+  );
+
+  // Preload all images in background
+  const preloadAll = useCallback(
+    (list: string[]) => {
+      list.forEach((s) => {
+        if (!isVideo(s)) preload(s, 5000);
+      });
+    },
+    [preload],
+  );
+
+  // Clear timer helper
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
+  }, []);
 
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [activeImage]);
+  // Start the image slideshow interval
+  const startImageInterval = useCallback(() => {
+    clearTimer();
+    timerRef.current = setInterval(() => {
+      slideToNext();
+    }, SLIDE_INTERVAL);
+  }, [clearTimer]);
 
-  /*
-   * Escape key closes the image viewer.
-   */
-  useEffect(() => {
-    if (!activeImage) return;
+  // Advance to the next item
+  const slideToNext = useCallback(() => {
+    if (!items || items.length === 0) return;
+    const nextIndex = (indexRef.current + 1) % items.length;
+    const nextSrc = items[nextIndex];
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setActiveImage(null);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [activeImage]);
-
-  const nextCollection = () => {
-    setCurrentCollection((current) => (current === collections.length - 1 ? 0 : current + 1));
-  };
-
-  const prevCollection = () => {
-    setCurrentCollection((current) => (current === 0 ? collections.length - 1 : current - 1));
-  };
-
-  const openImage = (src: string, index: number) => {
-    /*
-     * Ignore click generated after the marquee has actually
-     * been dragged.
-     */
-    if (wasDraggedRef.current) {
-      wasDraggedRef.current = false;
+    if (isVideo(nextSrc)) {
+      // Pause interval, show video via state
+      clearTimer();
+      isVideoPlayingRef.current = true;
+      indexRef.current = nextIndex;
+      setCurrentIndex(nextIndex);
       return;
     }
 
-    setActiveImage({
-      src,
-      index,
+    // Image transition using layers
+    const active = activeLayerRef.current;
+    const inactive = active === "A" ? "B" : "A";
+    const activeNode = active === "A" ? layerARef.current : layerBRef.current;
+    const inactiveNode = inactive === "A" ? layerARef.current : layerBRef.current;
+
+    if (!inactiveNode || !activeNode) return;
+
+    // Set background on inactive layer
+    inactiveNode.style.backgroundImage = `url("${nextSrc}")`;
+
+    // Crossfade
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        inactiveNode.style.opacity = "1";
+        activeNode.style.opacity = "0";
+        setTimeout(() => {
+          activeLayerRef.current = inactive;
+          indexRef.current = nextIndex;
+          setCurrentIndex(nextIndex);
+        }, FADE_MS + 8);
+      });
     });
-  };
+  }, [items, clearTimer, FADE_MS]);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    dragStartRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-    };
+  // Handle video ended — advance to next
+  const handleVideoEnded = useCallback(() => {
+    isVideoPlayingRef.current = false;
+    const nextIndex = (indexRef.current + 1) % items.length;
+    const nextSrc = items[nextIndex];
 
-    wasDraggedRef.current = false;
-  };
+    if (isVideo(nextSrc)) {
+      // Next is also a video
+      indexRef.current = nextIndex;
+      setCurrentIndex(nextIndex);
+      return;
+    }
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (!dragStartRef.current) return;
+    // Next is an image — set it on the active layer and start interval
+    indexRef.current = nextIndex;
+    activeLayerRef.current = "A";
+    setCurrentIndex(nextIndex);
 
-    const distance = Math.sqrt(
-      Math.pow(event.clientX - dragStartRef.current.x, 2) + Math.pow(event.clientY - dragStartRef.current.y, 2),
+    if (layerARef.current) {
+      layerARef.current.style.backgroundImage = `url("${nextSrc}")`;
+      layerARef.current.style.opacity = "1";
+    }
+    if (layerBRef.current) {
+      layerBRef.current.style.opacity = "0";
+      const afterNext = items[(nextIndex + 1) % items.length];
+      if (!isVideo(afterNext)) {
+        layerBRef.current.style.backgroundImage = `url("${afterNext}")`;
+      }
+    }
+
+    startImageInterval();
+  }, [items, startImageInterval]);
+
+  // Initialize when collection changes
+  useEffect(() => {
+    indexRef.current = 0;
+    activeLayerRef.current = "A";
+    isVideoPlayingRef.current = false;
+    setCollectionTitle(title);
+    setCurrentIndex(0);
+
+    const first = items[0] || "";
+
+    if (isVideo(first)) {
+      // First item is a video — show it via state, no interval
+      clearTimer();
+      isVideoPlayingRef.current = true;
+      // Hide image layers
+      if (layerARef.current) layerARef.current.style.opacity = "0";
+      if (layerBRef.current) layerBRef.current.style.opacity = "0";
+      return () => clearTimer();
+    }
+
+    // First item is an image
+    const second = items.length > 1 ? items[1] : first;
+
+    if (layerARef.current) {
+      layerARef.current.style.backgroundImage = `url("${first}")`;
+      layerARef.current.style.opacity = "1";
+      layerARef.current.style.transition = `opacity ${FADE_MS}ms linear`;
+      layerARef.current.style.willChange = "opacity";
+      layerARef.current.style.backgroundSize = "cover";
+      layerARef.current.style.backgroundPosition = "center";
+    }
+    if (layerBRef.current) {
+      layerBRef.current.style.backgroundImage = isVideo(second) ? "" : `url("${second}")`;
+      layerBRef.current.style.opacity = "0";
+      layerBRef.current.style.transition = `opacity ${FADE_MS}ms linear`;
+      layerBRef.current.style.willChange = "opacity";
+      layerBRef.current.style.backgroundSize = "cover";
+      layerBRef.current.style.backgroundPosition = "center";
+    }
+
+    Promise.all<void>([preload(first, 3000), isVideo(second) ? Promise.resolve() : preload(second, 3000)]).finally(
+      () => {
+        clearTimer();
+        timerRef.current = setInterval(() => {
+          slideToNext();
+        }, SLIDE_INTERVAL);
+        preloadAll(items);
+      },
     );
 
-    if (distance > 8) {
-      wasDraggedRef.current = true;
-    }
+    return () => clearTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCollection]);
+
+  // Collection navigation
+  const nextCollection = () => {
+    clearTimer();
+    setCurrentCollection((c) => (c + 1) % collections.length);
   };
 
-  const handlePointerUp = () => {
-    dragStartRef.current = null;
+  const prevCollection = () => {
+    clearTimer();
+    setCurrentCollection((c) => (c === 0 ? collections.length - 1 : c - 1));
   };
+
+  const currentSrc = items[currentIndex] || "";
+  const showVideo = isVideo(currentSrc);
 
   return (
-    <div
-      className="site-page min-h-screen w-full relative overflow-hidden"
-      onContextMenu={(event) => event.preventDefault()}
-    >
+    <div className="site-page h-screen w-full relative overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
       <Helmet>
         <title>Visuals — Photography by Gaurav Darwesh</title>
-
         <meta
           name="description"
-          content="Photo collections from Gaurav Darwesh's travels, including Japan and Europe."
+          content="Photo and video collections from Gaurav Darwesh's travels, including Japan 2025 and Europe 2016."
         />
-
         <link rel="canonical" href="https://gauravdarwesh.app/visuals" />
-
         <meta property="og:title" content="Visuals — Photography by Gaurav Darwesh" />
-
-        <meta property="og:description" content="Photo collections from Gaurav Darwesh's travels." />
-
+        <meta property="og:description" content="Photo and video collections from Gaurav Darwesh's travels." />
         <meta property="og:url" content="https://gauravdarwesh.app/visuals" />
       </Helmet>
 
@@ -189,415 +296,92 @@ const Visuals = () => {
       <div className="site-background orange-bg fixed inset-0 pointer-events-none select-none" aria-hidden="true" />
 
       {/* Navigation */}
-      <NavigationToggle
-        isModalOpen={!!activeImage}
-        onCloseModal={() => setActiveImage(null)}
-        isBlurred={!!activeImage}
-      />
+      <NavigationToggle />
 
-      {/* Main content */}
-      <main className="relative z-10 min-h-screen w-full flex flex-col">
-        {/* Header */}
-        <div className="pt-24 sm:pt-28 px-4 sm:px-6 lg:px-8">
-          <div className="w-full max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-            {/* Collection label */}
-            <div
-              className="
-                h-9 px-4
-                rounded-full
-                bg-white/10
-                hover:bg-white/15
-                border border-white/20
-                backdrop-blur-md
-                text-white/90
-                text-[12px]
-                tracking-wide
-                flex items-center
-                shadow-lg
-                transition-all duration-300
-                select-none
-              "
-            >
-              {collectionLabel}
-            </div>
+      {/* Center area - no scroll layout */}
+      <div className="relative z-10 h-screen flex flex-col">
+        {/* Reduced top spacer to move content up */}
+        <div className="h-16 sm:h-18 flex-shrink-0"></div>
 
-            {/* Collection navigation */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={prevCollection}
-                className="
-                  flex items-center justify-center
-                  w-9 h-9
-                  rounded-full
-                  bg-white/10
-                  hover:bg-white/20
-                  backdrop-blur-md
-                  border border-white/20
-                  text-white
-                  transition-all duration-300
-                  hover:scale-105
-                  shadow-lg
-                "
-                aria-label="Previous collection"
-              >
-                <ChevronLeft size={16} />
-              </button>
+        {/* Main content container - fixed height, no scroll */}
+        <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pb-4 min-h-0">
+          {/* Container for tile with text and navigation */}
+          <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[65vw] flex flex-col h-full max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
+            {/* Top row: Title (left) and Navigation Buttons (right) */}
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+              <div className="h-9 px-4 text-[12px] rounded-full bg-white/20 hover:bg-white/30 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm transition-all duration-300 ease-out flex items-center cursor-default">
+                {collectionTitle}
+              </div>
 
-              <button
-                type="button"
-                onClick={nextCollection}
-                className="
-                  flex items-center justify-center
-                  w-9 h-9
-                  rounded-full
-                  bg-white/10
-                  hover:bg-white/20
-                  backdrop-blur-md
-                  border border-white/20
-                  text-white
-                  transition-all duration-300
-                  hover:scale-105
-                  shadow-lg
-                "
-                aria-label="Next collection"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Marquee section */}
-        <div className="flex-1 min-h-0 flex items-center justify-center px-0 sm:px-4">
-          <div
-            className="
-              relative
-              w-full
-              h-[62vh]
-              sm:h-[68vh]
-              lg:h-[72vh]
-              overflow-hidden
-            "
-          >
-            {/* Soft glass frame */}
-            <div
-              className="
-                absolute inset-x-4 sm:inset-x-6 lg:inset-x-10
-                inset-y-8 sm:inset-y-10
-                rounded-[2rem]
-                bg-white/[0.035]
-                border border-white/[0.10]
-                backdrop-blur-[2px]
-                pointer-events-none
-              "
-            />
-
-            <MarqueeAlongSvgPath
-              key={currentCollection}
-              path={path}
-              viewBox="0 0 996 330"
-              baseVelocity={7}
-              slowdownOnHover={true}
-              draggable={true}
-              repeat={2}
-              dragSensitivity={0.1}
-              responsive
-              grabCursor
-              className="absolute inset-0 w-full h-full scale-[1.02]"
-            >
-              {collection.items.map((src, index) => (
+              <div className="flex gap-2">
                 <button
-                  key={`${src}-${index}`}
-                  type="button"
-                  onClick={() => openImage(src, index)}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerUp}
-                  aria-label={`Open ${collectionLabel} image ${index + 1}`}
-                  className="
-                    group
-                    relative
-                    block
-                    w-24
-                    sm:w-28
-                    md:w-32
-                    lg:w-36
-                    h-[210px]
-                    sm:h-[250px]
-                    md:h-[275px]
-                    lg:h-[300px]
-                    flex-shrink-0
-                    rounded-[18px]
-                    overflow-hidden
-                    border
-                    border-white/20
-                    bg-white/10
-                    shadow-2xl
-                    cursor-pointer
-                    focus:outline-none
-                  "
+                  onClick={prevCollection}
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  aria-label="Previous collection"
                 >
-                  <img
-                    src={src}
-                    alt={`${collectionLabel} — image ${index + 1}`}
-                    draggable={false}
-                    loading="lazy"
-                    className="
-                      absolute inset-0
-                      w-full h-full
-                      object-cover
-                      select-none
-                      transition-transform
-                      duration-500
-                      ease-out
-                      group-hover:scale-[1.06]
-                    "
-                  />
-
-                  {/* Image glass overlay */}
-                  <div
-                    className="
-                      absolute inset-0
-                      bg-gradient-to-t
-                      from-black/35
-                      via-transparent
-                      to-white/[0.04]
-                      opacity-70
-                      group-hover:opacity-90
-                      transition-opacity duration-300
-                    "
-                  />
-
-                  {/* Hover frame */}
-                  <div
-                    className="
-                      absolute inset-1.5
-                      rounded-[14px]
-                      border border-white/0
-                      group-hover:border-white/30
-                      transition-all duration-300
-                    "
-                  />
+                  <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
                 </button>
-              ))}
-            </MarqueeAlongSvgPath>
 
-            {/* Bottom hint */}
-            <div
-              className="
-                absolute
-                bottom-10
-                left-1/2
-                -translate-x-1/2
-                pointer-events-none
-              "
-            >
-              <div
-                className="
-                  px-4 h-8
-                  rounded-full
-                  bg-black/10
-                  border border-white/10
-                  backdrop-blur-md
-                  flex items-center
-                  text-[11px]
-                  text-white/55
-                  whitespace-nowrap
-                  shadow-lg
-                "
-              >
-                Drag to explore · Click an image to open
+                <button
+                  onClick={nextCollection}
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  aria-label="Next collection"
+                >
+                  <ChevronRight size={14} className="sm:w-4 sm:h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Tile container */}
+            <div className="flex-1 min-h-0 max-h-[60vh] sm:max-h-none">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/20 hover:bg-white/20 transition w-full h-full flex items-center justify-center overflow-hidden relative">
+                <div className="relative w-full h-full">
+                  {/* Layer A (images) */}
+                  <div
+                    ref={layerARef}
+                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover pointer-events-none select-none"
+                    style={{
+                      opacity: showVideo ? 0 : 1,
+                      transition: `opacity ${FADE_MS}ms linear`,
+                      willChange: "opacity",
+                      WebkitTouchCallout: "none",
+                    }}
+                    aria-hidden="true"
+                  />
+
+                  {/* Layer B (images) */}
+                  <div
+                    ref={layerBRef}
+                    className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover pointer-events-none select-none"
+                    style={{
+                      opacity: 0,
+                      transition: `opacity ${FADE_MS}ms linear`,
+                      willChange: "opacity",
+                      WebkitTouchCallout: "none",
+                    }}
+                    aria-hidden="true"
+                  />
+
+                  {/* Video layer */}
+                  {showVideo && (
+                    <video
+                      aria-label="Photo collection video clip"
+                      ref={videoRef}
+                      key={currentSrc}
+                      className="absolute inset-0 w-full h-full object-cover rounded-xl shadow-lg"
+                      src={currentSrc}
+                      autoPlay
+                      muted
+                      playsInline
+                      onEnded={handleVideoEnded}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Collection counter */}
-        <div className="pb-8 sm:pb-10 flex justify-center">
-          <div
-            className="
-              h-8 px-3
-              rounded-full
-              bg-white/10
-              border border-white/15
-              backdrop-blur-md
-              text-white/55
-              text-[11px]
-              flex items-center
-            "
-          >
-            {String(currentCollection + 1).padStart(2, "0")} / {String(collections.length).padStart(2, "0")}
-          </div>
-        </div>
-      </main>
-
-      {/* Full-screen image viewer */}
-      {activeImage && (
-        <div
-          className="
-            fixed inset-0
-            z-[60]
-            bg-black/60
-            backdrop-blur-xl
-            flex
-            items-center
-            justify-center
-            p-4
-            sm:p-6
-            lg:p-10
-          "
-          onClick={() => setActiveImage(null)}
-        >
-          {/* Blurred image ambience */}
-          <div
-            className="absolute inset-0 opacity-20 pointer-events-none"
-            style={{
-              backgroundImage: `url("${activeImage.src}")`,
-              backgroundPosition: "center",
-              backgroundSize: "cover",
-              filter: "blur(55px)",
-              transform: "scale(1.08)",
-            }}
-          />
-
-          {/* Viewer */}
-          <div
-            className="
-              relative
-              z-10
-              w-full
-              max-w-7xl
-              h-[88vh]
-              sm:h-[90vh]
-              rounded-[1.5rem]
-              sm:rounded-[2rem]
-              bg-white/[0.055]
-              border border-white/20
-              backdrop-blur-xl
-              shadow-2xl
-              overflow-hidden
-              flex flex-col
-            "
-            onClick={(event) => event.stopPropagation()}
-          >
-            {/* Top bar */}
-            <div
-              className="
-                absolute
-                top-0
-                left-0
-                right-0
-                z-20
-                p-4
-                sm:p-5
-                flex
-                items-start
-                justify-between
-                pointer-events-none
-              "
-            >
-              {/* Description */}
-              <div
-                className="
-                  pointer-events-auto
-                  flex items-center
-                  h-9
-                  px-4
-                  rounded-full
-                  bg-black/20
-                  border border-white/15
-                  backdrop-blur-xl
-                  text-white/85
-                  text-[12px]
-                  shadow-lg
-                "
-              >
-                {collectionLabel}
-              </div>
-
-              {/* Close */}
-              <button
-                type="button"
-                onClick={() => setActiveImage(null)}
-                className="
-                  pointer-events-auto
-                  flex items-center justify-center
-                  w-9 h-9
-                  rounded-full
-                  bg-black/20
-                  hover:bg-white/15
-                  border border-white/15
-                  backdrop-blur-xl
-                  text-white/90
-                  transition-all duration-300
-                  hover:scale-105
-                  shadow-lg
-                "
-                aria-label="Close image viewer"
-              >
-                <X size={17} />
-              </button>
-            </div>
-
-            {/* Image */}
-            <div className="flex-1 min-h-0 w-full h-full flex items-center justify-center p-3 sm:p-5 lg:p-8">
-              <img
-                src={activeImage.src}
-                alt={`${collectionLabel} — image ${activeImage.index + 1}`}
-                draggable={false}
-                className="
-                  max-w-full
-                  max-h-full
-                  w-auto
-                  h-auto
-                  object-contain
-                  rounded-xl
-                  sm:rounded-2xl
-                  shadow-2xl
-                  select-none
-                "
-              />
-            </div>
-
-            {/* Bottom metadata */}
-            <div
-              className="
-                absolute
-                bottom-0
-                left-0
-                right-0
-                z-20
-                p-4
-                sm:p-5
-                flex
-                justify-center
-                pointer-events-none
-              "
-            >
-              <div
-                className="
-                  px-4
-                  h-8
-                  rounded-full
-                  bg-black/20
-                  border border-white/10
-                  backdrop-blur-xl
-                  text-white/55
-                  text-[11px]
-                  flex items-center
-                  shadow-lg
-                "
-              >
-                {String(activeImage.index + 1).padStart(2, "0")} / {String(collection.items.length).padStart(2, "0")}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
-};
-
-export default Visuals;
+}
