@@ -132,129 +132,181 @@ All colors MUST be HSL.
   z-index: 0;
 }
 
-/* Smooth atmospheric wave layered over the base gradient. */
+/* Smooth, visible atmospheric wave layered over the base gradient. */
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -15%;
+  inset: -25%;
   pointer-events: none;
 
   background:
+    /* Large warm moving mass */
     radial-gradient(
-      ellipse 62% 38% at 24% 8%,
-      rgba(255, 93, 38, 0.72) 0%,
-      rgba(246, 49, 20, 0.56) 28%,
-      rgba(191, 18, 15, 0.25) 53%,
-      transparent 76%
-    ),
-    radial-gradient(
-      ellipse 72% 42% at 44% 28%,
-      rgba(173, 10, 17, 0.48) 0%,
-      rgba(103, 7, 18, 0.4) 42%,
-      rgba(45, 3, 14, 0.12) 68%,
+      ellipse 60% 32% at 18% 8%,
+      rgba(255, 90, 35, 0.92) 0%,
+      rgba(248, 51, 20, 0.78) 30%,
+      rgba(190, 15, 16, 0.42) 58%,
       transparent 82%
     ),
-    radial-gradient(ellipse 68% 46% at 76% 34%, rgba(42, 3, 15, 0.72) 0%, rgba(25, 2, 12, 0.55) 42%, transparent 76%);
+    /* Main moving red wave */
+    radial-gradient(
+        ellipse 68% 38% at 38% 30%,
+        rgba(190, 13, 18, 0.72) 0%,
+        rgba(126, 7, 19, 0.62) 35%,
+        rgba(65, 4, 16, 0.35) 65%,
+        transparent 85%
+      ),
+    /* Dark wave pushing from the right */
+    radial-gradient(
+        ellipse 65% 40% at 78% 34%,
+        rgba(30, 2, 13, 0.8) 0%,
+        rgba(20, 2, 12, 0.68) 40%,
+        rgba(38, 3, 15, 0.3) 68%,
+        transparent 86%
+      );
 
   background-size:
-    125% 115%,
-    135% 125%,
-    145% 130%;
+    115% 105%,
+    120% 110%,
+    125% 115%;
 
   background-position:
-    10% 0%,
-    55% 25%,
-    100% 40%;
+    0% 0%,
+    40% 20%,
+    100% 30%;
 
-  transform: scale(1.08);
+  transform: scale(1.15);
   transform-origin: center;
 
-  animation: orangeWave 18s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: orangeWave 24s ease-in-out infinite;
   will-change: transform, background-position;
 }
 
-/* Fine procedural grain kept subtle so it reads as texture rather than TV static. */
+/* Subtle continuous film grain. */
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -8%;
+  inset: -10%;
   pointer-events: none;
 
-  opacity: 0.11;
+  opacity: 0.1;
   mix-blend-mode: screen;
 
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.68'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.7'/%3E%3C/svg%3E");
 
   background-size: 220px 220px;
 
-  animation: orangeGrain 10s ease-in-out infinite;
+  animation: orangeGrain 14s linear infinite;
   will-change: transform;
 }
 
-/* Seamless atmospheric wave loop. */
+/* =========================================
+   VISIBLE ORGANIC WAVE
+   ========================================= */
+
 @keyframes orangeWave {
   0% {
-    transform: translate3d(0, 0, 0) scale(1.08);
+    transform: translate3d(-2%, -1%, 0) scale(1.15);
 
     background-position:
-      10% 0%,
-      55% 25%,
-      100% 40%;
+      0% 0%,
+      40% 20%,
+      100% 30%;
+  }
+
+  12.5% {
+    transform: translate3d(-1%, 1%, 0) scale(1.17);
+
+    background-position:
+      8% 4%,
+      34% 27%,
+      93% 35%;
   }
 
   25% {
-    transform: translate3d(-1.5%, 1%, 0) scale(1.1);
+    transform: translate3d(0%, 2%, 0) scale(1.15);
 
     background-position:
-      22% 8%,
-      44% 18%,
-      88% 48%;
+      16% 8%,
+      27% 34%,
+      85% 41%;
+  }
+
+  37.5% {
+    transform: translate3d(1.5%, 1%, 0) scale(1.17);
+
+    background-position:
+      23% 4%,
+      21% 29%,
+      76% 46%;
   }
 
   50% {
-    transform: translate3d(0, 2%, 0) scale(1.08);
+    transform: translate3d(2%, 0%, 0) scale(1.15);
 
     background-position:
-      34% 14%,
-      32% 12%,
-      76% 56%;
+      30% 0%,
+      16% 20%,
+      68% 51%;
+  }
+
+  62.5% {
+    transform: translate3d(1.5%, -1%, 0) scale(1.17);
+
+    background-position:
+      23% 4%,
+      21% 29%,
+      76% 46%;
   }
 
   75% {
-    transform: translate3d(1.5%, 1%, 0) scale(1.1);
+    transform: translate3d(0%, -2%, 0) scale(1.15);
 
     background-position:
-      22% 8%,
-      44% 18%,
-      88% 48%;
+      16% 8%,
+      27% 34%,
+      85% 41%;
+  }
+
+  87.5% {
+    transform: translate3d(-1%, -1%, 0) scale(1.17);
+
+    background-position:
+      8% 4%,
+      34% 27%,
+      93% 35%;
   }
 
   100% {
-    transform: translate3d(0, 0, 0) scale(1.08);
+    transform: translate3d(-2%, -1%, 0) scale(1.15);
 
     background-position:
-      10% 0%,
-      55% 25%,
-      100% 40%;
+      0% 0%,
+      40% 20%,
+      100% 30%;
   }
 }
 
-/* Very slow grain drift. */
+/* Slow grain drift. */
 @keyframes orangeGrain {
   0% {
     transform: translate3d(0, 0, 0);
   }
 
-  25% {
-    transform: translate3d(-0.8%, 0.4%, 0);
+  20% {
+    transform: translate3d(-1.2%, 0.6%, 0);
   }
 
-  50% {
-    transform: translate3d(0.5%, -0.6%, 0);
+  40% {
+    transform: translate3d(0.8%, -1%, 0);
   }
 
-  75% {
-    transform: translate3d(0.8%, 0.4%, 0);
+  60% {
+    transform: translate3d(1.2%, 0.8%, 0);
+  }
+
+  80% {
+    transform: translate3d(-0.6%, -0.8%, 0);
   }
 
   100% {
@@ -296,6 +348,7 @@ All colors MUST be HSL.
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
 .scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
@@ -342,6 +395,7 @@ All colors MUST be HSL.
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -356,6 +410,7 @@ html {
     opacity: 0;
     filter: blur(8px);
   }
+
   100% {
     opacity: 1;
     filter: blur(0);
@@ -366,6 +421,7 @@ html {
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100vw);
   }
@@ -383,9 +439,11 @@ html {
   0% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
@@ -395,9 +453,11 @@ html {
   0% {
     background-position: 100% 0%;
   }
+
   50% {
     background-position: 0% 100%;
   }
+
   100% {
     background-position: 100% 0%;
   }
@@ -428,6 +488,7 @@ html {
   opacity: 0;
   transition: opacity 0.5s ease;
 }
+
 .typewriter-fade-in {
   opacity: 1;
   transition: opacity 0.5s ease;
@@ -437,6 +498,7 @@ html {
   0% {
     transform: translate3d(0, 0, 0);
   }
+
   100% {
     transform: translate3d(-50%, 0, 0);
   }
@@ -464,6 +526,7 @@ html {
     filter: blur(10px);
     transform: translateY(8px) scale(0.97);
   }
+
   to {
     opacity: 1;
     filter: blur(0);
@@ -479,6 +542,7 @@ html {
   from {
     width: 0%;
   }
+
   to {
     width: 100%;
   }
