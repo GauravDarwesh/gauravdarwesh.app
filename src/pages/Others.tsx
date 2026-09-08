@@ -4,7 +4,7 @@ import NavigationToggle from "@/components/NavigationToggle";
 
 const Others = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="site-page min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
       <Helmet>
         <title>More — Gaurav Darwesh</title>
         <meta name="description" content="Additional pages and experiments from Gaurav Darwesh's portfolio." />
@@ -17,12 +17,7 @@ const Others = () => {
       <h1 className="sr-only">More from Gaurav Darwesh</h1>
 
       {/* Background */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-fadeInSlow"
-        style={{
-          backgroundImage: `url(/lovable-uploads/4746d648-205c-482c-8ba1-3482e03c242f.png)`,
-        }}
-      />
+      <div className="site-background orange-bg fixed inset-0" aria-hidden="true" />
 
       {/* Navigation Toggle */}
       <NavigationToggle />
