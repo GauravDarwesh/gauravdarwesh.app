@@ -166,7 +166,12 @@ All colors MUST be HSL.
    * into purple/blue/green territory.
    */
   animation: orangeAtmosphere 78s ease-in-out infinite;
-  will-change: background-position, filter;
+  will-change: background-position;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  isolation: isolate;
+  contain: paint;
+  pointer-events: none;
 }
 
 /* Page backgrounds must stay outside document flow so content is not pushed
@@ -235,7 +240,8 @@ All colors MUST be HSL.
    * perfectly synchronized.
    */
   animation: orangeWave 52s ease-in-out infinite;
-  will-change: transform, background-position, opacity;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 /* ============================================================
@@ -259,8 +265,9 @@ All colors MUST be HSL.
    * Grain stays noticeably faster than the wallpaper.
    * This helps preserve the organic film-like texture.
    */
-  animation: orangeGrain 14s linear infinite;
+  animation: orangeGrain 20s linear infinite;
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 /* ============================================================
@@ -279,8 +286,6 @@ All colors MUST be HSL.
       100% 50%,
       100% 50%,
       0% 0%;
-
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
   }
 
   /*
@@ -293,8 +298,6 @@ All colors MUST be HSL.
       95% 47%,
       96% 52%,
       4% 2%;
-
-    filter: hue-rotate(6deg) saturate(1.035) brightness(1.012);
   }
 
   /*
@@ -307,8 +310,6 @@ All colors MUST be HSL.
       89% 43%,
       91% 56%,
       8% 5%;
-
-    filter: hue-rotate(11deg) saturate(1.06) brightness(1.02);
   }
 
   /*
@@ -321,8 +322,6 @@ All colors MUST be HSL.
       82% 39%,
       85% 60%,
       12% 7%;
-
-    filter: hue-rotate(7deg) saturate(1.08) brightness(1.014);
   }
 
   /*
@@ -338,8 +337,6 @@ All colors MUST be HSL.
       75% 35%,
       78% 63%,
       16% 9%;
-
-    filter: hue-rotate(13deg) saturate(1.095) brightness(1.025);
   }
 
   /*
@@ -352,8 +349,6 @@ All colors MUST be HSL.
       82% 39%,
       85% 60%,
       12% 7%;
-
-    filter: hue-rotate(4deg) saturate(1.075) brightness(1.014);
   }
 
   /*
@@ -366,8 +361,6 @@ All colors MUST be HSL.
       89% 43%,
       91% 56%,
       8% 5%;
-
-    filter: hue-rotate(-7deg) saturate(1.06) brightness(1.006);
   }
 
   /*
@@ -380,8 +373,6 @@ All colors MUST be HSL.
       95% 47%,
       96% 52%,
       4% 2%;
-
-    filter: hue-rotate(-3deg) saturate(1.025) brightness(1);
   }
 
   /*
@@ -394,8 +385,6 @@ All colors MUST be HSL.
       100% 50%,
       100% 50%,
       0% 0%;
-
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
   }
 }
 
@@ -406,109 +395,46 @@ All colors MUST be HSL.
 @keyframes orangeWave {
   0% {
     transform: translate3d(-2%, -1%, 0) scale(1.16);
-
-    background-position:
-      0% 0%,
-      40% 20%,
-      100% 30%,
-      52% 78%;
-
     opacity: 0.97;
   }
 
   12.5% {
     transform: translate3d(-1.2%, 0.4%, 0) scale(1.175);
-
-    background-position:
-      8% 4%,
-      34% 26%,
-      93% 35%,
-      46% 72%;
-
     opacity: 1;
   }
 
   25% {
     transform: translate3d(0%, 1.8%, 0) scale(1.16);
-
-    background-position:
-      16% 8%,
-      27% 33%,
-      85% 41%,
-      40% 66%;
-
     opacity: 0.975;
   }
 
   37.5% {
     transform: translate3d(1.2%, 1%, 0) scale(1.175);
-
-    background-position:
-      23% 4%,
-      21% 29%,
-      76% 46%,
-      35% 61%;
-
     opacity: 1;
   }
 
   50% {
     transform: translate3d(2%, 0%, 0) scale(1.16);
-
-    background-position:
-      30% 0%,
-      16% 20%,
-      68% 51%,
-      30% 56%;
-
     opacity: 0.98;
   }
 
   62.5% {
     transform: translate3d(1.2%, -1%, 0) scale(1.175);
-
-    background-position:
-      23% 4%,
-      21% 29%,
-      76% 46%,
-      35% 61%;
-
     opacity: 1;
   }
 
   75% {
     transform: translate3d(0%, -1.8%, 0) scale(1.16);
-
-    background-position:
-      16% 8%,
-      27% 33%,
-      85% 41%,
-      40% 66%;
-
     opacity: 0.975;
   }
 
   87.5% {
     transform: translate3d(-1%, -0.4%, 0) scale(1.175);
-
-    background-position:
-      8% 4%,
-      34% 26%,
-      93% 35%,
-      46% 72%;
-
     opacity: 1;
   }
 
   100% {
     transform: translate3d(-2%, -1%, 0) scale(1.16);
-
-    background-position:
-      0% 0%,
-      40% 20%,
-      100% 30%,
-      52% 78%;
-
     opacity: 0.97;
   }
 }
@@ -820,7 +746,7 @@ body,
 [data-gdx-search] [class*="bg-white/"],
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
-  transition-property: color, background-color, border-color, opacity, box-shadow, filter, backdrop-filter;
+  transition-property: color, background-color, border-color, opacity, box-shadow;
   transition-duration: var(--theme-transition-duration);
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
