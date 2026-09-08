@@ -3068,11 +3068,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ref={searchBarRef}
       data-gdx-search
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
-      style={{
-        isolation: "isolate",
-        willChange: "transform",
-        backfaceVisibility: "hidden",
-      }}
     >
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
@@ -3134,10 +3129,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
           touchAction: "manipulation",
-          transform: "translate3d(0, 0, 0)",
-          willChange: "width, border-radius",
-          backfaceVisibility: "hidden",
-          contain: "layout",
         }}
       >
         <div
@@ -3291,24 +3282,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
-        /* =====================================================
-           SEARCHBAR PERFORMANCE ISOLATION
-           Keep the existing animation/easing exactly as-is.
-           These rules only reduce unnecessary cross-layer work
-           caused by the animated procedural wallpaper beneath it.
-           ===================================================== */
-
-        [data-gdx-search] {
-          isolation: isolate;
-          transform: translate3d(0, 0, 0);
-          backface-visibility: hidden;
-        }
-
-        [data-gdx-search] > div {
-          backface-visibility: hidden;
-        }
-
-
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
