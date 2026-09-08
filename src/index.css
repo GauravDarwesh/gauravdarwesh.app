@@ -84,12 +84,25 @@ All colors MUST be HSL.
   animation: fadeInSlow 3s ease-in-out forwards;
 }
 
-/* Procedural orange / burgundy background used across the color theme. */
+/* ============================================================
+   STATIC ORANGE / BURGUNDY ATMOSPHERIC BACKGROUND
+   ============================================================ */
+
 .orange-bg {
   width: 100%;
   min-height: 100vh;
   overflow: hidden;
 
+  /*
+   * Static wallpaper:
+   * the same warm orange / vermilion / burgundy palette is kept,
+   * but there are NO continuously moving background layers,
+   * filters, transforms, or animated grain.
+   *
+   * This is deliberately static so glass UI such as the SearchBar
+   * does not have to continuously recomposite against a moving
+   * backdrop.
+   */
   background:
     radial-gradient(
       ellipse 72% 48% at 18% 7%,
@@ -124,16 +137,12 @@ All colors MUST be HSL.
     ),
     linear-gradient(132deg, #ff4d20 0%, #e21c12 20%, #970914 38%, #500714 55%, #26030f 72%, #0d020b 100%);
 
-  /*
-   * The background itself is deliberately oversized so the entire wallpaper
-   * can drift slowly without exposing edges.
-   */
   background-size:
-    138% 132%,
-    148% 140%,
-    136% 144%,
-    132% 148%,
-    138% 138%;
+    142% 136%,
+    152% 144%,
+    140% 148%,
+    136% 152%,
+    142% 142%;
 
   background-position:
     0% 0%,
@@ -142,63 +151,71 @@ All colors MUST be HSL.
     100% 50%,
     0% 0%;
 
+  background-repeat: no-repeat;
+
+  /* Do not animate the wallpaper. */
+  animation: none;
+  filter: none;
+  will-change: auto;
+
   /*
-   * Very subtle tonal breathing:
-   * - tiny hue movement keeps it warm rather than psychedelic
-   * - saturation/brightness gently rise and fall
+   * Keep the background as its own fixed visual layer without
+   * asking the browser to continuously repaint it.
    */
-  animation: orangeBaseAtmosphere 48s ease-in-out infinite;
-  will-change: background-position, filter;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  isolation: isolate;
+  pointer-events: none;
 }
 
-/* Page backgrounds must stay outside document flow so content is not pushed
-   beneath the full-height procedural layer. */
+/* Page background stays outside document flow. */
 .site-background.orange-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
 }
 
-/* Smooth, visible atmospheric wave layered over the base gradient. */
+/*
+ * Static tonal overlay.
+ *
+ * The original moving orange wave is intentionally retained as a
+ * visual layer but is now completely fixed in place.
+ */
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -30%;
+  inset: -32%;
   pointer-events: none;
 
   background:
-    /* Large warm moving mass */
     radial-gradient(
       ellipse 60% 32% at 18% 8%,
-      rgba(255, 90, 35, 0.94) 0%,
-      rgba(248, 51, 20, 0.8) 30%,
-      rgba(190, 15, 16, 0.44) 58%,
+      rgba(255, 100, 38, 0.94) 0%,
+      rgba(247, 55, 20, 0.8) 30%,
+      rgba(194, 19, 17, 0.44) 58%,
       transparent 82%
     ),
-    /* Main moving red wave */
     radial-gradient(
-        ellipse 68% 38% at 38% 30%,
-        rgba(190, 13, 18, 0.74) 0%,
-        rgba(126, 7, 19, 0.64) 35%,
-        rgba(65, 4, 16, 0.36) 65%,
-        transparent 85%
-      ),
-    /* Dark wave pushing from the right */
+      ellipse 68% 38% at 38% 30%,
+      rgba(208, 61, 22, 0.58) 0%,
+      rgba(149, 24, 18, 0.6) 35%,
+      rgba(75, 5, 17, 0.34) 65%,
+      transparent 86%
+    ),
     radial-gradient(
-        ellipse 65% 40% at 78% 34%,
-        rgba(30, 2, 13, 0.82) 0%,
-        rgba(20, 2, 12, 0.7) 40%,
-        rgba(38, 3, 15, 0.32) 68%,
-        transparent 86%
-      ),
-    /* Very broad atmospheric warmth */
-    radial-gradient(ellipse 72% 48% at 52% 78%, rgba(142, 9, 18, 0.22) 0%, rgba(95, 5, 17, 0.16) 46%, transparent 78%);
+      ellipse 65% 40% at 78% 34%,
+      rgba(30, 2, 13, 0.82) 0%,
+      rgba(20, 2, 12, 0.7) 40%,
+      rgba(38, 3, 15, 0.32) 68%,
+      transparent 86%
+    ),
+    radial-gradient(ellipse 72% 48% at 52% 78%, rgba(157, 25, 17, 0.22) 0%, rgba(95, 8, 17, 0.16) 46%, transparent 78%);
 
   background-size:
-    115% 105%,
-    120% 110%,
-    125% 115%,
-    135% 130%;
+    118% 108%,
+    126% 116%,
+    128% 118%,
+    138% 132%;
 
   background-position:
     0% 0%,
@@ -206,288 +223,39 @@ All colors MUST be HSL.
     100% 30%,
     52% 78%;
 
-  transform: scale(1.15);
+  background-repeat: no-repeat;
+  transform: scale(1.16);
   transform-origin: center;
 
-  /*
-   * Slightly slower than before so the wallpaper feels like one continuous
-   * liquid atmosphere instead of an obvious animation.
-   */
-  animation: orangeWave 34s ease-in-out infinite;
-  will-change: transform, background-position, opacity;
+  animation: none;
+  will-change: auto;
+  backface-visibility: hidden;
 }
 
-/* Subtle continuous film grain. */
+/* Static film grain. No animation. */
 .orange-bg::after {
   content: "";
   position: absolute;
   inset: -10%;
   pointer-events: none;
 
-  opacity: 0.1;
+  opacity: 0.08;
   mix-blend-mode: screen;
 
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.7'/%3E%3C/svg%3E");
 
   background-size: 220px 220px;
+  background-repeat: repeat;
 
-  animation: orangeGrain 14s linear infinite;
-  will-change: transform;
+  animation: none;
+  will-change: auto;
 }
 
-/* =========================================
-   SLOW WALLPAPER + TONE MOVEMENT
-   ========================================= */
-
-@keyframes orangeBaseAtmosphere {
-  0% {
-    background-position:
-      0% 0%,
-      0% 18%,
-      100% 50%,
-      100% 50%,
-      0% 0%;
-
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
-  }
-
-  12.5% {
-    background-position:
-      7% 3%,
-      4% 23%,
-      95% 47%,
-      96% 52%,
-      4% 2%;
-
-    filter: hue-rotate(-1deg) saturate(1.025) brightness(1.008);
-  }
-
-  25% {
-    background-position:
-      15% 7%,
-      9% 29%,
-      89% 43%,
-      91% 56%,
-      8% 5%;
-
-    filter: hue-rotate(-2deg) saturate(1.045) brightness(1.015);
-  }
-
-  37.5% {
-    background-position:
-      21% 4%,
-      14% 33%,
-      82% 39%,
-      85% 60%,
-      12% 7%;
-
-    filter: hue-rotate(-1deg) saturate(1.06) brightness(1.01);
-  }
-
-  50% {
-    background-position:
-      27% 0%,
-      20% 36%,
-      75% 35%,
-      78% 63%,
-      16% 9%;
-
-    filter: hue-rotate(0deg) saturate(1.075) brightness(1.02);
-  }
-
-  62.5% {
-    background-position:
-      21% 4%,
-      14% 33%,
-      82% 39%,
-      85% 60%,
-      12% 7%;
-
-    filter: hue-rotate(2deg) saturate(1.055) brightness(1.012);
-  }
-
-  75% {
-    background-position:
-      15% 7%,
-      9% 29%,
-      89% 43%,
-      91% 56%,
-      8% 5%;
-
-    filter: hue-rotate(3deg) saturate(1.035) brightness(1.005);
-  }
-
-  87.5% {
-    background-position:
-      7% 3%,
-      4% 23%,
-      95% 47%,
-      96% 52%,
-      4% 2%;
-
-    filter: hue-rotate(2deg) saturate(1.015) brightness(1);
-  }
-
-  100% {
-    background-position:
-      0% 0%,
-      0% 18%,
-      100% 50%,
-      100% 50%,
-      0% 0%;
-
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
-  }
-}
-
-/* =========================================
-   VISIBLE ORGANIC WAVE
-   ========================================= */
-
-@keyframes orangeWave {
-  0% {
-    transform: translate3d(-2%, -1%, 0) scale(1.15);
-
-    background-position:
-      0% 0%,
-      40% 20%,
-      100% 30%,
-      52% 78%;
-
-    opacity: 0.98;
-  }
-
-  12.5% {
-    transform: translate3d(-1%, 1%, 0) scale(1.17);
-
-    background-position:
-      8% 4%,
-      34% 27%,
-      93% 35%,
-      46% 72%;
-
-    opacity: 1;
-  }
-
-  25% {
-    transform: translate3d(0%, 2%, 0) scale(1.15);
-
-    background-position:
-      16% 8%,
-      27% 34%,
-      85% 41%,
-      40% 66%;
-
-    opacity: 0.97;
-  }
-
-  37.5% {
-    transform: translate3d(1.5%, 1%, 0) scale(1.17);
-
-    background-position:
-      23% 4%,
-      21% 29%,
-      76% 46%,
-      35% 61%;
-
-    opacity: 1;
-  }
-
-  50% {
-    transform: translate3d(2%, 0%, 0) scale(1.15);
-
-    background-position:
-      30% 0%,
-      16% 20%,
-      68% 51%,
-      30% 56%;
-
-    opacity: 0.98;
-  }
-
-  62.5% {
-    transform: translate3d(1.5%, -1%, 0) scale(1.17);
-
-    background-position:
-      23% 4%,
-      21% 29%,
-      76% 46%,
-      35% 61%;
-
-    opacity: 1;
-  }
-
-  75% {
-    transform: translate3d(0%, -2%, 0) scale(1.15);
-
-    background-position:
-      16% 8%,
-      27% 34%,
-      85% 41%,
-      40% 66%;
-
-    opacity: 0.97;
-  }
-
-  87.5% {
-    transform: translate3d(-1%, -1%, 0) scale(1.17);
-
-    background-position:
-      8% 4%,
-      34% 27%,
-      93% 35%,
-      46% 72%;
-
-    opacity: 1;
-  }
-
-  100% {
-    transform: translate3d(-2%, -1%, 0) scale(1.15);
-
-    background-position:
-      0% 0%,
-      40% 20%,
-      100% 30%,
-      52% 78%;
-
-    opacity: 0.98;
-  }
-}
-
-/* Slow grain drift. */
-@keyframes orangeGrain {
-  0% {
-    transform: translate3d(0, 0, 0);
-  }
-
-  20% {
-    transform: translate3d(-1.2%, 0.6%, 0);
-  }
-
-  40% {
-    transform: translate3d(0.8%, -1%, 0);
-  }
-
-  60% {
-    transform: translate3d(1.2%, 0.8%, 0);
-  }
-
-  80% {
-    transform: translate3d(-0.6%, -0.8%, 0);
-  }
-
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .orange-bg,
-  .orange-bg::before,
-  .orange-bg::after {
-    animation: none;
-  }
-}
+/*
+ * The old orangeAtmosphere / orangeWave / orangeGrain animation
+ * keyframes are intentionally removed. The wallpaper is now
+ * completely stable.
+ */
 
 @keyframes droplet-flow {
   0% {
@@ -687,7 +455,7 @@ html {
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
-/* Category spotlight animations — soft blur in/out */
+/* Category spotlight animations â€” soft blur in/out */
 @keyframes spotlight-in {
   from {
     opacity: 0;
@@ -761,7 +529,7 @@ body,
 [data-gdx-search] [class*="bg-white/"],
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
-  transition-property: color, background-color, border-color, opacity, box-shadow, filter, backdrop-filter;
+  transition-property: color, background-color, border-color, opacity, box-shadow;
   transition-duration: var(--theme-transition-duration);
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
