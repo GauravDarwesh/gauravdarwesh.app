@@ -84,29 +84,12 @@ All colors MUST be HSL.
   animation: fadeInSlow 3s ease-in-out forwards;
 }
 
-/* ============================================================
-   PROCEDURAL ORANGE / BURGUNDY ATMOSPHERIC BACKGROUND
-   ============================================================ */
-
+/* Procedural orange / burgundy background used across the color theme. */
 .orange-bg {
   width: 100%;
   min-height: 100vh;
   overflow: hidden;
 
-  /*
-   * Warm palette:
-   *
-   * vivid orange
-   * amber
-   * burnt orange
-   * copper
-   * terracotta
-   * vermilion
-   * burgundy
-   *
-   * The actual wallpaper moves while the whole palette slowly
-   * shifts through these neighboring warm tones.
-   */
   background:
     radial-gradient(
       ellipse 72% 48% at 18% 7%,
@@ -142,15 +125,15 @@ All colors MUST be HSL.
     linear-gradient(132deg, #ff4d20 0%, #e21c12 20%, #970914 38%, #500714 55%, #26030f 72%, #0d020b 100%);
 
   /*
-   * Oversized backgrounds allow the wallpaper to move freely
-   * without exposing its edges.
+   * The background itself is deliberately oversized so the entire wallpaper
+   * can drift slowly without exposing edges.
    */
   background-size:
-    142% 136%,
-    152% 144%,
-    140% 148%,
-    136% 152%,
-    142% 142%;
+    138% 132%,
+    148% 140%,
+    136% 144%,
+    132% 148%,
+    138% 138%;
 
   background-position:
     0% 0%,
@@ -160,18 +143,12 @@ All colors MUST be HSL.
     0% 0%;
 
   /*
-   * This is intentionally a real, visible tonal shift.
-   *
-   * The hue stays inside the warm spectrum rather than drifting
-   * into purple/blue/green territory.
+   * Very subtle tonal breathing:
+   * - tiny hue movement keeps it warm rather than psychedelic
+   * - saturation/brightness gently rise and fall
    */
-  animation: orangeAtmosphere 78s ease-in-out infinite;
-  will-change: background-position;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-  isolation: isolate;
-  contain: paint;
-  pointer-events: none;
+  animation: orangeBaseAtmosphere 48s ease-in-out infinite;
+  will-change: background-position, filter;
 }
 
 /* Page backgrounds must stay outside document flow so content is not pushed
@@ -182,34 +159,31 @@ All colors MUST be HSL.
   z-index: 0;
 }
 
-/* ============================================================
-   SLOW ORGANIC ATMOSPHERIC WAVE
-   ============================================================ */
-
+/* Smooth, visible atmospheric wave layered over the base gradient. */
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -32%;
+  inset: -30%;
   pointer-events: none;
 
   background:
-    /* Bright orange / amber mass */
+    /* Large warm moving mass */
     radial-gradient(
       ellipse 60% 32% at 18% 8%,
-      rgba(255, 100, 38, 0.94) 0%,
-      rgba(247, 55, 20, 0.8) 30%,
-      rgba(194, 19, 17, 0.44) 58%,
+      rgba(255, 90, 35, 0.94) 0%,
+      rgba(248, 51, 20, 0.8) 30%,
+      rgba(190, 15, 16, 0.44) 58%,
       transparent 82%
     ),
-    /* Copper / terracotta mass */
+    /* Main moving red wave */
     radial-gradient(
         ellipse 68% 38% at 38% 30%,
-        rgba(208, 61, 22, 0.58) 0%,
-        rgba(149, 24, 18, 0.6) 35%,
-        rgba(75, 5, 17, 0.34) 65%,
-        transparent 86%
+        rgba(190, 13, 18, 0.74) 0%,
+        rgba(126, 7, 19, 0.64) 35%,
+        rgba(65, 4, 16, 0.36) 65%,
+        transparent 85%
       ),
-    /* Deep burgundy wave */
+    /* Dark wave pushing from the right */
     radial-gradient(
         ellipse 65% 40% at 78% 34%,
         rgba(30, 2, 13, 0.82) 0%,
@@ -217,14 +191,14 @@ All colors MUST be HSL.
         rgba(38, 3, 15, 0.32) 68%,
         transparent 86%
       ),
-    /* Broad low-frequency warmth */
-    radial-gradient(ellipse 72% 48% at 52% 78%, rgba(157, 25, 17, 0.22) 0%, rgba(95, 8, 17, 0.16) 46%, transparent 78%);
+    /* Very broad atmospheric warmth */
+    radial-gradient(ellipse 72% 48% at 52% 78%, rgba(142, 9, 18, 0.22) 0%, rgba(95, 5, 17, 0.16) 46%, transparent 78%);
 
   background-size:
-    118% 108%,
-    126% 116%,
-    128% 118%,
-    138% 132%;
+    115% 105%,
+    120% 110%,
+    125% 115%,
+    135% 130%;
 
   background-position:
     0% 0%,
@@ -232,22 +206,18 @@ All colors MUST be HSL.
     100% 30%,
     52% 78%;
 
-  transform: scale(1.16);
+  transform: scale(1.15);
   transform-origin: center;
 
   /*
-   * Slower than the base wallpaper so the layers never feel
-   * perfectly synchronized.
+   * Slightly slower than before so the wallpaper feels like one continuous
+   * liquid atmosphere instead of an obvious animation.
    */
-  animation: orangeWave 52s ease-in-out infinite;
-  will-change: transform, opacity;
-  backface-visibility: hidden;
+  animation: orangeWave 34s ease-in-out infinite;
+  will-change: transform, background-position, opacity;
 }
 
-/* ============================================================
-   FILM GRAIN
-   ============================================================ */
-
+/* Subtle continuous film grain. */
 .orange-bg::after {
   content: "";
   position: absolute;
@@ -261,24 +231,15 @@ All colors MUST be HSL.
 
   background-size: 220px 220px;
 
-  /*
-   * Grain stays noticeably faster than the wallpaper.
-   * This helps preserve the organic film-like texture.
-   */
-  animation: orangeGrain 20s linear infinite;
+  animation: orangeGrain 14s linear infinite;
   will-change: transform;
-  backface-visibility: hidden;
 }
 
-/* ============================================================
-   ACTUAL WALLPAPER MOVEMENT + VISIBLE TONAL SHIFT
-   ============================================================ */
+/* =========================================
+   SLOW WALLPAPER + TONE MOVEMENT
+   ========================================= */
 
-@keyframes orangeAtmosphere {
-  /*
-   * START
-   * Rich vivid orange / vermilion.
-   */
+@keyframes orangeBaseAtmosphere {
   0% {
     background-position:
       0% 0%,
@@ -286,35 +247,32 @@ All colors MUST be HSL.
       100% 50%,
       100% 50%,
       0% 0%;
+
+    filter: hue-rotate(0deg) saturate(1) brightness(1);
   }
 
-  /*
-   * Moving toward amber.
-   */
   12.5% {
     background-position:
       7% 3%,
-      4% 22%,
+      4% 23%,
       95% 47%,
       96% 52%,
       4% 2%;
+
+    filter: hue-rotate(-1deg) saturate(1.025) brightness(1.008);
   }
 
-  /*
-   * Warm amber / copper territory.
-   */
   25% {
     background-position:
-      14% 7%,
+      15% 7%,
       9% 29%,
       89% 43%,
       91% 56%,
       8% 5%;
+
+    filter: hue-rotate(-2deg) saturate(1.045) brightness(1.015);
   }
 
-  /*
-   * Burnt orange / terracotta.
-   */
   37.5% {
     background-position:
       21% 4%,
@@ -322,26 +280,21 @@ All colors MUST be HSL.
       82% 39%,
       85% 60%,
       12% 7%;
+
+    filter: hue-rotate(-1deg) saturate(1.06) brightness(1.01);
   }
 
-  /*
-   * Peak warm/copper state.
-   *
-   * This is deliberately more noticeable than the previous
-   * version, but still remains inside the orange family.
-   */
   50% {
     background-position:
-      28% 0%,
-      20% 37%,
+      27% 0%,
+      20% 36%,
       75% 35%,
       78% 63%,
       16% 9%;
+
+    filter: hue-rotate(0deg) saturate(1.075) brightness(1.02);
   }
 
-  /*
-   * Begin moving back through red / vermilion.
-   */
   62.5% {
     background-position:
       21% 4%,
@@ -349,35 +302,32 @@ All colors MUST be HSL.
       82% 39%,
       85% 60%,
       12% 7%;
+
+    filter: hue-rotate(2deg) saturate(1.055) brightness(1.012);
   }
 
-  /*
-   * Deep warm red / burgundy territory.
-   */
   75% {
     background-position:
-      14% 7%,
+      15% 7%,
       9% 29%,
       89% 43%,
       91% 56%,
       8% 5%;
+
+    filter: hue-rotate(3deg) saturate(1.035) brightness(1.005);
   }
 
-  /*
-   * Return toward the original orange state.
-   */
   87.5% {
     background-position:
       7% 3%,
-      4% 22%,
+      4% 23%,
       95% 47%,
       96% 52%,
       4% 2%;
+
+    filter: hue-rotate(2deg) saturate(1.015) brightness(1);
   }
 
-  /*
-   * Exact return to the starting state makes the loop seamless.
-   */
   100% {
     background-position:
       0% 0%,
@@ -385,57 +335,122 @@ All colors MUST be HSL.
       100% 50%,
       100% 50%,
       0% 0%;
+
+    filter: hue-rotate(0deg) saturate(1) brightness(1);
   }
 }
 
-/* ============================================================
-   ORGANIC WAVE MOVEMENT
-   ============================================================ */
+/* =========================================
+   VISIBLE ORGANIC WAVE
+   ========================================= */
 
 @keyframes orangeWave {
   0% {
-    transform: translate3d(-2%, -1%, 0) scale(1.16);
-    opacity: 0.97;
+    transform: translate3d(-2%, -1%, 0) scale(1.15);
+
+    background-position:
+      0% 0%,
+      40% 20%,
+      100% 30%,
+      52% 78%;
+
+    opacity: 0.98;
   }
 
   12.5% {
-    transform: translate3d(-1.2%, 0.4%, 0) scale(1.175);
+    transform: translate3d(-1%, 1%, 0) scale(1.17);
+
+    background-position:
+      8% 4%,
+      34% 27%,
+      93% 35%,
+      46% 72%;
+
     opacity: 1;
   }
 
   25% {
-    transform: translate3d(0%, 1.8%, 0) scale(1.16);
-    opacity: 0.975;
+    transform: translate3d(0%, 2%, 0) scale(1.15);
+
+    background-position:
+      16% 8%,
+      27% 34%,
+      85% 41%,
+      40% 66%;
+
+    opacity: 0.97;
   }
 
   37.5% {
-    transform: translate3d(1.2%, 1%, 0) scale(1.175);
+    transform: translate3d(1.5%, 1%, 0) scale(1.17);
+
+    background-position:
+      23% 4%,
+      21% 29%,
+      76% 46%,
+      35% 61%;
+
     opacity: 1;
   }
 
   50% {
-    transform: translate3d(2%, 0%, 0) scale(1.16);
+    transform: translate3d(2%, 0%, 0) scale(1.15);
+
+    background-position:
+      30% 0%,
+      16% 20%,
+      68% 51%,
+      30% 56%;
+
     opacity: 0.98;
   }
 
   62.5% {
-    transform: translate3d(1.2%, -1%, 0) scale(1.175);
+    transform: translate3d(1.5%, -1%, 0) scale(1.17);
+
+    background-position:
+      23% 4%,
+      21% 29%,
+      76% 46%,
+      35% 61%;
+
     opacity: 1;
   }
 
   75% {
-    transform: translate3d(0%, -1.8%, 0) scale(1.16);
-    opacity: 0.975;
+    transform: translate3d(0%, -2%, 0) scale(1.15);
+
+    background-position:
+      16% 8%,
+      27% 34%,
+      85% 41%,
+      40% 66%;
+
+    opacity: 0.97;
   }
 
   87.5% {
-    transform: translate3d(-1%, -0.4%, 0) scale(1.175);
+    transform: translate3d(-1%, -1%, 0) scale(1.17);
+
+    background-position:
+      8% 4%,
+      34% 27%,
+      93% 35%,
+      46% 72%;
+
     opacity: 1;
   }
 
   100% {
-    transform: translate3d(-2%, -1%, 0) scale(1.16);
-    opacity: 0.97;
+    transform: translate3d(-2%, -1%, 0) scale(1.15);
+
+    background-position:
+      0% 0%,
+      40% 20%,
+      100% 30%,
+      52% 78%;
+
+    opacity: 0.98;
   }
 }
 
@@ -672,7 +687,7 @@ html {
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
-/* Category spotlight animations â€” soft blur in/out */
+/* Category spotlight animations — soft blur in/out */
 @keyframes spotlight-in {
   from {
     opacity: 0;
@@ -746,7 +761,7 @@ body,
 [data-gdx-search] [class*="bg-white/"],
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
-  transition-property: color, background-color, border-color, opacity, box-shadow;
+  transition-property: color, background-color, border-color, opacity, box-shadow, filter, backdrop-filter;
   transition-duration: var(--theme-transition-duration);
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
