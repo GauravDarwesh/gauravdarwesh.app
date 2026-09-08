@@ -121,15 +121,7 @@ All colors MUST be HSL.
       rgba(34, 4, 15, 0.85) 66%,
       transparent 100%
     ),
-    linear-gradient(
-      132deg,
-      #ff4d20 0%,
-      #e21c12 20%,
-      #970914 38%,
-      #500714 55%,
-      #26030f 72%,
-      #0d020b 100%
-    );
+    linear-gradient(132deg, #ff4d20 0%, #e21c12 20%, #970914 38%, #500714 55%, #26030f 72%, #0d020b 100%);
 }
 
 /* Page backgrounds must stay outside document flow so content is not pushed
@@ -140,58 +132,138 @@ All colors MUST be HSL.
   z-index: 0;
 }
 
+/* Smooth atmospheric wave layered over the base gradient. */
 .orange-bg::before {
-  content: "";
-  position: absolute;
-  inset: -12%;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      ellipse 58% 36% at 35% 13%,
-      rgba(255, 75, 26, 0.68) 0%,
-      rgba(245, 41, 17, 0.45) 32%,
-      rgba(126, 7, 15, 0.18) 61%,
-      transparent 80%
-    ),
-    radial-gradient(
-      ellipse 54% 34% at 68% 24%,
-      rgba(89, 5, 17, 0.62) 0%,
-      rgba(47, 3, 13, 0.48) 45%,
-      transparent 76%
-    );
-  transform: rotate(-7deg) scale(1.08);
-  transform-origin: center;
-}
-
-.orange-bg::after {
   content: "";
   position: absolute;
   inset: -15%;
   pointer-events: none;
-  opacity: 0.22;
-  mix-blend-mode: screen;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.72'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  animation: orangeGrain 0.32s steps(2) infinite;
+
+  background:
+    radial-gradient(
+      ellipse 62% 38% at 24% 8%,
+      rgba(255, 93, 38, 0.72) 0%,
+      rgba(246, 49, 20, 0.56) 28%,
+      rgba(191, 18, 15, 0.25) 53%,
+      transparent 76%
+    ),
+    radial-gradient(
+      ellipse 72% 42% at 44% 28%,
+      rgba(173, 10, 17, 0.48) 0%,
+      rgba(103, 7, 18, 0.4) 42%,
+      rgba(45, 3, 14, 0.12) 68%,
+      transparent 82%
+    ),
+    radial-gradient(ellipse 68% 46% at 76% 34%, rgba(42, 3, 15, 0.72) 0%, rgba(25, 2, 12, 0.55) 42%, transparent 76%);
+
+  background-size:
+    125% 115%,
+    135% 125%,
+    145% 130%;
+
+  background-position:
+    10% 0%,
+    55% 25%,
+    100% 40%;
+
+  transform: scale(1.08);
+  transform-origin: center;
+
+  animation: orangeWave 18s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform, background-position;
 }
 
-@keyframes orangeGrain {
-  0%,
+/* Fine procedural grain kept subtle so it reads as texture rather than TV static. */
+.orange-bg::after {
+  content: "";
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+
+  opacity: 0.11;
+  mix-blend-mode: screen;
+
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.68'/%3E%3C/svg%3E");
+
+  background-size: 220px 220px;
+
+  animation: orangeGrain 10s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Seamless atmospheric wave loop. */
+@keyframes orangeWave {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.08);
+
+    background-position:
+      10% 0%,
+      55% 25%,
+      100% 40%;
+  }
+
+  25% {
+    transform: translate3d(-1.5%, 1%, 0) scale(1.1);
+
+    background-position:
+      22% 8%,
+      44% 18%,
+      88% 48%;
+  }
+
+  50% {
+    transform: translate3d(0, 2%, 0) scale(1.08);
+
+    background-position:
+      34% 14%,
+      32% 12%,
+      76% 56%;
+  }
+
+  75% {
+    transform: translate3d(1.5%, 1%, 0) scale(1.1);
+
+    background-position:
+      22% 8%,
+      44% 18%,
+      88% 48%;
+  }
+
   100% {
+    transform: translate3d(0, 0, 0) scale(1.08);
+
+    background-position:
+      10% 0%,
+      55% 25%,
+      100% 40%;
+  }
+}
+
+/* Very slow grain drift. */
+@keyframes orangeGrain {
+  0% {
     transform: translate3d(0, 0, 0);
   }
+
   25% {
-    transform: translate3d(-2%, 1%, 0);
+    transform: translate3d(-0.8%, 0.4%, 0);
   }
+
   50% {
-    transform: translate3d(1%, -2%, 0);
+    transform: translate3d(0.5%, -0.6%, 0);
   }
+
   75% {
-    transform: translate3d(2%, 2%, 0);
+    transform: translate3d(0.8%, 0.4%, 0);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .orange-bg::before,
   .orange-bg::after {
     animation: none;
   }
@@ -690,5 +762,3 @@ body,
     animation: none;
   }
 }
-
-
