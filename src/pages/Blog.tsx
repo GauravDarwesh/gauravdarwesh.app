@@ -69,10 +69,10 @@ const Blog = () => {
     },
     {
   date: "July 26, 2020",
-  title: "GETTING YOUR CAREER BACK ON TRACK",
+  title: "Getting Your Life Back on Track",
   description:
     "Practical ideas for getting yourself back on track. Learn to play both offensively and defensively in life — make the most of good situations and stay calm when things go badly. Rest when needed, learn as many skills as possible, and understand which work habits bring out your best performance.",
-  tags: ["Career", "Growth", "Learning", "Productivity"],
+  tags: ["Life", "Growth", "Learning"],
   notionUrl:
     "https://olive-zircon-d34.notion.site/ebd//beb73ee09f2b42a39bc358e650a82fd4",
 },
