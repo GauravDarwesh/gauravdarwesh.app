@@ -67,6 +67,24 @@ const Blog = () => {
       tags: ["Life", "Growth", "Learning"],
       notionUrl: "https://olive-zircon-d34.notion.site/ebd//dac76e5b23be436c8d730c6e33fcde44",
     },
+    {
+  date: "July 26, 2020",
+  title: "4 Tips To Getting Your Career Back On Track & Upgrade Your Mental Software",
+  description:
+    "In this podcast, Jay talks about practical ideas for getting yourself back on track. Learn to play both offensively and defensively in life — make the most of good situations and stay calm when things go badly. Rest when needed, learn as many skills as possible, and understand which work habits bring out your best performance.",
+  tags: ["Career", "Growth", "Learning", "Productivity"],
+  notionUrl:
+    "https://olive-zircon-d34.notion.site/ebd//beb73ee09f2b42a39bc358e650a82fd4",
+},
+{
+  date: "July 26, 2020",
+  title: "Give & Speak",
+  description:
+    "A person who gives everything to everyone but cannot speak well to others will always find themselves alone. A person who does not give anything to anyone but speaks well to others will always find themselves surrounded by people.",
+  tags: ["Life", "People", "Communication", "Growth"],
+  notionUrl:
+    "https://olive-zircon-d34.notion.site/ebd//3d564e75ffe9800a8084eb4f695ac381",
+},
   ];
 
   const allTags = Array.from(new Set(blogPosts.flatMap((post) => post.tags)));
