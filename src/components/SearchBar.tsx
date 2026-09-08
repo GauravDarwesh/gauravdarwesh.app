@@ -3123,8 +3123,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           width: layoutValues.targetWidth,
           maxWidth: "92vw",
           borderRadius: layoutValues.targetRadius,
-          transition:
-            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+
+          /*
+           * Keep layout animation isolated from the animated wallpaper.
+           * The SearchBar uses backdrop-blur-xl, so continuously transitioning
+           * visual properties here can make the glass surface appear to jitter
+           * while the background is moving underneath it.
+           */
+          transition: "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1)",
+          willChange: "width, border-radius",
+          transform: "translateZ(0)",
+          backfaceVisibility: "hidden",
+          isolation: "isolate",
+
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
@@ -3282,6 +3293,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
+        /* Keep the glass blur stable; never interpolate backdrop-filter itself. */
+        [data-gdx-search] .backdrop-blur-sm,
+        [data-gdx-search] .backdrop-blur-xl {
+          -webkit-backdrop-filter: blur(var(--tw-backdrop-blur, 8px));
+          backdrop-filter: blur(var(--tw-backdrop-blur, 8px));
+          transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+        }
+
+        [data-gdx-search] > div:last-of-type {
+          contain: layout style paint;
+        }
+
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
