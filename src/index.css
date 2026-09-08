@@ -165,8 +165,8 @@ All colors MUST be HSL.
    * The hue stays inside the warm spectrum rather than drifting
    * into purple/blue/green territory.
    */
-  animation: orangeAtmosphere 78s ease-in-out infinite;
-  will-change: background-position, filter;
+  animation: orangeAtmospherePositionOnly 78s ease-in-out infinite;
+  will-change: background-position;
 }
 
 /* Page backgrounds must stay outside document flow so content is not pushed
@@ -175,6 +175,9 @@ All colors MUST be HSL.
   position: fixed;
   inset: 0;
   z-index: 0;
+  isolation: isolate;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
 /* ============================================================
@@ -267,7 +270,7 @@ All colors MUST be HSL.
    ACTUAL WALLPAPER MOVEMENT + VISIBLE TONAL SHIFT
    ============================================================ */
 
-@keyframes orangeAtmosphere {
+@keyframes orangeAtmospherePositionOnly {
   /*
    * START
    * Rich vivid orange / vermilion.
@@ -279,8 +282,6 @@ All colors MUST be HSL.
       100% 50%,
       100% 50%,
       0% 0%;
-
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
   }
 
   /*
@@ -293,8 +294,6 @@ All colors MUST be HSL.
       95% 47%,
       96% 52%,
       4% 2%;
-
-    filter: hue-rotate(6deg) saturate(1.035) brightness(1.012);
   }
 
   /*
@@ -307,8 +306,6 @@ All colors MUST be HSL.
       89% 43%,
       91% 56%,
       8% 5%;
-
-    filter: hue-rotate(11deg) saturate(1.06) brightness(1.02);
   }
 
   /*
@@ -321,8 +318,6 @@ All colors MUST be HSL.
       82% 39%,
       85% 60%,
       12% 7%;
-
-    filter: hue-rotate(7deg) saturate(1.08) brightness(1.014);
   }
 
   /*
@@ -338,8 +333,6 @@ All colors MUST be HSL.
       75% 35%,
       78% 63%,
       16% 9%;
-
-    filter: hue-rotate(13deg) saturate(1.095) brightness(1.025);
   }
 
   /*
@@ -352,8 +345,6 @@ All colors MUST be HSL.
       82% 39%,
       85% 60%,
       12% 7%;
-
-    filter: hue-rotate(4deg) saturate(1.075) brightness(1.014);
   }
 
   /*
@@ -366,8 +357,6 @@ All colors MUST be HSL.
       89% 43%,
       91% 56%,
       8% 5%;
-
-    filter: hue-rotate(-7deg) saturate(1.06) brightness(1.006);
   }
 
   /*
@@ -380,8 +369,6 @@ All colors MUST be HSL.
       95% 47%,
       96% 52%,
       4% 2%;
-
-    filter: hue-rotate(-3deg) saturate(1.025) brightness(1);
   }
 
   /*
@@ -394,8 +381,6 @@ All colors MUST be HSL.
       100% 50%,
       100% 50%,
       0% 0%;
-
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
   }
 }
 
@@ -823,6 +808,21 @@ body,
   transition-property: color, background-color, border-color, opacity, box-shadow, filter, backdrop-filter;
   transition-duration: var(--theme-transition-duration);
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * Keep the SearchBar on its own compositing island. This does not change
+ * its animation timing or geometry; it reduces needless cross-layer work
+ * when the procedural wallpaper underneath is moving.
+ */
+[data-gdx-search] {
+  isolation: isolate;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+[data-gdx-search] > :not(style) {
+  backface-visibility: hidden;
 }
 
 :root[data-theme="minimal"] body,
