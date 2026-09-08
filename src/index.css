@@ -84,6 +84,112 @@ All colors MUST be HSL.
   animation: fadeInSlow 3s ease-in-out forwards;
 }
 
+/* Procedural orange / burgundy background used across the color theme. */
+.orange-bg {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      ellipse 72% 48% at 18% 7%,
+      rgba(255, 102, 49, 1) 0%,
+      rgba(255, 73, 28, 0.98) 22%,
+      rgba(244, 42, 17, 0.94) 43%,
+      rgba(205, 17, 14, 0.78) 60%,
+      rgba(94, 4, 13, 0.18) 79%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 98% 68% at 2% 25%,
+      rgba(242, 31, 15, 0.96) 0%,
+      rgba(184, 13, 15, 0.9) 35%,
+      rgba(107, 7, 17, 0.78) 58%,
+      rgba(47, 4, 13, 0.48) 76%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 74% 82% at 62% 48%,
+      rgba(81, 7, 22, 0.92) 0%,
+      rgba(55, 5, 17, 0.94) 28%,
+      rgba(31, 3, 13, 0.95) 60%,
+      rgba(11, 2, 10, 1) 100%
+    ),
+    radial-gradient(
+      ellipse 62% 86% at 98% 50%,
+      rgba(11, 2, 11, 1) 0%,
+      rgba(17, 2, 12, 0.98) 35%,
+      rgba(34, 4, 15, 0.85) 66%,
+      transparent 100%
+    ),
+    linear-gradient(
+      132deg,
+      #ff4d20 0%,
+      #e21c12 20%,
+      #970914 38%,
+      #500714 55%,
+      #26030f 72%,
+      #0d020b 100%
+    );
+}
+
+.orange-bg::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 58% 36% at 35% 13%,
+      rgba(255, 75, 26, 0.68) 0%,
+      rgba(245, 41, 17, 0.45) 32%,
+      rgba(126, 7, 15, 0.18) 61%,
+      transparent 80%
+    ),
+    radial-gradient(
+      ellipse 54% 34% at 68% 24%,
+      rgba(89, 5, 17, 0.62) 0%,
+      rgba(47, 3, 13, 0.48) 45%,
+      transparent 76%
+    );
+  transform: rotate(-7deg) scale(1.08);
+  transform-origin: center;
+}
+
+.orange-bg::after {
+  content: "";
+  position: absolute;
+  inset: -15%;
+  pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.72'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: orangeGrain 0.32s steps(2) infinite;
+}
+
+@keyframes orangeGrain {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(-2%, 1%, 0);
+  }
+  50% {
+    transform: translate3d(1%, -2%, 0);
+  }
+  75% {
+    transform: translate3d(2%, 2%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orange-bg::after {
+    animation: none;
+  }
+}
+
 @keyframes droplet-flow {
   0% {
     transform: scaleX(1);

@@ -298,12 +298,8 @@ export default function Visuals() {
 
       {/* Background */}
       <div
-        className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none select-none"
-        style={{
-          backgroundImage:
-            "url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)",
-          WebkitTouchCallout: "none",
-        }}
+        className="site-background orange-bg fixed inset-0 pointer-events-none select-none"
+        aria-hidden="true"
       />
 
       {/* Navigation */}

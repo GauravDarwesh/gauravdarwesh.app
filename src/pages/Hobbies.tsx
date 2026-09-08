@@ -184,12 +184,7 @@ const Portfolio = () => {
       </Helmet>
 
       {/* Background */}
-      <div
-        className="site-background fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url(https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/orange.jpg)`,
-        }}
-      />
+      <div className="site-background orange-bg fixed inset-0" aria-hidden="true" />
 
       {/* Navigation Toggle */}
       <NavigationToggle />
