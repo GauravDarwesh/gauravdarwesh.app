@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
 
@@ -55,16 +55,7 @@ All colors MUST be HSL.
   }
 }
 
-/* ============================================================
-   MOTION PHILOSOPHY
-   ------------------------------------------------------------
-   One property changes per animation. No stacked
-   translate + rotate + scale paths, and nothing oscillates
-   back and forth on the same axis (that's what reads as
-   "bouncy" rather than ambient). Anything continuous runs
-   slow enough that it should feel like weather, not UI.
-   ============================================================ */
-
+/* Custom Animation for Spinning Asterisk */
 @keyframes spin-slow {
   from {
     transform: rotate(0deg);
@@ -79,39 +70,27 @@ All colors MUST be HSL.
 }
 
 @keyframes fadeInSlow {
-  from {
+  0% {
     opacity: 0;
-    transform: scale(1.02);
+    transform: scale(1.05);
   }
-  to {
+
+  100% {
     opacity: 1;
     transform: scale(1);
   }
 }
 
 .animate-fadeInSlow {
-  animation: fadeInSlow 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: fadeInSlow 3s ease-in-out forwards;
 }
 
 /* ============================================================
    ORANGE / BURGUNDY LIVE WALLPAPER
    ------------------------------------------------------------
-   The gradient layers themselves carry the richness and stay
-   fixed in place. The only motion is a single, slow opacity
-   breathe on the highlight layer — no translation, no rotation,
-   no scale. It reads as light shifting across the surface
-   rather than shapes moving around on it.
+   The base wallpaper stays fixed. Only the two isolated visual
+   layers move, using transform-only animation so the rest of the
+   page is not pulled into the animation/repaint loop.
    ============================================================ */
 
 .orange-bg {
@@ -169,6 +148,10 @@ All colors MUST be HSL.
     0% 0%;
 
   background-repeat: no-repeat;
+  animation: none;
+  transition: none;
+  filter: none;
+  will-change: auto;
   backface-visibility: hidden;
   transform: translateZ(0);
   isolation: isolate;
@@ -182,62 +165,123 @@ All colors MUST be HSL.
   width: 100%;
   height: auto;
   min-height: 100%;
+  transition: none;
 }
 
-/* Soft highlight field — fixed in place, only its opacity breathes */
+/* ------------------------------------------------------------
+   ORGANIC WAVE FIELD
+   ------------------------------------------------------------
+   Slow horizontal atmospheric movement.
+   No vertical travel and no orbit-like motion.
+   ------------------------------------------------------------ */
+
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -20%;
+  inset: -58%;
   pointer-events: none;
 
   background:
     radial-gradient(
-      ellipse 46% 30% at 22% 22%,
-      rgba(255, 205, 151, 0.5) 0%,
-      rgba(255, 135, 71, 0.28) 40%,
-      transparent 78%
+      ellipse 28% 8% at 8% 14%,
+      rgba(255, 205, 151, 0.62) 0%,
+      rgba(255, 135, 71, 0.42) 36%,
+      rgba(246, 74, 42, 0.1) 68%,
+      transparent 86%
     ),
     radial-gradient(
-      ellipse 50% 34% at 70% 18%,
-      rgba(238, 58, 42, 0.3) 0%,
-      rgba(154, 24, 33, 0.16) 42%,
-      transparent 80%
+      ellipse 46% 9% at 34% 27%,
+      rgba(255, 117, 64, 0.4) 0%,
+      rgba(205, 41, 38, 0.24) 37%,
+      rgba(89, 10, 24, 0.07) 68%,
+      transparent 88%
     ),
-    radial-gradient(ellipse 56% 38% at 46% 66%, rgba(95, 10, 25, 0.32) 0%, rgba(57, 7, 22, 0.14) 46%, transparent 82%);
+    radial-gradient(
+      ellipse 52% 11% at 74% 20%,
+      rgba(238, 58, 42, 0.44) 0%,
+      rgba(154, 24, 33, 0.24) 39%,
+      rgba(57, 7, 20, 0.07) 70%,
+      transparent 89%
+    ),
+    radial-gradient(
+      ellipse 34% 8% at 88% 53%,
+      rgba(255, 132, 74, 0.34) 0%,
+      rgba(167, 25, 31, 0.18) 42%,
+      transparent 88%
+    ),
+    radial-gradient(
+      ellipse 58% 13% at 44% 64%,
+      rgba(95, 10, 25, 0.42) 0%,
+      rgba(57, 7, 22, 0.22) 45%,
+      rgba(229, 57, 38, 0.09) 70%,
+      transparent 90%
+    ),
+    radial-gradient(ellipse 40% 9% at 16% 84%, rgba(223, 57, 39, 0.24) 0%, rgba(102, 12, 26, 0.17) 43%, transparent 88%);
 
+  background-size: 124% 124%;
   background-repeat: no-repeat;
-  opacity: 0.85;
-  animation: ambient-breathe 22s ease-in-out infinite;
+  opacity: 0.96;
 
-  will-change: opacity;
+  transform-origin: 47% 53%;
+  transform: translate3d(-10%, 0, 0) rotate(-0.5deg) scale(1.06);
+  animation: orange-fluid-drift 52s cubic-bezier(0.37, 0.02, 0.2, 1) infinite;
+
+  will-change: transform;
+  backface-visibility: hidden;
   contain: paint;
 }
 
-@keyframes ambient-breathe {
-  0%,
-  100% {
-    opacity: 0.7;
+@keyframes orange-fluid-drift {
+  /*
+     Very slow horizontal drift with tiny scale changes.
+     There is no vertical travel, so the wallpaper stays visually
+     anchored instead of feeling like it is bobbing up and down.
+  */
+
+  0% {
+    transform: translate3d(-12%, 0, 0) rotate(-0.7deg) scale(1.055);
   }
-  50% {
-    opacity: 1;
+
+  20% {
+    transform: translate3d(-5%, 0, 0) rotate(-0.25deg) scale(1.075);
+  }
+
+  40% {
+    transform: translate3d(3%, 0, 0) rotate(0.15deg) scale(1.09);
+  }
+
+  60% {
+    transform: translate3d(10%, 0, 0) rotate(0.55deg) scale(1.075);
+  }
+
+  80% {
+    transform: translate3d(4%, 0, 0) rotate(0.05deg) scale(1.09);
+  }
+
+  100% {
+    transform: translate3d(-12%, 0, 0) rotate(-0.7deg) scale(1.055);
   }
 }
 
-/* Fine grain — drifts on a single diagonal path, one direction,
-   no reversal and no rotate/scale riding along with it. That's
-   the difference between "grain catching light" and "wobble". */
+/* ------------------------------------------------------------
+   DRIFTING PARTICLES + VISIBLE GRAIN
+   ------------------------------------------------------------ */
+
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -20%;
+  inset: -16%;
   pointer-events: none;
 
   background-image:
-    radial-gradient(circle at 18px 24px, rgba(255, 238, 221, 0.5) 0 1px, transparent 2px),
-    radial-gradient(circle at 82px 68px, rgba(255, 190, 151, 0.38) 0 1.1px, transparent 2.3px),
-    radial-gradient(circle at 151px 119px, rgba(255, 225, 199, 0.3) 0 0.9px, transparent 2px),
-    radial-gradient(circle at 218px 38px, rgba(255, 157, 117, 0.32) 0 1px, transparent 2.2px),
+    radial-gradient(circle at 18px 24px, rgba(255, 238, 221, 0.62) 0 1px, transparent 2px),
+    radial-gradient(circle at 82px 68px, rgba(255, 190, 151, 0.46) 0 1.15px, transparent 2.4px),
+    radial-gradient(circle at 151px 119px, rgba(255, 225, 199, 0.38) 0 0.95px, transparent 2.2px),
+    radial-gradient(circle at 218px 38px, rgba(255, 157, 117, 0.4) 0 1px, transparent 2.3px),
+    radial-gradient(circle at 276px 184px, rgba(255, 239, 217, 0.28) 0 0.85px, transparent 2px),
+    radial-gradient(circle at 42px 171px, rgba(255, 138, 94, 0.34) 0 0.8px, transparent 1.9px),
+    radial-gradient(circle at 118px 203px, rgba(255, 215, 184, 0.26) 0 0.75px, transparent 2px),
+    radial-gradient(circle at 325px 91px, rgba(255, 177, 135, 0.24) 0 0.8px, transparent 2px),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.95'/%3E%3C/svg%3E");
 
   background-size:
@@ -245,46 +289,61 @@ All colors MUST be HSL.
     270px 270px,
     320px 320px,
     360px 360px,
+    400px 400px,
+    290px 290px,
+    340px 340px,
+    460px 460px,
     180px 180px;
 
   background-repeat: repeat;
-  opacity: 0.16;
+  opacity: 0.23;
   mix-blend-mode: screen;
 
-  animation: grain-drift 70s linear infinite;
-  will-change: background-position;
+  transform-origin: 38% 61%;
+  transform: translate3d(-34px, 0, 0) rotate(0deg) scale(1.02);
+
+  animation: orange-particle-drift 72s cubic-bezier(0.37, 0.01, 0.22, 1) infinite;
+
+  will-change: transform;
+  backface-visibility: hidden;
   contain: paint;
 }
 
-@keyframes grain-drift {
-  /* One continuous diagonal pass — no back-and-forth, no easing
-     reversal, just a slow constant-speed pan that loops cleanly
-     because the tile sizes repeat evenly. */
-  from {
-    background-position:
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0;
+@keyframes orange-particle-drift {
+  /*
+     Slow horizontal movement keeps the grain/particles alive without
+     introducing a noticeable floating or bobbing effect.
+  */
+
+  0% {
+    transform: translate3d(-34px, 0, 0) rotate(-0.15deg) scale(1.02);
   }
-  to {
-    background-position:
-      210px 210px,
-      -270px 270px,
-      320px -320px,
-      -360px -360px,
-      180px 180px;
+
+  25% {
+    transform: translate3d(0, 0, 0) rotate(0.05deg) scale(1.025);
+  }
+
+  50% {
+    transform: translate3d(42px, 0, 0) rotate(0.2deg) scale(1.035);
+  }
+
+  75% {
+    transform: translate3d(72px, 0, 0) rotate(0deg) scale(1.028);
+  }
+
+  100% {
+    transform: translate3d(-34px, 0, 0) rotate(-0.15deg) scale(1.02);
   }
 }
 
 @media (max-width: 768px) {
   .orange-bg::before {
-    animation-duration: 28s;
+    animation-duration: 60s;
   }
+
   .orange-bg::after {
-    animation-duration: 90s;
-    opacity: 0.13;
+    animation-duration: 84s;
+    opacity: 0.21;
   }
 }
 
@@ -300,8 +359,20 @@ All colors MUST be HSL.
 }
 
 .scrollbar-hide {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Grainy Gradient Background */
@@ -312,21 +383,36 @@ All colors MUST be HSL.
     hsl(var(--gradient-blue-2)),
     hsl(var(--gradient-blue-3))
   );
+
   position: relative;
   overflow: hidden;
 }
 
-/* Grain overlay — static, no shifting position. A steady texture
-   reads as material; an animated one reads as a glitch. */
+/* Grain overlay (using base64 noise texture instead of inline SVG for safety) */
 .bg-grainy-gradient::before {
   content: "";
   position: absolute;
   inset: 0;
+
   background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
+
   mix-blend-mode: overlay;
   opacity: 0.15;
   pointer-events: none;
+
+  animation: wave-shift 20s linear infinite;
   background-size: 200px 200px;
+}
+
+/* Subtle wavy horizontal shift */
+@keyframes wave-shift {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
 }
 
 html,
@@ -348,64 +434,82 @@ html {
     opacity: 0;
     filter: blur(8px);
   }
+
   100% {
     opacity: 1;
     filter: blur(0);
   }
 }
 
-/* Continuous horizontal ticker, single direction only */
 @keyframes marquee-scroll {
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100vw);
   }
 }
 
+/* consolidated .animate-marquee definition lives below */
+
+/* Tailwind-safe helper class name */
 .animate-slowFadeIn {
   animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* ------------------------------------------------------------
-   Ambient wave tint — a slow, one-way diagonal pan instead of
-   the old back-and-forth (0%→100%→0%) wobble. Same visual
-   richness, none of the ping-pong motion.
-   ------------------------------------------------------------ */
-@keyframes wave-drift {
+/* Keyframes for waves */
+@keyframes wave1 {
   0% {
     background-position: 0% 50%;
   }
+
+  50% {
+    background-position: 50% 50%;
+  }
+
   100% {
-    background-position: 200% 50%;
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes wave2 {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  50% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 100% 50%;
   }
 }
 
 .wave {
   position: absolute;
   inset: 0;
-  background-size: 300% 300%;
+
+  background-size: 400% 400%;
   mix-blend-mode: screen;
-  opacity: 0.5;
-  animation: wave-drift 34s linear infinite;
+  opacity: 0.6;
+
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
 }
 
 .wave1 {
   background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
+
+  animation: wave1 20s ease-in-out infinite;
 }
 
 .wave2 {
   background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
-  opacity: 0.4;
-  animation-duration: 44s;
-  animation-direction: reverse;
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .wave {
-    animation: none;
-  }
+  animation: wave2 25s ease-in-out infinite;
+  opacity: 0.5;
 }
 
 .typewriter-fade-out {
@@ -422,6 +526,7 @@ html {
   0% {
     transform: translate3d(0, 0, 0);
   }
+
   100% {
     transform: translate3d(-50%, 0, 0);
   }
@@ -430,7 +535,9 @@ html {
 .animate-marquee {
   display: flex;
   width: max-content;
+
   animation: marquee 22s linear infinite;
+
   will-change: transform;
   backface-visibility: hidden;
   transform: translateZ(0);
@@ -439,30 +546,34 @@ html {
 /* optional edge fade to mask any seams */
 .marquee-fade-edges {
   -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
-/* Category spotlight — a quiet fade/blur reveal, no scale pop
-   and no vertical travel, so it settles rather than bounces in. */
+/* Category spotlight animations — soft blur in/out */
 @keyframes spotlight-in {
   from {
     opacity: 0;
-    filter: blur(6px);
+    filter: blur(10px);
+    transform: translateY(8px) scale(0.97);
   }
+
   to {
     opacity: 1;
     filter: blur(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .spotlight-item {
-  animation: spotlight-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: spotlight-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes spotlight-progress {
   from {
     width: 0%;
   }
+
   to {
     width: 100%;
   }
@@ -489,16 +600,22 @@ html {
 :root[data-theme="minimal"] {
   --background: 0 0% 100%;
   --foreground: 0 0% 4%;
+
   --card: 0 0% 100%;
   --card-foreground: 0 0% 4%;
+
   --primary: 0 0% 4%;
   --primary-foreground: 0 0% 100%;
+
   --secondary: 0 0% 96%;
   --secondary-foreground: 0 0% 4%;
+
   --muted: 0 0% 96%;
   --muted-foreground: 0 0% 36%;
+
   --accent: 0 0% 4%;
   --accent-foreground: 0 0% 100%;
+
   --border: 0 0% 8%;
   --input: 0 0% 8%;
   --ring: 0 0% 4%;
@@ -513,7 +630,9 @@ body,
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
   transition-property: color, background-color, border-color, opacity, box-shadow;
+
   transition-duration: var(--theme-transition-duration);
+
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -632,22 +751,64 @@ body,
 }
 
 /* ------------------------------------------------------------
-   GDx theme easter egg — a single gentle pulse rather than a
-   simulated double-click, so it reads as a quiet invitation
-   instead of a nudge.
+   GDx theme easter egg
    ------------------------------------------------------------ */
 
 .gdx-theme-hint {
-  animation: gdxThemePulse 3.2s ease-in-out infinite;
+  animation: gdxThemePulse 2.4s ease-in-out infinite;
 }
 
 @keyframes gdxThemePulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
   }
-  50% {
-    box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
+
+  /* First click-like pulse */
+  10% {
+    transform: scale(1.035);
+
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.1),
+      0 0 20px rgba(255, 255, 255, 0.22);
+  }
+
+  18% {
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
+  }
+
+  /* Small pause between clicks */
+  24% {
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
+  }
+
+  /* Second click-like pulse */
+  34% {
+    transform: scale(1.035);
+
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.1),
+      0 0 20px rgba(255, 255, 255, 0.22);
+  }
+
+  42% {
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
   }
 }
 
@@ -659,10 +820,54 @@ body,
 @keyframes gdxThemePulseMinimal {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
   }
-  50% {
-    box-shadow: 0 0 16px rgba(0, 0, 0, 0.14);
+
+  /* First click-like pulse */
+  10% {
+    transform: scale(1.035);
+
+    box-shadow:
+      0 0 0 3px rgba(0, 0, 0, 0.1),
+      0 0 20px rgba(0, 0, 0, 0.16);
+  }
+
+  18% {
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
+
+  /* Small pause between clicks */
+  24% {
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
+
+  /* Second click-like pulse */
+  34% {
+    transform: scale(1.035);
+
+    box-shadow:
+      0 0 0 3px rgba(0, 0, 0, 0.1),
+      0 0 20px rgba(0, 0, 0, 0.16);
+  }
+
+  42% {
+    transform: scale(1);
+
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
   }
 }
 
