@@ -3265,21 +3265,35 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   <Mic className="h-5 w-5" strokeWidth={2} />
                 </button>
 
-                {/* Talk with agent / send button */}
+                {/* Talk with agent button (ChatGPT style) */}
                 <button
-                  type={query.trim() ? "submit" : "button"}
-                  onClick={query.trim() ? undefined : startVoiceSession}
-                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] border border-transparent transition-all active:scale-95 shadow-sm cursor-pointer ${
-                    query.trim() ? "gdx-tts-button--send" : ""
+                  type="button"
+                  onClick={() => {
+                    if (query.trim()) {
+                      void handleSubmit(undefined, undefined, false);
+                    } else {
+                      startVoiceSession();
+                    }
+                  }}
+                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
+                    query.trim() ? "bg-[#0084FF] hover:bg-[#0074E8]" : "bg-[#0084FF] hover:bg-[#0074E8]"
                   }`}
-                  title={query.trim() ? "Send message" : "Talk with GDx"}
-                  aria-label={query.trim() ? "Send message" : "Talk with GDx"}
+                  title={query.trim() ? "Search" : "Talk with GDx"}
+                  aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
-                  <span className={`gdx-tts-icon ${query.trim() ? "gdx-tts-icon--hidden" : ""}`}>
+                  <span
+                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                      query.trim() ? "opacity-0 scale-75 -translate-x-1.5" : "opacity-100 scale-100 translate-x-0"
+                    }`}
+                  >
                     <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
                   </span>
-                  <span className={`gdx-send-icon ${query.trim() ? "gdx-send-icon--visible" : ""}`}>
-                    <ArrowRight className="h-4 w-4 text-white" strokeWidth={2.25} />
+                  <span
+                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                      query.trim() ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-75 translate-x-1.5"
+                    }`}
+                  >
+                    <ArrowRight className="h-[18px] w-[18px] text-white" strokeWidth={2.25} />
                   </span>
                 </button>
               </div>
@@ -3427,47 +3441,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
-        .gdx-tts-button {
-          position: relative;
-          overflow: hidden;
-        }
-
-        .gdx-tts-icon,
-        .gdx-send-icon {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition:
-            opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
-            transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .gdx-tts-icon {
-          opacity: 1;
-          transform: translateX(0) scale(1);
-        }
-
-        .gdx-tts-icon--hidden {
-          opacity: 0;
-          transform: translateX(-8px) scale(0.82);
-        }
-
-        .gdx-send-icon {
-          opacity: 0;
-          transform: translateX(8px) scale(0.82);
-        }
-
-        .gdx-send-icon--visible {
-          opacity: 1;
-          transform: translateX(0) scale(1);
-        }
-
-        .gdx-tts-button--send {
-          background: linear-gradient(135deg, #0084FF 0%, #2C8CFF 100%);
-        }
-
         .inline-code {
           background: rgba(255,255,255,.04);
           padding: .05rem .25rem;
@@ -3515,6 +3488,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         .listening-input {
           color: transparent;
+        }
+
+        .gdx-tts-button {
+          position: relative;
+          overflow: hidden;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
+          background-color: #000 !important;
+          border-color: #000 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
+          color: #fff !important;
         }
 
         @keyframes suggestionEmerge {
