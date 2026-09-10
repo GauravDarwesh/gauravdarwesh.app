@@ -335,14 +335,22 @@ All colors MUST be HSL.
   }
 }
 
-@media (max-width: 768px) {
-  .orange-bg::before {
-    animation-duration: 60s;
+/* Phones and tablets: keep the wallpaper static and lighten the frosted
+   effects so scrolling and typing stay smooth on lower-powered GPUs. */
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+  .orange-bg::before,
+  .orange-bg::after {
+    animation: none;
+    will-change: auto;
   }
 
   .orange-bg::after {
-    animation-duration: 84s;
-    opacity: 0.21;
+    opacity: 0.16;
+  }
+
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: blur(6px) !important;
+    backdrop-filter: blur(6px) !important;
   }
 }
 
