@@ -578,11 +578,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
-  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
-  const [streamPulse, setStreamPulse] = useState(false);
   const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
-  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
-  const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -2982,17 +2978,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopVoiceSession();
       hideVoiceLinkBubbles();
 
-      if (response || suggestions.length > 0) {
-        setIsCollapsingToThink(true);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setResponse(null);
-        setSuggestions([]);
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        setIsCollapsingToThink(false);
-      } else {
-        setResponse(null);
-        setSuggestions([]);
-      }
+      // Clear the previous answer immediately so the new stream can begin
+      // without waiting for a collapse animation. Keep the SearchBar expanded
+      // because isLoading is set below.
+      setIsCollapsingToThink(false);
+      setResponse(null);
+      setSuggestions([]);
     } else {
       setIsListening(false);
     }
@@ -3002,7 +2993,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     try {
       setSearchVisuals([]);
-      setIsStreamingResponse(false);
 
       if (fromVoice) {
         const result = await sendChatMessage(text);
@@ -3018,15 +3008,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       /*
-       * Expand immediately when the request starts.
-       * The SearchBar must never wait for the first token before opening.
-       * Streamed content is applied to React state as soon as it arrives.
+       * Streaming starts immediately. The SearchBar is already expanded by
+       * isLoading, and every server chunk is rendered as soon as it arrives.
+       * There is intentionally no thinking animation, reveal timer, or
+       * typewriter effect here.
        */
-      setIsPreparingToStream(true);
-
       let streamedResponse = "";
       let visualsShown = false;
-      let firstTokenShown = false;
 
       const result = await streamChatMessage(text, {
         onToken: (chunk: string) => {
@@ -3034,23 +3022,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           streamedResponse += chunk;
 
-          if (!firstTokenShown) {
-            firstTokenShown = true;
-            setIsPreparingToStream(false);
-            setIsStreamingResponse(true);
-          }
-
-          // Render every received chunk immediately.
+          // Render the server chunk immediately. This is streaming, not a
+          // client-side typewriter: there is no artificial delay between chunks.
           setResponse(streamedResponse);
-
-          if (streamPulseFrameRef.current !== null) {
-            cancelAnimationFrame(streamPulseFrameRef.current);
-          }
-
-          setStreamPulse(false);
-          streamPulseFrameRef.current = requestAnimationFrame(() => {
-            setStreamPulse(true);
-          });
         },
         onVisuals: (visuals: VisualItem[]) => {
           if (!visuals.length) return;
@@ -3077,14 +3051,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
       }
 
-      setIsPreparingToStream(false);
       setResponse(answer || streamedResponse || null);
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
       onSearch?.(answer);
     } catch (error) {
-      setIsPreparingToStream(false);
-      setIsStreamingResponse(false);
       setSearchVisuals([]);
 
       const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
@@ -3098,15 +3069,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         onSearch?.(message);
       }
     } finally {
-      setIsPreparingToStream(false);
-      setIsStreamingResponse(false);
-      setStreamPulse(false);
-
-      if (streamPulseFrameRef.current !== null) {
-        cancelAnimationFrame(streamPulseFrameRef.current);
-        streamPulseFrameRef.current = null;
-      }
-
       isLoadingRef.current = false;
       setIsLoading(false);
     }
@@ -3208,17 +3170,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const layoutValues = useMemo(() => {
-    const hasContent = (suggestions.length > 0 || Boolean(response)) && !isVoiceSession && !isTranscribing;
+    // Always use the full response width while a request is active.
+    // This guarantees the streamed text has an expanded surface from the
+    // moment Send is pressed, before the first model chunk arrives.
+    const isExpanded = isLoading || Boolean(response) || suggestions.length > 0 || isVoiceSession || isTranscribing;
 
-    // Expand as soon as a request starts. This must not depend on the first
-    // token arriving, otherwise the thinking state can keep the bar compact.
-    const isExpanded = hasContent || isLoading || isPreparingToStream || isStreamingResponse;
-
-    const targetWidth = isExpanded
-      ? "min(460px, 92vw)"
-      : isVoiceSession || isTranscribing
-        ? "min(320px, 78vw)"
-        : "min(360px, 92vw)";
+    const targetWidth = isExpanded ? "min(460px, 92vw)" : "min(360px, 92vw)";
 
     const targetRadius = isExpanded ? "16px" : "999px";
 
@@ -3227,15 +3184,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       targetWidth,
       targetRadius,
     };
-  }, [
-    suggestions.length,
-    response,
-    isVoiceSession,
-    isTranscribing,
-    isLoading,
-    isStreamingResponse,
-    isPreparingToStream,
-  ]);
+  }, [isLoading, response, suggestions.length, isVoiceSession, isTranscribing]);
 
   /* =======================================================
      RENDER
@@ -3295,8 +3244,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       <div
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
-          isLoading && !isStreamingResponse ? "thinking-container" : ""
-        } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
+          isVoiceSession || isTranscribing || isListening ? "listening-container" : ""
+        }`}
         style={{
           width: layoutValues.targetWidth,
           maxWidth: "92vw",
@@ -3312,8 +3261,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
-            transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage && !isStreamingResponse ? "0ms" : "0ms",
+            transitionDuration: "500ms",
+            transitionDelay: "0ms",
           }}
         >
           <Fade
@@ -3339,42 +3288,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           <SearchVisualCarousel
             items={searchVisuals}
-            visible={
-              searchVisuals.length > 0 && !isVoiceSession && !isTranscribing && !isCollapsing && !isCollapsingToThink
-            }
+            visible={searchVisuals.length > 0 && !isVoiceSession && !isTranscribing && !isCollapsing}
           />
 
           <div
-            className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response && !isVoiceSession && !isTranscribing
-                ? isCollapsing || isCollapsingToThink
-                  ? "opacity-0 mb-0"
-                  : "opacity-100 mb-5"
-                : "opacity-0 mb-0"
+            className={`overflow-hidden transition-[max-height,opacity,margin] ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              response && !isVoiceSession && !isTranscribing && !isCollapsing ? "opacity-100 mb-5" : "opacity-0 mb-0"
             }`}
             style={{
-              maxHeight:
-                isCollapsing || isCollapsingToThink
-                  ? "0px"
-                  : response && !isVoiceSession && !isTranscribing
-                    ? "384px"
-                    : "0px",
-              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
-              transitionDelay: isStreamingResponse
-                ? "0ms"
-                : response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage
-                  ? "0ms"
-                  : "0ms",
+              maxHeight: response && !isVoiceSession && !isTranscribing && !isCollapsing ? "384px" : "0px",
+              transitionDuration: "250ms",
+              transitionDelay: "0ms",
             }}
           >
             {response && !isVoiceSession && !isTranscribing && (
               <div
                 className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "0ms",
                   maxHeight: "300px",
                   fontWeight: 400,
+                  opacity: 1,
+                  animation: "none",
                 }}
                 dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
               />
@@ -3391,12 +3325,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={isLoading ? "Thinking…" : placeholderText}
+                  placeholder={placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10 ${
-                    isLoading ? "thinking-placeholder" : ""
-                  }`}
+                  className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10"
                   disabled={isLoading}
                   aria-label="Ask anything"
                   style={{ fontWeight: 400 }}
@@ -3501,16 +3433,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes streamTextPulse {
-          from {
-            opacity: 0.86;
-            filter: blur(1.2px);
-          }
-          to {
-            opacity: 1;
-            filter: blur(0);
-          }
-        }
 
         @keyframes searchVisualsReveal {
           from {
@@ -3546,65 +3468,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           animation-delay: 0.1s;
         }
 
-        .thinking-container {
-          border: 1px solid rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.05);
-          animation: glowPulse 2s infinite ease-in-out;
-        }
 
-        @keyframes glowPulse {
-          0%, 100% {
-            box-shadow:
-              0 0 5px rgba(255,255,255,0.1),
-              inset 0 0 10px rgba(255,255,255,0.05);
-          }
-          50% {
-            box-shadow:
-              0 0 20px rgba(255,255,255,0.3),
-              inset 0 0 20px rgba(255,255,255,0.15);
-          }
-        }
-
-        @keyframes textGlow {
-          0%, 100% {
-            color: rgba(255,255,255,0.3);
-            text-shadow: 0 0 1px rgba(255,255,255,0.2);
-          }
-          50% {
-            color: rgba(255,255,255,0.8);
-            text-shadow: 0 0 3px rgba(255,255,255,0.6);
-          }
-        }
-
-        .thinking-placeholder::placeholder {
-          color: rgba(255,255,255,0.6);
-          animation: textGlow 2s infinite ease-in-out;
-          font-weight: 400;
-        }
-
-        .thinking-placeholder[disabled] {
-          caret-color: transparent;
-        }
-
-        /* Monochrome mode: keep the existing thinking UI visible on the white surface. */
-        :root[data-theme="minimal"] [data-gdx-search] .thinking-container {
-          border-color: rgba(0,0,0,0.18);
-          background: rgba(0,0,0,0.04);
-          animation: glowPulseMinimal 2s infinite ease-in-out;
-        }
-
-        @keyframes glowPulseMinimal {
-          0%, 100% {
-            box-shadow:
-              0 0 5px rgba(0,0,0,0.06),
-              inset 0 0 10px rgba(0,0,0,0.03);
-          }
-          50% {
-            box-shadow:
-              0 0 20px rgba(0,0,0,0.18),
-              inset 0 0 20px rgba(0,0,0,0.08);
-          }
-        }
 
         /* Monochrome mode: make voice response link bubbles visible with a black border. */
         :root[data-theme="minimal"] [data-gdx-search] .gdx-voice-link-bubble {
@@ -3644,21 +3508,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           color: #fff !important;
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .thinking-placeholder::placeholder {
-          color: rgba(0,0,0,0.48) !important;
-          animation: textGlowMinimal 2s infinite ease-in-out;
-        }
-
-        @keyframes textGlowMinimal {
-          0%, 100% {
-            color: rgba(0,0,0,0.32);
-            text-shadow: 0 0 1px rgba(0,0,0,0.08);
-          }
-          50% {
-            color: rgba(0,0,0,0.72);
-            text-shadow: 0 0 3px rgba(0,0,0,0.18);
-          }
-        }
 
         .inline-code {
           background: rgba(255,255,255,.04);
@@ -3669,23 +3518,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           font-weight: 400;
         }
 
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
-        }
-
-        .typewriter-cursor {
-          display: inline-block;
-          animation: blink 1s infinite;
-          margin-left: 2px;
-          font-weight: 400;
-        }
-
-        .typewriter-text {
-          display: inline-block;
-          min-height: 1.2em;
-          font-weight: 400;
-        }
 
         .listening-container {
           border: 1px solid rgba(255,255,255,0.3);
