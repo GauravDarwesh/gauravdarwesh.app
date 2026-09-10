@@ -1,12 +1,6 @@
 // src/lib/api.ts
-
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "./session";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-
-const BRIGHT_ACTION_ENDPOINT = `${SUPABASE_URL}/functions/v1/bright-action`;
 
 export interface ChatResponse {
   response: string;
@@ -19,295 +13,37 @@ export interface StreamChatHandlers {
   onVisuals?: (visuals: Array<{ url: string; title?: string }>) => void;
 }
 
-type VisualItem = {
-  url: string;
-  title?: string;
-};
-
-type BackendVisualCollection = {
-  title?: string;
-  items?: string[];
-};
-
 /**
- * Normalizes the backend visual payload into the flat format
- * consumed by the SearchVisualCarousel.
- *
- * Backend:
- *   [
- *     {
- *       title: "Japan 2025 Collection",
- *       items: ["https://...", "https://..."]
- *     }
- *   ]
- *
- * Frontend:
- *   [
- *     {
- *       url: "https://...",
- *       title: "Japan 2025 Collection"
- *     }
- *   ]
- */
-function normalizeVisuals(value: unknown): VisualItem[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  const normalized: VisualItem[] = [];
-  const seen = new Set<string>();
-
-  for (const item of value as Array<VisualItem | BackendVisualCollection>) {
-    // Already-flat frontend format.
-    if (item && typeof item === "object" && typeof (item as VisualItem).url === "string") {
-      const url = (item as VisualItem).url.trim();
-
-      if (!/^https?:\/\//i.test(url) || seen.has(url)) {
-        continue;
-      }
-
-      seen.add(url);
-
-      normalized.push({
-        url,
-        title:
-          typeof (item as VisualItem).title === "string" && (item as VisualItem).title.trim()
-            ? (item as VisualItem).title.trim()
-            : undefined,
-      });
-
-      continue;
-    }
-
-    // Backend collection format.
-    if (item && typeof item === "object" && Array.isArray((item as BackendVisualCollection).items)) {
-      const collection = item as BackendVisualCollection;
-      const title =
-        typeof collection.title === "string" && collection.title.trim() ? collection.title.trim() : undefined;
-
-      for (const rawUrl of collection.items ?? []) {
-        if (typeof rawUrl !== "string") {
-          continue;
-        }
-
-        const url = rawUrl.trim();
-
-        if (!/^https?:\/\//i.test(url) || seen.has(url)) {
-          continue;
-        }
-
-        seen.add(url);
-
-        normalized.push({
-          url,
-          title,
-        });
-      }
-    }
-  }
-
-  return normalized;
-}
-
-/**
- * Streams the Bright Action response from the Edge Function using SSE.
- *
- * Backend events:
- *   { type: "start" }
- *   { type: "token", text: "..." }
- *   { type: "visuals", visuals: [...] }
- *   { type: "done", ... }
- *   { type: "error", error: "..." }
+ * Streams a chat response when the backend supports it; otherwise falls back
+ * to a single-shot response emitted as one chunk.
  */
 export async function streamChatMessage(
   message: string,
   handlers: StreamChatHandlers = {},
-): Promise<
-  ChatResponse & {
-    visuals?: Array<{ url: string; title?: string }>;
-    suggestions?: string[];
+): Promise<ChatResponse & { visuals?: Array<{ url: string; title?: string }>; suggestions?: string[] }> {
+  const result = await sendChatMessage(message);
+
+  const data = (result.debug ?? {}) as any;
+  const visuals = Array.isArray(data?.visuals) ? data.visuals : undefined;
+
+  if (result.response) {
+    handlers.onToken?.(result.response);
   }
-> {
-  const sessionId = getSessionId();
-
-  console.log("Starting streaming chat:", {
-    message,
-    sessionId,
-  });
-
-  try {
-    const response = await fetch(BRIGHT_ACTION_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        apikey: SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({
-        message: message.trim(),
-        sessionId,
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(errorText || `Edge function returned ${response.status}`);
-    }
-
-    if (!response.body) {
-      throw new Error("Streaming response body is unavailable.");
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    let buffer = "";
-    let fullResponse = "";
-    let visuals: VisualItem[] = [];
-    let suggestions: string[] = [];
-    let finalData: any = null;
-
-    const processEvent = (rawEvent: string) => {
-      const lines = rawEvent.split(/\r?\n/);
-
-      const dataLines = lines.filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart());
-
-      if (dataLines.length === 0) {
-        return;
-      }
-
-      const dataText = dataLines.join("\n");
-
-      if (!dataText || dataText === "[DONE]") {
-        return;
-      }
-
-      let payload: any;
-
-      try {
-        payload = JSON.parse(dataText);
-      } catch (error) {
-        console.warn("Unable to parse SSE payload:", dataText, error);
-        return;
-      }
-
-      switch (payload?.type) {
-        case "start":
-          console.log("Streaming started");
-          break;
-
-        case "token": {
-          const chunk = typeof payload.text === "string" ? payload.text : "";
-
-          if (chunk) {
-            fullResponse += chunk;
-            handlers.onToken?.(chunk);
-          }
-
-          break;
-        }
-
-        case "visuals": {
-          const normalizedVisuals = normalizeVisuals(payload.visuals);
-
-          if (normalizedVisuals.length > 0) {
-            visuals = normalizedVisuals;
-            handlers.onVisuals?.(normalizedVisuals);
-          }
-
-          break;
-        }
-
-        case "done": {
-          finalData = payload;
-
-          if (typeof payload.response === "string") {
-            fullResponse = payload.response;
-          }
-
-          const doneVisuals = normalizeVisuals(payload.visuals);
-
-          if (doneVisuals.length > 0) {
-            visuals = doneVisuals;
-            handlers.onVisuals?.(doneVisuals);
-          }
-
-          suggestions = Array.isArray(payload.suggestions) ? payload.suggestions : [];
-
-          break;
-        }
-
-        case "error":
-          throw new Error(payload.error || "The assistant is temporarily unavailable. Please try again shortly.");
-
-        default:
-          console.log("Unknown streaming event:", payload);
-      }
-    };
-
-    while (true) {
-      const { value, done } = await reader.read();
-
-      if (done) {
-        break;
-      }
-
-      buffer += decoder.decode(value, {
-        stream: true,
-      });
-
-      const events = buffer.split(/\r?\n\r?\n/);
-
-      buffer = events.pop() ?? "";
-
-      for (const event of events) {
-        if (event.trim()) {
-          processEvent(event);
-        }
-      }
-    }
-
-    buffer += decoder.decode();
-
-    if (buffer.trim()) {
-      processEvent(buffer);
-    }
-
-    const result: ChatResponse = {
-      response: fullResponse || finalData?.response || "No response generated",
-      success: finalData?.success !== false,
-      debug: finalData ?? undefined,
-    };
-
-    return {
-      ...result,
-      visuals,
-      suggestions,
-    };
-  } catch (error) {
-    console.error("Streaming chat API error:", error);
-
-    return {
-      response: `Error: ${error instanceof Error ? error.message : "Something went wrong"}`,
-      success: false,
-      visuals: [],
-      suggestions: [],
-    };
+  if (visuals && visuals.length > 0) {
+    handlers.onVisuals?.(visuals);
   }
+
+  return {
+    ...result,
+    visuals,
+    suggestions: Array.isArray(data?.suggestions) ? data.suggestions : [],
+  };
 }
 
-/**
- * Existing non-streaming chat request.
- */
 export async function sendChatMessage(message: string): Promise<ChatResponse> {
   const sessionId = getSessionId();
 
-  console.log("Sending chat message:", {
-    message,
-    sessionId,
-  });
+  console.log("Sending chat message:", { message, sessionId });
 
   try {
     const { data, error } = await supabase.functions.invoke("bright-action", {
@@ -319,7 +55,6 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
 
     if (error) {
       console.error("Edge function error:", error);
-
       throw new Error(error.message ?? "Edge function error");
     }
 
@@ -332,7 +67,6 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
     };
   } catch (error) {
     console.error("Chat API error:", error);
-
     return {
       response: `Error: ${error instanceof Error ? error.message : "Something went wrong"}`,
       success: false,
