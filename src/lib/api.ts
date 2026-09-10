@@ -30,6 +30,19 @@ function normalizeVisuals(visuals: any): VisualItem[] {
 
   const items: VisualItem[] = [];
 
+  const addVisual = (urlValue: unknown, titleValue?: unknown) => {
+    const normalizedUrl = String(urlValue ?? "").trim();
+
+    if (!/^https?:\/\//i.test(normalizedUrl)) {
+      return;
+    }
+
+    items.push({
+      url: normalizedUrl,
+      title: String(titleValue ?? "").trim() || undefined,
+    });
+  };
+
   /*
    * Current backend format:
    *
@@ -49,21 +62,41 @@ function normalizeVisuals(visuals: any): VisualItem[] {
     for (const collection of visuals.collections) {
       const title = String(collection?.title ?? "").trim() || undefined;
 
-      const imageUrls = Array.isArray(collection?.imageUrls)
-        ? collection.imageUrls
-        : Array.isArray(collection?.items)
-          ? collection.items
-          : [];
+      /*
+       * Primary format:
+       *
+       * imageUrls: ["url1", "url2"]
+       */
+      if (Array.isArray(collection?.imageUrls)) {
+        for (const image of collection.imageUrls) {
+          /*
+           * Support both:
+           *
+           * "https://..."
+           *
+           * and, defensively:
+           *
+           * { url: "https://...", title: "..." }
+           */
+          if (typeof image === "object" && image !== null) {
+            addVisual((image as any)?.url, (image as any)?.title ?? title);
+          } else {
+            addVisual(image, title);
+          }
+        }
+      }
 
-      for (const url of imageUrls) {
-        const normalizedUrl = String(url ?? "").trim();
-
-        if (!/^https?:\/\//i.test(normalizedUrl)) continue;
-
-        items.push({
-          url: normalizedUrl,
-          title,
-        });
+      /*
+       * Compatibility with a collection using `items`.
+       */
+      if (Array.isArray(collection?.items)) {
+        for (const image of collection.items) {
+          if (typeof image === "object" && image !== null) {
+            addVisual((image as any)?.url, (image as any)?.title ?? title);
+          } else {
+            addVisual(image, title);
+          }
+        }
       }
     }
   }
@@ -71,16 +104,13 @@ function normalizeVisuals(visuals: any): VisualItem[] {
   /*
    * Fallback for the flattened image_urls format.
    */
-  if (items.length === 0 && Array.isArray(visuals?.image_urls)) {
-    for (const url of visuals.image_urls) {
-      const normalizedUrl = String(url ?? "").trim();
-
-      if (!/^https?:\/\//i.test(normalizedUrl)) continue;
-
-      items.push({
-        url: normalizedUrl,
-        title: "Gaurav's Travels",
-      });
+  if (Array.isArray(visuals?.image_urls)) {
+    for (const image of visuals.image_urls) {
+      if (typeof image === "object" && image !== null) {
+        addVisual((image as any)?.url, (image as any)?.title ?? "Gaurav's Travels");
+      } else {
+        addVisual(image, "Gaurav's Travels");
+      }
     }
   }
 
@@ -91,27 +121,19 @@ function normalizeVisuals(visuals: any): VisualItem[] {
    *   { url: "...", title: "..." },
    *   { url: "...", title: "..." }
    * ]
+   *
+   * or:
+   *
+   * [
+   *   "https://..."
+   * ]
    */
-  if (items.length === 0 && Array.isArray(visuals)) {
+  if (Array.isArray(visuals)) {
     for (const item of visuals) {
-      if (item && typeof item === "object" && typeof item.url === "string") {
-        const url = item.url.trim();
-
-        if (!/^https?:\/\//i.test(url)) continue;
-
-        items.push({
-          url,
-          title: String(item.title ?? "").trim() || undefined,
-        });
+      if (item && typeof item === "object") {
+        addVisual((item as any)?.url, (item as any)?.title);
       } else if (typeof item === "string") {
-        const url = item.trim();
-
-        if (!/^https?:\/\//i.test(url)) continue;
-
-        items.push({
-          url,
-          title: "Gaurav's Travels",
-        });
+        addVisual(item, "Gaurav's Travels");
       }
     }
   }
@@ -122,9 +144,9 @@ function normalizeVisuals(visuals: any): VisualItem[] {
   const seen = new Set<string>();
 
   return items.filter((item) => {
-    const key = item.url.toLowerCase();
+    const key = item.url.trim().toLowerCase();
 
-    if (seen.has(key)) {
+    if (!key || seen.has(key)) {
       return false;
     }
 
@@ -193,7 +215,11 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
      *
      * This is what SearchBar reads.
      */
-    const visuals = normalizeVisuals((data as any)?.visuals);
+    const rawVisuals = (data as any)?.visuals;
+
+    console.log("Raw visuals from Edge Function:", rawVisuals);
+
+    const visuals = normalizeVisuals(rawVisuals);
 
     const suggestions = Array.isArray((data as any)?.suggestions) ? (data as any).suggestions : [];
 
