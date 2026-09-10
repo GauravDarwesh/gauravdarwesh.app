@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { Mic, Check, X, ArrowRight } from "lucide-react";
+import { Mic, Check, X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
@@ -180,217 +180,154 @@ const extractVoiceLinks = (text: string): VoiceLink[] => {
   return links.slice(0, 4);
 };
 
-type VisualCollection = {
-  title: string;
-  year?: number;
-  items?: string[];
-  imageUrls?: string[];
+type VisualItem = {
+  url: string;
+  title?: string;
 };
 
-type VisualsData = {
-  type?: string;
-  collections?: VisualCollection[];
-  image_urls?: string[];
-};
+const extractVisualItems = (visuals: any): VisualItem[] => {
+  if (!visuals) return [];
 
-const VisualTravelFrame: React.FC<{
-  visuals: VisualsData | null;
-  onReady?: (ready: boolean) => void;
-}> = ({ visuals, onReady }) => {
-  const urls = useMemo(() => {
-    const fromCollections =
-      visuals?.collections?.flatMap((collection) =>
-        (collection.items || collection.imageUrls || []).map((url) => ({
-          url,
-          title: collection.title,
-          year: collection.year,
-        })),
-      ) || [];
+  const items: VisualItem[] = [];
 
-    if (fromCollections.length > 0) return fromCollections;
+  if (Array.isArray(visuals)) {
+    items.push(
+      ...visuals.map((item: any) => ({
+        url: String(item?.url ?? "").trim(),
+        title: String(item?.title ?? "").trim() || undefined,
+      })),
+    );
+  } else if (Array.isArray(visuals?.collections)) {
+    for (const collection of visuals.collections) {
+      const title = String(collection?.title ?? "").trim() || undefined;
+      const collectionImages = Array.isArray(collection?.imageUrls)
+        ? collection.imageUrls
+        : Array.isArray(collection?.items)
+          ? collection.items
+          : [];
 
-    return (visuals?.image_urls || []).map((url) => ({
-      url,
-      title: "Gaurav's Travels",
-      year: undefined,
-    }));
-  }, [visuals]);
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [activeLayer, setActiveLayer] = useState<"A" | "B">("A");
-  const [loaded, setLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const layerARef = useRef<HTMLDivElement | null>(null);
-  const layerBRef = useRef<HTMLDivElement | null>(null);
-  const indexRef = useRef(0);
-  const activeLayerRef = useRef<"A" | "B">("A");
-  const preloadCacheRef = useRef(new Set<string>());
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setCurrentIndex(0);
-    setActiveLayer("A");
-    activeLayerRef.current = "A";
-    indexRef.current = 0;
-    setLoaded(false);
-    setImageError(false);
-    onReady?.(!urls.length);
-
-    if (!urls.length) {
-      setLoaded(true);
-      onReady?.(true);
-      return;
-    }
-
-    const firstUrl = urls[0].url;
-
-    if (preloadCacheRef.current.has(firstUrl)) {
-      setLoaded(true);
-      onReady?.(true);
-      return;
-    }
-
-    const img = new Image();
-    const finish = (success: boolean) => {
-      if (cancelled) return;
-      preloadCacheRef.current.add(firstUrl);
-      setImageError(!success);
-      setLoaded(true);
-      onReady?.(true);
-    };
-
-    img.onload = () => finish(true);
-    img.onerror = () => finish(false);
-    img.src = firstUrl;
-
-    return () => {
-      cancelled = true;
-    };
-  }, [urls, onReady]);
-
-  useEffect(() => {
-    if (!loaded || urls.length <= 1) return;
-
-    const preloadNext = (url: string) => {
-      if (!url || preloadCacheRef.current.has(url)) return;
-      const img = new Image();
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        preloadCacheRef.current.add(url);
-      };
-      img.onload = finish;
-      img.onerror = finish;
-      img.src = url;
-    };
-
-    const timer = window.setInterval(() => {
-      const nextIndex = (indexRef.current + 1) % urls.length;
-      const nextUrl = urls[nextIndex].url;
-
-      preloadNext(nextUrl);
-
-      const nextLayer = activeLayerRef.current === "A" ? "B" : "A";
-      const activeNode = activeLayerRef.current === "A" ? layerARef.current : layerBRef.current;
-      const nextNode = nextLayer === "A" ? layerARef.current : layerBRef.current;
-
-      if (!nextNode || !activeNode) return;
-
-      const cached = preloadCacheRef.current.has(nextUrl);
-
-      if (!cached) {
-        const img = new Image();
-        let finished = false;
-        const reveal = () => {
-          if (finished) return;
-          finished = true;
-          preloadCacheRef.current.add(nextUrl);
-          nextNode.style.backgroundImage = `url("${nextUrl}")`;
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              nextNode.style.opacity = "1";
-              activeNode.style.opacity = "0";
-              activeLayerRef.current = nextLayer;
-              setActiveLayer(nextLayer);
-              indexRef.current = nextIndex;
-              setCurrentIndex(nextIndex);
-            });
-          });
-        };
-        img.onload = reveal;
-        img.onerror = reveal;
-        img.src = nextUrl;
-        return;
-      }
-
-      nextNode.style.backgroundImage = `url("${nextUrl}")`;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          nextNode.style.opacity = "1";
-          activeNode.style.opacity = "0";
-          activeLayerRef.current = nextLayer;
-          setActiveLayer(nextLayer);
-          indexRef.current = nextIndex;
-          setCurrentIndex(nextIndex);
+      for (const url of collectionImages) {
+        items.push({
+          url: String(url ?? "").trim(),
+          title,
         });
-      });
+      }
+    }
+  }
+
+  if (!items.length && Array.isArray(visuals?.image_urls)) {
+    items.push(
+      ...visuals.image_urls.map((url: any) => ({
+        url: String(url ?? "").trim(),
+        title: "Gaurav's Travels",
+      })),
+    );
+  }
+
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (!/^https?:\/\//i.test(item.url)) return false;
+    const key = item.url.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const waitForVisualReady = (items: VisualItem[]): Promise<void> => {
+  const firstUrl = items[0]?.url;
+  if (!firstUrl) return Promise.resolve();
+
+  return new Promise<void>((resolve) => {
+    const image = new Image();
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    image.onload = finish;
+    image.onerror = finish;
+    image.src = firstUrl;
+
+    window.setTimeout(finish, 5000);
+  });
+};
+
+const SearchVisualCarousel: React.FC<{
+  items: VisualItem[];
+  visible: boolean;
+}> = ({ items, visible }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!visible || !items.length) return;
+    setIndex(0);
+  }, [items, visible]);
+
+  useEffect(() => {
+    if (!visible || items.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % items.length);
     }, 2000);
 
     return () => window.clearInterval(timer);
-  }, [loaded, urls]);
+  }, [items.length, visible]);
 
-  useEffect(() => {
-    const current = urls[currentIndex]?.url || "";
-    if (!current) return;
+  if (!visible || !items.length) return null;
 
-    const node = activeLayer === "A" ? layerARef.current : layerBRef.current;
-    if (!node) return;
-
-    node.style.backgroundImage = `url("${current}")`;
-    node.style.opacity = "1";
-  }, [currentIndex, activeLayer, urls]);
-
-  if (!visuals || visuals.type !== "travel" || !urls.length) return null;
-
-  const current = urls[currentIndex] || urls[0];
+  const current = items[index];
 
   return (
     <div
-      className="mb-5 overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-lg backdrop-blur-sm"
+      className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg backdrop-blur-sm"
       style={{
-        height: "150px",
-        opacity: loaded ? 1 : 0,
-        transition: "opacity 0.35s ease",
+        animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
       }}
-      aria-hidden="true"
     >
-      <div className="relative h-full w-full overflow-hidden rounded-2xl">
-        <div
-          ref={layerARef}
-          className="absolute inset-0 rounded-2xl bg-center bg-cover"
+      <div className="relative w-full h-[150px] sm:h-[160px] overflow-hidden">
+        <img
+          key={current.url}
+          src={current.url}
+          alt={current.title || "Gaurav's travel visual"}
+          className="absolute inset-0 h-full w-full object-cover"
           style={{
-            opacity: 1,
-            transition: "opacity 400ms linear",
-            backgroundImage: loaded && !imageError ? `url("${urls[0].url}")` : undefined,
+            animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
           }}
+          loading={index === 0 ? "eager" : "lazy"}
+          draggable={false}
         />
-        <div
-          ref={layerBRef}
-          className="absolute inset-0 rounded-2xl bg-center bg-cover"
-          style={{
-            opacity: 0,
-            transition: "opacity 400ms linear",
-          }}
-        />
-        <div className="absolute inset-x-0 bottom-0 p-3">
-          <div className="inline-flex items-center rounded-full border border-white/20 bg-black/20 px-3 py-1 text-[11px] text-white/85 backdrop-blur-md">
-            {current.title}
-            {current.year ? ` · ${current.year}` : ""}
-          </div>
+
+        {items.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setIndex((currentIndex) => (currentIndex - 1 + items.length) % items.length)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
+              aria-label="Previous visual"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIndex((currentIndex) => (currentIndex + 1) % items.length)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
+              aria-label="Next visual"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </>
+        )}
+
+        <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/90 text-[11px] border border-white/15">
+          {current.title || "Visuals"}
         </div>
-        {!loaded && <div className="absolute inset-0 animate-pulse bg-white/5" />}
+
+        <div className="absolute right-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/80 text-[11px] border border-white/15 tabular-nums">
+          {index + 1} / {items.length}
+        </div>
       </div>
     </div>
   );
@@ -712,8 +649,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
-  const [visuals, setVisuals] = useState<VisualsData | null>(null);
-  const [visualsReady, setVisualsReady] = useState(true);
+  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [streamPulse, setStreamPulse] = useState(false);
+  const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
+  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
+  const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -3105,8 +3045,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
-    setVisuals(null);
-    setVisualsReady(true);
+    setSearchVisuals([]);
 
     if (!customQuery) setQuery("");
 
@@ -3133,34 +3072,48 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
 
     try {
-      const chatRequest = sendChatMessage as unknown as (
-        message: string,
-        options?: { mode?: "text" | "voice" },
-      ) => Promise<any>;
+      setSearchVisuals([]);
+      setIsStreamingResponse(false);
 
-      const result = await chatRequest(text, {
-        mode: fromVoice ? "voice" : "text",
-      });
-      const answer = String((result as any)?.response ?? "");
-      const voiceAnswer = String((result as any)?.voice_response ?? answer);
-      const suggs = (result as any)?.suggestions || [];
-      const resultVisuals = (result as any)?.visuals ?? null;
-      const hasTravelVisuals =
-        resultVisuals?.type === "travel" &&
-        Array.isArray(resultVisuals?.collections) &&
-        resultVisuals.collections.length > 0;
+      if (fromVoice) {
+        const result = await sendChatMessage(text);
+        const answer = String((result as any)?.response ?? "");
+        const voiceAnswer = String((result as any)?.voice_response ?? answer);
+        const suggs = (result as any)?.suggestions || [];
 
-      if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(voiceAnswer, answer);
-      } else {
-        setVisualsReady(!hasTravelVisuals);
-        setVisuals(resultVisuals);
-        setResponse(answer);
-        setSuggestions(suggs);
-        setIsRestoredFromStorage(false);
-        onSearch?.(answer);
+        if (isVoiceSessionRef.current) {
+          void speakVoiceResponse(voiceAnswer, answer);
+        }
+
+        return;
       }
+
+      /*
+       * Wait for the complete response before expanding the SearchBar.
+       * For visual requests, the first image is also loaded before the
+       * response is released to the UI.
+       */
+      setIsPreparingToStream(true);
+
+      const result = await sendChatMessage(text);
+      const answer = String((result as any)?.response ?? "");
+      const suggs = (result as any)?.suggestions || [];
+      const returnedVisuals = extractVisualItems((result as any)?.visuals);
+
+      if (returnedVisuals.length > 0) {
+        await waitForVisualReady(returnedVisuals);
+        setSearchVisuals(returnedVisuals);
+      }
+
+      setResponse(answer || null);
+      setSuggestions(suggs);
+      setIsRestoredFromStorage(false);
+      onSearch?.(answer);
     } catch (error) {
+      setIsPreparingToStream(false);
+      setIsStreamingResponse(false);
+      setSearchVisuals([]);
+
       const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
 
       if (fromVoice && isVoiceSessionRef.current) {
@@ -3172,11 +3125,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         onSearch?.(message);
       }
     } finally {
+      setIsPreparingToStream(false);
+      setIsStreamingResponse(false);
+      setStreamPulse(false);
+
+      if (streamPulseFrameRef.current !== null) {
+        cancelAnimationFrame(streamPulseFrameRef.current);
+        streamPulseFrameRef.current = null;
+      }
+
       isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
-
   handleSubmitRef.current = handleSubmit;
 
   /* =======================================================
@@ -3275,16 +3236,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
-    const isExpanded = hasContent && !isLoading && visualsReady;
+
+    const isExpanded = hasContent && !isLoading && !isPreparingToStream;
+
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
       : isVoiceSession || isTranscribing
         ? "min(320px, 78vw)"
         : "min(360px, 92vw)";
+
     const targetRadius = isExpanded ? "16px" : "999px";
 
-    return { isExpanded, targetWidth, targetRadius };
-  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading, visualsReady]);
+    return {
+      isExpanded,
+      targetWidth,
+      targetRadius,
+    };
+  }, [
+    suggestions.length,
+    response,
+    isVoiceSession,
+    isTranscribing,
+    isLoading,
+    isStreamingResponse,
+    isPreparingToStream,
+  ]);
 
   /* =======================================================
      RENDER
@@ -3386,20 +3362,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             </div>
           </Fade>
 
-          {visuals && visuals.type === "travel" && !isVoiceSession && !isTranscribing && (
-            <div
-              className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-                visualsReady ? "opacity-100 mb-5" : "opacity-0 mb-0"
-              }`}
-              style={{
-                maxHeight: visualsReady ? "150px" : "0px",
-                transitionDuration: "1000ms",
-                transitionDelay: visualsReady && response && !isRestoredFromStorage ? "900ms" : "0ms",
-              }}
-            >
-              <VisualTravelFrame visuals={visuals} onReady={setVisualsReady} />
-            </div>
-          )}
+          <SearchVisualCarousel
+            items={searchVisuals}
+            visible={
+              searchVisuals.length > 0 && !isVoiceSession && !isTranscribing && !isCollapsing && !isCollapsingToThink
+            }
+          />
 
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
@@ -3426,7 +3394,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                 style={{
                   animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "0ms",
                   maxHeight: "300px",
                   fontWeight: 400,
                 }}
@@ -3553,6 +3521,37 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes streamTextPulse {
+          from {
+            opacity: 0.86;
+            filter: blur(1.2px);
+          }
+          to {
+            opacity: 1;
+            filter: blur(0);
+          }
+        }
+
+        @keyframes searchVisualsReveal {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes searchVisualImage {
+          from {
+            opacity: 0.7;
+          }
+          to {
+            opacity: 1;
+          }
         }
 
         @keyframes delayedFadeIn {
