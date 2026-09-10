@@ -261,50 +261,108 @@ const SearchVisualCarousel: React.FC<{
   visible: boolean;
 }> = ({ items, visible }) => {
   const [index, setIndex] = useState(0);
+  const [loaded, setLoaded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!visible || !items.length) return;
+    if (!items.length) {
+      setIndex(0);
+      setLoaded(new Set());
+      return;
+    }
+
     setIndex(0);
-  }, [items, visible]);
+
+    const preloaded: HTMLImageElement[] = [];
+    const loadedUrls = new Set<string>();
+    let cancelled = false;
+
+    const markLoaded = (url: string) => {
+      if (cancelled) return;
+      loadedUrls.add(url);
+      setLoaded(new Set(loadedUrls));
+    };
+
+    for (const item of items) {
+      const image = new Image();
+      image.decoding = "async";
+      image.onload = () => markLoaded(item.url);
+      image.onerror = () => {
+        /* Keep the current image visible; do not switch to a failed image. */
+      };
+      image.src = item.url;
+      preloaded.push(image);
+
+      if (image.complete && image.naturalWidth > 0) {
+        markLoaded(item.url);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      for (const image of preloaded) {
+        image.onload = null;
+        image.onerror = null;
+      }
+    };
+  }, [items]);
 
   useEffect(() => {
     if (!visible || items.length <= 1) return;
+
     const timer = window.setInterval(() => {
-      setIndex((current) => (current + 1) % items.length);
-    }, 2000);
+      setIndex((current) => {
+        for (let step = 1; step <= items.length; step++) {
+          const next = (current + step) % items.length;
+          if (loaded.has(items[next].url)) {
+            return next;
+          }
+        }
+
+        return current;
+      });
+    }, 5000);
 
     return () => window.clearInterval(timer);
-  }, [items.length, visible]);
+  }, [items, loaded, visible]);
 
-  if (!visible || !items.length) return null;
+  if (!items.length) return null;
 
   const current = items[index];
 
   return (
-    <div
-      className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg backdrop-blur-sm"
-      style={{
-        animation: "none",
-      }}
-    >
-      <div className="relative w-full h-[150px] sm:h-[160px] overflow-hidden">
-        <img
-          key={current.url}
-          src={current.url}
-          alt={current.title || "Gaurav's travel visual"}
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{
-            animation: "none",
-          }}
-          loading={index === 0 ? "eager" : "lazy"}
-          draggable={false}
-        />
+    <div className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg backdrop-blur-sm">
+      <div className="relative w-full h-[150px] sm:h-[160px] overflow-hidden bg-black/5">
+        {items.map((item, itemIndex) => (
+          <img
+            key={item.url}
+            src={item.url}
+            alt={item.title || "Gaurav's travel visual"}
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              opacity: itemIndex === index && loaded.has(item.url) ? 1 : 0,
+              transition: "opacity 900ms cubic-bezier(0.25,1,0.3,1)",
+              willChange: "opacity",
+              pointerEvents: itemIndex === index ? "auto" : "none",
+            }}
+            loading={itemIndex === 0 ? "eager" : "lazy"}
+            decoding="async"
+            draggable={false}
+          />
+        ))}
 
         {items.length > 1 && (
           <>
             <button
               type="button"
-              onClick={() => setIndex((currentIndex) => (currentIndex - 1 + items.length) % items.length)}
+              onClick={() => {
+                setIndex((currentIndex) => {
+                  for (let step = 1; step <= items.length; step++) {
+                    const next = (currentIndex - step + items.length) % items.length;
+                    if (loaded.has(items[next].url)) return next;
+                  }
+                  return currentIndex;
+                });
+              }}
               className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
               aria-label="Previous visual"
             >
@@ -312,7 +370,15 @@ const SearchVisualCarousel: React.FC<{
             </button>
             <button
               type="button"
-              onClick={() => setIndex((currentIndex) => (currentIndex + 1) % items.length)}
+              onClick={() => {
+                setIndex((currentIndex) => {
+                  for (let step = 1; step <= items.length; step++) {
+                    const next = (currentIndex + step) % items.length;
+                    if (loaded.has(items[next].url)) return next;
+                  }
+                  return currentIndex;
+                });
+              }}
               className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
               aria-label="Next visual"
             >
@@ -3386,13 +3452,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <>
                 <SearchVisualCarousel
                   items={searchVisuals}
-                  visible={
-                    searchVisuals.length > 0 &&
-                    !isVoiceSession &&
-                    !isTranscribing &&
-                    !isCollapsing &&
-                    !isCollapsingToThink
-                  }
+                  visible={searchVisuals.length > 0 && !isVoiceSession && !isTranscribing}
                 />
 
                 <div
