@@ -68,23 +68,20 @@ const Blog = () => {
       notionUrl: "https://olive-zircon-d34.notion.site/ebd//dac76e5b23be436c8d730c6e33fcde44",
     },
     {
-  date: "July 26, 2020",
-  title: "Getting Your Life Back on Track",
-  description:
-    "Practical ideas for getting yourself back on track. Learn to play both offensively and defensively in life — make the most of good situations and stay calm when things go badly. Rest when needed, learn as many skills as possible, and understand which work habits bring out your best performance.",
-  tags: ["Life", "Growth", "Learning"],
-  notionUrl:
-    "https://olive-zircon-d34.notion.site/ebd//beb73ee09f2b42a39bc358e650a82fd4",
-},
-{
-  date: "September 8, 2026",
-  title: "BE GOOD OR DON’T BE GOOD",
-  description:
-    "Thoughts on communication and functioning of society.",
-  tags: ["Life", "People", "Communication", "Growth"],
-  notionUrl:
-    "https://olive-zircon-d34.notion.site/ebd//3d564e75ffe9800a8084eb4f695ac381",
-},
+      date: "July 26, 2020",
+      title: "Getting Your Life Back on Track",
+      description:
+        "Practical ideas for getting yourself back on track. Learn to play both offensively and defensively in life — make the most of good situations and stay calm when things go badly. Rest when needed, learn as many skills as possible, and understand which work habits bring out your best performance.",
+      tags: ["Life", "Growth", "Learning"],
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd//beb73ee09f2b42a39bc358e650a82fd4",
+    },
+    {
+      date: "September 8, 2026",
+      title: "BE GOOD OR DON’T BE GOOD",
+      description: "Thoughts on communication and functioning of society.",
+      tags: ["Life", "People", "Communication", "Growth"],
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd//3d564e75ffe9800a8084eb4f695ac381",
+    },
   ];
 
   const allTags = Array.from(new Set(blogPosts.flatMap((post) => post.tags)));
@@ -125,9 +122,6 @@ const Blog = () => {
       </Helmet>
 
       <h1 className="sr-only">Notions — writing by Gaurav Darwesh</h1>
-
-      {/* Background */}
-      <div className="site-background orange-bg fixed inset-0" aria-hidden="true" />
 
       {/* Navigation Toggle */}
       <NavigationToggle

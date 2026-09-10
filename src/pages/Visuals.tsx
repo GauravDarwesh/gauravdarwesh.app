@@ -292,9 +292,6 @@ export default function Visuals() {
 
       <h1 className="sr-only">Visuals — photography collections by Gaurav Darwesh</h1>
 
-      {/* Background */}
-      <div className="site-background orange-bg fixed inset-0 pointer-events-none select-none" aria-hidden="true" />
-
       {/* Navigation */}
       <NavigationToggle />
 

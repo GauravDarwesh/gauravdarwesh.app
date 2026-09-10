@@ -16,9 +16,6 @@ const Others = () => {
 
       <h1 className="sr-only">More from Gaurav Darwesh</h1>
 
-      {/* Background */}
-      <div className="site-background orange-bg fixed inset-0" aria-hidden="true" />
-
       {/* Navigation Toggle */}
       <NavigationToggle />
 

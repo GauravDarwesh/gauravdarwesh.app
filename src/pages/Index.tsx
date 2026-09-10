@@ -60,9 +60,6 @@ const Index = () => {
 
       <h1 className="sr-only">Gaurav Darwesh — Portfolio</h1>
 
-      {/* Background */}
-      <div className="site-background orange-bg fixed inset-0 z-0" aria-hidden="true" />
-
       {/* Navigation Toggle */}
       <div className="relative z-20">
         <NavigationToggle />
