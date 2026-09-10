@@ -178,7 +178,7 @@ All colors MUST be HSL.
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -58%;
+  inset: -18%;
   pointer-events: none;
 
   background:
@@ -270,7 +270,7 @@ All colors MUST be HSL.
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -16%;
+  inset: -8%;
   pointer-events: none;
 
   background-image:
