@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Mic, Check, X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { sendChatMessage } from "@/lib/api";
+import { sendChatMessage, streamChatMessage } from "@/lib/api";
 
 /* =========================================================
    0. TTS CONFIG
@@ -185,72 +185,6 @@ type VisualItem = {
   title?: string;
 };
 
-const TRAVEL_VISUALS: VisualItem[] = [
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/A6AE9E26-5645-4F8A-BC54-E8A5B6311D7C.jpg",
-    title: "Japan 2025",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/D3FD6C99-BF7F-4001-9E8A-3F1F3B25666D.JPG",
-    title: "Japan 2025",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6477.jpg",
-    title: "Japan 2025",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6513.jpg",
-    title: "Japan 2025",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6529.jpg",
-    title: "Japan 2025",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6530.jpg",
-    title: "Japan 2025",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
-    title: "Japan 2024",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
-    title: "Japan 2024",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1833.jpg",
-    title: "Japan 2024",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160614_135031.jpg",
-    title: "Europe 2016",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160616_115817.jpg",
-    title: "Europe 2016",
-  },
-  {
-    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160616_124214.jpg",
-    title: "Europe 2016",
-  },
-];
-
-const getVisualsForQuery = (message: string): VisualItem[] => {
-  const normalized = message.toLowerCase();
-
-  if (
-    /\b(travel|travels|traveling|travelling|trip|trips|holiday|holidays|vacation|japan|europe)\b/i.test(normalized) &&
-    /\b(gaurav|he|his|like|likes|love|loves|enjoy|enjoys|hobby|hobbies|experience|experiences|been|visited|visit)\b/i.test(
-      normalized,
-    )
-  ) {
-    return TRAVEL_VISUALS;
-  }
-
-  return [];
-};
-
 const SearchVisualCarousel: React.FC<{
   items: VisualItem[];
   visible: boolean;
@@ -266,7 +200,7 @@ const SearchVisualCarousel: React.FC<{
     if (!visible || items.length <= 1) return;
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % items.length);
-    }, 3500);
+    }, 2000);
 
     return () => window.clearInterval(timer);
   }, [items.length, visible]);
@@ -279,7 +213,7 @@ const SearchVisualCarousel: React.FC<{
     <div
       className="w-full mb-4 overflow-hidden rounded-xl border border-foreground/15 bg-white/5"
       style={{
-        animation: "searchVisualsReveal 650ms cubic-bezier(0.25,1,0.3,1) both",
+        animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
       }}
     >
       <div className="relative w-full aspect-[16/8.5] overflow-hidden">
@@ -289,7 +223,7 @@ const SearchVisualCarousel: React.FC<{
           alt={current.title || "Gaurav's travel visual"}
           className="absolute inset-0 h-full w-full object-cover"
           style={{
-            animation: "searchVisualImage 700ms ease-out both",
+            animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
           }}
           loading={index === 0 ? "eager" : "lazy"}
           draggable={false}
@@ -3066,63 +3000,77 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
 
     try {
-      const chatRequest = sendChatMessage as unknown as (
-        message: string,
-        options?: {
-          mode?: "text" | "voice";
-          stream?: boolean;
-          onChunk?: (chunk: string) => void;
-        },
-      ) => Promise<any>;
-
-      setSearchVisuals(fromVoice ? [] : getVisualsForQuery(text));
+      setSearchVisuals([]);
       setIsStreamingResponse(false);
 
-      const result = await chatRequest(text, {
-        mode: fromVoice ? "voice" : "text",
-        stream: !fromVoice,
-        onChunk: fromVoice
-          ? undefined
-          : (chunk: string) => {
-              if (!chunk) return;
-              setIsStreamingResponse(true);
-              setResponse((current) => `${current || ""}${chunk}`);
+      if (fromVoice) {
+        const result = await sendChatMessage(text);
+        const answer = String((result as any)?.response ?? "");
+        const voiceAnswer = String((result as any)?.voice_response ?? answer);
+        const suggs = (result as any)?.suggestions || [];
 
-              if (streamPulseFrameRef.current !== null) {
-                cancelAnimationFrame(streamPulseFrameRef.current);
-              }
+        if (isVoiceSessionRef.current) {
+          void speakVoiceResponse(voiceAnswer, answer);
+        }
 
-              setStreamPulse(false);
-              streamPulseFrameRef.current = requestAnimationFrame(() => {
-                setStreamPulse(true);
-              });
-            },
+        return;
+      }
+
+      let streamedResponse = "";
+      let firstTokenShown = false;
+      let visualsShown = false;
+
+      const result = await streamChatMessage(text, {
+        onToken: (chunk: string) => {
+          if (!chunk) return;
+
+          streamedResponse += chunk;
+
+          if (!firstTokenShown) {
+            firstTokenShown = true;
+            setIsStreamingResponse(true);
+          }
+
+          setResponse(streamedResponse);
+
+          if (streamPulseFrameRef.current !== null) {
+            cancelAnimationFrame(streamPulseFrameRef.current);
+          }
+
+          setStreamPulse(false);
+          streamPulseFrameRef.current = requestAnimationFrame(() => {
+            setStreamPulse(true);
+          });
+        },
+        onVisuals: (visuals: VisualItem[]) => {
+          if (firstTokenShown && visuals.length > 0) {
+            visualsShown = true;
+            setSearchVisuals(visuals);
+          }
+        },
       });
 
-      const answer = String((result as any)?.response ?? "");
-      const voiceAnswer = String((result as any)?.voice_response ?? answer);
+      const answer = String((result as any)?.response ?? streamedResponse ?? "");
       const suggs = (result as any)?.suggestions || [];
-      const returnedVisuals = Array.isArray((result as any)?.visuals)
-        ? (result as any).visuals
-            .map((item: any) => ({
-              url: String(item?.url ?? "").trim(),
-              title: String(item?.title ?? "").trim() || undefined,
-            }))
-            .filter((item: VisualItem) => /^https?:\/\//i.test(item.url))
-        : [];
 
-      if (returnedVisuals.length > 0) {
-        setSearchVisuals(returnedVisuals);
+      if (Array.isArray((result as any)?.visuals) && !visualsShown) {
+        const returnedVisuals = (result as any).visuals
+          .map((item: any) => ({
+            url: String(item?.url ?? "").trim(),
+            title: String(item?.title ?? "").trim() || undefined,
+          }))
+          .filter((item: VisualItem) => /^https?:\/\//i.test(item.url));
+
+        if (returnedVisuals.length > 0 && firstTokenShown) {
+          visualsShown = true;
+          setSearchVisuals(returnedVisuals);
+        }
       }
 
-      if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(voiceAnswer, answer);
-      } else {
-        setResponse(answer || (result as any)?.response || null);
-        setSuggestions(suggs);
-        setIsRestoredFromStorage(false);
-        onSearch?.(answer);
-      }
+      setResponse(answer || streamedResponse || null);
+      setSuggestions(suggs);
+      setIsRestoredFromStorage(false);
+      onSearch?.(answer);
     } catch (error) {
       setIsStreamingResponse(false);
       setSearchVisuals([]);
@@ -3388,14 +3336,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <div
                 className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage
-                    ? "none"
-                    : isStreamingResponse
-                      ? streamPulse
-                        ? "streamTextPulse 260ms cubic-bezier(0.25,1,0.3,1) both"
-                        : "none"
-                      : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage || isStreamingResponse ? "0ms" : "1000ms",
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "0ms",
                   maxHeight: "300px",
                   fontWeight: 400,
                 }}
@@ -3538,7 +3480,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes searchVisualsReveal {
           from {
             opacity: 0;
-            transform: translateY(8px);
+            transform: translateY(10px);
           }
           to {
             opacity: 1;
@@ -3548,12 +3490,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         @keyframes searchVisualImage {
           from {
-            opacity: 0;
-            transform: scale(1.012);
+            opacity: 0.7;
           }
           to {
             opacity: 1;
-            transform: scale(1);
           }
         }
 
