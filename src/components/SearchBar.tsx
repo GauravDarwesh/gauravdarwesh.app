@@ -180,6 +180,222 @@ const extractVoiceLinks = (text: string): VoiceLink[] => {
   return links.slice(0, 4);
 };
 
+type VisualCollection = {
+  title: string;
+  year?: number;
+  items?: string[];
+  imageUrls?: string[];
+};
+
+type VisualsData = {
+  type?: string;
+  collections?: VisualCollection[];
+  image_urls?: string[];
+};
+
+const VisualTravelFrame: React.FC<{
+  visuals: VisualsData | null;
+  onReady?: (ready: boolean) => void;
+}> = ({ visuals, onReady }) => {
+  const urls = useMemo(() => {
+    const fromCollections =
+      visuals?.collections?.flatMap((collection) =>
+        (collection.items || collection.imageUrls || []).map((url) => ({
+          url,
+          title: collection.title,
+          year: collection.year,
+        })),
+      ) || [];
+
+    if (fromCollections.length > 0) return fromCollections;
+
+    return (visuals?.image_urls || []).map((url) => ({
+      url,
+      title: "Gaurav's Travels",
+      year: undefined,
+    }));
+  }, [visuals]);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeLayer, setActiveLayer] = useState<"A" | "B">("A");
+  const [loaded, setLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const layerARef = useRef<HTMLDivElement | null>(null);
+  const layerBRef = useRef<HTMLDivElement | null>(null);
+  const indexRef = useRef(0);
+  const activeLayerRef = useRef<"A" | "B">("A");
+  const preloadCacheRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setCurrentIndex(0);
+    setActiveLayer("A");
+    activeLayerRef.current = "A";
+    indexRef.current = 0;
+    setLoaded(false);
+    setImageError(false);
+    onReady?.(!urls.length);
+
+    if (!urls.length) {
+      setLoaded(true);
+      onReady?.(true);
+      return;
+    }
+
+    const firstUrl = urls[0].url;
+
+    if (preloadCacheRef.current.has(firstUrl)) {
+      setLoaded(true);
+      onReady?.(true);
+      return;
+    }
+
+    const img = new Image();
+    const finish = (success: boolean) => {
+      if (cancelled) return;
+      preloadCacheRef.current.add(firstUrl);
+      setImageError(!success);
+      setLoaded(true);
+      onReady?.(true);
+    };
+
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+    img.src = firstUrl;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urls, onReady]);
+
+  useEffect(() => {
+    if (!loaded || urls.length <= 1) return;
+
+    const preloadNext = (url: string) => {
+      if (!url || preloadCacheRef.current.has(url)) return;
+      const img = new Image();
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        preloadCacheRef.current.add(url);
+      };
+      img.onload = finish;
+      img.onerror = finish;
+      img.src = url;
+    };
+
+    const timer = window.setInterval(() => {
+      const nextIndex = (indexRef.current + 1) % urls.length;
+      const nextUrl = urls[nextIndex].url;
+
+      preloadNext(nextUrl);
+
+      const nextLayer = activeLayerRef.current === "A" ? "B" : "A";
+      const activeNode = activeLayerRef.current === "A" ? layerARef.current : layerBRef.current;
+      const nextNode = nextLayer === "A" ? layerARef.current : layerBRef.current;
+
+      if (!nextNode || !activeNode) return;
+
+      const cached = preloadCacheRef.current.has(nextUrl);
+
+      if (!cached) {
+        const img = new Image();
+        let finished = false;
+        const reveal = () => {
+          if (finished) return;
+          finished = true;
+          preloadCacheRef.current.add(nextUrl);
+          nextNode.style.backgroundImage = `url("${nextUrl}")`;
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              nextNode.style.opacity = "1";
+              activeNode.style.opacity = "0";
+              activeLayerRef.current = nextLayer;
+              setActiveLayer(nextLayer);
+              indexRef.current = nextIndex;
+              setCurrentIndex(nextIndex);
+            });
+          });
+        };
+        img.onload = reveal;
+        img.onerror = reveal;
+        img.src = nextUrl;
+        return;
+      }
+
+      nextNode.style.backgroundImage = `url("${nextUrl}")`;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          nextNode.style.opacity = "1";
+          activeNode.style.opacity = "0";
+          activeLayerRef.current = nextLayer;
+          setActiveLayer(nextLayer);
+          indexRef.current = nextIndex;
+          setCurrentIndex(nextIndex);
+        });
+      });
+    }, 2000);
+
+    return () => window.clearInterval(timer);
+  }, [loaded, urls]);
+
+  useEffect(() => {
+    const current = urls[currentIndex]?.url || "";
+    if (!current) return;
+
+    const node = activeLayer === "A" ? layerARef.current : layerBRef.current;
+    if (!node) return;
+
+    node.style.backgroundImage = `url("${current}")`;
+    node.style.opacity = "1";
+  }, [currentIndex, activeLayer, urls]);
+
+  if (!visuals || visuals.type !== "travel" || !urls.length) return null;
+
+  const current = urls[currentIndex] || urls[0];
+
+  return (
+    <div
+      className="mb-5 overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-lg backdrop-blur-sm"
+      style={{
+        height: "150px",
+        opacity: loaded ? 1 : 0,
+        transition: "opacity 0.35s ease",
+      }}
+      aria-hidden="true"
+    >
+      <div className="relative h-full w-full overflow-hidden rounded-2xl">
+        <div
+          ref={layerARef}
+          className="absolute inset-0 rounded-2xl bg-center bg-cover"
+          style={{
+            opacity: 1,
+            transition: "opacity 400ms linear",
+            backgroundImage: loaded && !imageError ? `url("${urls[0].url}")` : undefined,
+          }}
+        />
+        <div
+          ref={layerBRef}
+          className="absolute inset-0 rounded-2xl bg-center bg-cover"
+          style={{
+            opacity: 0,
+            transition: "opacity 400ms linear",
+          }}
+        />
+        <div className="absolute inset-x-0 bottom-0 p-3">
+          <div className="inline-flex items-center rounded-full border border-white/20 bg-black/20 px-3 py-1 text-[11px] text-white/85 backdrop-blur-md">
+            {current.title}
+            {current.year ? ` · ${current.year}` : ""}
+          </div>
+        </div>
+        {!loaded && <div className="absolute inset-0 animate-pulse bg-white/5" />}
+      </div>
+    </div>
+  );
+};
+
 /* =========================================================
    3. FADE HELPER
    ========================================================= */
@@ -496,6 +712,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [visuals, setVisuals] = useState<VisualsData | null>(null);
+  const [visualsReady, setVisualsReady] = useState(true);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -2887,6 +3105,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
+    setVisuals(null);
+    setVisualsReady(true);
 
     if (!customQuery) setQuery("");
 
@@ -3048,7 +3268,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
-    const isExpanded = hasContent && !isLoading;
+    const isExpanded = hasContent && !isLoading && visualsReady;
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
       : isVoiceSession || isTranscribing
@@ -3057,7 +3277,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { isExpanded, targetWidth, targetRadius };
-  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading]);
+  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading, visualsReady]);
 
   /* =======================================================
      RENDER
