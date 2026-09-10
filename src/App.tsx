@@ -16,6 +16,8 @@ import { SiteThemeProvider } from "@/components/SiteThemeProvider";
 
 const queryClient = new QueryClient();
 
+const SiteBackground = () => <div aria-hidden="true" className="site-background orange-bg" />;
+
 const App = () => (
   <SiteThemeProvider>
     <QueryClientProvider client={queryClient}>
@@ -23,27 +25,24 @@ const App = () => (
         <Toaster />
         <Sonner />
 
+        {/* =========================================================
+            PERSISTENT SITE BACKGROUND
+
+            IMPORTANT:
+            This is intentionally OUTSIDE BrowserRouter.
+
+            Route changes can therefore replace everything inside
+            BrowserRouter without touching the wallpaper element.
+        ========================================================= */}
+        <SiteBackground />
+
+        {/* =========================================================
+            ROUTER / PAGE CONTENT
+
+            Only the page content changes when navigating.
+            The background remains mounted independently.
+        ========================================================= */}
         <BrowserRouter>
-          {/* =========================================================
-              PERSISTENT SITE BACKGROUND
-
-              This MUST live outside <Routes> so it is mounted only
-              once for the entire lifetime of the application.
-
-              Route changes will therefore NOT restart:
-              - wallpaper movement
-              - color transitions
-              - atmospheric waves
-              - grain animation
-          ========================================================= */}
-          <div aria-hidden="true" className="site-background orange-bg" />
-
-          {/* =========================================================
-              PAGE CONTENT
-
-              Changing routes only replaces the content below.
-              The background above remains mounted continuously.
-          ========================================================= */}
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/hobbies" element={<Hobbies />} />
@@ -52,7 +51,6 @@ const App = () => (
             <Route path="/visuals" element={<Visuals />} />
             <Route path="/session-test" element={<SessionTest />} />
 
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
