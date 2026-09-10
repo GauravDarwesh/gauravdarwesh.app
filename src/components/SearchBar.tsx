@@ -284,7 +284,7 @@ const SearchVisualCarousel: React.FC<{
     <div
       className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg backdrop-blur-sm"
       style={{
-        animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+        animation: "none",
       }}
     >
       <div className="relative w-full h-[150px] sm:h-[160px] overflow-hidden">
@@ -294,7 +294,7 @@ const SearchVisualCarousel: React.FC<{
           alt={current.title || "Gaurav's travel visual"}
           className="absolute inset-0 h-full w-full object-cover"
           style={{
-            animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+            animation: "none",
           }}
           loading={index === 0 ? "eager" : "lazy"}
           draggable={false}
@@ -3362,13 +3362,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             </div>
           </Fade>
 
-          <SearchVisualCarousel
-            items={searchVisuals}
-            visible={
-              searchVisuals.length > 0 && !isVoiceSession && !isTranscribing && !isCollapsing && !isCollapsingToThink
-            }
-          />
-
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response && !isVoiceSession && !isTranscribing
@@ -3382,7 +3375,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 isCollapsing || isCollapsingToThink
                   ? "0px"
                   : response && !isVoiceSession && !isTranscribing
-                    ? "384px"
+                    ? "600px"
                     : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
               transitionDelay:
@@ -3390,16 +3383,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }}
           >
             {response && !isVoiceSession && !isTranscribing && (
-              <div
-                className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
-                style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "0ms",
-                  maxHeight: "300px",
-                  fontWeight: 400,
-                }}
-                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
-              />
+              <>
+                <SearchVisualCarousel
+                  items={searchVisuals}
+                  visible={
+                    searchVisuals.length > 0 &&
+                    !isVoiceSession &&
+                    !isTranscribing &&
+                    !isCollapsing &&
+                    !isCollapsingToThink
+                  }
+                />
+
+                <div
+                  className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
+                  style={{
+                    animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                    animationDelay: "0ms",
+                    maxHeight: "300px",
+                    fontWeight: 400,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+                />
+              </>
             )}
           </div>
 
