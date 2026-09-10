@@ -46,6 +46,7 @@ const App = () => (
             The background remains mounted independently.
         ========================================================= */}
         <BrowserRouter>
+          <Suspense fallback={null}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/hobbies" element={<Hobbies />} />
