@@ -3018,13 +3018,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       /*
-       * Start the SSE request immediately and render each token as soon as it
-       * arrives. The SearchBar is already expanded through isPreparingToStream,
-       * so there is no need to hold generated text behind an artificial timer.
+       * Expand immediately when the request starts.
+       * The SearchBar must never wait for the first token before opening.
+       * Streamed content is applied to React state as soon as it arrives.
        */
       setIsPreparingToStream(true);
 
       let streamedResponse = "";
+      let visualsShown = false;
       let firstTokenShown = false;
 
       const result = await streamChatMessage(text, {
@@ -3039,8 +3040,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             setIsStreamingResponse(true);
           }
 
-          // The state update happens directly from the SSE callback so every
-          // received chunk becomes visible without waiting for completion.
+          // Render every received chunk immediately.
           setResponse(streamedResponse);
 
           if (streamPulseFrameRef.current !== null) {
@@ -3054,6 +3054,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         },
         onVisuals: (visuals: VisualItem[]) => {
           if (!visuals.length) return;
+
+          visualsShown = true;
           setSearchVisuals(visuals);
         },
       });
@@ -3061,7 +3063,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const answer = String((result as any)?.response ?? streamedResponse ?? "");
       const suggs = (result as any)?.suggestions || [];
 
-      if (Array.isArray((result as any)?.visuals) && (result as any).visuals.length > 0) {
+      if (Array.isArray((result as any)?.visuals) && !visualsShown) {
         const returnedVisuals = (result as any).visuals
           .map((item: any) => ({
             url: String(item?.url ?? "").trim(),
@@ -3070,6 +3072,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           .filter((item: VisualItem) => /^https?:\/\//i.test(item.url));
 
         if (returnedVisuals.length > 0) {
+          visualsShown = true;
           setSearchVisuals(returnedVisuals);
         }
       }
@@ -3205,11 +3208,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const layoutValues = useMemo(() => {
-    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
+    const hasContent = (suggestions.length > 0 || Boolean(response)) && !isVoiceSession && !isTranscribing;
 
-    const shouldExpandForResponse = hasContent || isPreparingToStream;
-
-    const isExpanded = shouldExpandForResponse && (!isLoading || isStreamingResponse || isPreparingToStream);
+    // Expand as soon as a request starts. This must not depend on the first
+    // token arriving, otherwise the thinking state can keep the bar compact.
+    const isExpanded = hasContent || isLoading || isPreparingToStream || isStreamingResponse;
 
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
@@ -3292,7 +3295,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       <div
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
-          isLoading ? "thinking-container" : ""
+          isLoading && !isStreamingResponse ? "thinking-container" : ""
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
@@ -3310,7 +3313,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
             transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
+            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage && !isStreamingResponse ? "0ms" : "0ms",
           }}
         >
           <Fade
@@ -3357,8 +3360,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                     ? "384px"
                     : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
-              transitionDelay:
-                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
+              transitionDelay: isStreamingResponse
+                ? "0ms"
+                : response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage
+                  ? "0ms"
+                  : "0ms",
             }}
           >
             {response && !isVoiceSession && !isTranscribing && (
