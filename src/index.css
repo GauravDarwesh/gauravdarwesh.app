@@ -87,9 +87,9 @@ All colors MUST be HSL.
 /* ============================================================
    ORANGE / BURGUNDY LIVE WALLPAPER
    ------------------------------------------------------------
-   The base wallpaper remains static. The live movement is isolated
-   entirely to the fixed background's pseudo-elements so the page UI
-   keeps its own animation/compositing path.
+   The wallpaper has real, visible movement, but it is isolated
+   to the fixed background layers. The page/UI animations remain
+   independent and are not touched.
    ============================================================ */
 
 .orange-bg {
@@ -97,7 +97,7 @@ All colors MUST be HSL.
   min-height: 100vh;
   overflow: hidden;
 
-  /* Static base wallpaper — never animated. */
+  /* Base composition. The visible motion is added by the layers below. */
   background:
     radial-gradient(
       ellipse 72% 48% at 18% 7%,
@@ -164,133 +164,166 @@ All colors MUST be HSL.
 }
 
 /* ------------------------------------------------------------
-   LIVE FLUID WAVE
+   VISIBLE FLUID WAVE FIELD
+   ------------------------------------------------------------
+   Large overlapping gradients create moving color contours.
+   Movement is transform-only, so the layer can stay on its own
+   compositing path instead of moving the whole page.
    ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -38%;
+  inset: -55%;
   pointer-events: none;
 
   background:
     radial-gradient(
-      ellipse 42% 17% at 16% 17%,
-      rgba(255, 177, 112, 0.5) 0%,
-      rgba(255, 108, 55, 0.28) 38%,
-      transparent 76%
+      ellipse 35% 12% at 12% 18%,
+      rgba(255, 205, 151, 0.62) 0%,
+      rgba(255, 135, 71, 0.42) 34%,
+      rgba(246, 74, 42, 0.12) 62%,
+      transparent 84%
     ),
     radial-gradient(
-      ellipse 58% 22% at 60% 34%,
-      rgba(239, 65, 39, 0.33) 0%,
-      rgba(176, 28, 34, 0.18) 42%,
-      transparent 80%
+      ellipse 56% 15% at 46% 32%,
+      rgba(245, 71, 43, 0.52) 0%,
+      rgba(190, 32, 37, 0.3) 35%,
+      rgba(100, 12, 25, 0.08) 65%,
+      transparent 84%
     ),
-    radial-gradient(ellipse 50% 19% at 83% 67%, rgba(103, 13, 28, 0.34) 0%, rgba(71, 9, 24, 0.18) 44%, transparent 82%),
     radial-gradient(
-      ellipse 52% 20% at 29% 82%,
-      rgba(245, 77, 43, 0.22) 0%,
-      rgba(130, 17, 27, 0.12) 45%,
-      transparent 82%
+      ellipse 48% 13% at 78% 46%,
+      rgba(255, 116, 65, 0.34) 0%,
+      rgba(151, 21, 29, 0.22) 38%,
+      rgba(48, 6, 19, 0.05) 68%,
+      transparent 86%
+    ),
+    radial-gradient(
+      ellipse 62% 18% at 44% 68%,
+      rgba(107, 12, 27, 0.42) 0%,
+      rgba(67, 8, 23, 0.26) 40%,
+      rgba(238, 61, 39, 0.1) 66%,
+      transparent 88%
+    ),
+    radial-gradient(
+      ellipse 44% 12% at 82% 84%,
+      rgba(244, 89, 52, 0.3) 0%,
+      rgba(126, 16, 27, 0.16) 43%,
+      transparent 84%
+    ),
+    conic-gradient(
+      from 18deg at 48% 50%,
+      transparent 0deg,
+      rgba(255, 119, 63, 0.13) 55deg,
+      transparent 112deg,
+      rgba(74, 7, 23, 0.13) 190deg,
+      transparent 270deg,
+      rgba(255, 101, 54, 0.1) 330deg,
+      transparent 360deg
     );
 
+  background-size: 118% 118%;
+  background-position: center;
   background-repeat: no-repeat;
-  transform: translate3d(-4%, -2%, 0) rotate(-1.5deg) scale(1.08);
-  transform-origin: center;
-  animation: orange-live-wave 24s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 
-  opacity: 0.92;
+  opacity: 1;
+  transform-origin: center;
+  transform: translate3d(-7%, 4%, 0) rotate(-2deg) scale(1.04);
+  animation: orange-fluid-drift 30s ease-in-out infinite alternate;
+
   will-change: transform;
   backface-visibility: hidden;
   contain: paint;
 }
 
-@keyframes orange-live-wave {
+@keyframes orange-fluid-drift {
   0% {
-    transform: translate3d(-4%, -2%, 0) rotate(-1.5deg) scale(1.08);
+    transform: translate3d(-7%, 4%, 0) rotate(-2deg) scale(1.04);
   }
-  25% {
-    transform: translate3d(2%, 3%, 0) rotate(0.8deg) scale(1.13);
+  18% {
+    transform: translate3d(-1%, -4%, 0) rotate(0deg) scale(1.1);
   }
-  50% {
-    transform: translate3d(6%, -1%, 0) rotate(1.5deg) scale(1.1);
+  38% {
+    transform: translate3d(7%, 2%, 0) rotate(2deg) scale(1.06);
   }
-  75% {
-    transform: translate3d(-1%, -4%, 0) rotate(-0.4deg) scale(1.15);
+  58% {
+    transform: translate3d(1%, 8%, 0) rotate(-1deg) scale(1.12);
+  }
+  78% {
+    transform: translate3d(-8%, 0%, 0) rotate(-3deg) scale(1.07);
   }
   100% {
-    transform: translate3d(-6%, 2%, 0) rotate(-1.8deg) scale(1.09);
+    transform: translate3d(4%, -7%, 0) rotate(1.5deg) scale(1.1);
   }
 }
 
 /* ------------------------------------------------------------
-   PARTICLE DRIFT + MOVING GRAIN
+   PARTICLES + MORE VISIBLE GRAIN
    ------------------------------------------------------------ */
 
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -22%;
+  inset: -14%;
   pointer-events: none;
 
-  /* Particle fields sit above the grain texture. */
   background-image:
-    radial-gradient(circle at 18px 24px, rgba(255, 220, 192, 0.45) 0 1px, transparent 2px),
-    radial-gradient(circle at 82px 68px, rgba(255, 165, 118, 0.3) 0 1.1px, transparent 2.2px),
-    radial-gradient(circle at 151px 119px, rgba(255, 205, 165, 0.24) 0 0.9px, transparent 2px),
-    radial-gradient(circle at 218px 38px, rgba(255, 138, 91, 0.27) 0 1px, transparent 2px),
-    radial-gradient(circle at 276px 184px, rgba(255, 230, 204, 0.18) 0 0.8px, transparent 1.9px),
-    radial-gradient(circle at 42px 171px, rgba(255, 122, 78, 0.22) 0 0.8px, transparent 1.8px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.92'/%3E%3C/svg%3E");
+    radial-gradient(circle at 18px 24px, rgba(255, 238, 221, 0.62) 0 1px, transparent 2px),
+    radial-gradient(circle at 82px 68px, rgba(255, 190, 151, 0.46) 0 1.15px, transparent 2.4px),
+    radial-gradient(circle at 151px 119px, rgba(255, 225, 199, 0.38) 0 0.95px, transparent 2.2px),
+    radial-gradient(circle at 218px 38px, rgba(255, 157, 117, 0.4) 0 1px, transparent 2.3px),
+    radial-gradient(circle at 276px 184px, rgba(255, 239, 217, 0.28) 0 0.85px, transparent 2px),
+    radial-gradient(circle at 42px 171px, rgba(255, 138, 94, 0.34) 0 0.8px, transparent 1.9px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.95'/%3E%3C/svg%3E");
 
   background-size:
-    230px 230px,
-    280px 280px,
-    330px 330px,
-    370px 370px,
-    410px 410px,
-    300px 300px,
-    220px 220px;
+    210px 210px,
+    270px 270px,
+    320px 320px,
+    360px 360px,
+    400px 400px,
+    290px 290px,
+    180px 180px;
 
   background-repeat: repeat;
-  opacity: 0.17;
+  opacity: 0.23;
   mix-blend-mode: screen;
 
-  transform: translate3d(-35px, 20px, 0) scale(1.02);
-  animation: orange-live-particles 38s linear infinite;
+  transform: translate3d(-28px, 14px, 0) scale(1.02);
+  animation: orange-particle-drift 44s linear infinite;
 
   will-change: transform;
   backface-visibility: hidden;
   contain: paint;
 }
 
-@keyframes orange-live-particles {
+@keyframes orange-particle-drift {
   0% {
-    transform: translate3d(-35px, 20px, 0) scale(1.02);
+    transform: translate3d(-28px, 14px, 0) scale(1.02);
   }
   25% {
-    transform: translate3d(20px, -14px, 0) scale(1.04);
+    transform: translate3d(34px, -22px, 0) scale(1.035);
   }
   50% {
-    transform: translate3d(54px, 26px, 0) scale(1.025);
+    transform: translate3d(62px, 30px, 0) scale(1.02);
   }
   75% {
-    transform: translate3d(18px, 52px, 0) scale(1.05);
+    transform: translate3d(-10px, 58px, 0) scale(1.04);
   }
   100% {
-    transform: translate3d(-42px, 14px, 0) scale(1.02);
+    transform: translate3d(-44px, 8px, 0) scale(1.02);
   }
 }
 
-/* Slower on smaller screens so the wallpaper remains light. */
 @media (max-width: 768px) {
   .orange-bg::before {
-    animation-duration: 30s;
+    animation-duration: 36s;
   }
 
   .orange-bg::after {
-    animation-duration: 48s;
-    opacity: 0.14;
+    animation-duration: 52s;
+    opacity: 0.2;
   }
 }
 
