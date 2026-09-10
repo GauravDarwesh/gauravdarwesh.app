@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
 
@@ -55,7 +55,16 @@ All colors MUST be HSL.
   }
 }
 
-/* Custom Animation for Spinning Asterisk */
+/* ============================================================
+   MOTION PHILOSOPHY
+   ------------------------------------------------------------
+   One property changes per animation. No stacked
+   translate + rotate + scale paths, and nothing oscillates
+   back and forth on the same axis (that's what reads as
+   "bouncy" rather than ambient). Anything continuous runs
+   slow enough that it should feel like weather, not UI.
+   ============================================================ */
+
 @keyframes spin-slow {
   from {
     transform: rotate(0deg);
@@ -70,26 +79,39 @@ All colors MUST be HSL.
 }
 
 @keyframes fadeInSlow {
-  0% {
+  from {
     opacity: 0;
-    transform: scale(1.05); /* start slightly zoomed */
+    transform: scale(1.02);
   }
-  100% {
+  to {
     opacity: 1;
-    transform: scale(1); /* settle to normal */
+    transform: scale(1);
   }
 }
 
 .animate-fadeInSlow {
-  animation: fadeInSlow 3s ease-in-out forwards;
+  animation: fadeInSlow 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================================================
    ORANGE / BURGUNDY LIVE WALLPAPER
    ------------------------------------------------------------
-   The base wallpaper stays fixed. Only the two isolated visual
-   layers move, using transform-only animation so the rest of the
-   page is not pulled into the animation/repaint loop.
+   The gradient layers themselves carry the richness and stay
+   fixed in place. The only motion is a single, slow opacity
+   breathe on the highlight layer — no translation, no rotation,
+   no scale. It reads as light shifting across the surface
+   rather than shapes moving around on it.
    ============================================================ */
 
 .orange-bg {
@@ -147,10 +169,6 @@ All colors MUST be HSL.
     0% 0%;
 
   background-repeat: no-repeat;
-  animation: none;
-  transition: none;
-  filter: none;
-  will-change: auto;
   backface-visibility: hidden;
   transform: translateZ(0);
   isolation: isolate;
@@ -164,204 +182,73 @@ All colors MUST be HSL.
   width: 100%;
   height: auto;
   min-height: 100%;
-  transition: none;
 }
 
-/* ------------------------------------------------------------
-   ORGANIC WAVE FIELD
-   ------------------------------------------------------------
-   No centered conic/radial focal point: that was creating the
-   "dot in the middle" and making the motion read as circular.
-   These asymmetric, elongated bands move through an irregular
-   path instead, so the wallpaper feels atmospheric rather than
-   orbit-like.
-   ------------------------------------------------------------ */
-
+/* Soft highlight field — fixed in place, only its opacity breathes */
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -58%;
+  inset: -20%;
   pointer-events: none;
 
   background:
     radial-gradient(
-      ellipse 28% 8% at 8% 14%,
-      rgba(255, 205, 151, 0.62) 0%,
-      rgba(255, 135, 71, 0.42) 36%,
-      rgba(246, 74, 42, 0.1) 68%,
-      transparent 86%
+      ellipse 46% 30% at 22% 22%,
+      rgba(255, 205, 151, 0.5) 0%,
+      rgba(255, 135, 71, 0.28) 40%,
+      transparent 78%
     ),
     radial-gradient(
-      ellipse 46% 9% at 34% 27%,
-      rgba(255, 117, 64, 0.4) 0%,
-      rgba(205, 41, 38, 0.24) 37%,
-      rgba(89, 10, 24, 0.07) 68%,
-      transparent 88%
+      ellipse 50% 34% at 70% 18%,
+      rgba(238, 58, 42, 0.3) 0%,
+      rgba(154, 24, 33, 0.16) 42%,
+      transparent 80%
     ),
-    radial-gradient(
-      ellipse 52% 11% at 74% 20%,
-      rgba(238, 58, 42, 0.44) 0%,
-      rgba(154, 24, 33, 0.24) 39%,
-      rgba(57, 7, 20, 0.07) 70%,
-      transparent 89%
-    ),
-    radial-gradient(
-      ellipse 34% 8% at 88% 53%,
-      rgba(255, 132, 74, 0.34) 0%,
-      rgba(167, 25, 31, 0.18) 42%,
-      transparent 88%
-    ),
-    radial-gradient(
-      ellipse 58% 13% at 44% 64%,
-      rgba(95, 10, 25, 0.42) 0%,
-      rgba(57, 7, 22, 0.22) 45%,
-      rgba(229, 57, 38, 0.09) 70%,
-      transparent 90%
-    ),
-    radial-gradient(ellipse 40% 9% at 16% 84%, rgba(223, 57, 39, 0.24) 0%, rgba(102, 12, 26, 0.17) 43%, transparent 88%);
+    radial-gradient(ellipse 56% 38% at 46% 66%, rgba(95, 10, 25, 0.32) 0%, rgba(57, 7, 22, 0.14) 46%, transparent 82%);
 
-  background-size: 124% 124%;
   background-repeat: no-repeat;
-  opacity: 0.96;
+  opacity: 0.85;
+  animation: ambient-breathe 22s ease-in-out infinite;
 
-  transform-origin: 47% 53%;
-  transform: translate3d(-10%, 5%, 0) rotate(-1.2deg) scale(1.06);
-  animation: orange-fluid-drift 34s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
-
-  will-change: transform;
-  backface-visibility: hidden;
+  will-change: opacity;
   contain: paint;
 }
 
-@keyframes orange-fluid-drift {
-  /*
-     The path is deliberately diagonal and bowed, following the
-     132deg flow of the underlying wallpaper instead of orbiting
-     around a center point. The extra intermediate points make the
-     movement read as a slow, organic current rather than simple
-     up/down/left/right travel.
-  */
-  0% {
-    transform: translate3d(-12%, 7%, 0) rotate(-2deg) scale(1.055);
-  }
-  12% {
-    transform: translate3d(-8%, 4%, 0) rotate(-1.35deg) scale(1.075);
-  }
-  24% {
-    transform: translate3d(-1%, 0%, 0) rotate(-0.35deg) scale(1.095);
-  }
-  36% {
-    transform: translate3d(7%, -1%, 0) rotate(0.55deg) scale(1.08);
-  }
-  48% {
-    transform: translate3d(13%, 2%, 0) rotate(1.4deg) scale(1.105);
-  }
-  60% {
-    transform: translate3d(10%, 8%, 0) rotate(0.8deg) scale(1.09);
-  }
-  72% {
-    transform: translate3d(3%, 13%, 0) rotate(-0.15deg) scale(1.115);
-  }
-  84% {
-    transform: translate3d(-5%, 12%, 0) rotate(-1.15deg) scale(1.08);
-  }
-  92% {
-    transform: translate3d(-10%, 9%, 0) rotate(-1.75deg) scale(1.065);
-  }
+@keyframes ambient-breathe {
+  0%,
   100% {
-    transform: translate3d(-12%, 7%, 0) rotate(-2deg) scale(1.055);
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
-/* ------------------------------------------------------------
-   DRIFTING PARTICLES + VISIBLE GRAIN
-   ------------------------------------------------------------ */
-
+/* Fine grain — static texture, no motion. Grain that moves reads
+   as noise; grain that holds still reads as film stock. */
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -16%;
+  inset: 0;
   pointer-events: none;
 
-  background-image:
-    radial-gradient(circle at 18px 24px, rgba(255, 238, 221, 0.62) 0 1px, transparent 2px),
-    radial-gradient(circle at 82px 68px, rgba(255, 190, 151, 0.46) 0 1.15px, transparent 2.4px),
-    radial-gradient(circle at 151px 119px, rgba(255, 225, 199, 0.38) 0 0.95px, transparent 2.2px),
-    radial-gradient(circle at 218px 38px, rgba(255, 157, 117, 0.4) 0 1px, transparent 2.3px),
-    radial-gradient(circle at 276px 184px, rgba(255, 239, 217, 0.28) 0 0.85px, transparent 2px),
-    radial-gradient(circle at 42px 171px, rgba(255, 138, 94, 0.34) 0 0.8px, transparent 1.9px),
-    radial-gradient(circle at 118px 203px, rgba(255, 215, 184, 0.26) 0 0.75px, transparent 2px),
-    radial-gradient(circle at 325px 91px, rgba(255, 177, 135, 0.24) 0 0.8px, transparent 2px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.95'/%3E%3C/svg%3E");
-
-  background-size:
-    210px 210px,
-    270px 270px,
-    320px 320px,
-    360px 360px,
-    400px 400px,
-    290px 290px,
-    340px 340px,
-    460px 460px,
-    180px 180px;
-
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.95'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
   background-repeat: repeat;
-  opacity: 0.23;
-  mix-blend-mode: screen;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
 
-  transform-origin: 38% 61%;
-  transform: translate3d(-34px, 18px, 0) rotate(0deg) scale(1.02);
-  animation: orange-particle-drift 51s cubic-bezier(0.37, 0.01, 0.22, 1) infinite;
-
-  will-change: transform;
-  backface-visibility: hidden;
   contain: paint;
-}
-
-@keyframes orange-particle-drift {
-  /* Keep the particle field moving with the same broad diagonal
-     current, but on a slightly different curve so it does not look
-     mechanically attached to the main wave. */
-  0% {
-    transform: translate3d(-34px, 18px, 0) rotate(-0.25deg) scale(1.02);
-  }
-  14% {
-    transform: translate3d(-10px, 2px, 0) rotate(0.1deg) scale(1.025);
-  }
-  29% {
-    transform: translate3d(28px, -13px, 0) rotate(0.38deg) scale(1.035);
-  }
-  44% {
-    transform: translate3d(63px, -5px, 0) rotate(0.15deg) scale(1.02);
-  }
-  58% {
-    transform: translate3d(78px, 24px, 0) rotate(-0.25deg) scale(1.04);
-  }
-  72% {
-    transform: translate3d(42px, 55px, 0) rotate(-0.45deg) scale(1.03);
-  }
-  86% {
-    transform: translate3d(-4px, 65px, 0) rotate(-0.1deg) scale(1.045);
-  }
-  100% {
-    transform: translate3d(-34px, 18px, 0) rotate(-0.25deg) scale(1.02);
-  }
 }
 
 @media (max-width: 768px) {
   .orange-bg::before {
-    animation-duration: 40s;
-  }
-
-  .orange-bg::after {
-    animation-duration: 58s;
-    opacity: 0.21;
+    animation-duration: 28s;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orange-bg::before,
-  .orange-bg::after {
+  .orange-bg::before {
     animation: none;
   }
 }
@@ -373,17 +260,6 @@ All colors MUST be HSL.
 .scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
-}
-
-@keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Grainy Gradient Background */
@@ -398,28 +274,17 @@ All colors MUST be HSL.
   overflow: hidden;
 }
 
-/* Grain overlay (using base64 noise texture instead of inline SVG for safety) */
+/* Grain overlay — static, no shifting position. A steady texture
+   reads as material; an animated one reads as a glitch. */
 .bg-grainy-gradient::before {
   content: "";
   position: absolute;
   inset: 0;
   background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
   mix-blend-mode: overlay;
-  opacity: 0.15; /* adjust grain intensity */
+  opacity: 0.15;
   pointer-events: none;
-  animation: wave-shift 20s linear infinite;
   background-size: 200px 200px;
-}
-
-/* Subtle wavy horizontal shift */
-@keyframes wave-shift {
-  0% {
-    background-position: 0 0;
-  }
-
-  100% {
-    background-position: 1000px 0;
-  }
 }
 
 html,
@@ -441,78 +306,64 @@ html {
     opacity: 0;
     filter: blur(8px);
   }
-
   100% {
     opacity: 1;
     filter: blur(0);
   }
 }
 
+/* Continuous horizontal ticker, single direction only */
 @keyframes marquee-scroll {
   0% {
     transform: translateX(-100%);
   }
-
   100% {
     transform: translateX(100vw);
   }
 }
 
-/* consolidated .animate-marquee definition lives below */
-
-/* Tailwind-safe helper class name */
 .animate-slowFadeIn {
   animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Keyframes for waves */
-@keyframes wave1 {
+/* ------------------------------------------------------------
+   Ambient wave tint — a slow, one-way diagonal pan instead of
+   the old back-and-forth (0%→100%→0%) wobble. Same visual
+   richness, none of the ping-pong motion.
+   ------------------------------------------------------------ */
+@keyframes wave-drift {
   0% {
     background-position: 0% 50%;
   }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
   100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes wave2 {
-  0% {
-    background-position: 100% 0%;
-  }
-
-  50% {
-    background-position: 0% 100%;
-  }
-
-  100% {
-    background-position: 100% 0%;
+    background-position: 200% 50%;
   }
 }
 
 .wave {
   position: absolute;
   inset: 0;
-  background-size: 400% 400%; /* necessary for motion */
-  mix-blend-mode: screen; /* creates overlapping glow effect */
-  opacity: 0.6;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
+  background-size: 300% 300%;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+  animation: wave-drift 34s linear infinite;
 }
 
 .wave1 {
   background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
-  animation: wave1 20s ease-in-out infinite;
 }
 
 .wave2 {
   background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
-  animation: wave2 25s ease-in-out infinite;
-  opacity: 0.5;
+  opacity: 0.4;
+  animation-duration: 44s;
+  animation-direction: reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave {
+    animation: none;
+  }
 }
 
 .typewriter-fade-out {
@@ -529,7 +380,6 @@ html {
   0% {
     transform: translate3d(0, 0, 0);
   }
-
   100% {
     transform: translate3d(-50%, 0, 0);
   }
@@ -550,30 +400,27 @@ html {
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
-/* Category spotlight animations â€” soft blur in/out */
+/* Category spotlight — a quiet fade/blur reveal, no scale pop
+   and no vertical travel, so it settles rather than bounces in. */
 @keyframes spotlight-in {
   from {
     opacity: 0;
-    filter: blur(10px);
-    transform: translateY(8px) scale(0.97);
+    filter: blur(6px);
   }
-
   to {
     opacity: 1;
     filter: blur(0);
-    transform: translateY(0) scale(1);
   }
 }
 
 .spotlight-item {
-  animation: spotlight-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: spotlight-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes spotlight-progress {
   from {
     width: 0%;
   }
-
   to {
     width: 100%;
   }
@@ -743,58 +590,22 @@ body,
 }
 
 /* ------------------------------------------------------------
-   GDx theme easter egg
+   GDx theme easter egg — a single gentle pulse rather than a
+   simulated double-click, so it reads as a quiet invitation
+   instead of a nudge.
    ------------------------------------------------------------ */
 
 .gdx-theme-hint {
-  animation: gdxThemePulse 2.4s ease-in-out infinite;
+  animation: gdxThemePulse 3.2s ease-in-out infinite;
 }
 
 @keyframes gdxThemePulse {
   0%,
   100% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   }
-
-  /* First click-like pulse */
-  10% {
-    transform: scale(1.035);
-    box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.1),
-      0 0 20px rgba(255, 255, 255, 0.22);
-  }
-
-  18% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
-  }
-
-  /* Small pause between clicks */
-  24% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
-  }
-
-  /* Second click-like pulse */
-  34% {
-    transform: scale(1.035);
-    box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.1),
-      0 0 20px rgba(255, 255, 255, 0.22);
-  }
-
-  42% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
+  50% {
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
   }
 }
 
@@ -806,48 +617,10 @@ body,
 @keyframes gdxThemePulseMinimal {
   0%,
   100% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
   }
-
-  /* First click-like pulse */
-  10% {
-    transform: scale(1.035);
-    box-shadow:
-      0 0 0 3px rgba(0, 0, 0, 0.1),
-      0 0 20px rgba(0, 0, 0, 0.16);
-  }
-
-  18% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
-  }
-
-  /* Small pause between clicks */
-  24% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
-  }
-
-  /* Second click-like pulse */
-  34% {
-    transform: scale(1.035);
-    box-shadow:
-      0 0 0 3px rgba(0, 0, 0, 0.1),
-      0 0 20px rgba(0, 0, 0, 0.16);
-  }
-
-  42% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
+  50% {
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.14);
   }
 }
 
