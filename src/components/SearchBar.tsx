@@ -3018,47 +3018,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       /*
-       * Prepare the SearchBar first.
-       * The SSE request starts immediately so backend latency is hidden
-       * behind the existing SearchBar expansion animation, but streamed
-       * content is held until the expansion has finished.
+       * Start the SSE request immediately and render each token as soon as it
+       * arrives. The SearchBar is already expanded through isPreparingToStream,
+       * so there is no need to hold generated text behind an artificial timer.
        */
       setIsPreparingToStream(true);
 
-      const EXPANSION_MS = 1400;
-      let displayReady = false;
       let streamedResponse = "";
-      let pendingVisuals: VisualItem[] = [];
       let firstTokenShown = false;
-      let visualsShown = false;
-
-      let resolveDisplayReady: (() => void) | null = null;
-      const displayReadyPromise = new Promise<void>((resolve) => {
-        resolveDisplayReady = resolve;
-      });
-
-      const releaseStreamingContent = () => {
-        displayReady = true;
-
-        if (pendingVisuals.length > 0) {
-          visualsShown = true;
-          setSearchVisuals(pendingVisuals);
-        }
-
-        if (streamedResponse) {
-          firstTokenShown = true;
-          setIsPreparingToStream(false);
-          setIsStreamingResponse(true);
-          setResponse(streamedResponse);
-        } else {
-          setIsPreparingToStream(false);
-        }
-      };
-
-      window.setTimeout(() => {
-        releaseStreamingContent();
-        resolveDisplayReady?.();
-      }, EXPANSION_MS);
 
       const result = await streamChatMessage(text, {
         onToken: (chunk: string) => {
@@ -3066,16 +3033,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           streamedResponse += chunk;
 
-          if (!displayReady) {
-            return;
-          }
-
           if (!firstTokenShown) {
             firstTokenShown = true;
             setIsPreparingToStream(false);
             setIsStreamingResponse(true);
           }
 
+          // The state update happens directly from the SSE callback so every
+          // received chunk becomes visible without waiting for completion.
           setResponse(streamedResponse);
 
           if (streamPulseFrameRef.current !== null) {
@@ -3089,27 +3054,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         },
         onVisuals: (visuals: VisualItem[]) => {
           if (!visuals.length) return;
-
-          pendingVisuals = visuals;
-
-          if (!displayReady) {
-            return;
-          }
-
-          visualsShown = true;
           setSearchVisuals(visuals);
         },
       });
 
-      // Never reveal streamed content before the SearchBar expansion is complete.
-      // If the model finishes early, wait for the expansion timer; otherwise this
-      // resolves immediately because the timer has already released the stream.
-      await displayReadyPromise;
-
       const answer = String((result as any)?.response ?? streamedResponse ?? "");
       const suggs = (result as any)?.suggestions || [];
 
-      if (Array.isArray((result as any)?.visuals) && !visualsShown) {
+      if (Array.isArray((result as any)?.visuals) && (result as any).visuals.length > 0) {
         const returnedVisuals = (result as any).visuals
           .map((item: any) => ({
             url: String(item?.url ?? "").trim(),
@@ -3118,7 +3070,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           .filter((item: VisualItem) => /^https?:\/\//i.test(item.url));
 
         if (returnedVisuals.length > 0) {
-          visualsShown = true;
           setSearchVisuals(returnedVisuals);
         }
       }
