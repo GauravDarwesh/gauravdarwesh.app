@@ -581,6 +581,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
   const [streamPulse, setStreamPulse] = useState(false);
   const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
+  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
   const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
@@ -3016,9 +3017,48 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return;
       }
 
+      /*
+       * Prepare the SearchBar first.
+       * The SSE request starts immediately so backend latency is hidden
+       * behind the existing SearchBar expansion animation, but streamed
+       * content is held until the expansion has finished.
+       */
+      setIsPreparingToStream(true);
+
+      const EXPANSION_MS = 1400;
+      let displayReady = false;
       let streamedResponse = "";
+      let pendingVisuals: VisualItem[] = [];
       let firstTokenShown = false;
       let visualsShown = false;
+
+      let resolveDisplayReady: (() => void) | null = null;
+      const displayReadyPromise = new Promise<void>((resolve) => {
+        resolveDisplayReady = resolve;
+      });
+
+      const releaseStreamingContent = () => {
+        displayReady = true;
+
+        if (pendingVisuals.length > 0) {
+          visualsShown = true;
+          setSearchVisuals(pendingVisuals);
+        }
+
+        if (streamedResponse) {
+          firstTokenShown = true;
+          setIsPreparingToStream(false);
+          setIsStreamingResponse(true);
+          setResponse(streamedResponse);
+        } else {
+          setIsPreparingToStream(false);
+        }
+      };
+
+      window.setTimeout(() => {
+        releaseStreamingContent();
+        resolveDisplayReady?.();
+      }, EXPANSION_MS);
 
       const result = await streamChatMessage(text, {
         onToken: (chunk: string) => {
@@ -3026,8 +3066,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           streamedResponse += chunk;
 
+          if (!displayReady) {
+            return;
+          }
+
           if (!firstTokenShown) {
             firstTokenShown = true;
+            setIsPreparingToStream(false);
             setIsStreamingResponse(true);
           }
 
@@ -3043,12 +3088,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           });
         },
         onVisuals: (visuals: VisualItem[]) => {
-          if (firstTokenShown && visuals.length > 0) {
-            visualsShown = true;
-            setSearchVisuals(visuals);
+          if (!visuals.length) return;
+
+          pendingVisuals = visuals;
+
+          if (!displayReady) {
+            return;
           }
+
+          visualsShown = true;
+          setSearchVisuals(visuals);
         },
       });
+
+      // Never reveal streamed content before the SearchBar expansion is complete.
+      // If the model finishes early, wait for the expansion timer; otherwise this
+      // resolves immediately because the timer has already released the stream.
+      await displayReadyPromise;
 
       const answer = String((result as any)?.response ?? streamedResponse ?? "");
       const suggs = (result as any)?.suggestions || [];
@@ -3061,19 +3117,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }))
           .filter((item: VisualItem) => /^https?:\/\//i.test(item.url));
 
-        if (returnedVisuals.length > 0 && firstTokenShown) {
+        if (returnedVisuals.length > 0) {
           visualsShown = true;
           setSearchVisuals(returnedVisuals);
         }
       }
 
+      setIsPreparingToStream(false);
       setResponse(answer || streamedResponse || null);
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
       onSearch?.(answer);
     } catch (error) {
+      setIsPreparingToStream(false);
       setIsStreamingResponse(false);
       setSearchVisuals([]);
+
       const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
 
       if (fromVoice && isVoiceSessionRef.current) {
@@ -3085,17 +3144,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         onSearch?.(message);
       }
     } finally {
+      setIsPreparingToStream(false);
       setIsStreamingResponse(false);
       setStreamPulse(false);
+
       if (streamPulseFrameRef.current !== null) {
         cancelAnimationFrame(streamPulseFrameRef.current);
         streamPulseFrameRef.current = null;
       }
+
       isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
-
   handleSubmitRef.current = handleSubmit;
 
   /* =======================================================
@@ -3194,16 +3255,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
-    const isExpanded = hasContent && (!isLoading || isStreamingResponse);
+
+    const shouldExpandForResponse = hasContent || isPreparingToStream;
+
+    const isExpanded = shouldExpandForResponse && (!isLoading || isStreamingResponse || isPreparingToStream);
+
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
       : isVoiceSession || isTranscribing
         ? "min(320px, 78vw)"
         : "min(360px, 92vw)";
+
     const targetRadius = isExpanded ? "16px" : "999px";
 
-    return { isExpanded, targetWidth, targetRadius };
-  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading, isStreamingResponse]);
+    return {
+      isExpanded,
+      targetWidth,
+      targetRadius,
+    };
+  }, [
+    suggestions.length,
+    response,
+    isVoiceSession,
+    isTranscribing,
+    isLoading,
+    isStreamingResponse,
+    isPreparingToStream,
+  ]);
 
   /* =======================================================
      RENDER
