@@ -8,6 +8,38 @@ export interface ChatResponse {
   debug?: object;
 }
 
+export interface StreamChatHandlers {
+  onToken?: (chunk: string) => void;
+  onVisuals?: (visuals: Array<{ url: string; title?: string }>) => void;
+}
+
+/**
+ * Streams a chat response when the backend supports it; otherwise falls back
+ * to a single-shot response emitted as one chunk.
+ */
+export async function streamChatMessage(
+  message: string,
+  handlers: StreamChatHandlers = {},
+): Promise<ChatResponse & { visuals?: Array<{ url: string; title?: string }>; suggestions?: string[] }> {
+  const result = await sendChatMessage(message);
+
+  const data = (result.debug ?? {}) as any;
+  const visuals = Array.isArray(data?.visuals) ? data.visuals : undefined;
+
+  if (result.response) {
+    handlers.onToken?.(result.response);
+  }
+  if (visuals && visuals.length > 0) {
+    handlers.onVisuals?.(visuals);
+  }
+
+  return {
+    ...result,
+    visuals,
+    suggestions: Array.isArray(data?.suggestions) ? data.suggestions : [],
+  };
+}
+
 export async function sendChatMessage(message: string): Promise<ChatResponse> {
   const sessionId = getSessionId();
   
