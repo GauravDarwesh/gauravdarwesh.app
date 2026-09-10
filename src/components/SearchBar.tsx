@@ -3144,10 +3144,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       const answer = String((result as any)?.response ?? "");
       const voiceAnswer = String((result as any)?.voice_response ?? answer);
       const suggs = (result as any)?.suggestions || [];
+      const resultVisuals = (result as any)?.visuals ?? null;
+      const hasTravelVisuals =
+        resultVisuals?.type === "travel" &&
+        Array.isArray(resultVisuals?.collections) &&
+        resultVisuals.collections.length > 0;
 
       if (fromVoice && isVoiceSessionRef.current) {
         void speakVoiceResponse(voiceAnswer, answer);
       } else {
+        setVisualsReady(!hasTravelVisuals);
+        setVisuals(resultVisuals);
         setResponse(answer);
         setSuggestions(suggs);
         setIsRestoredFromStorage(false);
@@ -3378,6 +3385,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               ))}
             </div>
           </Fade>
+
+          {visuals && visuals.type === "travel" && !isVoiceSession && !isTranscribing && (
+            <div
+              className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                visualsReady ? "opacity-100 mb-5" : "opacity-0 mb-0"
+              }`}
+              style={{
+                maxHeight: visualsReady ? "150px" : "0px",
+                transitionDuration: "1000ms",
+                transitionDelay: visualsReady && response && !isRestoredFromStorage ? "900ms" : "0ms",
+              }}
+            >
+              <VisualTravelFrame visuals={visuals} onReady={setVisualsReady} />
+            </div>
+          )}
 
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
