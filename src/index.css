@@ -228,29 +228,42 @@ All colors MUST be HSL.
 }
 
 @keyframes orange-fluid-drift {
+  /*
+     The path is deliberately diagonal and bowed, following the
+     132deg flow of the underlying wallpaper instead of orbiting
+     around a center point. The extra intermediate points make the
+     movement read as a slow, organic current rather than simple
+     up/down/left/right travel.
+  */
   0% {
-    transform: translate3d(-10%, 5%, 0) rotate(-1.2deg) scale(1.06);
+    transform: translate3d(-12%, 7%, 0) rotate(-2deg) scale(1.055);
   }
-  13% {
-    transform: translate3d(-3%, -2%, 0) rotate(0.4deg) scale(1.095);
+  12% {
+    transform: translate3d(-8%, 4%, 0) rotate(-1.35deg) scale(1.075);
   }
-  27% {
-    transform: translate3d(6%, 3%, 0) rotate(1.3deg) scale(1.07);
+  24% {
+    transform: translate3d(-1%, 0%, 0) rotate(-0.35deg) scale(1.095);
   }
-  41% {
-    transform: translate3d(1%, 10%, 0) rotate(-0.6deg) scale(1.115);
+  36% {
+    transform: translate3d(7%, -1%, 0) rotate(0.55deg) scale(1.08);
   }
-  56% {
-    transform: translate3d(-9%, 6%, 0) rotate(-2deg) scale(1.085);
+  48% {
+    transform: translate3d(13%, 2%, 0) rotate(1.4deg) scale(1.105);
   }
-  71% {
-    transform: translate3d(-4%, -6%, 0) rotate(0.7deg) scale(1.12);
+  60% {
+    transform: translate3d(10%, 8%, 0) rotate(0.8deg) scale(1.09);
+  }
+  72% {
+    transform: translate3d(3%, 13%, 0) rotate(-0.15deg) scale(1.115);
   }
   84% {
-    transform: translate3d(8%, -1%, 0) rotate(1.8deg) scale(1.075);
+    transform: translate3d(-5%, 12%, 0) rotate(-1.15deg) scale(1.08);
+  }
+  92% {
+    transform: translate3d(-10%, 9%, 0) rotate(-1.75deg) scale(1.065);
   }
   100% {
-    transform: translate3d(-10%, 5%, 0) rotate(-1.2deg) scale(1.06);
+    transform: translate3d(-12%, 7%, 0) rotate(-2deg) scale(1.055);
   }
 }
 
@@ -300,26 +313,32 @@ All colors MUST be HSL.
 }
 
 @keyframes orange-particle-drift {
+  /* Keep the particle field moving with the same broad diagonal
+     current, but on a slightly different curve so it does not look
+     mechanically attached to the main wave. */
   0% {
-    transform: translate3d(-34px, 18px, 0) rotate(0deg) scale(1.02);
+    transform: translate3d(-34px, 18px, 0) rotate(-0.25deg) scale(1.02);
   }
-  17% {
-    transform: translate3d(18px, -31px, 0) rotate(0.35deg) scale(1.035);
+  14% {
+    transform: translate3d(-10px, 2px, 0) rotate(0.1deg) scale(1.025);
   }
-  33% {
-    transform: translate3d(71px, -4px, 0) rotate(-0.2deg) scale(1.015);
+  29% {
+    transform: translate3d(28px, -13px, 0) rotate(0.38deg) scale(1.035);
   }
-  49% {
-    transform: translate3d(44px, 46px, 0) rotate(0.55deg) scale(1.045);
+  44% {
+    transform: translate3d(63px, -5px, 0) rotate(0.15deg) scale(1.02);
   }
-  66% {
-    transform: translate3d(-21px, 67px, 0) rotate(-0.3deg) scale(1.025);
+  58% {
+    transform: translate3d(78px, 24px, 0) rotate(-0.25deg) scale(1.04);
   }
-  83% {
-    transform: translate3d(-67px, 23px, 0) rotate(0.45deg) scale(1.04);
+  72% {
+    transform: translate3d(42px, 55px, 0) rotate(-0.45deg) scale(1.03);
+  }
+  86% {
+    transform: translate3d(-4px, 65px, 0) rotate(-0.1deg) scale(1.045);
   }
   100% {
-    transform: translate3d(-34px, 18px, 0) rotate(0deg) scale(1.02);
+    transform: translate3d(-34px, 18px, 0) rotate(-0.25deg) scale(1.02);
   }
 }
 
