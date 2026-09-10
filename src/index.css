@@ -296,8 +296,7 @@ All colors MUST be HSL.
     180px 180px;
 
   background-repeat: repeat;
-  opacity: 0.23;
-  mix-blend-mode: screen;
+  opacity: 0.18;
 
   transform-origin: 38% 61%;
   transform: translate3d(-34px, 0, 0) rotate(0deg) scale(1.02);
