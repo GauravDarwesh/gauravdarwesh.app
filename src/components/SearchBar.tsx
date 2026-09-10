@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { Mic, Check, X, ArrowRight } from "lucide-react";
+import { Mic, Check, X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
@@ -178,6 +178,154 @@ const extractVoiceLinks = (text: string): VoiceLink[] => {
   }
 
   return links.slice(0, 4);
+};
+
+type VisualItem = {
+  url: string;
+  title?: string;
+};
+
+const TRAVEL_VISUALS: VisualItem[] = [
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/A6AE9E26-5645-4F8A-BC54-E8A5B6311D7C.jpg",
+    title: "Japan 2025",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/D3FD6C99-BF7F-4001-9E8A-3F1F3B25666D.JPG",
+    title: "Japan 2025",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6477.jpg",
+    title: "Japan 2025",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6513.jpg",
+    title: "Japan 2025",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6529.jpg",
+    title: "Japan 2025",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Japan%202025/IMG_6530.jpg",
+    title: "Japan 2025",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1497.jpg",
+    title: "Japan 2024",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1554.jpg",
+    title: "Japan 2024",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/JPN-2024/DSC_1833.jpg",
+    title: "Japan 2024",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160614_135031.jpg",
+    title: "Europe 2016",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160616_115817.jpg",
+    title: "Europe 2016",
+  },
+  {
+    url: "https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/Europe%202016/IMG_20160616_124214.jpg",
+    title: "Europe 2016",
+  },
+];
+
+const getVisualsForQuery = (message: string): VisualItem[] => {
+  const normalized = message.toLowerCase();
+
+  if (
+    /\b(travel|travels|traveling|travelling|trip|trips|holiday|holidays|vacation|japan|europe)\b/i.test(normalized) &&
+    /\b(gaurav|he|his|like|likes|love|loves|enjoy|enjoys|hobby|hobbies|experience|experiences|been|visited|visit)\b/i.test(
+      normalized,
+    )
+  ) {
+    return TRAVEL_VISUALS;
+  }
+
+  return [];
+};
+
+const SearchVisualCarousel: React.FC<{
+  items: VisualItem[];
+  visible: boolean;
+}> = ({ items, visible }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!visible || !items.length) return;
+    setIndex(0);
+  }, [items, visible]);
+
+  useEffect(() => {
+    if (!visible || items.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % items.length);
+    }, 3500);
+
+    return () => window.clearInterval(timer);
+  }, [items.length, visible]);
+
+  if (!visible || !items.length) return null;
+
+  const current = items[index];
+
+  return (
+    <div
+      className="w-full mb-4 overflow-hidden rounded-xl border border-foreground/15 bg-white/5"
+      style={{
+        animation: "searchVisualsReveal 650ms cubic-bezier(0.25,1,0.3,1) both",
+      }}
+    >
+      <div className="relative w-full aspect-[16/8.5] overflow-hidden">
+        <img
+          key={current.url}
+          src={current.url}
+          alt={current.title || "Gaurav's travel visual"}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{
+            animation: "searchVisualImage 700ms ease-out both",
+          }}
+          loading={index === 0 ? "eager" : "lazy"}
+          draggable={false}
+        />
+
+        {items.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setIndex((currentIndex) => (currentIndex - 1 + items.length) % items.length)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
+              aria-label="Previous visual"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIndex((currentIndex) => (currentIndex + 1) % items.length)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
+              aria-label="Next visual"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </>
+        )}
+
+        <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/90 text-[11px] border border-white/15">
+          {current.title || "Visuals"}
+        </div>
+
+        <div className="absolute right-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/80 text-[11px] border border-white/15 tabular-nums">
+          {index + 1} / {items.length}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 /* =========================================================
@@ -496,6 +644,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [streamPulse, setStreamPulse] = useState(false);
+  const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
+  const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -2887,6 +3039,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
+    setSearchVisuals([]);
 
     if (!customQuery) setQuery("");
 
@@ -2915,25 +3068,64 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     try {
       const chatRequest = sendChatMessage as unknown as (
         message: string,
-        options?: { mode?: "text" | "voice" },
+        options?: {
+          mode?: "text" | "voice";
+          stream?: boolean;
+          onChunk?: (chunk: string) => void;
+        },
       ) => Promise<any>;
+
+      setSearchVisuals(fromVoice ? [] : getVisualsForQuery(text));
+      setIsStreamingResponse(false);
 
       const result = await chatRequest(text, {
         mode: fromVoice ? "voice" : "text",
+        stream: !fromVoice,
+        onChunk: fromVoice
+          ? undefined
+          : (chunk: string) => {
+              if (!chunk) return;
+              setIsStreamingResponse(true);
+              setResponse((current) => `${current || ""}${chunk}`);
+
+              if (streamPulseFrameRef.current !== null) {
+                cancelAnimationFrame(streamPulseFrameRef.current);
+              }
+
+              setStreamPulse(false);
+              streamPulseFrameRef.current = requestAnimationFrame(() => {
+                setStreamPulse(true);
+              });
+            },
       });
+
       const answer = String((result as any)?.response ?? "");
       const voiceAnswer = String((result as any)?.voice_response ?? answer);
       const suggs = (result as any)?.suggestions || [];
+      const returnedVisuals = Array.isArray((result as any)?.visuals)
+        ? (result as any).visuals
+            .map((item: any) => ({
+              url: String(item?.url ?? "").trim(),
+              title: String(item?.title ?? "").trim() || undefined,
+            }))
+            .filter((item: VisualItem) => /^https?:\/\//i.test(item.url))
+        : [];
+
+      if (returnedVisuals.length > 0) {
+        setSearchVisuals(returnedVisuals);
+      }
 
       if (fromVoice && isVoiceSessionRef.current) {
         void speakVoiceResponse(voiceAnswer, answer);
       } else {
-        setResponse(answer);
+        setResponse(answer || (result as any)?.response || null);
         setSuggestions(suggs);
         setIsRestoredFromStorage(false);
         onSearch?.(answer);
       }
     } catch (error) {
+      setIsStreamingResponse(false);
+      setSearchVisuals([]);
       const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
 
       if (fromVoice && isVoiceSessionRef.current) {
@@ -2945,6 +3137,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         onSearch?.(message);
       }
     } finally {
+      setIsStreamingResponse(false);
+      setStreamPulse(false);
+      if (streamPulseFrameRef.current !== null) {
+        cancelAnimationFrame(streamPulseFrameRef.current);
+        streamPulseFrameRef.current = null;
+      }
       isLoadingRef.current = false;
       setIsLoading(false);
     }
@@ -3048,7 +3246,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
-    const isExpanded = hasContent && !isLoading;
+    const isExpanded = hasContent && (!isLoading || isStreamingResponse);
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
       : isVoiceSession || isTranscribing
@@ -3057,7 +3255,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     const targetRadius = isExpanded ? "16px" : "999px";
 
     return { isExpanded, targetWidth, targetRadius };
-  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading]);
+  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading, isStreamingResponse]);
 
   /* =======================================================
      RENDER
@@ -3159,6 +3357,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             </div>
           </Fade>
 
+          <SearchVisualCarousel
+            items={searchVisuals}
+            visible={
+              searchVisuals.length > 0 && !isVoiceSession && !isTranscribing && !isCollapsing && !isCollapsingToThink
+            }
+          />
+
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
               response && !isVoiceSession && !isTranscribing
@@ -3183,8 +3388,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <div
                 className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                 style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
+                  animation: isRestoredFromStorage
+                    ? "none"
+                    : isStreamingResponse
+                      ? streamPulse
+                        ? "streamTextPulse 260ms cubic-bezier(0.25,1,0.3,1) both"
+                        : "none"
+                      : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: isRestoredFromStorage || isStreamingResponse ? "0ms" : "1000ms",
                   maxHeight: "300px",
                   fontWeight: 400,
                 }}
@@ -3311,6 +3522,39 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes streamTextPulse {
+          from {
+            opacity: 0.86;
+            filter: blur(1.2px);
+          }
+          to {
+            opacity: 1;
+            filter: blur(0);
+          }
+        }
+
+        @keyframes searchVisualsReveal {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes searchVisualImage {
+          from {
+            opacity: 0;
+            transform: scale(1.012);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
         @keyframes delayedFadeIn {
