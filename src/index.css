@@ -6,16 +6,6 @@
 All colors MUST be HSL.
 */
 
-html,
-body,
-#root {
-  min-height: 100%;
-}
-
-html {
-  background-color: #230b16;
-}
-
 @layer base {
   :root {
     /* Dark minimalist design system */
@@ -61,44 +51,7 @@ html {
   }
 
   body {
-    @apply text-foreground;
-
-    background:
-      radial-gradient(
-        ellipse 72% 48% at 18% 7%,
-        rgba(255, 146, 82, 1) 0%,
-        rgba(255, 112, 58, 0.98) 22%,
-        rgba(250, 78, 39, 0.94) 43%,
-        rgba(229, 42, 30, 0.78) 60%,
-        rgba(128, 13, 22, 0.25) 79%,
-        transparent 100%
-      ),
-      radial-gradient(
-        ellipse 98% 68% at 2% 25%,
-        rgba(255, 78, 39, 0.96) 0%,
-        rgba(214, 36, 31, 0.9) 35%,
-        rgba(139, 17, 26, 0.78) 58%,
-        rgba(70, 9, 19, 0.44) 76%,
-        transparent 100%
-      ),
-      radial-gradient(
-        ellipse 74% 82% at 62% 48%,
-        rgba(115, 16, 31, 0.86) 0%,
-        rgba(83, 11, 26, 0.86) 28%,
-        rgba(52, 7, 21, 0.89) 60%,
-        rgba(26, 4, 16, 0.93) 100%
-      ),
-      radial-gradient(
-        ellipse 62% 86% at 98% 50%,
-        rgba(26, 4, 17, 0.96) 0%,
-        rgba(35, 5, 19, 0.92) 35%,
-        rgba(54, 9, 23, 0.79) 66%,
-        transparent 100%
-      ),
-      linear-gradient(132deg, #ff783d 0%, #f8492d 20%, #bb1d2d 38%, #751521 55%, #431723 72%, #230b16 100%);
-
-    background-repeat: no-repeat;
-    background-size: cover;
+    @apply bg-background text-foreground;
   }
 }
 
@@ -145,7 +98,39 @@ html {
   min-height: 100vh;
   overflow: hidden;
 
-  background: transparent;
+  background:
+    radial-gradient(
+      ellipse 72% 48% at 18% 7%,
+      rgba(255, 146, 82, 1) 0%,
+      rgba(255, 112, 58, 0.98) 22%,
+      rgba(250, 78, 39, 0.94) 43%,
+      rgba(229, 42, 30, 0.78) 60%,
+      rgba(128, 13, 22, 0.25) 79%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 98% 68% at 2% 25%,
+      rgba(255, 78, 39, 0.96) 0%,
+      rgba(214, 36, 31, 0.9) 35%,
+      rgba(139, 17, 26, 0.78) 58%,
+      rgba(70, 9, 19, 0.44) 76%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 74% 82% at 62% 48%,
+      rgba(115, 16, 31, 0.86) 0%,
+      rgba(83, 11, 26, 0.86) 28%,
+      rgba(52, 7, 21, 0.89) 60%,
+      rgba(26, 4, 16, 0.93) 100%
+    ),
+    radial-gradient(
+      ellipse 62% 86% at 98% 50%,
+      rgba(26, 4, 17, 0.96) 0%,
+      rgba(35, 5, 19, 0.92) 35%,
+      rgba(54, 9, 23, 0.79) 66%,
+      transparent 100%
+    ),
+    linear-gradient(132deg, #ff783d 0%, #f8492d 20%, #bb1d2d 38%, #751521 55%, #431723 72%, #230b16 100%);
 
   background-size:
     142% 136%,
@@ -437,6 +422,16 @@ html {
   }
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background-color: #230b16;
+}
+
 html {
   scrollbar-gutter: stable;
 }
@@ -633,7 +628,6 @@ body,
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-:root[data-theme="minimal"] html,
 :root[data-theme="minimal"] body,
 :root[data-theme="minimal"] .site-page {
   background-color: hsl(var(--background));
