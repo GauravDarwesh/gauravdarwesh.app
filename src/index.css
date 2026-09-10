@@ -224,31 +224,73 @@ All colors MUST be HSL.
   }
 }
 
-/* Fine grain — static texture, no motion. Grain that moves reads
-   as noise; grain that holds still reads as film stock. */
+/* Fine grain — drifts on a single diagonal path, one direction,
+   no reversal and no rotate/scale riding along with it. That's
+   the difference between "grain catching light" and "wobble". */
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -20%;
   pointer-events: none;
 
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.95'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  background-repeat: repeat;
-  opacity: 0.05;
-  mix-blend-mode: overlay;
+  background-image:
+    radial-gradient(circle at 18px 24px, rgba(255, 238, 221, 0.5) 0 1px, transparent 2px),
+    radial-gradient(circle at 82px 68px, rgba(255, 190, 151, 0.38) 0 1.1px, transparent 2.3px),
+    radial-gradient(circle at 151px 119px, rgba(255, 225, 199, 0.3) 0 0.9px, transparent 2px),
+    radial-gradient(circle at 218px 38px, rgba(255, 157, 117, 0.32) 0 1px, transparent 2.2px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.95'/%3E%3C/svg%3E");
 
+  background-size:
+    210px 210px,
+    270px 270px,
+    320px 320px,
+    360px 360px,
+    180px 180px;
+
+  background-repeat: repeat;
+  opacity: 0.16;
+  mix-blend-mode: screen;
+
+  animation: grain-drift 70s linear infinite;
+  will-change: background-position;
   contain: paint;
+}
+
+@keyframes grain-drift {
+  /* One continuous diagonal pass — no back-and-forth, no easing
+     reversal, just a slow constant-speed pan that loops cleanly
+     because the tile sizes repeat evenly. */
+  from {
+    background-position:
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      210px 210px,
+      -270px 270px,
+      320px -320px,
+      -360px -360px,
+      180px 180px;
+  }
 }
 
 @media (max-width: 768px) {
   .orange-bg::before {
     animation-duration: 28s;
   }
+  .orange-bg::after {
+    animation-duration: 90s;
+    opacity: 0.13;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orange-bg::before {
+  .orange-bg::before,
+  .orange-bg::after {
     animation: none;
   }
 }
