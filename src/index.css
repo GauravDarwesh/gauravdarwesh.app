@@ -87,9 +87,9 @@ All colors MUST be HSL.
 /* ============================================================
    ORANGE / BURGUNDY LIVE WALLPAPER
    ------------------------------------------------------------
-   The wallpaper has real, visible movement, but it is isolated
-   to the fixed background layers. The page/UI animations remain
-   independent and are not touched.
+   The base wallpaper stays fixed. Only the two isolated visual
+   layers move, using transform-only animation so the rest of the
+   page is not pulled into the animation/repaint loop.
    ============================================================ */
 
 .orange-bg {
@@ -97,7 +97,6 @@ All colors MUST be HSL.
   min-height: 100vh;
   overflow: hidden;
 
-  /* Base composition. The visible motion is added by the layers below. */
   background:
     radial-gradient(
       ellipse 72% 48% at 18% 7%,
@@ -150,7 +149,6 @@ All colors MUST be HSL.
   animation: none;
   filter: none;
   will-change: auto;
-
   backface-visibility: hidden;
   transform: translateZ(0);
   isolation: isolate;
@@ -164,73 +162,65 @@ All colors MUST be HSL.
 }
 
 /* ------------------------------------------------------------
-   VISIBLE FLUID WAVE FIELD
+   ORGANIC WAVE FIELD
    ------------------------------------------------------------
-   Large overlapping gradients create moving color contours.
-   Movement is transform-only, so the layer can stay on its own
-   compositing path instead of moving the whole page.
+   No centered conic/radial focal point: that was creating the
+   "dot in the middle" and making the motion read as circular.
+   These asymmetric, elongated bands move through an irregular
+   path instead, so the wallpaper feels atmospheric rather than
+   orbit-like.
    ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -55%;
+  inset: -58%;
   pointer-events: none;
 
   background:
     radial-gradient(
-      ellipse 35% 12% at 12% 18%,
+      ellipse 28% 8% at 8% 14%,
       rgba(255, 205, 151, 0.62) 0%,
-      rgba(255, 135, 71, 0.42) 34%,
-      rgba(246, 74, 42, 0.12) 62%,
-      transparent 84%
-    ),
-    radial-gradient(
-      ellipse 56% 15% at 46% 32%,
-      rgba(245, 71, 43, 0.52) 0%,
-      rgba(190, 32, 37, 0.3) 35%,
-      rgba(100, 12, 25, 0.08) 65%,
-      transparent 84%
-    ),
-    radial-gradient(
-      ellipse 48% 13% at 78% 46%,
-      rgba(255, 116, 65, 0.34) 0%,
-      rgba(151, 21, 29, 0.22) 38%,
-      rgba(48, 6, 19, 0.05) 68%,
+      rgba(255, 135, 71, 0.42) 36%,
+      rgba(246, 74, 42, 0.1) 68%,
       transparent 86%
     ),
     radial-gradient(
-      ellipse 62% 18% at 44% 68%,
-      rgba(107, 12, 27, 0.42) 0%,
-      rgba(67, 8, 23, 0.26) 40%,
-      rgba(238, 61, 39, 0.1) 66%,
+      ellipse 46% 9% at 34% 27%,
+      rgba(255, 117, 64, 0.4) 0%,
+      rgba(205, 41, 38, 0.24) 37%,
+      rgba(89, 10, 24, 0.07) 68%,
       transparent 88%
     ),
     radial-gradient(
-      ellipse 44% 12% at 82% 84%,
-      rgba(244, 89, 52, 0.3) 0%,
-      rgba(126, 16, 27, 0.16) 43%,
-      transparent 84%
+      ellipse 52% 11% at 74% 20%,
+      rgba(238, 58, 42, 0.44) 0%,
+      rgba(154, 24, 33, 0.24) 39%,
+      rgba(57, 7, 20, 0.07) 70%,
+      transparent 89%
     ),
-    conic-gradient(
-      from 18deg at 48% 50%,
-      transparent 0deg,
-      rgba(255, 119, 63, 0.13) 55deg,
-      transparent 112deg,
-      rgba(74, 7, 23, 0.13) 190deg,
-      transparent 270deg,
-      rgba(255, 101, 54, 0.1) 330deg,
-      transparent 360deg
-    );
+    radial-gradient(
+      ellipse 34% 8% at 88% 53%,
+      rgba(255, 132, 74, 0.34) 0%,
+      rgba(167, 25, 31, 0.18) 42%,
+      transparent 88%
+    ),
+    radial-gradient(
+      ellipse 58% 13% at 44% 64%,
+      rgba(95, 10, 25, 0.42) 0%,
+      rgba(57, 7, 22, 0.22) 45%,
+      rgba(229, 57, 38, 0.09) 70%,
+      transparent 90%
+    ),
+    radial-gradient(ellipse 40% 9% at 16% 84%, rgba(223, 57, 39, 0.24) 0%, rgba(102, 12, 26, 0.17) 43%, transparent 88%);
 
-  background-size: 118% 118%;
-  background-position: center;
+  background-size: 124% 124%;
   background-repeat: no-repeat;
+  opacity: 0.96;
 
-  opacity: 1;
-  transform-origin: center;
-  transform: translate3d(-7%, 4%, 0) rotate(-2deg) scale(1.04);
-  animation: orange-fluid-drift 30s ease-in-out infinite alternate;
+  transform-origin: 47% 53%;
+  transform: translate3d(-10%, 5%, 0) rotate(-1.2deg) scale(1.06);
+  animation: orange-fluid-drift 34s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
 
   will-change: transform;
   backface-visibility: hidden;
@@ -239,33 +229,39 @@ All colors MUST be HSL.
 
 @keyframes orange-fluid-drift {
   0% {
-    transform: translate3d(-7%, 4%, 0) rotate(-2deg) scale(1.04);
+    transform: translate3d(-10%, 5%, 0) rotate(-1.2deg) scale(1.06);
   }
-  18% {
-    transform: translate3d(-1%, -4%, 0) rotate(0deg) scale(1.1);
+  13% {
+    transform: translate3d(-3%, -2%, 0) rotate(0.4deg) scale(1.095);
   }
-  38% {
-    transform: translate3d(7%, 2%, 0) rotate(2deg) scale(1.06);
+  27% {
+    transform: translate3d(6%, 3%, 0) rotate(1.3deg) scale(1.07);
   }
-  58% {
-    transform: translate3d(1%, 8%, 0) rotate(-1deg) scale(1.12);
+  41% {
+    transform: translate3d(1%, 10%, 0) rotate(-0.6deg) scale(1.115);
   }
-  78% {
-    transform: translate3d(-8%, 0%, 0) rotate(-3deg) scale(1.07);
+  56% {
+    transform: translate3d(-9%, 6%, 0) rotate(-2deg) scale(1.085);
+  }
+  71% {
+    transform: translate3d(-4%, -6%, 0) rotate(0.7deg) scale(1.12);
+  }
+  84% {
+    transform: translate3d(8%, -1%, 0) rotate(1.8deg) scale(1.075);
   }
   100% {
-    transform: translate3d(4%, -7%, 0) rotate(1.5deg) scale(1.1);
+    transform: translate3d(-10%, 5%, 0) rotate(-1.2deg) scale(1.06);
   }
 }
 
 /* ------------------------------------------------------------
-   PARTICLES + MORE VISIBLE GRAIN
+   DRIFTING PARTICLES + VISIBLE GRAIN
    ------------------------------------------------------------ */
 
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -14%;
+  inset: -16%;
   pointer-events: none;
 
   background-image:
@@ -275,6 +271,8 @@ All colors MUST be HSL.
     radial-gradient(circle at 218px 38px, rgba(255, 157, 117, 0.4) 0 1px, transparent 2.3px),
     radial-gradient(circle at 276px 184px, rgba(255, 239, 217, 0.28) 0 0.85px, transparent 2px),
     radial-gradient(circle at 42px 171px, rgba(255, 138, 94, 0.34) 0 0.8px, transparent 1.9px),
+    radial-gradient(circle at 118px 203px, rgba(255, 215, 184, 0.26) 0 0.75px, transparent 2px),
+    radial-gradient(circle at 325px 91px, rgba(255, 177, 135, 0.24) 0 0.8px, transparent 2px),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.95'/%3E%3C/svg%3E");
 
   background-size:
@@ -284,14 +282,17 @@ All colors MUST be HSL.
     360px 360px,
     400px 400px,
     290px 290px,
+    340px 340px,
+    460px 460px,
     180px 180px;
 
   background-repeat: repeat;
   opacity: 0.23;
   mix-blend-mode: screen;
 
-  transform: translate3d(-28px, 14px, 0) scale(1.02);
-  animation: orange-particle-drift 44s linear infinite;
+  transform-origin: 38% 61%;
+  transform: translate3d(-34px, 18px, 0) rotate(0deg) scale(1.02);
+  animation: orange-particle-drift 51s cubic-bezier(0.37, 0.01, 0.22, 1) infinite;
 
   will-change: transform;
   backface-visibility: hidden;
@@ -300,30 +301,36 @@ All colors MUST be HSL.
 
 @keyframes orange-particle-drift {
   0% {
-    transform: translate3d(-28px, 14px, 0) scale(1.02);
+    transform: translate3d(-34px, 18px, 0) rotate(0deg) scale(1.02);
   }
-  25% {
-    transform: translate3d(34px, -22px, 0) scale(1.035);
+  17% {
+    transform: translate3d(18px, -31px, 0) rotate(0.35deg) scale(1.035);
   }
-  50% {
-    transform: translate3d(62px, 30px, 0) scale(1.02);
+  33% {
+    transform: translate3d(71px, -4px, 0) rotate(-0.2deg) scale(1.015);
   }
-  75% {
-    transform: translate3d(-10px, 58px, 0) scale(1.04);
+  49% {
+    transform: translate3d(44px, 46px, 0) rotate(0.55deg) scale(1.045);
+  }
+  66% {
+    transform: translate3d(-21px, 67px, 0) rotate(-0.3deg) scale(1.025);
+  }
+  83% {
+    transform: translate3d(-67px, 23px, 0) rotate(0.45deg) scale(1.04);
   }
   100% {
-    transform: translate3d(-44px, 8px, 0) scale(1.02);
+    transform: translate3d(-34px, 18px, 0) rotate(0deg) scale(1.02);
   }
 }
 
 @media (max-width: 768px) {
   .orange-bg::before {
-    animation-duration: 36s;
+    animation-duration: 40s;
   }
 
   .orange-bg::after {
-    animation-duration: 52s;
-    opacity: 0.2;
+    animation-duration: 58s;
+    opacity: 0.21;
   }
 }
 
