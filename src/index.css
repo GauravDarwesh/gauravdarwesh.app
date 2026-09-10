@@ -85,14 +85,11 @@ All colors MUST be HSL.
 }
 
 /* ============================================================
-   ORANGE / BURGUNDY ATMOSPHERIC BACKGROUND
+   ORANGE / BURGUNDY LIVE WALLPAPER
    ------------------------------------------------------------
-   Performance-safe motion:
-   - Base wallpaper stays completely static.
-   - Wave movement lives on an isolated pseudo-element.
-   - Particle drift + grain live on a second isolated layer.
-   - Only transform is animated; no background-position animation.
-   - Nothing here touches page/UI animation timelines.
+   The base wallpaper remains static. The live movement is isolated
+   entirely to the fixed background's pseudo-elements so the page UI
+   keeps its own animation/compositing path.
    ============================================================ */
 
 .orange-bg {
@@ -100,7 +97,7 @@ All colors MUST be HSL.
   min-height: 100vh;
   overflow: hidden;
 
-  /* Static base wallpaper. Keep this layer completely still. */
+  /* Static base wallpaper — never animated. */
   background:
     radial-gradient(
       ellipse 72% 48% at 18% 7%,
@@ -160,7 +157,6 @@ All colors MUST be HSL.
   pointer-events: none;
 }
 
-/* Page background stays outside document flow. */
 .site-background.orange-bg {
   position: fixed;
   inset: 0;
@@ -168,145 +164,140 @@ All colors MUST be HSL.
 }
 
 /* ------------------------------------------------------------
-   Slow wave layer
+   LIVE FLUID WAVE
    ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -24%;
+  inset: -38%;
   pointer-events: none;
 
   background:
     radial-gradient(
-      ellipse 54% 25% at 18% 24%,
-      rgba(255, 150, 78, 0.34) 0%,
-      rgba(255, 96, 47, 0.18) 42%,
+      ellipse 42% 17% at 16% 17%,
+      rgba(255, 177, 112, 0.5) 0%,
+      rgba(255, 108, 55, 0.28) 38%,
       transparent 76%
     ),
     radial-gradient(
-      ellipse 62% 30% at 72% 44%,
-      rgba(205, 45, 38, 0.22) 0%,
-      rgba(115, 14, 28, 0.1) 44%,
-      transparent 78%
+      ellipse 58% 22% at 60% 34%,
+      rgba(239, 65, 39, 0.33) 0%,
+      rgba(176, 28, 34, 0.18) 42%,
+      transparent 80%
     ),
+    radial-gradient(ellipse 50% 19% at 83% 67%, rgba(103, 13, 28, 0.34) 0%, rgba(71, 9, 24, 0.18) 44%, transparent 82%),
     radial-gradient(
-      ellipse 48% 22% at 42% 76%,
-      rgba(244, 74, 42, 0.16) 0%,
-      rgba(140, 20, 28, 0.08) 44%,
-      transparent 78%
+      ellipse 52% 20% at 29% 82%,
+      rgba(245, 77, 43, 0.22) 0%,
+      rgba(130, 17, 27, 0.12) 45%,
+      transparent 82%
     );
 
-  background-size:
-    118% 82%,
-    126% 88%,
-    110% 76%;
-
   background-repeat: no-repeat;
-
-  transform: translate3d(-1.5%, -0.5%, 0) scale(1.14);
+  transform: translate3d(-4%, -2%, 0) rotate(-1.5deg) scale(1.08);
   transform-origin: center;
-  animation: orange-wave-drift 30s ease-in-out infinite alternate;
+  animation: orange-live-wave 24s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 
+  opacity: 0.92;
   will-change: transform;
   backface-visibility: hidden;
   contain: paint;
 }
 
-@keyframes orange-wave-drift {
+@keyframes orange-live-wave {
   0% {
-    transform: translate3d(-1.5%, -0.5%, 0) scale(1.14);
+    transform: translate3d(-4%, -2%, 0) rotate(-1.5deg) scale(1.08);
   }
-
+  25% {
+    transform: translate3d(2%, 3%, 0) rotate(0.8deg) scale(1.13);
+  }
   50% {
-    transform: translate3d(1%, 0.8%, 0) scale(1.17);
+    transform: translate3d(6%, -1%, 0) rotate(1.5deg) scale(1.1);
   }
-
+  75% {
+    transform: translate3d(-1%, -4%, 0) rotate(-0.4deg) scale(1.15);
+  }
   100% {
-    transform: translate3d(2.2%, -0.8%, 0) scale(1.15);
+    transform: translate3d(-6%, 2%, 0) rotate(-1.8deg) scale(1.09);
   }
 }
 
 /* ------------------------------------------------------------
-   Particle drift + film grain
+   PARTICLE DRIFT + MOVING GRAIN
    ------------------------------------------------------------ */
 
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -18%;
+  inset: -22%;
   pointer-events: none;
 
-  /*
-   * First layer: tiny, sparse warm particles.
-   * Second layer: monochrome film grain.
-   */
+  /* Particle fields sit above the grain texture. */
   background-image:
-    radial-gradient(circle at 14px 20px, rgba(255, 191, 145, 0.26) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 74px 56px, rgba(255, 141, 91, 0.18) 0 1px, transparent 1.9px),
-    radial-gradient(circle at 132px 104px, rgba(255, 205, 170, 0.14) 0 1px, transparent 2px),
-    radial-gradient(circle at 188px 32px, rgba(255, 127, 82, 0.16) 0 0.9px, transparent 1.8px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.78'/%3E%3C/svg%3E");
+    radial-gradient(circle at 18px 24px, rgba(255, 220, 192, 0.45) 0 1px, transparent 2px),
+    radial-gradient(circle at 82px 68px, rgba(255, 165, 118, 0.3) 0 1.1px, transparent 2.2px),
+    radial-gradient(circle at 151px 119px, rgba(255, 205, 165, 0.24) 0 0.9px, transparent 2px),
+    radial-gradient(circle at 218px 38px, rgba(255, 138, 91, 0.27) 0 1px, transparent 2px),
+    radial-gradient(circle at 276px 184px, rgba(255, 230, 204, 0.18) 0 0.8px, transparent 1.9px),
+    radial-gradient(circle at 42px 171px, rgba(255, 122, 78, 0.22) 0 0.8px, transparent 1.8px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.92'/%3E%3C/svg%3E");
 
   background-size:
-    220px 220px,
-    260px 260px,
-    310px 310px,
-    340px 340px,
+    230px 230px,
+    280px 280px,
+    330px 330px,
+    370px 370px,
+    410px 410px,
+    300px 300px,
     220px 220px;
 
-  background-position:
-    0 0,
-    30px 10px,
-    90px 40px,
-    150px 80px,
-    0 0;
-
   background-repeat: repeat;
-
-  opacity: 0.12;
+  opacity: 0.17;
   mix-blend-mode: screen;
 
-  transform: translate3d(0, 0, 0);
-  animation: orange-particle-drift 42s ease-in-out infinite alternate;
+  transform: translate3d(-35px, 20px, 0) scale(1.02);
+  animation: orange-live-particles 38s linear infinite;
 
   will-change: transform;
   backface-visibility: hidden;
   contain: paint;
 }
 
-@keyframes orange-particle-drift {
+@keyframes orange-live-particles {
   0% {
-    transform: translate3d(-18px, 10px, 0);
+    transform: translate3d(-35px, 20px, 0) scale(1.02);
   }
-
+  25% {
+    transform: translate3d(20px, -14px, 0) scale(1.04);
+  }
   50% {
-    transform: translate3d(12px, -16px, 0);
+    transform: translate3d(54px, 26px, 0) scale(1.025);
   }
-
+  75% {
+    transform: translate3d(18px, 52px, 0) scale(1.05);
+  }
   100% {
-    transform: translate3d(28px, 6px, 0);
+    transform: translate3d(-42px, 14px, 0) scale(1.02);
   }
 }
 
-/* Keep the enhanced atmosphere gentle on slower/mobile devices. */
+/* Slower on smaller screens so the wallpaper remains light. */
 @media (max-width: 768px) {
   .orange-bg::before {
-    animation-duration: 38s;
+    animation-duration: 30s;
   }
 
   .orange-bg::after {
-    animation-duration: 52s;
-    opacity: 0.1;
+    animation-duration: 48s;
+    opacity: 0.14;
   }
 }
 
-/* Respect reduced-motion preferences. */
 @media (prefers-reduced-motion: reduce) {
   .orange-bg::before,
   .orange-bg::after {
     animation: none;
-    transform: translate3d(0, 0, 0) scale(1.14);
   }
 }
 
