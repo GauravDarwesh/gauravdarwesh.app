@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { Mic, Check, X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { sendChatMessage, streamChatMessage } from "@/lib/api";
+import { Mic, Check, X, ArrowRight } from "lucide-react";
+import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
    0. TTS CONFIG
@@ -178,88 +178,6 @@ const extractVoiceLinks = (text: string): VoiceLink[] => {
   }
 
   return links.slice(0, 4);
-};
-
-type VisualItem = {
-  url: string;
-  title?: string;
-};
-
-const SearchVisualCarousel: React.FC<{
-  items: VisualItem[];
-  visible: boolean;
-}> = ({ items, visible }) => {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (!visible || !items.length) return;
-    setIndex(0);
-  }, [items, visible]);
-
-  useEffect(() => {
-    if (!visible || items.length <= 1) return;
-    const timer = window.setInterval(() => {
-      setIndex((current) => (current + 1) % items.length);
-    }, 2000);
-
-    return () => window.clearInterval(timer);
-  }, [items.length, visible]);
-
-  if (!visible || !items.length) return null;
-
-  const current = items[index];
-
-  return (
-    <div
-      className="w-full mb-4 overflow-hidden rounded-xl border border-foreground/15 bg-white/5"
-      style={{
-        animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-      }}
-    >
-      <div className="relative w-full aspect-[16/8.5] overflow-hidden">
-        <img
-          key={current.url}
-          src={current.url}
-          alt={current.title || "Gaurav's travel visual"}
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{
-            animation: "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-          }}
-          loading={index === 0 ? "eager" : "lazy"}
-          draggable={false}
-        />
-
-        {items.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={() => setIndex((currentIndex) => (currentIndex - 1 + items.length) % items.length)}
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
-              aria-label="Previous visual"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIndex((currentIndex) => (currentIndex + 1) % items.length)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
-              aria-label="Next visual"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </>
-        )}
-
-        <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/90 text-[11px] border border-white/15">
-          {current.title || "Visuals"}
-        </div>
-
-        <div className="absolute right-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/80 text-[11px] border border-white/15 tabular-nums">
-          {index + 1} / {items.length}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 /* =========================================================
@@ -578,11 +496,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
-  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
-  const [streamPulse, setStreamPulse] = useState(false);
-  const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
-  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
-  const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -2974,84 +2887,53 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
-    setSearchVisuals([]);
 
     if (!customQuery) setQuery("");
 
     if (!fromVoice) {
       stopVoiceSession();
       hideVoiceLinkBubbles();
-      setIsCollapsing(false);
-      setIsCollapsingToThink(false);
-      setResponse(null);
-      setSuggestions([]);
+
+      if (response || suggestions.length > 0) {
+        setIsCollapsingToThink(true);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setResponse(null);
+        setSuggestions([]);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setIsCollapsingToThink(false);
+      } else {
+        setResponse(null);
+        setSuggestions([]);
+      }
     } else {
       setIsListening(false);
     }
 
-    // The SearchBar is expanded by isLoading immediately. There is no
-    // thinking animation and no client-side typewriter/reveal delay.
     isLoadingRef.current = true;
     setIsLoading(true);
 
     try {
-      if (fromVoice) {
-        const result = await sendChatMessage(text);
-        const answer = String((result as any)?.response ?? "");
-        const voiceAnswer = String((result as any)?.voice_response ?? answer);
+      const chatRequest = sendChatMessage as unknown as (
+        message: string,
+        options?: { mode?: "text" | "voice" },
+      ) => Promise<any>;
 
-        if (isVoiceSessionRef.current) {
-          void speakVoiceResponse(voiceAnswer, answer);
-        }
-
-        return;
-      }
-
-      let streamedResponse = "";
-      let visualsShown = false;
-
-      const result = await streamChatMessage(text, {
-        onToken: (chunk: string) => {
-          if (!chunk) return;
-
-          // This is the actual server stream. Append each received chunk
-          // immediately. There is deliberately no delay, animation, or
-          // typewriter timer here.
-          streamedResponse += chunk;
-          setResponse(streamedResponse);
-        },
-        onVisuals: (visuals: VisualItem[]) => {
-          if (!visuals.length) return;
-          visualsShown = true;
-          setSearchVisuals(visuals);
-        },
+      const result = await chatRequest(text, {
+        mode: fromVoice ? "voice" : "text",
       });
-
-      const answer = String((result as any)?.response ?? streamedResponse ?? "");
+      const answer = String((result as any)?.response ?? "");
+      const voiceAnswer = String((result as any)?.voice_response ?? answer);
       const suggs = (result as any)?.suggestions || [];
 
-      if (Array.isArray((result as any)?.visuals) && !visualsShown) {
-        const returnedVisuals = (result as any).visuals
-          .map((item: any) => ({
-            url: String(item?.url ?? "").trim(),
-            title: String(item?.title ?? "").trim() || undefined,
-          }))
-          .filter((item: VisualItem) => /^https?:\/\//i.test(item.url));
-
-        if (returnedVisuals.length > 0) {
-          setSearchVisuals(returnedVisuals);
-        }
+      if (fromVoice && isVoiceSessionRef.current) {
+        void speakVoiceResponse(voiceAnswer, answer);
+      } else {
+        setResponse(answer);
+        setSuggestions(suggs);
+        setIsRestoredFromStorage(false);
+        onSearch?.(answer);
       }
-
-      // Final value is set once more after the stream completes, but the
-      // user has already been seeing the chunks above in real time.
-      setResponse(answer || streamedResponse || null);
-      setSuggestions(suggs);
-      setIsRestoredFromStorage(false);
-      onSearch?.(answer);
     } catch (error) {
-      setSearchVisuals([]);
-
       const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
 
       if (fromVoice && isVoiceSessionRef.current) {
@@ -3067,6 +2949,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsLoading(false);
     }
   };
+
   handleSubmitRef.current = handleSubmit;
 
   /* =======================================================
@@ -3163,13 +3046,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      LAYOUT
      ======================================================= */
 
-  // While a request is active, the bar is fully expanded immediately.
-  // There is no thinking state controlling the layout.
-  const isExpanded = isLoading || Boolean(response) || suggestions.length > 0 || isVoiceSession || isTranscribing;
+  const layoutValues = useMemo(() => {
+    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
+    const isExpanded = hasContent && !isLoading;
+    const targetWidth = isExpanded
+      ? "min(460px, 92vw)"
+      : isVoiceSession || isTranscribing
+        ? "min(320px, 78vw)"
+        : "min(360px, 92vw)";
+    const targetRadius = isExpanded ? "16px" : "999px";
 
-  const targetWidth = isExpanded ? "min(640px, 94vw)" : "min(360px, 92vw)";
-
-  const targetRadius = isExpanded ? "18px" : "999px";
+    return { isExpanded, targetWidth, targetRadius };
+  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading]);
 
   /* =======================================================
      RENDER
@@ -3229,24 +3117,35 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       <div
         className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
-          isVoiceSession || isTranscribing || isListening ? "listening-container" : ""
-        }`}
+          isLoading ? "thinking-container" : ""
+        } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={{
-          width: targetWidth,
-          maxWidth: "94vw",
-          borderRadius: targetRadius,
-          // Keep only the physical expansion transition. Response text itself
-          // has no animation or typewriter behavior.
-          transition: "width 0.45s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.45s cubic-bezier(0.25, 1, 0.3, 1)",
+          width: layoutValues.targetWidth,
+          maxWidth: "92vw",
+          borderRadius: layoutValues.targetRadius,
+          transition:
+            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
           touchAction: "manipulation",
         }}
       >
-        <div className={isExpanded ? "p-5 pt-6" : "p-2"}>
-          {showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession && !isTranscribing && (
-            <div className="flex gap-2 flex-wrap justify-center mb-3">
+        <div
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
+          style={{
+            transitionDuration: "800ms",
+            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
+          }}
+        >
+          <Fade
+            show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession && !isTranscribing}
+            duration={800}
+          >
+            <div
+              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
+              style={{ animation: "fadeIn 0.8s ease forwards" }}
+            >
               {suggestions.map((suggestion, index) => (
                 <button
                   key={index}
@@ -3258,44 +3157,41 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 </button>
               ))}
             </div>
-          )}
+          </Fade>
 
-          <SearchVisualCarousel
-            items={searchVisuals}
-            visible={searchVisuals.length > 0 && !isVoiceSession && !isTranscribing && !isCollapsing}
-          />
-
-          {/*
-           * STREAMING RESPONSE
-           *
-           * Always mount the response surface while loading. This is critical:
-           * the layout does not wait for `response` to exist before allocating
-           * space for the incoming stream.
-           *
-           * While the request is active, render the raw string directly. That
-           * prevents a partially-generated Markdown/HTML fragment from being
-           * interpreted as an animation or malformed markup. Once the stream
-           * finishes, render the existing Markdown formatting.
-           */}
-          {!isVoiceSession && !isTranscribing && (isLoading || response) && (
-            <div
-              className="text-foreground text-sm leading-relaxed font-normal px-4 mb-5 whitespace-pre-wrap break-words overflow-y-auto scrollbar-hide"
-              style={{
-                maxHeight: "360px",
-                minHeight: response ? undefined : "1.5rem",
-                fontWeight: 400,
-                opacity: 1,
-                animation: "none",
-                transition: "none",
-              }}
-            >
-              {isLoading ? (
-                response || ""
-              ) : response ? (
-                <div dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }} />
-              ) : null}
-            </div>
-          )}
+          <div
+            className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              response && !isVoiceSession && !isTranscribing
+                ? isCollapsing || isCollapsingToThink
+                  ? "opacity-0 mb-0"
+                  : "opacity-100 mb-5"
+                : "opacity-0 mb-0"
+            }`}
+            style={{
+              maxHeight:
+                isCollapsing || isCollapsingToThink
+                  ? "0px"
+                  : response && !isVoiceSession && !isTranscribing
+                    ? "384px"
+                    : "0px",
+              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
+              transitionDelay:
+                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
+            }}
+          >
+            {response && !isVoiceSession && !isTranscribing && (
+              <div
+                className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
+                style={{
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
+                  maxHeight: "300px",
+                  fontWeight: 400,
+                }}
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+              />
+            )}
+          </div>
 
           <form
             onSubmit={(event) => handleSubmit(event, undefined, false)}
@@ -3307,10 +3203,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={placeholderText}
+                  placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10"
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10 ${
+                    isLoading ? "thinking-placeholder" : ""
+                  }`}
                   disabled={isLoading}
                   aria-label="Ask anything"
                   style={{ fontWeight: 400 }}
@@ -3318,12 +3216,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
+            {/* Talk with agent voice mode: Waveform WITHOUT timer */}
             {isVoiceSession && !isTranscribing && (
               <div className="flex-1 flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking || isListening} />
               </div>
             )}
 
+            {/* Transcribe mode: Waveform WITH timer */}
             {isTranscribing && (
               <div className="flex-1 flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={isListening} />
@@ -3331,6 +3231,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
+            {/* Action buttons */}
             {isVoiceSession ? (
               <button
                 type="button"
@@ -3353,6 +3254,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </button>
             ) : (
               <div className="flex items-center gap-1.5 shrink-0 pr-1">
+                {/* Transcribe mic button */}
                 <button
                   type="button"
                   onClick={startTranscribe}
@@ -3363,6 +3265,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   <Mic className="h-5 w-5" strokeWidth={2} />
                 </button>
 
+                {/* Talk with agent button (ChatGPT style) */}
                 <button
                   type="button"
                   onClick={() => {
@@ -3372,7 +3275,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       startVoiceSession();
                     }
                   }}
-                  className="gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer bg-[#0084FF] hover:bg-[#0074E8] relative"
+                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
+                    query.trim() ? "bg-[#0084FF] hover:bg-[#0074E8]" : "bg-[#0084FF] hover:bg-[#0074E8]"
+                  }`}
                   title={query.trim() ? "Search" : "Talk with GDx"}
                   aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
@@ -3396,6 +3301,265 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </form>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes delayedFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.8s ease forwards;
+        }
+
+        .animate-delayedFadeIn {
+          animation: delayedFadeIn 1s ease forwards;
+          animation-delay: 0.1s;
+        }
+
+        .thinking-container {
+          border: 1px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.05);
+          animation: glowPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes glowPulse {
+          0%, 100% {
+            box-shadow:
+              0 0 5px rgba(255,255,255,0.1),
+              inset 0 0 10px rgba(255,255,255,0.05);
+          }
+          50% {
+            box-shadow:
+              0 0 20px rgba(255,255,255,0.3),
+              inset 0 0 20px rgba(255,255,255,0.15);
+          }
+        }
+
+        @keyframes textGlow {
+          0%, 100% {
+            color: rgba(255,255,255,0.3);
+            text-shadow: 0 0 1px rgba(255,255,255,0.2);
+          }
+          50% {
+            color: rgba(255,255,255,0.8);
+            text-shadow: 0 0 3px rgba(255,255,255,0.6);
+          }
+        }
+
+        .thinking-placeholder::placeholder {
+          color: rgba(255,255,255,0.6);
+          animation: textGlow 2s infinite ease-in-out;
+          font-weight: 400;
+        }
+
+        .thinking-placeholder[disabled] {
+          caret-color: transparent;
+        }
+
+        /* Monochrome mode: keep the existing thinking UI visible on the white surface. */
+        :root[data-theme="minimal"] [data-gdx-search] .thinking-container {
+          border-color: rgba(0,0,0,0.18);
+          background: rgba(0,0,0,0.04);
+          animation: glowPulseMinimal 2s infinite ease-in-out;
+        }
+
+        @keyframes glowPulseMinimal {
+          0%, 100% {
+            box-shadow:
+              0 0 5px rgba(0,0,0,0.06),
+              inset 0 0 10px rgba(0,0,0,0.03);
+          }
+          50% {
+            box-shadow:
+              0 0 20px rgba(0,0,0,0.18),
+              inset 0 0 20px rgba(0,0,0,0.08);
+          }
+        }
+
+        /* Monochrome mode: make voice response link bubbles visible with a black border. */
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-voice-link-bubble {
+          border: 1px solid #000 !important;
+        }
+
+        /* Monochrome mode: make the voice-session exit X a visible black circle. */
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] {
+          background-color: #000 !important;
+          border: 1px solid #000 !important;
+          color: #fff !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"]:hover {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] svg {
+          color: #fff !important;
+        }
+
+        /* Monochrome mode: keep the transcribe Done/check button visible in every interaction state. */
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] {
+          background-color: #000 !important;
+          border: 1px solid #000 !important;
+          color: #fff !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"]:hover,
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"]:active {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] svg {
+          color: #fff !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .thinking-placeholder::placeholder {
+          color: rgba(0,0,0,0.48) !important;
+          animation: textGlowMinimal 2s infinite ease-in-out;
+        }
+
+        @keyframes textGlowMinimal {
+          0%, 100% {
+            color: rgba(0,0,0,0.32);
+            text-shadow: 0 0 1px rgba(0,0,0,0.08);
+          }
+          50% {
+            color: rgba(0,0,0,0.72);
+            text-shadow: 0 0 3px rgba(0,0,0,0.18);
+          }
+        }
+
+        .inline-code {
+          background: rgba(255,255,255,.04);
+          padding: .05rem .25rem;
+          border-radius: 4px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace;
+          font-size: .9em;
+          font-weight: 400;
+        }
+
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
+        }
+
+        .typewriter-cursor {
+          display: inline-block;
+          animation: blink 1s infinite;
+          margin-left: 2px;
+          font-weight: 400;
+        }
+
+        .typewriter-text {
+          display: inline-block;
+          min-height: 1.2em;
+          font-weight: 400;
+        }
+
+        .listening-container {
+          border: 1px solid rgba(255,255,255,0.3);
+          animation: listeningGlow 1.5s infinite ease-in-out;
+        }
+
+        @keyframes listeningGlow {
+          0%, 100% {
+            box-shadow:
+              0 0 8px rgba(255,255,255,0.15),
+              inset 0 0 12px rgba(255,255,255,0.08);
+          }
+          50% {
+            box-shadow:
+              0 0 25px rgba(255,255,255,0.4),
+              inset 0 0 25px rgba(255,255,255,0.2);
+          }
+        }
+
+        .listening-input {
+          color: transparent;
+        }
+
+        .gdx-tts-button {
+          position: relative;
+          overflow: hidden;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
+          background-color: #000 !important;
+          border-color: #000 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
+          color: #fff !important;
+        }
+
+        @keyframes suggestionEmerge {
+          0% {
+            opacity: 0;
+            filter: blur(8px);
+            transform: translateY(12px) scale(0.96);
+          }
+          100% {
+            opacity: 1;
+            filter: blur(0px);
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes suggestionRetreat {
+          0% {
+            opacity: 1;
+            filter: blur(0px);
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            filter: blur(8px);
+            transform: translateY(-8px) scale(0.96);
+          }
+        }
+
+        @keyframes suggestionBlurOut {
+          0% {
+            opacity: 1;
+            filter: blur(0px);
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            filter: blur(12px);
+            transform: translateY(8px) scale(0.94);
+          }
+        }
+
+        input,
+        button {
+          font-weight: 400;
+        }
+
+        strong,
+        h1,
+        h2,
+        h3 {
+          font-weight: 400;
+        }
+      `}</style>
     </div>
   );
 };
