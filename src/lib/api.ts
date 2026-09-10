@@ -19,12 +19,103 @@ export interface StreamChatHandlers {
   onVisuals?: (visuals: Array<{ url: string; title?: string }>) => void;
 }
 
+type VisualItem = {
+  url: string;
+  title?: string;
+};
+
+type BackendVisualCollection = {
+  title?: string;
+  items?: string[];
+};
+
+/**
+ * Normalizes the backend visual payload into the flat format
+ * consumed by the SearchVisualCarousel.
+ *
+ * Backend:
+ *   [
+ *     {
+ *       title: "Japan 2025 Collection",
+ *       items: ["https://...", "https://..."]
+ *     }
+ *   ]
+ *
+ * Frontend:
+ *   [
+ *     {
+ *       url: "https://...",
+ *       title: "Japan 2025 Collection"
+ *     }
+ *   ]
+ */
+function normalizeVisuals(value: unknown): VisualItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalized: VisualItem[] = [];
+  const seen = new Set<string>();
+
+  for (const item of value as Array<VisualItem | BackendVisualCollection>) {
+    // Already-flat frontend format.
+    if (item && typeof item === "object" && typeof (item as VisualItem).url === "string") {
+      const url = (item as VisualItem).url.trim();
+
+      if (!/^https?:\/\//i.test(url) || seen.has(url)) {
+        continue;
+      }
+
+      seen.add(url);
+
+      normalized.push({
+        url,
+        title:
+          typeof (item as VisualItem).title === "string" && (item as VisualItem).title.trim()
+            ? (item as VisualItem).title.trim()
+            : undefined,
+      });
+
+      continue;
+    }
+
+    // Backend collection format.
+    if (item && typeof item === "object" && Array.isArray((item as BackendVisualCollection).items)) {
+      const collection = item as BackendVisualCollection;
+      const title =
+        typeof collection.title === "string" && collection.title.trim() ? collection.title.trim() : undefined;
+
+      for (const rawUrl of collection.items ?? []) {
+        if (typeof rawUrl !== "string") {
+          continue;
+        }
+
+        const url = rawUrl.trim();
+
+        if (!/^https?:\/\//i.test(url) || seen.has(url)) {
+          continue;
+        }
+
+        seen.add(url);
+
+        normalized.push({
+          url,
+          title,
+        });
+      }
+    }
+  }
+
+  return normalized;
+}
+
 /**
  * Streams the Bright Action response from the Edge Function using SSE.
  *
  * Backend events:
  *   { type: "start" }
  *   { type: "token", text: "..." }
+ *   { type: "visuals", visuals: [...] }
  *   { type: "done", ... }
  *   { type: "error", error: "..." }
  */
@@ -74,7 +165,7 @@ export async function streamChatMessage(
 
     let buffer = "";
     let fullResponse = "";
-    let visuals: Array<{ url: string; title?: string }> | undefined;
+    let visuals: VisualItem[] = [];
     let suggestions: string[] = [];
     let finalData: any = null;
 
@@ -112,9 +203,18 @@ export async function streamChatMessage(
 
           if (chunk) {
             fullResponse += chunk;
-
-            // Fires immediately for every streamed chunk.
             handlers.onToken?.(chunk);
+          }
+
+          break;
+        }
+
+        case "visuals": {
+          const normalizedVisuals = normalizeVisuals(payload.visuals);
+
+          if (normalizedVisuals.length > 0) {
+            visuals = normalizedVisuals;
+            handlers.onVisuals?.(normalizedVisuals);
           }
 
           break;
@@ -127,14 +227,14 @@ export async function streamChatMessage(
             fullResponse = payload.response;
           }
 
-          visuals = Array.isArray(payload.visuals) ? payload.visuals : undefined;
+          const doneVisuals = normalizeVisuals(payload.visuals);
+
+          if (doneVisuals.length > 0) {
+            visuals = doneVisuals;
+            handlers.onVisuals?.(doneVisuals);
+          }
 
           suggestions = Array.isArray(payload.suggestions) ? payload.suggestions : [];
-
-          // Visuals come only from the backend.
-          if (visuals && visuals.length > 0) {
-            handlers.onVisuals?.(visuals);
-          }
 
           break;
         }
@@ -154,12 +254,12 @@ export async function streamChatMessage(
         break;
       }
 
-      buffer += decoder.decode(value, { stream: true });
+      buffer += decoder.decode(value, {
+        stream: true,
+      });
 
-      // SSE events are separated by a blank line.
       const events = buffer.split(/\r?\n\r?\n/);
 
-      // Keep incomplete event for the next chunk.
       buffer = events.pop() ?? "";
 
       for (const event of events) {
@@ -169,7 +269,6 @@ export async function streamChatMessage(
       }
     }
 
-    // Flush remaining decoder content.
     buffer += decoder.decode();
 
     if (buffer.trim()) {
@@ -220,6 +319,7 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
 
     if (error) {
       console.error("Edge function error:", error);
+
       throw new Error(error.message ?? "Edge function error");
     }
 
