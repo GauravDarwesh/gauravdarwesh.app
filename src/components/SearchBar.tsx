@@ -578,7 +578,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [streamPulse, setStreamPulse] = useState(false);
   const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
+  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
+  const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -2977,10 +2981,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!fromVoice) {
       stopVoiceSession();
       hideVoiceLinkBubbles();
-
-      // Clear the previous answer immediately so the new stream can begin
-      // without waiting for a collapse animation. Keep the SearchBar expanded
-      // because isLoading is set below.
+      setIsCollapsing(false);
       setIsCollapsingToThink(false);
       setResponse(null);
       setSuggestions([]);
@@ -2988,17 +2989,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsListening(false);
     }
 
+    // The SearchBar is expanded by isLoading immediately. There is no
+    // thinking animation and no client-side typewriter/reveal delay.
     isLoadingRef.current = true;
     setIsLoading(true);
 
     try {
-      setSearchVisuals([]);
-
       if (fromVoice) {
         const result = await sendChatMessage(text);
         const answer = String((result as any)?.response ?? "");
         const voiceAnswer = String((result as any)?.voice_response ?? answer);
-        const suggs = (result as any)?.suggestions || [];
 
         if (isVoiceSessionRef.current) {
           void speakVoiceResponse(voiceAnswer, answer);
@@ -3007,12 +3007,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return;
       }
 
-      /*
-       * Streaming starts immediately. The SearchBar is already expanded by
-       * isLoading, and every server chunk is rendered as soon as it arrives.
-       * There is intentionally no thinking animation, reveal timer, or
-       * typewriter effect here.
-       */
       let streamedResponse = "";
       let visualsShown = false;
 
@@ -3020,15 +3014,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         onToken: (chunk: string) => {
           if (!chunk) return;
 
+          // This is the actual server stream. Append each received chunk
+          // immediately. There is deliberately no delay, animation, or
+          // typewriter timer here.
           streamedResponse += chunk;
-
-          // Render the server chunk immediately. This is streaming, not a
-          // client-side typewriter: there is no artificial delay between chunks.
           setResponse(streamedResponse);
         },
         onVisuals: (visuals: VisualItem[]) => {
           if (!visuals.length) return;
-
           visualsShown = true;
           setSearchVisuals(visuals);
         },
@@ -3046,11 +3039,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           .filter((item: VisualItem) => /^https?:\/\//i.test(item.url));
 
         if (returnedVisuals.length > 0) {
-          visualsShown = true;
           setSearchVisuals(returnedVisuals);
         }
       }
 
+      // Final value is set once more after the stream completes, but the
+      // user has already been seeing the chunks above in real time.
       setResponse(answer || streamedResponse || null);
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
@@ -3169,22 +3163,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      LAYOUT
      ======================================================= */
 
-  const layoutValues = useMemo(() => {
-    // Always use the full response width while a request is active.
-    // This guarantees the streamed text has an expanded surface from the
-    // moment Send is pressed, before the first model chunk arrives.
-    const isExpanded = isLoading || Boolean(response) || suggestions.length > 0 || isVoiceSession || isTranscribing;
+  // While a request is active, the bar is fully expanded immediately.
+  // There is no thinking state controlling the layout.
+  const isExpanded = isLoading || Boolean(response) || suggestions.length > 0 || isVoiceSession || isTranscribing;
 
-    const targetWidth = isExpanded ? "min(460px, 92vw)" : "min(360px, 92vw)";
+  const targetWidth = isExpanded ? "min(640px, 94vw)" : "min(360px, 92vw)";
 
-    const targetRadius = isExpanded ? "16px" : "999px";
-
-    return {
-      isExpanded,
-      targetWidth,
-      targetRadius,
-    };
-  }, [isLoading, response, suggestions.length, isVoiceSession, isTranscribing]);
+  const targetRadius = isExpanded ? "18px" : "999px";
 
   /* =======================================================
      RENDER
@@ -3247,32 +3232,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           isVoiceSession || isTranscribing || isListening ? "listening-container" : ""
         }`}
         style={{
-          width: layoutValues.targetWidth,
-          maxWidth: "92vw",
-          borderRadius: layoutValues.targetRadius,
-          transition:
-            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+          width: targetWidth,
+          maxWidth: "94vw",
+          borderRadius: targetRadius,
+          // Keep only the physical expansion transition. Response text itself
+          // has no animation or typewriter behavior.
+          transition: "width 0.45s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.45s cubic-bezier(0.25, 1, 0.3, 1)",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
           touchAction: "manipulation",
         }}
       >
-        <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
-          style={{
-            transitionDuration: "500ms",
-            transitionDelay: "0ms",
-          }}
-        >
-          <Fade
-            show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession && !isTranscribing}
-            duration={800}
-          >
-            <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.8s ease forwards" }}
-            >
+        <div className={isExpanded ? "p-5 pt-6" : "p-2"}>
+          {showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession && !isTranscribing && (
+            <div className="flex gap-2 flex-wrap justify-center mb-3">
               {suggestions.map((suggestion, index) => (
                 <button
                   key={index}
@@ -3284,36 +3258,44 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 </button>
               ))}
             </div>
-          </Fade>
+          )}
 
           <SearchVisualCarousel
             items={searchVisuals}
             visible={searchVisuals.length > 0 && !isVoiceSession && !isTranscribing && !isCollapsing}
           />
 
-          <div
-            className={`overflow-hidden transition-[max-height,opacity,margin] ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response && !isVoiceSession && !isTranscribing && !isCollapsing ? "opacity-100 mb-5" : "opacity-0 mb-0"
-            }`}
-            style={{
-              maxHeight: response && !isVoiceSession && !isTranscribing && !isCollapsing ? "384px" : "0px",
-              transitionDuration: "250ms",
-              transitionDelay: "0ms",
-            }}
-          >
-            {response && !isVoiceSession && !isTranscribing && (
-              <div
-                className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
-                style={{
-                  maxHeight: "300px",
-                  fontWeight: 400,
-                  opacity: 1,
-                  animation: "none",
-                }}
-                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
-              />
-            )}
-          </div>
+          {/*
+           * STREAMING RESPONSE
+           *
+           * Always mount the response surface while loading. This is critical:
+           * the layout does not wait for `response` to exist before allocating
+           * space for the incoming stream.
+           *
+           * While the request is active, render the raw string directly. That
+           * prevents a partially-generated Markdown/HTML fragment from being
+           * interpreted as an animation or malformed markup. Once the stream
+           * finishes, render the existing Markdown formatting.
+           */}
+          {!isVoiceSession && !isTranscribing && (isLoading || response) && (
+            <div
+              className="text-foreground text-sm leading-relaxed font-normal px-4 mb-5 whitespace-pre-wrap break-words overflow-y-auto scrollbar-hide"
+              style={{
+                maxHeight: "360px",
+                minHeight: response ? undefined : "1.5rem",
+                fontWeight: 400,
+                opacity: 1,
+                animation: "none",
+                transition: "none",
+              }}
+            >
+              {isLoading ? (
+                response || ""
+              ) : response ? (
+                <div dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }} />
+              ) : null}
+            </div>
+          )}
 
           <form
             onSubmit={(event) => handleSubmit(event, undefined, false)}
@@ -3336,14 +3318,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
-            {/* Talk with agent voice mode: Waveform WITHOUT timer */}
             {isVoiceSession && !isTranscribing && (
               <div className="flex-1 flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking || isListening} />
               </div>
             )}
 
-            {/* Transcribe mode: Waveform WITH timer */}
             {isTranscribing && (
               <div className="flex-1 flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={isListening} />
@@ -3351,7 +3331,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </div>
             )}
 
-            {/* Action buttons */}
             {isVoiceSession ? (
               <button
                 type="button"
@@ -3374,7 +3353,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               </button>
             ) : (
               <div className="flex items-center gap-1.5 shrink-0 pr-1">
-                {/* Transcribe mic button */}
                 <button
                   type="button"
                   onClick={startTranscribe}
@@ -3385,7 +3363,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   <Mic className="h-5 w-5" strokeWidth={2} />
                 </button>
 
-                {/* Talk with agent button (ChatGPT style) */}
                 <button
                   type="button"
                   onClick={() => {
@@ -3395,9 +3372,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       startVoiceSession();
                     }
                   }}
-                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
-                    query.trim() ? "bg-[#0084FF] hover:bg-[#0074E8]" : "bg-[#0084FF] hover:bg-[#0074E8]"
-                  }`}
+                  className="gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer bg-[#0084FF] hover:bg-[#0074E8] relative"
                   title={query.trim() ? "Search" : "Talk with GDx"}
                   aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
@@ -3421,196 +3396,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </form>
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-
-        @keyframes searchVisualsReveal {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes searchVisualImage {
-          from {
-            opacity: 0.7;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes delayedFadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.8s ease forwards;
-        }
-
-        .animate-delayedFadeIn {
-          animation: delayedFadeIn 1s ease forwards;
-          animation-delay: 0.1s;
-        }
-
-
-
-        /* Monochrome mode: make voice response link bubbles visible with a black border. */
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-voice-link-bubble {
-          border: 1px solid #000 !important;
-        }
-
-        /* Monochrome mode: make the voice-session exit X a visible black circle. */
-        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] {
-          background-color: #000 !important;
-          border: 1px solid #000 !important;
-          color: #fff !important;
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"]:hover {
-          background-color: #111 !important;
-          border-color: #111 !important;
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] svg {
-          color: #fff !important;
-        }
-
-        /* Monochrome mode: keep the transcribe Done/check button visible in every interaction state. */
-        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] {
-          background-color: #000 !important;
-          border: 1px solid #000 !important;
-          color: #fff !important;
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"]:hover,
-        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"]:active {
-          background-color: #111 !important;
-          border-color: #111 !important;
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] svg {
-          color: #fff !important;
-        }
-
-
-        .inline-code {
-          background: rgba(255,255,255,.04);
-          padding: .05rem .25rem;
-          border-radius: 4px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace;
-          font-size: .9em;
-          font-weight: 400;
-        }
-
-
-        .listening-container {
-          border: 1px solid rgba(255,255,255,0.3);
-          animation: listeningGlow 1.5s infinite ease-in-out;
-        }
-
-        @keyframes listeningGlow {
-          0%, 100% {
-            box-shadow:
-              0 0 8px rgba(255,255,255,0.15),
-              inset 0 0 12px rgba(255,255,255,0.08);
-          }
-          50% {
-            box-shadow:
-              0 0 25px rgba(255,255,255,0.4),
-              inset 0 0 25px rgba(255,255,255,0.2);
-          }
-        }
-
-        .listening-input {
-          color: transparent;
-        }
-
-        .gdx-tts-button {
-          position: relative;
-          overflow: hidden;
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
-          background-color: #000 !important;
-          border-color: #000 !important;
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
-          background-color: #111 !important;
-          border-color: #111 !important;
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
-          color: #fff !important;
-        }
-
-        @keyframes suggestionEmerge {
-          0% {
-            opacity: 0;
-            filter: blur(8px);
-            transform: translateY(12px) scale(0.96);
-          }
-          100% {
-            opacity: 1;
-            filter: blur(0px);
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes suggestionRetreat {
-          0% {
-            opacity: 1;
-            filter: blur(0px);
-            transform: translateY(0) scale(1);
-          }
-          100% {
-            opacity: 0;
-            filter: blur(8px);
-            transform: translateY(-8px) scale(0.96);
-          }
-        }
-
-        @keyframes suggestionBlurOut {
-          0% {
-            opacity: 1;
-            filter: blur(0px);
-            transform: translateY(0) scale(1);
-          }
-          100% {
-            opacity: 0;
-            filter: blur(12px);
-            transform: translateY(8px) scale(0.94);
-          }
-        }
-
-        input,
-        button {
-          font-weight: 400;
-        }
-
-        strong,
-        h1,
-        h2,
-        h3 {
-          font-weight: 400;
-        }
-      `}</style>
     </div>
   );
 };
