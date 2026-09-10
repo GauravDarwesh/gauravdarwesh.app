@@ -161,7 +161,17 @@ All colors MUST be HSL.
   position: fixed;
   inset: 0;
   z-index: 0;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
   transition: none;
+}
+
+@supports not (height: 100dvh) {
+  .site-background.orange-bg {
+    height: 100vh;
+    min-height: 100vh;
+  }
 }
 
 /* ------------------------------------------------------------
