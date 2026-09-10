@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { Mic, Check, X } from "lucide-react";
+import { Mic, Check, X, ArrowRight } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
@@ -3265,15 +3265,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   <Mic className="h-5 w-5" strokeWidth={2} />
                 </button>
 
-                {/* Talk with agent button (ChatGPT style) */}
+                {/* Talk with agent / send button */}
                 <button
-                  type="button"
-                  onClick={startVoiceSession}
-                  className="gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] border border-transparent transition-all active:scale-95 shadow-sm cursor-pointer"
-                  title="Talk with GDx"
-                  aria-label="Talk with GDx"
+                  type={query.trim() ? "submit" : "button"}
+                  onClick={query.trim() ? undefined : startVoiceSession}
+                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full bg-[#0084FF] hover:bg-[#0074E8] border border-transparent transition-all active:scale-95 shadow-sm cursor-pointer ${
+                    query.trim() ? "gdx-tts-button--send" : ""
+                  }`}
+                  title={query.trim() ? "Send message" : "Talk with GDx"}
+                  aria-label={query.trim() ? "Send message" : "Talk with GDx"}
                 >
-                  <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
+                  <span className={`gdx-tts-icon ${query.trim() ? "gdx-tts-icon--hidden" : ""}`}>
+                    <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
+                  </span>
+                  <span className={`gdx-send-icon ${query.trim() ? "gdx-send-icon--visible" : ""}`}>
+                    <ArrowRight className="h-4 w-4 text-white" strokeWidth={2.25} />
+                  </span>
                 </button>
               </div>
             )}
@@ -3418,6 +3425,47 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             color: rgba(0,0,0,0.72);
             text-shadow: 0 0 3px rgba(0,0,0,0.18);
           }
+        }
+
+        .gdx-tts-button {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .gdx-tts-icon,
+        .gdx-send-icon {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition:
+            opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+            transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .gdx-tts-icon {
+          opacity: 1;
+          transform: translateX(0) scale(1);
+        }
+
+        .gdx-tts-icon--hidden {
+          opacity: 0;
+          transform: translateX(-8px) scale(0.82);
+        }
+
+        .gdx-send-icon {
+          opacity: 0;
+          transform: translateX(8px) scale(0.82);
+        }
+
+        .gdx-send-icon--visible {
+          opacity: 1;
+          transform: translateX(0) scale(1);
+        }
+
+        .gdx-tts-button--send {
+          background: linear-gradient(135deg, #0084FF 0%, #2C8CFF 100%);
         }
 
         .inline-code {
