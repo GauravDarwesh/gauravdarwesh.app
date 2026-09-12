@@ -699,6 +699,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const voiceLinksShownRef = useRef(false);
   const voiceLinksRef = useRef<VoiceLink[]>([]);
   const voiceLinksExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceVisualsExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isVoiceSessionRef = useRef(false);
   const isTranscribingRef = useRef(false);
@@ -763,7 +764,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const searchBarRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
-  const stopVoiceSessionRef = useRef<(() => void) | null>(null);
+  const stopVoiceSessionRef = useRef<((collapseVisuals?: boolean) => void) | null>(null);
   const stopTranscribeRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -2527,48 +2528,68 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      STOP VOICE SESSION (AGENT)
      ======================================================= */
 
-  const stopVoiceSession = useCallback(() => {
-    isVoiceSessionRef.current = false;
-    recognitionGenerationRef.current += 1;
+  const stopVoiceSession = useCallback(
+    (collapseVisuals = true) => {
+      const shouldCollapseVoiceVisuals = collapseVisuals && searchVisuals.length > 0;
 
-    setIsVoiceSession(false);
-    setIsListening(false);
+      isVoiceSessionRef.current = false;
+      recognitionGenerationRef.current += 1;
 
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
+      setIsVoiceSession(false);
+      setIsListening(false);
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.stop();
-      } catch {
-        /* noop */
+      if (shouldCollapseVoiceVisuals) {
+        setIsCollapsing(true);
+        setShowExpandedSuggestions(false);
+
+        if (voiceVisualsExitTimerRef.current) {
+          clearTimeout(voiceVisualsExitTimerRef.current);
+        }
+
+        voiceVisualsExitTimerRef.current = window.setTimeout(() => {
+          setSearchVisuals([]);
+          setIsCollapsing(false);
+          voiceVisualsExitTimerRef.current = null;
+        }, 1400);
       }
-      recognitionRef.current = null;
-    }
 
-    transcriptRef.current = "";
-
-    if (micSourceRef.current) {
-      try {
-        micSourceRef.current.disconnect();
-      } catch {
-        /* noop */
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
       }
-      micSourceRef.current = null;
-    }
 
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((track) => track.stop());
-      micStreamRef.current = null;
-    }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onend = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.stop();
+        } catch {
+          /* noop */
+        }
+        recognitionRef.current = null;
+      }
 
-    stopAudioOnly();
-    hideVoiceLinkBubbles();
-  }, [stopAudioOnly, hideVoiceLinkBubbles]);
+      transcriptRef.current = "";
+
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch {
+          /* noop */
+        }
+        micSourceRef.current = null;
+      }
+
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+        micStreamRef.current = null;
+      }
+
+      stopAudioOnly();
+      hideVoiceLinkBubbles();
+    },
+    [searchVisuals.length, stopAudioOnly, hideVoiceLinkBubbles],
+  );
 
   stopVoiceSessionRef.current = stopVoiceSession;
 
@@ -2980,6 +3001,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (voiceLinksExitTimerRef.current) clearTimeout(voiceLinksExitTimerRef.current);
       voiceLinksExitTimerRef.current = null;
+
+      if (voiceVisualsExitTimerRef.current) clearTimeout(voiceVisualsExitTimerRef.current);
+      voiceVisualsExitTimerRef.current = null;
+
       voiceLinksRef.current = [];
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -3079,7 +3104,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!customQuery) setQuery("");
 
     if (!fromVoice) {
-      stopVoiceSession();
+      stopVoiceSession(false);
       hideVoiceLinkBubbles();
 
       if (response || suggestions.length > 0) {
@@ -3113,7 +3138,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         if (returnedVisuals.length > 0) {
           await waitForVisualReady(returnedVisuals);
+
+          if (voiceVisualsExitTimerRef.current) {
+            clearTimeout(voiceVisualsExitTimerRef.current);
+            voiceVisualsExitTimerRef.current = null;
+          }
+
+          setIsCollapsing(false);
           setSearchVisuals(returnedVisuals);
+
+          // Let the SearchBar commit the expanded visual state first so
+          // TTS always starts after the normal horizontal-then-vertical open.
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         }
 
@@ -3418,7 +3453,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                     : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
               transitionDelay:
-                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
+                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage
+                  ? "900ms"
+                  : searchVisuals.length > 0 && isVoiceSession && !isCollapsing
+                    ? "900ms"
+                    : "0ms",
             }}
           >
             {searchVisuals.length > 0 && !isTranscribing && (
