@@ -3288,14 +3288,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return;
       }
 
-      if (response || suggestions.length > 0) {
+      if (response || suggestions.length > 0 || searchVisuals.length > 0) {
         const COLLAPSE_MS = 1400;
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
 
+        // Keep the existing close animation intact, but clear visual results
+        // at the same end point so the image frame cannot re-expand afterward.
         window.setTimeout(() => {
           setResponse(null);
           setSuggestions([]);
+          setSearchVisuals([]);
           setIsCollapsing(false);
           clearPersistedState();
         }, COLLAPSE_MS);
@@ -3309,7 +3312,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [response, suggestions, query, stopVoiceSession, stopTranscribe, clearPersistedState]);
+  }, [response, suggestions, searchVisuals.length, query, stopVoiceSession, stopTranscribe, clearPersistedState]);
 
   /* =======================================================
      LAYOUT
@@ -3406,22 +3409,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         className={`gdx-search-container mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
-        style={{
-          width: layoutValues.targetWidth,
-          maxWidth: "92vw",
-          "--gdx-mobile-width": layoutValues.isExpanded
-            ? "min(360px, 88vw)"
-            : isVoiceSession || isTranscribing
-              ? "min(290px, 82vw)"
-              : "min(320px, 88vw)",
-          borderRadius: layoutValues.targetRadius,
-          transition:
-            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
-          cursor: isListening ? "default" : undefined,
-          WebkitTouchCallout: "none",
-          WebkitUserSelect: "none",
-          touchAction: "manipulation",
-        } as React.CSSProperties & { "--gdx-mobile-width": string }}
+        style={
+          {
+            width: layoutValues.targetWidth,
+            maxWidth: "92vw",
+            "--gdx-mobile-width": layoutValues.isExpanded
+              ? "min(360px, 88vw)"
+              : isVoiceSession || isTranscribing
+                ? "min(290px, 82vw)"
+                : "min(320px, 88vw)",
+            borderRadius: layoutValues.targetRadius,
+            transition:
+              "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+            cursor: isListening ? "default" : undefined,
+            WebkitTouchCallout: "none",
+            WebkitUserSelect: "none",
+            touchAction: "manipulation",
+          } as React.CSSProperties & { "--gdx-mobile-width": string }
+        }
       >
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-3.5 pt-4 sm:p-5 sm:pt-6" : "p-1.5 sm:p-2"}`}
