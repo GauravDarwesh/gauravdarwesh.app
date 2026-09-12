@@ -342,8 +342,25 @@ All colors MUST be HSL.
   }
 
   .orange-bg::after {
-    animation-duration: 84s;
-    opacity: 0.21;
+    animation: none;
+    opacity: 0.18;
+    will-change: auto;
+    mix-blend-mode: normal;
+  }
+}
+
+/* Android/mobile rendering path:
+   Keep the visual wallpaper, but avoid unnecessary compositor hints on
+   lower-powered mobile GPUs. */
+@media (max-width: 768px) {
+  .orange-bg::before {
+    will-change: auto;
+    contain: none;
+  }
+
+  .orange-bg {
+    transform: none;
+    backface-visibility: visible;
   }
 }
 
@@ -415,6 +432,12 @@ All colors MUST be HSL.
   }
 }
 
+@media (max-width: 768px) {
+  .bg-grainy-gradient::before {
+    animation: none;
+  }
+}
+
 html,
 body,
 #root {
@@ -432,12 +455,12 @@ html {
 @keyframes slowFadeIn {
   0% {
     opacity: 0;
-    filter: blur(8px);
+    transform: translate3d(0, 8px, 0);
   }
 
   100% {
     opacity: 1;
-    filter: blur(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -597,6 +620,10 @@ html {
   --theme-transition-duration: 520ms;
 }
 
+/* The theme transition intentionally only animates inexpensive paint
+   properties. Expensive effects such as shadows, filters and backdrop
+   blur are switched rather than animated. */
+
 :root[data-theme="minimal"] {
   --background: 0 0% 100%;
   --foreground: 0 0% 4%;
@@ -629,7 +656,7 @@ body,
 [data-gdx-search] [class*="bg-white/"],
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
-  transition-property: color, background-color, border-color, opacity, box-shadow;
+  transition-property: color, background-color, border-color, opacity;
 
   transition-duration: var(--theme-transition-duration);
 
