@@ -79,7 +79,7 @@ const Blog = () => {
       date: "September 8, 2026",
       title: "BE GOOD OR DON’T BE GOOD",
       description: "Thoughts on communication and functioning of society.",
-      tags: ["Life", "People", "Communication", "Growth"],
+      tags: ["Life", "People", "Communication"],
       notionUrl: "https://olive-zircon-d34.notion.site/ebd//3d564e75ffe9800a8084eb4f695ac381",
     },
   ];
