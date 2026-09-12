@@ -538,7 +538,7 @@ const BarWaveform: React.FC<{
   if (!isActive) return null;
 
   return (
-    <div ref={containerRef} className="flex-1 h-8 min-w-0 overflow-hidden">
+    <div ref={containerRef} className="flex-1 h-7 sm:h-8 min-w-0 overflow-hidden">
       <canvas ref={canvasRef} className="pointer-events-none block w-full h-full" />
     </div>
   );
@@ -576,7 +576,7 @@ const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const secs = seconds % 60;
 
   return (
-    <span className="text-sm font-mono font-normal text-white/70 tabular-nums shrink-0">
+    <span className="text-xs sm:text-sm font-mono font-normal text-white/70 tabular-nums shrink-0">
       {mins}:{secs.toString().padStart(2, "0")}
     </span>
   );
@@ -3354,7 +3354,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     <div
       ref={searchBarRef}
       data-gdx-search
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-3 sm:px-4 z-50 w-full flex flex-col items-center gap-3"
     >
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
@@ -3403,12 +3403,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
+        className={`gdx-search-container mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={{
           width: layoutValues.targetWidth,
           maxWidth: "92vw",
+          ["--gdx-mobile-width"]: layoutValues.isExpanded
+            ? "min(360px, 88vw)"
+            : isVoiceSession || isTranscribing
+              ? "min(290px, 82vw)"
+              : "min(320px, 88vw)",
           borderRadius: layoutValues.targetRadius,
           transition:
             "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
@@ -3419,7 +3424,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-3.5 pt-4 sm:p-5 sm:pt-6" : "p-1.5 sm:p-2"}`}
           style={{
             transitionDuration: "800ms",
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
@@ -3430,14 +3435,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             duration={800}
           >
             <div
-              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
+              className="flex gap-1.5 sm:gap-2 flex-wrap justify-center mb-2.5 sm:mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.8s ease forwards" }}
             >
               {suggestions.map((suggestion, index) => (
                 <button
                   key={index}
                   onClick={() => handleSuggestionClick(suggestion)}
-                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm font-normal rounded-full hover:bg-white/30 transition cursor-pointer"
+                  className="px-2.5 sm:px-3 py-1 bg-white/20 text-[11px] sm:text-sm font-normal rounded-full hover:bg-white/30 transition cursor-pointer"
                   disabled={isLoading}
                 >
                   {suggestion}
@@ -3477,7 +3482,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             {response && !isVoiceSession && !isTranscribing && (
               <>
                 <div
-                  className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
+                  className="text-foreground text-[13px] sm:text-sm leading-relaxed font-normal px-3 sm:px-4 overflow-y-auto scrollbar-hide"
                   style={{
                     animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
                     animationDelay: "0ms",
@@ -3492,7 +3497,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           <form
             onSubmit={(event) => handleSubmit(event, undefined, false)}
-            className="flex items-center gap-2 relative min-h-[40px]"
+            className="flex items-center gap-1.5 sm:gap-2 relative min-h-[36px] sm:min-h-[40px]"
             onFocus={handleInputFocus}
           >
             {!isVoiceSession && !isTranscribing && (
@@ -3503,7 +3508,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10 ${
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-sm sm:text-base font-normal px-2.5 sm:px-4 h-9 sm:h-10 ${
                     isLoading ? "thinking-placeholder" : ""
                   }`}
                   disabled={isLoading}
@@ -3515,14 +3520,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
             {/* Talk with agent voice mode: Waveform WITHOUT timer */}
             {isVoiceSession && !isTranscribing && (
-              <div className="flex-1 flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 min-w-0">
+              <div className="flex-1 flex items-center gap-1 sm:gap-2 pl-1.5 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking || isListening} />
               </div>
             )}
 
             {/* Transcribe mode: Waveform WITH timer */}
             {isTranscribing && (
-              <div className="flex-1 flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 min-w-0">
+              <div className="flex-1 flex items-center gap-1.5 sm:gap-3 pl-1.5 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={isListening} />
                 <RecordingTimer isActive={isTranscribing} />
               </div>
@@ -3533,33 +3538,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <button
                 type="button"
                 onClick={stopVoiceSession}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="End voice session"
                 aria-label="End voice session"
               >
-                <X className="h-4 w-4 text-white" strokeWidth={2} />
+                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" strokeWidth={2} />
               </button>
             ) : isTranscribing ? (
               <button
                 type="button"
                 onClick={isAndroidRef.current ? finishAndroidTranscription : stopTranscribe}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="Done transcribing"
                 aria-label="Done transcribing"
               >
-                <Check className="h-4 w-4 text-white" strokeWidth={2.5} />
+                <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" strokeWidth={2.5} />
               </button>
             ) : (
-              <div className="flex items-center gap-1.5 shrink-0 pr-1">
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pr-0.5 sm:pr-1">
                 {/* Transcribe mic button */}
                 <button
                   type="button"
                   onClick={startTranscribe}
-                  className="h-9 w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                  className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
                   title="Transcribe speech"
                   aria-label="Transcribe speech"
                 >
-                  <Mic className="h-5 w-5" strokeWidth={2} />
+                  <Mic className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2} />
                 </button>
 
                 {/* Talk with agent button (ChatGPT style) */}
@@ -3572,25 +3577,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       startVoiceSession();
                     }
                   }}
-                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
+                  className={`gdx-tts-button h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
                     query.trim() ? "bg-[#0084FF] hover:bg-[#0074E8]" : "bg-[#0084FF] hover:bg-[#0074E8]"
                   }`}
                   title={query.trim() ? "Search" : "Talk with GDx"}
                   aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
                   <span
-                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                    className={`absolute flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
                       query.trim() ? "opacity-0 scale-75 -translate-x-1.5" : "opacity-100 scale-100 translate-x-0"
                     }`}
                   >
-                    <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
+                    <ChatGPTWaveformIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                   </span>
                   <span
-                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                    className={`absolute flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
                       query.trim() ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-75 translate-x-1.5"
                     }`}
                   >
-                    <ArrowRight className="h-[18px] w-[18px] text-white" strokeWidth={2.25} />
+                    <ArrowRight className="h-4 w-4 sm:h-[18px] sm:w-[18px] text-white" strokeWidth={2.25} />
                   </span>
                 </button>
               </div>
@@ -3600,6 +3605,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
+        @media (max-width: 639px) {
+          .gdx-search-container {
+            width: var(--gdx-mobile-width) !important;
+            max-width: 88vw !important;
+          }
+        }
+
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
