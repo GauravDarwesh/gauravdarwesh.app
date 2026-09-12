@@ -82,6 +82,13 @@ const Blog = () => {
       tags: ["Life", "People", "Communication"],
       notionUrl: "https://olive-zircon-d34.notion.site/ebd//3d564e75ffe9800a8084eb4f695ac381",
     },
+    {
+      date: "September 8, 2026",
+      title: "Intent",
+      description: "The most important factor for success (in my opinion).",
+      tags: ["Life", "Work"],
+      notionUrl: "https://olive-zircon-d34.notion.site/ebd//3d564e75ffe9804394e4da6d10e0fdbe",
+    },
   ];
 
   const allTags = Array.from(new Set(blogPosts.flatMap((post) => post.tags)));
