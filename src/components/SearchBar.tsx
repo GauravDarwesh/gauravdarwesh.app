@@ -3112,7 +3112,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         const suggs = (result as any)?.suggestions || [];
 
         if (returnedVisuals.length > 0) {
+          await waitForVisualReady(returnedVisuals);
           setSearchVisuals(returnedVisuals);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         }
 
         if (isVoiceSessionRef.current) {
@@ -3273,7 +3275,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       ((suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing) ||
       (searchVisuals.length > 0 && !isTranscribing);
 
-    const isExpanded = hasContent && !isLoading && !isPreparingToStream;
+    const isExpanded = hasContent && !isPreparingToStream;
 
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
