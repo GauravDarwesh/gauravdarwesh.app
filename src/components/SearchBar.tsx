@@ -2597,25 +2597,35 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      START VOICE SESSION (AGENT)
      ======================================================= */
 
-  const startVoiceSession = useCallback(() => {
+  const startVoiceSession = useCallback(async () => {
     if (isLoading) return;
 
     if (isTranscribing) {
       stopTranscribeRef.current?.();
     }
 
-    isVoiceSessionRef.current = true;
-    setIsVoiceSession(true);
-
-    primeMobileAudioSession();
-    setResponse(null);
-    setSuggestions([]);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
 
+    if (response || suggestions.length > 0) {
+      setIsCollapsing(true);
+      await new Promise((resolve) => setTimeout(resolve, 1400));
+      setResponse(null);
+      setSuggestions([]);
+      setIsCollapsing(false);
+    } else {
+      setResponse(null);
+      setSuggestions([]);
+    }
+
+    isVoiceSessionRef.current = true;
+    setIsVoiceSession(true);
+
+    primeMobileAudioSession();
+
     void startListeningContinuousRef.current?.();
-  }, [isLoading, isTranscribing, primeMobileAudioSession, dismissSuggestionBubble]);
+  }, [isLoading, isTranscribing, response, suggestions.length, primeMobileAudioSession, dismissSuggestionBubble]);
 
   /* =======================================================
      TRANSCRIBE (SPEECH TO TEXT)
