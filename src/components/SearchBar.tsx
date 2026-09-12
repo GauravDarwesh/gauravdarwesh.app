@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { Mic, Check, X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Mic, Check, X, ArrowRight } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
@@ -349,43 +349,6 @@ const SearchVisualCarousel: React.FC<{
             draggable={false}
           />
         ))}
-
-        {items.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setIndex((currentIndex) => {
-                  for (let step = 1; step <= items.length; step++) {
-                    const next = (currentIndex - step + items.length) % items.length;
-                    if (loaded.has(items[next].url)) return next;
-                  }
-                  return currentIndex;
-                });
-              }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
-              aria-label="Previous visual"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIndex((currentIndex) => {
-                  for (let step = 1; step <= items.length; step++) {
-                    const next = (currentIndex + step) % items.length;
-                    if (loaded.has(items[next].url)) return next;
-                  }
-                  return currentIndex;
-                });
-              }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 hover:bg-black/45 transition-all active:scale-95"
-              aria-label="Next visual"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </>
-        )}
 
         <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/90 text-[11px] border border-white/15">
           {current.title || "Visuals"}
