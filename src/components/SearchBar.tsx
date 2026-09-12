@@ -3108,7 +3108,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         const result = await sendChatMessage(text);
         const answer = String((result as any)?.response ?? "");
         const voiceAnswer = String((result as any)?.voice_response ?? answer);
+        const returnedVisuals = extractVisualItems((result as any)?.visuals);
         const suggs = (result as any)?.suggestions || [];
+
+        if (returnedVisuals.length > 0) {
+          setSearchVisuals(returnedVisuals);
+        }
 
         if (isVoiceSessionRef.current) {
           void speakVoiceResponse(voiceAnswer, answer);
@@ -3264,7 +3269,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   const layoutValues = useMemo(() => {
-    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
+    const hasContent =
+      ((suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing) ||
+      (searchVisuals.length > 0 && !isTranscribing);
 
     const isExpanded = hasContent && !isLoading && !isPreparingToStream;
 
@@ -3284,6 +3291,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   }, [
     suggestions.length,
     response,
+    searchVisuals.length,
     isVoiceSession,
     isTranscribing,
     isLoading,
@@ -3393,7 +3401,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              response && !isVoiceSession && !isTranscribing
+              (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
                 ? isCollapsing || isCollapsingToThink
                   ? "opacity-0 mb-0"
                   : "opacity-100 mb-5"
@@ -3403,7 +3411,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               maxHeight:
                 isCollapsing || isCollapsingToThink
                   ? "0px"
-                  : response && !isVoiceSession && !isTranscribing
+                  : (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
                     ? "600px"
                     : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
@@ -3411,13 +3419,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
+            {searchVisuals.length > 0 && !isTranscribing && (
+              <SearchVisualCarousel items={searchVisuals} visible={searchVisuals.length > 0 && !isTranscribing} />
+            )}
+
             {response && !isVoiceSession && !isTranscribing && (
               <>
-                <SearchVisualCarousel
-                  items={searchVisuals}
-                  visible={searchVisuals.length > 0 && !isVoiceSession && !isTranscribing}
-                />
-
                 <div
                   className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                   style={{
