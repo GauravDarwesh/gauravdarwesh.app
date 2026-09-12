@@ -178,7 +178,7 @@ All colors MUST be HSL.
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -18%;
+  inset: -58%;
   pointer-events: none;
 
   background:
@@ -270,7 +270,7 @@ All colors MUST be HSL.
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -8%;
+  inset: -16%;
   pointer-events: none;
 
   background-image:
@@ -296,7 +296,8 @@ All colors MUST be HSL.
     180px 180px;
 
   background-repeat: repeat;
-  opacity: 0.18;
+  opacity: 0.23;
+  mix-blend-mode: screen;
 
   transform-origin: 38% 61%;
   transform: translate3d(-34px, 0, 0) rotate(0deg) scale(1.02);
@@ -335,22 +336,14 @@ All colors MUST be HSL.
   }
 }
 
-/* Phones and tablets: keep the wallpaper static and lighten the frosted
-   effects so scrolling and typing stay smooth on lower-powered GPUs. */
-@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
-  .orange-bg::before,
-  .orange-bg::after {
-    animation: none;
-    will-change: auto;
+@media (max-width: 768px) {
+  .orange-bg::before {
+    animation-duration: 60s;
   }
 
   .orange-bg::after {
-    opacity: 0.16;
-  }
-
-  [class*="backdrop-blur"] {
-    -webkit-backdrop-filter: blur(6px) !important;
-    backdrop-filter: blur(6px) !important;
+    animation-duration: 84s;
+    opacity: 0.21;
   }
 }
 

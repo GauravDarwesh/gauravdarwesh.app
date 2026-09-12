@@ -3,17 +3,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Suspense, lazy } from "react";
 
 import Index from "./pages/Index";
-
-// Secondary pages load on demand so the first screen stays light.
-const Hobbies = lazy(() => import("./pages/Hobbies"));
-const Others = lazy(() => import("./pages/Others"));
-const Blog = lazy(() => import("./pages/Blog"));
-const Visuals = lazy(() => import("./pages/Visuals"));
-const SessionTest = lazy(() => import("./pages/SessionTest"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+import Hobbies from "./pages/Hobbies";
+import Others from "./pages/Others";
+import Blog from "./pages/Blog";
+import Visuals from "./pages/Visuals";
+import SessionTest from "./pages/SessionTest";
+import NotFound from "./pages/NotFound";
 
 import { SiteThemeProvider } from "@/components/SiteThemeProvider";
 
@@ -46,7 +43,6 @@ const App = () => (
             The background remains mounted independently.
         ========================================================= */}
         <BrowserRouter>
-          <Suspense fallback={null}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/hobbies" element={<Hobbies />} />
@@ -57,7 +53,6 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
-          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
