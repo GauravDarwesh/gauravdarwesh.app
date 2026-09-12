@@ -699,7 +699,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const voiceLinksShownRef = useRef(false);
   const voiceLinksRef = useRef<VoiceLink[]>([]);
   const voiceLinksExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const voiceVisualsExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceVisualsExitTimerRef = useRef<number | null>(null);
 
   const isVoiceSessionRef = useRef(false);
   const isTranscribingRef = useRef(false);
@@ -3409,7 +3409,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         style={{
           width: layoutValues.targetWidth,
           maxWidth: "92vw",
-          ["--gdx-mobile-width"]: layoutValues.isExpanded
+          "--gdx-mobile-width": layoutValues.isExpanded
             ? "min(360px, 88vw)"
             : isVoiceSession || isTranscribing
               ? "min(290px, 82vw)"
@@ -3421,7 +3421,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
           touchAction: "manipulation",
-        }}
+        } as React.CSSProperties & { "--gdx-mobile-width": string }}
       >
         <div
           className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-3.5 pt-4 sm:p-5 sm:pt-6" : "p-1.5 sm:p-2"}`}
@@ -3537,7 +3537,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             {isVoiceSession ? (
               <button
                 type="button"
-                onClick={stopVoiceSession}
+                onClick={() => stopVoiceSession()}
                 className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="End voice session"
                 aria-label="End voice session"
