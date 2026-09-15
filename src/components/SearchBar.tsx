@@ -220,7 +220,6 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         Accept: "text/event-stream, application/json",
         "Cache-Control": "no-cache",
-        "X-Requested-With": "XMLHttpRequest",
       },
       body: JSON.stringify({
         message,
