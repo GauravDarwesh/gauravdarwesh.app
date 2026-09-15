@@ -4095,7 +4095,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             transition: none !important;
           }
         }
-      `}
+      `}</style>
     </div>
   );
 };
