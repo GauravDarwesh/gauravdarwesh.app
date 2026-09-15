@@ -26,7 +26,6 @@ function normalizeVisuals(visuals: any): VisualItem[] {
   if (!visuals) return [];
 
   const items: VisualItem[] = [];
-
   const add = (url: unknown, title?: unknown) => {
     const value = String(url ?? "").trim();
     if (!/^https?:\/\//i.test(value)) return;
@@ -78,6 +77,7 @@ function getEndpoint(): string {
   const url = String(import.meta.env.VITE_SUPABASE_URL ?? "")
     .trim()
     .replace(/\/$/, "");
+
   if (!url) throw new Error("VITE_SUPABASE_URL is missing.");
   return `${url}/functions/v1/bright-action`;
 }
@@ -94,6 +94,16 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
 export async function streamChatMessage(message: string, handlers: StreamChatHandlers = {}): Promise<ChatResponse> {
   const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
   const anonKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "").trim();
@@ -102,24 +112,27 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     throw new Error("GDx configuration is missing.");
   }
 
-  const sessionId = getSessionId();
-  const response = await fetch(getEndpoint(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      Accept: "text/event-stream",
-    },
-    body: JSON.stringify({
-      message: message.trim(),
-      sessionId,
-      mode: "text",
-      stream: true,
-    }),
-  }).catch((error) => {
+  let response: Response;
+
+  try {
+    response = await fetch(getEndpoint(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({
+        message: message.trim(),
+        sessionId: getSessionId(),
+        mode: "text",
+        stream: true,
+      }),
+    });
+  } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Unable to connect to GDx.");
-  });
+  }
 
   if (!response.ok) {
     throw new Error(await readError(response));
@@ -133,12 +146,26 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
   let buffer = "";
   let accumulated = "";
   let visuals: VisualItem[] = [];
   let finalPayload: any = null;
+  let sawAnyToken = false;
 
-  const handleEvent = (raw: string) => {
+  const emit = async (delta: string) => {
+    if (!delta) return;
+    accumulated += delta;
+    sawAnyToken = true;
+    handlers.onToken?.(delta, accumulated);
+
+    // Let the browser paint before processing another queued provider event.
+    // This does not delay or fake the stream; it prevents React from batching
+    // a burst of real chunks into a single final render.
+    await yieldToBrowser();
+  };
+
+  const handleEvent = async (raw: string) => {
     const dataLines = raw
       .split(/\r?\n/)
       .filter((line) => line.startsWith("data:"))
@@ -146,13 +173,15 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
 
     if (!dataLines.length) return;
 
-    const text = dataLines.join("\n").trim();
-    if (!text || text === "[DONE]") return;
+    const data = dataLines.join("\n").trim();
+    if (!data || data === "[DONE]") return;
 
     let payload: any;
     try {
-      payload = JSON.parse(text);
+      payload = JSON.parse(data);
     } catch {
+      // Provider payloads are normally JSON SSE frames. Ignore anything
+      // incomplete rather than terminating a healthy stream.
       return;
     }
 
@@ -170,17 +199,25 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
       return;
     }
 
+    if (payload?.type === "start") {
+      handlers.onStart?.();
+      return;
+    }
+
     if (payload?.type === "final" || payload?.type === "done") {
       finalPayload = payload;
-      const finalText = typeof payload?.response === "string" ? payload.response : "";
-      if (finalText && finalText !== accumulated) {
-        accumulated = finalText;
-        handlers.onToken?.(finalText, accumulated);
+
+      if (typeof payload?.response === "string" && payload.response && payload.response !== accumulated) {
+        const finalText = payload.response;
+        const remaining = finalText.startsWith(accumulated) ? finalText.slice(accumulated.length) : finalText;
+        await emit(remaining);
       }
+
       if (payload?.visuals) {
         visuals = normalizeVisuals(payload.visuals);
         if (visuals.length) handlers.onVisuals?.(visuals);
       }
+
       return;
     }
 
@@ -191,26 +228,31 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
         typeof payload?.delta === "string" ? payload.delta : typeof payload?.text === "string" ? payload.text : "";
     }
 
+    // Also support raw OpenAI-compatible provider events.
     if (!delta && typeof payload?.choices?.[0]?.delta?.content === "string") {
       delta = payload.choices[0].delta.content;
     }
 
-    if (!delta) return;
-
-    accumulated += delta;
-    handlers.onToken?.(delta, accumulated);
+    await emit(delta);
   };
 
-  const consume = (chunk: string) => {
-    buffer += chunk;
-
+  // We need sequential async event processing so each emitted token gets a
+  // chance to paint before the next queued event is handled.
+  const processBuffer = async (flush = false) => {
     while (true) {
       const match = /\r?\n\r?\n/.exec(buffer);
+
       if (!match || match.index < 0) break;
 
       const event = buffer.slice(0, match.index);
       buffer = buffer.slice(match.index + match[0].length);
-      handleEvent(event);
+      await handleEvent(event);
+    }
+
+    if (flush && buffer.trim()) {
+      const tail = buffer;
+      buffer = "";
+      await handleEvent(tail);
     }
   };
 
@@ -218,20 +260,29 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      consume(decoder.decode(value, { stream: true }));
+
+      buffer += decoder.decode(value, { stream: true });
+      await processBuffer(false);
     }
 
-    consume(decoder.decode());
-    if (buffer.trim()) handleEvent(buffer);
+    buffer += decoder.decode();
+    await processBuffer(true);
   } catch (error) {
     if (error instanceof Error) throw error;
     throw new Error("GDx streaming failed.");
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      // noop
+    }
   }
 
-  const responseText = typeof finalPayload?.response === "string" ? finalPayload.response : accumulated;
+  const responseText =
+    typeof finalPayload?.response === "string" && finalPayload.response.trim() ? finalPayload.response : accumulated;
 
   if (!responseText.trim()) {
-    throw new Error("GDx returned an empty response.");
+    throw new Error(sawAnyToken ? "GDx stream ended without a complete response." : "GDx returned an empty response.");
   }
 
   return {
