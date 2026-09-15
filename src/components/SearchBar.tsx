@@ -6,62 +6,6 @@ import { Mic, Check, X, ArrowRight } from "lucide-react";
 import { sendChatMessage, streamChatMessage } from "@/lib/api";
 
 /* =========================================================
-   SIMPLE NATIVE STREAMING CHAT TRANSPORT
-   ========================================================= */
-
-type GdxStreamResult = {
-  success?: boolean;
-  response: string;
-  voice_response?: string;
-  suggestions?: string[];
-  visuals?: any;
-  action?: string | null;
-  bookingUrl?: string | null;
-  [key: string]: any;
-};
-
-type GdxStreamCallbacks = {
-  onStart?: () => void;
-  onDelta?: (delta: string, accumulated: string) => void;
-};
-
-const GDx_SESSION_KEYS = ["gdx_session_id", "gd_ai_session_id", "gd_session_id", "session_id"];
-let inMemoryGdxSessionId: string | null = null;
-
-const getGdxSessionIdForStreaming = (): string => {
-  if (typeof window === "undefined") return "server-rendering-session";
-
-  for (const key of GDx_SESSION_KEYS) {
-    try {
-      const existing = window.localStorage.getItem(key)?.trim();
-      if (existing) {
-        inMemoryGdxSessionId = existing;
-        return existing;
-      }
-    } catch {
-      // Ignore storage failures.
-    }
-  }
-
-  if (inMemoryGdxSessionId) return inMemoryGdxSessionId;
-
-  const created =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `gdx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-  inMemoryGdxSessionId = created;
-
-  try {
-    window.localStorage.setItem(GDx_SESSION_KEYS[0], created);
-  } catch {
-    // In-memory fallback is enough for this page.
-  }
-
-  return created;
-};
-
-/* =========================================================
    0. TTS CONFIG
    ========================================================= */
 
@@ -3237,7 +3181,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             setIsPreparingToStream(false);
             setIsStreamingResponse(true);
           },
-          onDelta: (_delta, accumulated) => {
+          onToken: (_delta, accumulated) => {
             // Render the provider's actual text immediately. No typewriter,
             // timer, requestAnimationFrame queue, or client-side buffering.
             streamedTextRef.current = accumulated;
