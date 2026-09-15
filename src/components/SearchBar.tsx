@@ -203,12 +203,10 @@ const parsePossiblyJson = async (response: Response): Promise<any> => {
 
 const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbacks = {}): Promise<GdxStreamResult> => {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error(
-      "GDx configuration is missing. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY).",
-    );
+    throw new Error("GDx configuration is missing.");
   }
 
-  const endpoint = SUPABASE_FUNCTION("bright-action");
+  const endpoint = `${SUPABASE_URL}/functions/v1/bright-action`;
   const sessionId = getGdxSessionIdForStreaming();
 
   let response: Response;
@@ -216,13 +214,11 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
   try {
     response = await fetch(endpoint, {
       method: "POST",
-      mode: "cors",
-      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Accept: "text/event-stream",
+        Accept: "text/event-stream, application/json",
         "Cache-Control": "no-cache",
       },
       body: JSON.stringify({
@@ -233,37 +229,27 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
       }),
     });
   } catch (error) {
-    const detail = error instanceof Error && error.message ? ` (${error.message})` : "";
-
-    throw new Error(
-      `Unable to reach GDx at ${endpoint}. Check the Supabase URL/key configuration and browser network access.${detail}`,
-    );
+    throw new Error(error instanceof Error ? error.message : "Unable to connect to the GDx assistant.");
   }
 
   const contentType = (response.headers.get("content-type") || "").toLowerCase();
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    let readable = body;
-
-    try {
-      const json = JSON.parse(body);
-      readable = String(json?.error || json?.response || json?.message || body);
-    } catch {
-      /* Keep text body. */
-    }
-
-    throw new Error(
-      readable || `GDx request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ""}).`,
-    );
-  }
-
   /*
-   * Some Supabase compatibility/early-return paths legitimately send JSON.
-   * Parse those before touching the stream reader.
+   * IMPORTANT:
+   * Supabase Edge Functions may return ordinary JSON for early exits /
+   * validation / compatibility paths even when the request asked for stream.
+   * Treat that as a valid response instead of trying to parse it as SSE.
    */
   if (contentType.includes("application/json") || contentType.includes("+json")) {
     const payload = await parsePossiblyJson(response);
+
+    if (!response.ok) {
+      const messageText =
+        typeof payload === "object" ? String(payload?.error || payload?.response || "") : String(payload || "");
+
+      throw new Error(messageText || `GDx request failed (${response.status}).`);
+    }
+
     const result = normalizeGdxResult(payload);
 
     if (!result.response) {
@@ -275,11 +261,42 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
     return result;
   }
 
-  if (!response.body) {
-    throw new Error("GDx connected successfully but returned no response stream.");
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    let readable = body;
+
+    try {
+      const json = JSON.parse(body);
+      readable = String(json?.error || json?.response || body);
+    } catch {
+      /* Keep text body. */
+    }
+
+    throw new Error(readable || `GDx request failed (${response.status}).`);
   }
 
-  callbacks.onStart?.();
+  if (!response.body) {
+    /*
+     * A valid 2xx response without a stream body is still recoverable if the
+     * server sent text. Read it once and try JSON before failing.
+     */
+    const body = await response.text().catch(() => "");
+    if (body.trim()) {
+      try {
+        const payload = JSON.parse(body);
+        const result = normalizeGdxResult(payload);
+        if (result.response) {
+          callbacks.onStart?.();
+          callbacks.onDelta?.(result.response, result.response);
+          return result;
+        }
+      } catch {
+        /* Fall through to a useful error. */
+      }
+    }
+
+    throw new Error("GDx streaming response body is unavailable.");
+  }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -295,16 +312,23 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
     error: null,
   };
 
-  const processBuffer = () => {
-    let boundary = buffer.match(/\r?\n\r?\n/);
+  const consume = (text: string) => {
+    buffer += text;
 
-    while (boundary?.index !== undefined) {
-      const eventText = buffer.slice(0, boundary.index);
-      buffer = buffer.slice(boundary.index + boundary[0].length);
+    /*
+     * Handle both LF-LF and CRLF-CRLF safely.
+     */
+    let match = buffer.match(/\r?\n\r?\n/);
+
+    while (match?.index !== undefined) {
+      const boundary = match.index;
+      const separatorLength = match[0].length;
+
+      const eventText = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + separatorLength);
 
       parseGdxSseEvent(eventText, callbacks, state);
-
-      boundary = buffer.match(/\r?\n\r?\n/);
+      match = buffer.match(/\r?\n\r?\n/);
     }
   };
 
@@ -316,11 +340,7 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
       break;
     }
 
-    buffer += decoder.decode(value, {
-      stream: true,
-    });
-
-    processBuffer();
+    consume(decoder.decode(value, { stream: true }));
   }
 
   if (buffer.trim()) {
@@ -331,23 +351,21 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
     throw new Error(state.error);
   }
 
-  const result = state.result ?? normalizeGdxResult({ success: true }, state.accumulated);
+  const result =
+    state.result ??
+    normalizeGdxResult(
+      {
+        success: true,
+      },
+      state.accumulated,
+    );
 
   if (!result.response && state.accumulated) {
     result.response = state.accumulated;
   }
 
   if (!result.response) {
-    /*
-     * The stream reached EOF cleanly, but the provider never produced a
-     * visible reply. Surface a useful transport/provider error instead of
-     * pretending the request never happened.
-     */
-    throw new Error(
-      contentType.includes("text/event-stream")
-        ? "GDx stream ended before a response was produced."
-        : "GDx returned an unsupported response format.",
-    );
+    throw new Error("GDx returned an empty response.");
   }
 
   return result;
@@ -357,18 +375,10 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
    0. TTS CONFIG
    ========================================================= */
 
-const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "")
-  .trim()
-  .replace(/\/+$/, "");
-
-const SUPABASE_ANON_KEY = String(
-  import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
-).trim();
-
-const SUPABASE_FUNCTION = (name: string): string => `${SUPABASE_URL}/functions/v1/${name}`;
-
-const TTS_ENDPOINT = SUPABASE_FUNCTION("gdx-tts");
-const TRANSCRIBE_ENDPOINT = SUPABASE_FUNCTION("gdx-transcribe");
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
+const TRANSCRIBE_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-transcribe`;
 
 const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
 const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
@@ -3475,17 +3485,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopVoiceSession(false);
       hideVoiceLinkBubbles();
 
-      if (response || suggestions.length > 0) {
-        setIsCollapsingToThink(true);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setResponse(null);
-        setSuggestions([]);
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        setIsCollapsingToThink(false);
-      } else {
-        setResponse(null);
-        setSuggestions([]);
-      }
+      // Do not hold the new request behind the old response animation.
+      // The stream should be allowed to become visible immediately.
+      setIsCollapsingToThink(false);
+      setResponse(null);
+      setSuggestions([]);
     } else {
       setIsListening(false);
     }
@@ -3538,34 +3542,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsStreamingResponse(true);
       setResponse("");
 
-      let pendingFrame: number | null = null;
-      let pendingText = "";
-
-      const flushStreamText = () => {
-        pendingFrame = null;
-        const next = pendingText;
-        streamedTextRef.current = next;
-        setResponse(next);
-      };
-
       try {
         const result = await streamGdxChatMessage(text, {
           onStart: () => {
             setIsPreparingToStream(false);
             setIsStreamingResponse(true);
+            setResponse("");
           },
           onDelta: (_delta, accumulated) => {
-            pendingText = accumulated;
-            if (pendingFrame === null) {
-              pendingFrame = requestAnimationFrame(flushStreamText);
-            }
+            // IMPORTANT: commit every server delta immediately.
+            // No requestAnimationFrame batching, artificial delay, or
+            // typewriter effect. The user sees exactly what the stream sends.
+            streamedTextRef.current = accumulated;
+            setResponse(accumulated);
           },
         });
-
-        if (pendingFrame !== null) {
-          cancelAnimationFrame(pendingFrame);
-          pendingFrame = null;
-        }
 
         const answer = String(result?.response ?? streamedTextRef.current ?? "");
         const suggs = Array.isArray(result?.suggestions) ? result.suggestions : [];
@@ -3880,12 +3871,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       (searchVisuals.length > 0 && !isTranscribing)
                     ? "600px"
                     : "0px",
-              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
-              transitionDelay:
-                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage
-                  ? "900ms"
+              transitionDuration: isStreamingResponse ? "0ms" : isCollapsingToThink ? "400ms" : "500ms",
+              transitionDelay: isStreamingResponse
+                ? "0ms"
+                : response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage
+                  ? "0ms"
                   : searchVisuals.length > 0 && isVoiceSession && !isCollapsing
-                    ? "900ms"
+                    ? "0ms"
                     : "0ms",
             }}
           >
@@ -3898,7 +3890,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <div
                   className={`text-foreground text-[13px] sm:text-sm leading-relaxed font-normal px-3 sm:px-4 overflow-y-auto scrollbar-hide ${isStreamingResponse ? "gdx-live-stream-text" : ""}`}
                   style={{
-                    animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                    animation:
+                      isStreamingResponse || isRestoredFromStorage
+                        ? "none"
+                        : "fadeSlideIn 500ms cubic-bezier(0.25,1,0.3,1) both",
                     animationDelay: "0ms",
                     maxHeight: "300px",
                     fontWeight: 400,
