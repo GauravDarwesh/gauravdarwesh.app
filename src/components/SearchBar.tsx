@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Mic, Check, X, ArrowRight } from "lucide-react";
-import { sendChatMessage, streamChatMessage } from "@/lib/api";
+import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
    0. TTS CONFIG
@@ -682,13 +682,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [streamPulse, setStreamPulse] = useState(false);
   const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
   const [isPreparingToStream, setIsPreparingToStream] = useState(false);
-  const [isResponseOpen, setIsResponseOpen] = useState(!!persistedState.response);
-  const [streamStarted, setStreamStarted] = useState(false);
-  const [displayedStreamText, setDisplayedStreamText] = useState("");
   const streamPulseFrameRef = useRef<number | null>(null);
-  const streamFlushTimerRef = useRef<number | null>(null);
-  const pendingStreamTextRef = useRef("");
-  const responseOpenRef = useRef(!!persistedState.response);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -724,7 +718,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   isTranscribingRef.current = isTranscribing;
   isLoadingRef.current = isLoading;
   isSpeakingRef.current = isSpeaking;
-  responseOpenRef.current = isResponseOpen;
 
   /* -------------------------------------------------------
      Placeholder
@@ -3101,28 +3094,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      SUBMIT
      ======================================================= */
 
-  const scheduleStreamPaint = useCallback((text: string) => {
-    pendingStreamTextRef.current = text;
-
-    if (streamFlushTimerRef.current) return;
-
-    streamFlushTimerRef.current = window.setTimeout(() => {
-      streamFlushTimerRef.current = null;
-
-      const next = pendingStreamTextRef.current;
-      pendingStreamTextRef.current = "";
-
-      setDisplayedStreamText(next);
-      setResponse(next);
-    }, 55);
-  }, []);
-
-  const openResponseSurface = useCallback(() => {
-    if (responseOpenRef.current) return;
-    responseOpenRef.current = true;
-    setIsResponseOpen(true);
-  }, []);
-
   const handleSubmit = async (event?: FormEvent, customQuery?: string, fromVoice = false) => {
     event?.preventDefault();
 
@@ -3138,6 +3109,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
+    setSearchVisuals([]);
 
     if (!customQuery) setQuery("");
 
@@ -3145,22 +3117,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopVoiceSession(false);
       hideVoiceLinkBubbles();
 
-      /*
-       * IMPORTANT:
-       * Once the response surface is open, keep it open between questions.
-       * The old implementation collapsed the entire SearchBar before every
-       * request, which made the interface feel like it was constantly jumping.
-       */
-      if (!responseOpenRef.current) {
+      if (response || suggestions.length > 0) {
+        setIsCollapsingToThink(true);
+        await new Promise((resolve) => setTimeout(resolve, 500));
         setResponse(null);
         setSuggestions([]);
-        setSearchVisuals([]);
-        setDisplayedStreamText("");
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setIsCollapsingToThink(false);
       } else {
+        setResponse(null);
         setSuggestions([]);
-        setSearchVisuals([]);
-        setDisplayedStreamText("");
-        setResponse("");
       }
     } else {
       setIsListening(false);
@@ -3170,13 +3136,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
 
     try {
-      setStreamStarted(false);
+      setSearchVisuals([]);
       setIsStreamingResponse(false);
-      pendingStreamTextRef.current = "";
-      if (streamFlushTimerRef.current) {
-        clearTimeout(streamFlushTimerRef.current);
-        streamFlushTimerRef.current = null;
-      }
 
       if (fromVoice) {
         const result = await sendChatMessage(text);
@@ -3195,13 +3156,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           setIsCollapsing(false);
           setSearchVisuals(returnedVisuals);
-          setIsResponseOpen(true);
-          responseOpenRef.current = true;
 
+          // Let the SearchBar commit the expanded visual state first so
+          // TTS always starts after the normal horizontal-then-vertical open.
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         }
-
-        setSuggestions(suggs);
 
         if (isVoiceSessionRef.current) {
           void speakVoiceResponse(voiceAnswer, answer);
@@ -3211,90 +3170,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       /*
-       * TEXT STREAMING
-       *
-       * The pill remains compact while the model is thinking.
-       * The moment the first meaningful token arrives, the response surface
-       * opens once and stays open. Subsequent questions reuse the same surface.
+       * Wait for the complete response before expanding the SearchBar.
+       * For visual requests, the first image is also loaded before the
+       * response is released to the UI.
        */
       setIsPreparingToStream(true);
-      setIsStreamingResponse(true);
 
-      let firstTokenReceived = false;
-      let finalAccumulated = "";
+      const result = await sendChatMessage(text);
+      const answer = String((result as any)?.response ?? "");
+      const suggs = (result as any)?.suggestions || [];
+      const returnedVisuals = extractVisualItems((result as any)?.visuals);
 
-      try {
-        const result = await streamChatMessage(text, {
-          onStart: () => {
-            setIsPreparingToStream(true);
-            setIsStreamingResponse(true);
-          },
-          onToken: (_delta, accumulated) => {
-            const next = String(accumulated ?? "");
-            if (!next) return;
-
-            finalAccumulated = next;
-            pendingStreamTextRef.current = next;
-
-            if (!firstTokenReceived) {
-              firstTokenReceived = true;
-              setStreamStarted(true);
-              setIsPreparingToStream(false);
-              openResponseSurface();
-            }
-
-            scheduleStreamPaint(next);
-          },
-        });
-
-        if (streamFlushTimerRef.current) {
-          clearTimeout(streamFlushTimerRef.current);
-          streamFlushTimerRef.current = null;
-        }
-
-        const answer = String(result?.response ?? finalAccumulated ?? pendingStreamTextRef.current ?? "");
-        const suggs = Array.isArray(result?.suggestions) ? result.suggestions : [];
-        const returnedVisuals = extractVisualItems(result?.visuals);
-
-        pendingStreamTextRef.current = "";
-        setDisplayedStreamText(answer);
-        setResponse(answer || null);
-        setSuggestions(suggs);
-        setIsRestoredFromStorage(false);
-        setIsStreamingResponse(false);
-        setIsPreparingToStream(false);
-
-        if (answer && !responseOpenRef.current) {
-          openResponseSurface();
-        }
-
-        if (returnedVisuals.length > 0) {
-          await waitForVisualReady(returnedVisuals);
-          setSearchVisuals(returnedVisuals);
-        }
-
-        onSearch?.(answer);
-      } catch (streamError) {
-        if (streamFlushTimerRef.current) {
-          clearTimeout(streamFlushTimerRef.current);
-          streamFlushTimerRef.current = null;
-        }
-
-        const partial = (finalAccumulated || pendingStreamTextRef.current || "").trim();
-
-        if (partial) {
-          pendingStreamTextRef.current = "";
-          setDisplayedStreamText(partial);
-          setResponse(partial);
-          setSuggestions([]);
-          setIsPreparingToStream(false);
-          setIsStreamingResponse(false);
-          openResponseSurface();
-          onSearch?.(partial);
-        } else {
-          throw streamError;
-        }
+      if (returnedVisuals.length > 0) {
+        await waitForVisualReady(returnedVisuals);
+        setSearchVisuals(returnedVisuals);
       }
+
+      setResponse(answer || null);
+      setSuggestions(suggs);
+      setIsRestoredFromStorage(false);
+      onSearch?.(answer);
     } catch (error) {
       setIsPreparingToStream(false);
       setIsStreamingResponse(false);
@@ -3306,30 +3201,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         void speakVoiceResponse(message);
       } else {
         setResponse(message);
-        setDisplayedStreamText(message);
         setSuggestions([]);
         setIsRestoredFromStorage(false);
-        openResponseSurface();
         onSearch?.(message);
       }
     } finally {
       setIsPreparingToStream(false);
       setIsStreamingResponse(false);
       setStreamPulse(false);
-      setStreamStarted(false);
 
-      if (streamFlushTimerRef.current !== null) {
-        clearTimeout(streamFlushTimerRef.current);
-        streamFlushTimerRef.current = null;
+      if (streamPulseFrameRef.current !== null) {
+        cancelAnimationFrame(streamPulseFrameRef.current);
+        streamPulseFrameRef.current = null;
       }
-
-      pendingStreamTextRef.current = "";
 
       isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
-
   handleSubmitRef.current = handleSubmit;
 
   /* =======================================================
@@ -3393,16 +3282,26 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (isNavigationClick) return;
 
-      /*
-       * Compact mode: an outside click dismisses accidental text entry.
-       * Expanded mode: do NOT collapse the answer anymore.
-       *
-       * The user can keep the response open while asking question after
-       * question, which is the central interaction change in this revision.
-       */
-      if (query.trim() && !responseOpenRef.current) {
+      if (query.trim() && !response && suggestions.length === 0) {
         setQuery("");
         inputRef.current?.blur();
+        return;
+      }
+
+      if (response || suggestions.length > 0 || searchVisuals.length > 0) {
+        const COLLAPSE_MS = 1400;
+        setIsCollapsing(true);
+        setShowExpandedSuggestions(false);
+
+        // Keep the existing close animation intact, but clear visual results
+        // at the same end point so the image frame cannot re-expand afterward.
+        window.setTimeout(() => {
+          setResponse(null);
+          setSuggestions([]);
+          setSearchVisuals([]);
+          setIsCollapsing(false);
+          clearPersistedState();
+        }, COLLAPSE_MS);
       }
     };
 
@@ -3413,37 +3312,41 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [query, stopVoiceSession, stopTranscribe]);
+  }, [response, suggestions, searchVisuals.length, query, stopVoiceSession, stopTranscribe, clearPersistedState]);
 
   /* =======================================================
      LAYOUT
      ======================================================= */
 
   const layoutValues = useMemo(() => {
-    const shouldBeExpanded =
-      responseOpenRef.current ||
-      isResponseOpen ||
-      ((response || isStreamingResponse || searchVisuals.length > 0) && !isVoiceSession && !isTranscribing);
+    const hasContent =
+      ((suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing) ||
+      (searchVisuals.length > 0 && !isTranscribing);
 
-    const targetWidth =
-      shouldBeExpanded
-        ? "min(500px, 92vw)"
-        : isVoiceSession || isTranscribing
-          ? "min(320px, 78vw)"
-          : "min(380px, 92vw)";
+    const isExpanded = hasContent && !isPreparingToStream;
+
+    const targetWidth = isExpanded
+      ? "min(460px, 92vw)"
+      : isVoiceSession || isTranscribing
+        ? "min(320px, 78vw)"
+        : "min(360px, 92vw)";
+
+    const targetRadius = isExpanded ? "16px" : "999px";
 
     return {
-      isExpanded: shouldBeExpanded,
+      isExpanded,
       targetWidth,
-      targetRadius: shouldBeExpanded ? "28px" : "999px",
+      targetRadius,
     };
   }, [
+    suggestions.length,
     response,
     searchVisuals.length,
     isVoiceSession,
     isTranscribing,
-    isResponseOpen,
+    isLoading,
     isStreamingResponse,
+    isPreparingToStream,
   ]);
 
   /* =======================================================
@@ -3456,10 +3359,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       data-gdx-search
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-3 sm:px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && !layoutValues.isExpanded && (
+      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="gdx-suggestion-bubble cursor-pointer text-[12px] sm:text-sm font-normal px-4 py-2 rounded-full whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
+          className="gdx-suggestion-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full border border-white/20 shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-all"
+          style={{
+            animation:
+              suggestionPhase === "emerging"
+                ? "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+                : suggestionPhase === "retreating"
+                  ? "suggestionRetreat 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+                  : suggestionPhase === "blurringOut"
+                    ? "suggestionBlurOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+                    : undefined,
+          }}
         >
           {fullText}
         </div>
@@ -3470,8 +3383,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           className="flex flex-wrap justify-center gap-2 max-w-[92vw]"
           style={{
             animation: voiceLinksExiting
-              ? "gdxGlassFadeOut 280ms cubic-bezier(.22,1,.36,1) forwards"
-              : "gdxGlassFadeIn 420ms cubic-bezier(.22,1,.36,1) forwards",
+              ? "suggestionBlurOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+              : "suggestionEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
           }}
         >
           {voiceLinks.map((link) => (
@@ -3483,7 +3396,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 event.stopPropagation();
                 window.location.assign(link.url);
               }}
-              className="gdx-voice-link-bubble cursor-pointer text-sm font-normal px-4 py-2 rounded-full whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
+              className="gdx-voice-link-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis hover:bg-white/30 active:scale-95 transition-all"
               aria-label={`Open ${link.label}`}
             >
               ↗ {link.label}
@@ -3493,7 +3406,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       <div
-        className={`gdx-search-container mx-auto text-foreground overflow-hidden select-none ${
+        className={`gdx-search-container mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={
@@ -3501,136 +3414,165 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             width: layoutValues.targetWidth,
             maxWidth: "92vw",
             "--gdx-mobile-width": layoutValues.isExpanded
-              ? "min(390px, 90vw)"
+              ? "min(360px, 88vw)"
               : isVoiceSession || isTranscribing
-                ? "min(300px, 82vw)"
-                : "min(350px, 90vw)",
+                ? "min(290px, 82vw)"
+                : "min(320px, 88vw)",
             borderRadius: layoutValues.targetRadius,
             transition:
-              "width 920ms cubic-bezier(.22,1,.36,1), border-radius 920ms cubic-bezier(.22,1,.36,1), box-shadow 700ms cubic-bezier(.22,1,.36,1), background 700ms ease, border-color 700ms ease",
+              "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+            cursor: isListening ? "default" : undefined,
             WebkitTouchCallout: "none",
             WebkitUserSelect: "none",
             touchAction: "manipulation",
           } as React.CSSProperties & { "--gdx-mobile-width": string }
         }
       >
-        <div className="gdx-search-inner">
-          {layoutValues.isExpanded && !isVoiceSession && !isTranscribing && (
+        <div
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-3.5 pt-4 sm:p-5 sm:pt-6" : "p-1.5 sm:p-2"}`}
+          style={{
+            transitionDuration: "800ms",
+            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
+          }}
+        >
+          <Fade
+            show={showExpandedSuggestions && suggestions.length > 0 && !isVoiceSession && !isTranscribing}
+            duration={800}
+          >
             <div
-              className={`gdx-response-stage ${response || isStreamingResponse || searchVisuals.length ? "gdx-response-stage-visible" : ""}`}
+              className="flex gap-1.5 sm:gap-2 flex-wrap justify-center mb-2.5 sm:mb-3 animate-fadeIn"
+              style={{ animation: "fadeIn 0.8s ease forwards" }}
             >
-              {searchVisuals.length > 0 && (
-                <div className="gdx-visual-wrap">
-                  <SearchVisualCarousel items={searchVisuals} visible={searchVisuals.length > 0} />
-                </div>
-              )}
-
-              {(response !== null || isStreamingResponse) && (
-                <div className="gdx-response-scroll">
-                  {isStreamingResponse ? (
-                    <div
-                      className="gdx-stream-copy"
-                      aria-live="polite"
-                    >
-                      {displayedStreamText || response || (
-                        <span className="gdx-thinking-dots" aria-label="Thinking">
-                          <i />
-                          <i />
-                          <i />
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      className="gdx-response-copy"
-                      dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response || "") }}
-                    />
-                  )}
-                </div>
-              )}
-
-              {showExpandedSuggestions && suggestions.length > 0 && (
-                <div className="gdx-suggestions-row">
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={`${suggestion}-${index}`}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className="gdx-suggestion-chip"
-                      disabled={isLoading}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="px-2.5 sm:px-3 py-1 bg-white/20 text-[11px] sm:text-sm font-normal rounded-full hover:bg-white/30 transition cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {suggestion}
+                </button>
+              ))}
             </div>
-          )}
+          </Fade>
+
+          <div
+            className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
+              (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
+                ? isCollapsing || isCollapsingToThink
+                  ? "opacity-0 mb-0"
+                  : "opacity-100 mb-5"
+                : "opacity-0 mb-0"
+            }`}
+            style={{
+              maxHeight:
+                isCollapsing || isCollapsingToThink
+                  ? "0px"
+                  : (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
+                    ? "600px"
+                    : "0px",
+              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
+              transitionDelay:
+                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage
+                  ? "900ms"
+                  : searchVisuals.length > 0 && isVoiceSession && !isCollapsing
+                    ? "900ms"
+                    : "0ms",
+            }}
+          >
+            {searchVisuals.length > 0 && !isTranscribing && (
+              <SearchVisualCarousel items={searchVisuals} visible={searchVisuals.length > 0 && !isTranscribing} />
+            )}
+
+            {response && !isVoiceSession && !isTranscribing && (
+              <>
+                <div
+                  className="text-foreground text-[13px] sm:text-sm leading-relaxed font-normal px-3 sm:px-4 overflow-y-auto scrollbar-hide"
+                  style={{
+                    animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                    animationDelay: "0ms",
+                    maxHeight: "300px",
+                    fontWeight: 400,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+                />
+              </>
+            )}
+          </div>
 
           <form
             onSubmit={(event) => handleSubmit(event, undefined, false)}
-            className="gdx-input-row"
+            className="flex items-center gap-1.5 sm:gap-2 relative min-h-[36px] sm:min-h-[40px]"
             onFocus={handleInputFocus}
           >
             {!isVoiceSession && !isTranscribing && (
-              <div className="relative flex-1 min-w-0">
+              <div className="relative flex-1">
                 <Input
                   ref={inputRef}
                   type="text"
                   placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className="gdx-input"
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-sm sm:text-base font-normal px-2.5 sm:px-4 h-9 sm:h-10 ${
+                    isLoading ? "thinking-placeholder" : ""
+                  }`}
                   disabled={isLoading}
                   aria-label="Ask anything"
+                  style={{ fontWeight: 400 }}
                 />
               </div>
             )}
 
+            {/* Talk with agent voice mode: Waveform WITHOUT timer */}
             {isVoiceSession && !isTranscribing && (
-              <div className="flex-1 flex items-center min-w-0">
+              <div className="flex-1 flex items-center gap-1 sm:gap-2 pl-1.5 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking || isListening} />
               </div>
             )}
 
+            {/* Transcribe mode: Waveform WITH timer */}
             {isTranscribing && (
-              <div className="flex-1 flex items-center gap-2 pl-1 min-w-0">
+              <div className="flex-1 flex items-center gap-1.5 sm:gap-3 pl-1.5 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={isListening} />
                 <RecordingTimer isActive={isTranscribing} />
               </div>
             )}
 
+            {/* Action buttons */}
             {isVoiceSession ? (
               <button
                 type="button"
                 onClick={() => stopVoiceSession()}
-                className="gdx-icon-button gdx-danger-button"
+                className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="End voice session"
                 aria-label="End voice session"
               >
-                <X className="h-4 w-4" strokeWidth={2} />
+                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" strokeWidth={2} />
               </button>
             ) : isTranscribing ? (
               <button
                 type="button"
                 onClick={isAndroidRef.current ? finishAndroidTranscription : stopTranscribe}
-                className="gdx-icon-button gdx-action-button"
+                className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="Done transcribing"
                 aria-label="Done transcribing"
               >
-                <Check className="h-4 w-4" strokeWidth={2.5} />
+                <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" strokeWidth={2.5} />
               </button>
             ) : (
-              <div className="flex items-center gap-1 shrink-0 pr-0.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pr-0.5 sm:pr-1">
+                {/* Transcribe mic button */}
                 <button
                   type="button"
                   onClick={startTranscribe}
-                  className="gdx-icon-button"
+                  className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
                   title="Transcribe speech"
                   aria-label="Transcribe speech"
                 >
-                  <Mic className="h-[18px] w-[18px]" strokeWidth={2} />
+                  <Mic className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2} />
                 </button>
 
+                {/* Talk with agent button (ChatGPT style) */}
                 <button
                   type="button"
                   onClick={() => {
@@ -3640,15 +3582,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       startVoiceSession();
                     }
                   }}
-                  className="gdx-send-button"
+                  className={`gdx-tts-button h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
+                    query.trim() ? "bg-[#0084FF] hover:bg-[#0074E8]" : "bg-[#0084FF] hover:bg-[#0074E8]"
+                  }`}
                   title={query.trim() ? "Search" : "Talk with GDx"}
                   aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
-                  <span className={`gdx-send-icon ${query.trim() ? "gdx-send-icon-hidden" : ""}`}>
-                    <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
+                  <span
+                    className={`absolute flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                      query.trim() ? "opacity-0 scale-75 -translate-x-1.5" : "opacity-100 scale-100 translate-x-0"
+                    }`}
+                  >
+                    <ChatGPTWaveformIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                   </span>
-                  <span className={`gdx-send-icon ${query.trim() ? "" : "gdx-send-icon-hidden"}`}>
-                    <ArrowRight className="h-[18px] w-[18px] text-white" strokeWidth={2.25} />
+                  <span
+                    className={`absolute flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                      query.trim() ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-75 translate-x-1.5"
+                    }`}
+                  >
+                    <ArrowRight className="h-4 w-4 sm:h-[18px] sm:w-[18px] text-white" strokeWidth={2.25} />
                   </span>
                 </button>
               </div>
@@ -3658,336 +3610,38 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
-        .gdx-search-container {
-          position: relative;
-          background:
-            linear-gradient(180deg, rgba(255,255,255,0.145), rgba(255,255,255,0.075));
-          border: 1px solid rgba(255,255,255,0.20);
-          box-shadow:
-            0 20px 55px rgba(0,0,0,0.20),
-            inset 0 1px 0 rgba(255,255,255,0.16),
-            inset 0 -1px 0 rgba(255,255,255,0.05);
-          backdrop-filter: blur(28px) saturate(145%);
-          -webkit-backdrop-filter: blur(28px) saturate(145%);
-          will-change: width, border-radius, box-shadow;
+        @media (max-width: 639px) {
+          .gdx-search-container {
+            width: var(--gdx-mobile-width) !important;
+            max-width: 88vw !important;
+          }
         }
 
-        .gdx-search-container::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          border-radius: inherit;
-          background:
-            radial-gradient(circle at 18% 0%, rgba(255,255,255,0.18), transparent 34%),
-            radial-gradient(circle at 84% 100%, rgba(255,255,255,0.07), transparent 32%);
-          opacity: 0.85;
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
-        .gdx-search-inner {
-          position: relative;
-          z-index: 1;
-          padding: 8px;
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
-        .gdx-input-row {
-          min-height: 40px;
-          display: flex;
-          align-items: center;
-          gap: 7px;
-        }
-
-        .gdx-input {
-          width: 100%;
-          height: 40px;
-          padding: 0 12px;
-          border: 0 !important;
-          outline: 0 !important;
-          background: transparent !important;
-          box-shadow: none !important;
-          color: inherit !important;
-          font-size: 14px;
-          font-weight: 400;
-        }
-
-        .gdx-input::placeholder {
-          color: rgba(255,255,255,0.60);
-          transition: color 450ms ease;
-        }
-
-        .gdx-input:focus::placeholder {
-          color: rgba(255,255,255,0.38);
-        }
-
-        .gdx-response-stage {
-          overflow: hidden;
-          max-height: 0;
-          opacity: 0;
-          transform: translateY(-5px) scaleY(0.985);
-          transform-origin: bottom center;
-          transition:
-            max-height 850ms cubic-bezier(.22,1,.36,1),
-            opacity 520ms cubic-bezier(.22,1,.36,1),
-            transform 850ms cubic-bezier(.22,1,.36,1),
-            padding 850ms cubic-bezier(.22,1,.36,1);
-          padding: 0 6px;
-        }
-
-        .gdx-response-stage-visible {
-          max-height: 560px;
-          opacity: 1;
-          transform: translateY(0) scaleY(1);
-          padding: 8px 6px 12px;
-        }
-
-        .gdx-response-scroll {
-          max-height: 310px;
-          overflow-y: auto;
-          overflow-x: hidden;
-          scrollbar-width: none;
-          padding: 0 7px;
-        }
-
-        .gdx-response-scroll::-webkit-scrollbar {
-          display: none;
-        }
-
-        .gdx-stream-copy,
-        .gdx-response-copy {
-          font-size: 13px;
-          line-height: 1.72;
-          font-weight: 400;
-          letter-spacing: -0.005em;
-        }
-
-        .gdx-stream-copy {
-          animation: gdxTextSettle 360ms cubic-bezier(.22,1,.36,1);
-        }
-
-        .gdx-response-copy p {
-          margin: 0 0 10px;
-        }
-
-        .gdx-response-copy p:last-child {
-          margin-bottom: 0;
-        }
-
-        .gdx-response-copy h1,
-        .gdx-response-copy h2,
-        .gdx-response-copy h3 {
-          font-weight: 500;
-          letter-spacing: -0.015em;
-        }
-
-        .gdx-response-copy a {
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-
-        .gdx-suggestions-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 7px;
-          margin-top: 10px;
-          padding: 0 7px;
-          animation: gdxGlassFadeIn 420ms cubic-bezier(.22,1,.36,1);
-        }
-
-        .gdx-suggestion-chip,
-        .gdx-suggestion-bubble,
-        .gdx-voice-link-bubble {
-          border: 1px solid rgba(255,255,255,0.14);
-          background: rgba(255,255,255,0.075);
-          box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.08),
-            0 8px 28px rgba(0,0,0,0.08);
-          backdrop-filter: blur(18px);
-          -webkit-backdrop-filter: blur(18px);
-        }
-
-        .gdx-suggestion-chip {
-          padding: 7px 11px;
-          border-radius: 999px;
-          font-size: 11px;
-          color: inherit;
-          cursor: pointer;
-          transition:
-            transform 260ms cubic-bezier(.22,1,.36,1),
-            background 260ms ease,
-            border-color 260ms ease;
-        }
-
-        .gdx-suggestion-chip:hover,
-        .gdx-suggestion-bubble:hover,
-        .gdx-voice-link-bubble:hover {
-          background: rgba(255,255,255,0.115);
-          border-color: rgba(255,255,255,0.22);
-        }
-
-        .gdx-suggestion-chip:active,
-        .gdx-voice-link-bubble:active {
-          transform: scale(0.97);
-        }
-
-        .gdx-icon-button,
-        .gdx-send-button {
-          flex: 0 0 auto;
-          width: 34px;
-          height: 34px;
-          border-radius: 999px;
-          border: 0;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          transition:
-            transform 280ms cubic-bezier(.22,1,.36,1),
-            background 280ms ease,
-            opacity 280ms ease;
-        }
-
-        .gdx-icon-button {
-          color: rgba(255,255,255,0.78);
-          background: transparent;
-        }
-
-        .gdx-icon-button:hover {
-          background: rgba(255,255,255,0.075);
-          color: rgba(255,255,255,0.98);
-        }
-
-        .gdx-icon-button:active,
-        .gdx-send-button:active {
-          transform: scale(0.94);
-        }
-
-        .gdx-send-button {
-          position: relative;
-          overflow: hidden;
-          color: white;
-          background:
-            linear-gradient(145deg, rgba(0,132,255,0.98), rgba(0,102,220,0.96));
-          box-shadow:
-            0 8px 22px rgba(0,100,220,0.22),
-            inset 0 1px 0 rgba(255,255,255,0.22);
-        }
-
-        .gdx-send-icon {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 1;
-          transform: scale(1);
-          transition:
-            opacity 260ms cubic-bezier(.22,1,.36,1),
-            transform 420ms cubic-bezier(.22,1,.36,1);
-        }
-
-        .gdx-send-icon-hidden {
-          opacity: 0;
-          transform: scale(0.72);
-        }
-
-        .gdx-thinking-dots {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          height: 18px;
-        }
-
-        .gdx-thinking-dots i {
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: currentColor;
-          opacity: 0.28;
-          animation: gdxDotPulse 1.35s ease-in-out infinite;
-        }
-
-        .gdx-thinking-dots i:nth-child(2) {
-          animation-delay: 120ms;
-        }
-
-        .gdx-thinking-dots i:nth-child(3) {
-          animation-delay: 240ms;
-        }
-
-        .thinking-container {
-          border-color: rgba(255,255,255,0.25);
-          box-shadow:
-            0 22px 65px rgba(0,0,0,0.22),
-            inset 0 1px 0 rgba(255,255,255,0.16);
-        }
-
-        .listening-container {
-          border-color: rgba(255,255,255,0.25);
-          box-shadow:
-            0 22px 65px rgba(0,0,0,0.22),
-            inset 0 1px 0 rgba(255,255,255,0.16);
-        }
-
-        .thinking-container .gdx-input::placeholder {
-          color: rgba(255,255,255,0.46);
-        }
-
-        .gdx-danger-button {
-          background: rgba(255,255,255,0.08);
-        }
-
-        .gdx-action-button {
-          color: white;
-          background: rgba(255,255,255,0.10);
-        }
-
-        .gdx-visual-wrap {
-          margin-bottom: 10px;
-          animation: gdxGlassFadeIn 480ms cubic-bezier(.22,1,.36,1);
-        }
-
-        .gdx-voice-link-bubble {
-          padding: 8px 13px;
-          border-radius: 999px;
-          font-size: 12px;
-          color: inherit;
-        }
-
-        .gdx-suggestion-bubble {
-          padding: 8px 14px;
-          border-radius: 999px;
-          animation: gdxGlassFadeIn 480ms cubic-bezier(.22,1,.36,1);
-        }
-
-        @keyframes gdxGlassFadeIn {
+        @keyframes streamTextPulse {
           from {
-            opacity: 0;
-            transform: translateY(6px) scale(0.985);
-            filter: blur(2px);
+            opacity: 0.86;
+            filter: blur(1.2px);
           }
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
             filter: blur(0);
           }
         }
 
-        @keyframes gdxGlassFadeOut {
+        @keyframes searchVisualsReveal {
           from {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            filter: blur(0);
-          }
-          to {
             opacity: 0;
-            transform: translateY(4px) scale(0.985);
-            filter: blur(2px);
-          }
-        }
-
-        @keyframes gdxTextSettle {
-          from {
-            opacity: 0.82;
-            transform: translateY(2px);
+            transform: translateY(10px);
           }
           to {
             opacity: 1;
@@ -3995,81 +3649,248 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
-        @keyframes gdxDotPulse {
-          0%, 60%, 100% {
-            opacity: 0.24;
-            transform: translateY(0) scale(0.9);
+        @keyframes searchVisualImage {
+          from {
+            opacity: 0.7;
           }
-          30% {
-            opacity: 0.76;
-            transform: translateY(-1px) scale(1);
+          to {
+            opacity: 1;
           }
         }
 
-        @media (max-width: 639px) {
-          .gdx-search-container {
-            width: var(--gdx-mobile-width) !important;
-            max-width: 92vw !important;
-          }
+        @keyframes delayedFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
 
-          .gdx-search-inner {
-            padding: 7px;
-          }
+        .animate-fadeIn {
+          animation: fadeIn 0.8s ease forwards;
+        }
 
-          .gdx-response-stage-visible {
-            padding: 7px 4px 10px;
-          }
+        .animate-delayedFadeIn {
+          animation: delayedFadeIn 1s ease forwards;
+          animation-delay: 0.1s;
+        }
 
-          .gdx-response-scroll {
-            max-height: 280px;
-          }
+        .thinking-container {
+          border: 1px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.05);
+          animation: glowPulse 2s infinite ease-in-out;
+        }
 
-          .gdx-stream-copy,
-          .gdx-response-copy {
-            font-size: 12.5px;
-            line-height: 1.68;
+        @keyframes glowPulse {
+          0%, 100% {
+            box-shadow:
+              0 0 5px rgba(255,255,255,0.1),
+              inset 0 0 10px rgba(255,255,255,0.05);
           }
-
-          .gdx-input {
-            font-size: 13px;
+          50% {
+            box-shadow:
+              0 0 20px rgba(255,255,255,0.3),
+              inset 0 0 20px rgba(255,255,255,0.15);
           }
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-search-container {
-          background:
-            linear-gradient(180deg, rgba(255,255,255,0.90), rgba(248,248,248,0.78));
-          border-color: rgba(0,0,0,0.15);
-          box-shadow:
-            0 20px 55px rgba(0,0,0,0.10),
-            inset 0 1px 0 rgba(255,255,255,0.9);
-          color: #000;
+        @keyframes textGlow {
+          0%, 100% {
+            color: rgba(255,255,255,0.3);
+            text-shadow: 0 0 1px rgba(255,255,255,0.2);
+          }
+          50% {
+            color: rgba(255,255,255,0.8);
+            text-shadow: 0 0 3px rgba(255,255,255,0.6);
+          }
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-search-container::before {
-          background:
-            radial-gradient(circle at 18% 0%, rgba(255,255,255,0.95), transparent 34%),
-            radial-gradient(circle at 84% 100%, rgba(0,0,0,0.035), transparent 32%);
+        .thinking-placeholder::placeholder {
+          color: rgba(255,255,255,0.6);
+          animation: textGlow 2s infinite ease-in-out;
+          font-weight: 400;
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-input::placeholder {
-          color: rgba(0,0,0,0.48);
+        .thinking-placeholder[disabled] {
+          caret-color: transparent;
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-icon-button {
-          color: rgba(0,0,0,0.68);
+        /* Monochrome mode: keep the existing thinking UI visible on the white surface. */
+        :root[data-theme="minimal"] [data-gdx-search] .thinking-container {
+          border-color: rgba(0,0,0,0.18);
+          background: rgba(0,0,0,0.04);
+          animation: glowPulseMinimal 2s infinite ease-in-out;
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-suggestion-chip,
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-suggestion-bubble,
+        @keyframes glowPulseMinimal {
+          0%, 100% {
+            box-shadow:
+              0 0 5px rgba(0,0,0,0.06),
+              inset 0 0 10px rgba(0,0,0,0.03);
+          }
+          50% {
+            box-shadow:
+              0 0 20px rgba(0,0,0,0.18),
+              inset 0 0 20px rgba(0,0,0,0.08);
+          }
+        }
+
+        /* Monochrome mode: make voice response link bubbles visible with a black border. */
         :root[data-theme="minimal"] [data-gdx-search] .gdx-voice-link-bubble {
-          border-color: rgba(0,0,0,0.11);
-          background: rgba(0,0,0,0.045);
-          color: #000;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+          border: 1px solid #000 !important;
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-dots i {
-          background: #000;
+        /* Monochrome mode: make the voice-session exit X a visible black circle. */
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] {
+          background-color: #000 !important;
+          border: 1px solid #000 !important;
+          color: #fff !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"]:hover {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="End voice session"] svg {
+          color: #fff !important;
+        }
+
+        /* Monochrome mode: keep the transcribe Done/check button visible in every interaction state. */
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] {
+          background-color: #000 !important;
+          border: 1px solid #000 !important;
+          color: #fff !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"]:hover,
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"]:active {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] button[aria-label="Done transcribing"] svg {
+          color: #fff !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .thinking-placeholder::placeholder {
+          color: rgba(0,0,0,0.48) !important;
+          animation: textGlowMinimal 2s infinite ease-in-out;
+        }
+
+        @keyframes textGlowMinimal {
+          0%, 100% {
+            color: rgba(0,0,0,0.32);
+            text-shadow: 0 0 1px rgba(0,0,0,0.08);
+          }
+          50% {
+            color: rgba(0,0,0,0.72);
+            text-shadow: 0 0 3px rgba(0,0,0,0.18);
+          }
+        }
+
+        .inline-code {
+          background: rgba(255,255,255,.04);
+          padding: .05rem .25rem;
+          border-radius: 4px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace;
+          font-size: .9em;
+          font-weight: 400;
+        }
+
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
+        }
+
+        .typewriter-cursor {
+          display: inline-block;
+          animation: blink 1s infinite;
+          margin-left: 2px;
+          font-weight: 400;
+        }
+
+        .typewriter-text {
+          display: inline-block;
+          min-height: 1.2em;
+          font-weight: 400;
+        }
+
+        .listening-container {
+          border: 1px solid rgba(255,255,255,0.3);
+          animation: listeningGlow 1.5s infinite ease-in-out;
+        }
+
+        @keyframes listeningGlow {
+          0%, 100% {
+            box-shadow:
+              0 0 8px rgba(255,255,255,0.15),
+              inset 0 0 12px rgba(255,255,255,0.08);
+          }
+          50% {
+            box-shadow:
+              0 0 25px rgba(255,255,255,0.4),
+              inset 0 0 25px rgba(255,255,255,0.2);
+          }
+        }
+
+        .listening-input {
+          color: transparent;
+        }
+
+        .gdx-tts-button {
+          position: relative;
+          overflow: hidden;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
+          background-color: #000 !important;
+          border-color: #000 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
+          background-color: #111 !important;
+          border-color: #111 !important;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
+          color: #fff !important;
+        }
+
+        @keyframes suggestionEmerge {
+          0% {
+            opacity: 0;
+            filter: blur(8px);
+            transform: translateY(12px) scale(0.96);
+          }
+          100% {
+            opacity: 1;
+            filter: blur(0px);
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes suggestionRetreat {
+          0% {
+            opacity: 1;
+            filter: blur(0px);
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            filter: blur(8px);
+            transform: translateY(-8px) scale(0.96);
+          }
+        }
+
+        @keyframes suggestionBlurOut {
+          0% {
+            opacity: 1;
+            filter: blur(0px);
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            filter: blur(12px);
+            transform: translateY(8px) scale(0.94);
+          }
         }
 
         input,
@@ -4082,18 +3903,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         h2,
         h3 {
           font-weight: 400;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .gdx-search-container,
-          .gdx-response-stage,
-          .gdx-stream-copy,
-          .gdx-suggestions-row,
-          .gdx-suggestion-bubble,
-          .gdx-voice-link-bubble {
-            animation: none !important;
-            transition: none !important;
-          }
         }
       `}</style>
     </div>
