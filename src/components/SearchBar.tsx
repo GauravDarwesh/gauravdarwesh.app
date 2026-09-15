@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Mic, Check, X, ArrowRight } from "lucide-react";
-import { sendChatMessage } from "@/lib/api";
+import { sendChatMessage, streamChatMessage } from "@/lib/api";
 
 /* =========================================================
    SIMPLE NATIVE STREAMING CHAT TRANSPORT
@@ -59,139 +59,6 @@ const getGdxSessionIdForStreaming = (): string => {
   }
 
   return created;
-};
-
-const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbacks = {}): Promise<GdxStreamResult> => {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("GDx configuration is missing.");
-  }
-
-  const endpoint = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/bright-action`;
-  const sessionId = getGdxSessionIdForStreaming();
-
-  let response: Response;
-
-  try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Accept: "text/event-stream",
-      },
-      body: JSON.stringify({
-        message,
-        sessionId,
-        mode: "text",
-        stream: true,
-      }),
-    });
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Unable to connect to GDx.");
-  }
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    let detail = body;
-
-    try {
-      const json = JSON.parse(body);
-      detail = String(json?.error || json?.message || json?.response || body);
-    } catch {
-      // Keep plain-text error.
-    }
-
-    throw new Error(detail || `GDx request failed (${response.status}).`);
-  }
-
-  if (!response.body) {
-    throw new Error("GDx returned no streaming body.");
-  }
-
-  callbacks.onStart?.();
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-
-  let buffer = "";
-  let accumulated = "";
-  let finished = false;
-
-  const handleEvent = (eventText: string) => {
-    const dataLines = eventText
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith("data:"))
-      .map((line) => line.slice(5).replace(/^\s/, ""));
-
-    if (!dataLines.length) return;
-
-    const data = dataLines.join("\n").trim();
-    if (!data || data === "[DONE]") {
-      finished = true;
-      return;
-    }
-
-    let payload: any;
-    try {
-      payload = JSON.parse(data);
-    } catch {
-      return;
-    }
-
-    if (payload?.error) {
-      throw new Error(
-        typeof payload.error === "string"
-          ? payload.error
-          : String(payload.error?.message || "The AI provider returned an error."),
-      );
-    }
-
-    const delta =
-      typeof payload?.choices?.[0]?.delta?.content === "string"
-        ? payload.choices[0].delta.content
-        : typeof payload?.choices?.[0]?.text === "string"
-          ? payload.choices[0].text
-          : "";
-
-    if (!delta) return;
-
-    accumulated += delta;
-    callbacks.onDelta?.(delta, accumulated);
-  };
-
-  const consume = (text: string) => {
-    buffer += text;
-
-    while (true) {
-      const match = buffer.match(/\r?\n\r?\n/);
-      if (!match || match.index === undefined) return;
-
-      const eventText = buffer.slice(0, match.index);
-      buffer = buffer.slice(match.index + match[0].length);
-      handleEvent(eventText);
-    }
-  };
-
-  while (!finished) {
-    const { done, value } = await reader.read();
-
-    if (done) break;
-
-    consume(decoder.decode(value, { stream: true }));
-  }
-
-  const remaining = buffer.trim();
-  if (remaining) handleEvent(remaining);
-
-  if (!accumulated.trim()) {
-    throw new Error("GDx returned an empty streamed response.");
-  }
-
-  return {
-    success: true,
-    response: accumulated,
-  };
 };
 
 /* =========================================================
@@ -3365,7 +3232,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setResponse("");
 
       try {
-        const result = await streamGdxChatMessage(text, {
+        const result = await streamChatMessage(text, {
           onStart: () => {
             setIsPreparingToStream(false);
             setIsStreamingResponse(true);
