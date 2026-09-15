@@ -206,7 +206,7 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
     throw new Error("GDx configuration is missing.");
   }
 
-  const endpoint = `${SUPABASE_URL}/functions/v1/bright-action`;
+  const endpoint = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/bright-action`;
   const sessionId = getGdxSessionIdForStreaming();
 
   let response: Response;
@@ -219,7 +219,6 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         Accept: "text/event-stream, application/json",
-        "Cache-Control": "no-cache",
       },
       body: JSON.stringify({
         message,
