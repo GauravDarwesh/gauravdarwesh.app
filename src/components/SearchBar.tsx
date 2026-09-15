@@ -686,7 +686,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [streamStarted, setStreamStarted] = useState(false);
   const [displayedStreamText, setDisplayedStreamText] = useState("");
   const streamPulseFrameRef = useRef<number | null>(null);
-  const streamFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streamFlushTimerRef = useRef<number | null>(null);
   const pendingStreamTextRef = useRef("");
   const responseOpenRef = useRef(!!persistedState.response);
 
