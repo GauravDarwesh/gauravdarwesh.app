@@ -363,6 +363,35 @@ const SearchVisualCarousel: React.FC<{
 };
 
 /* =========================================================
+   3. FADE HELPER
+   ========================================================= */
+
+function Fade({ show, duration = 300, children }: { show: boolean; duration?: number; children: React.ReactNode }) {
+  const [visible, setVisible] = useState(show);
+
+  useEffect(() => {
+    if (show) {
+      setVisible(true);
+      return;
+    }
+
+    const timer = setTimeout(() => setVisible(false), duration);
+    return () => clearTimeout(timer);
+  }, [show, duration]);
+
+  if (!visible && !show) return null;
+
+  return (
+    <div
+      className={`transition-opacity ${show ? "opacity-100" : "opacity-0"}`}
+      style={{ transitionDuration: `${duration}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* =========================================================
    4. REACTIVE WAVEFORM (now synthetic-only for consistency)
    ========================================================= */
 
@@ -637,19 +666,29 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(persistedState.response);
   const [suggestions, setSuggestions] = useState<string[]>(persistedState.suggestions);
-  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
+  const [showTypewriter, setShowTypewriter] = useState(false);
+  const [suggestionPhase, setSuggestionPhase] = useState<
+    "emerging" | "visible" | "retreating" | "blurringOut" | "hidden"
+  >("hidden");
+  const [fullText, setFullText] = useState("");
+  const suggestionIndexRef = useRef(0);
   const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
   const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
+  const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
+  const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
+  const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [streamPulse, setStreamPulse] = useState(false);
   const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
-  const [panelPresent, setPanelPresent] = useState(!!persistedState.response || persistedState.suggestions.length > 0);
-  const [idleHintVisible, setIdleHintVisible] = useState(false);
-  const streamedTextRef = useRef("");
-  const streamRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const panelCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const idleHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const idleHintIndexRef = useRef(0);
+  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
+  const [isResponseOpen, setIsResponseOpen] = useState(!!persistedState.response);
+  const [streamStarted, setStreamStarted] = useState(false);
+  const [displayedStreamText, setDisplayedStreamText] = useState("");
+  const streamPulseFrameRef = useRef<number | null>(null);
+  const streamFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingStreamTextRef = useRef("");
+  const responseOpenRef = useRef(!!persistedState.response);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -685,6 +724,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   isTranscribingRef.current = isTranscribing;
   isLoadingRef.current = isLoading;
   isSpeakingRef.current = isSpeaking;
+  responseOpenRef.current = isResponseOpen;
+
+  /* -------------------------------------------------------
+     Placeholder
+     ------------------------------------------------------- */
+
+  const placeholderTexts = useMemo(() => ["Have a dialogue with GDx...", "Ask anything..."], []);
+  const [placeholderText, setPlaceholderText] = useState(placeholderTexts[0]);
+  const [placeholderPhase, setPlaceholderPhase] = useState<"typing" | "pause" | "deleting">("pause");
+  const [placeholderTarget, setPlaceholderTarget] = useState(0);
 
   /* -------------------------------------------------------
      Audio / recognition refs
@@ -874,41 +923,64 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   );
 
   /* =======================================================
-     IDLE HINT / SOFT SUGGESTION
+     SMOOTH SUGGESTION BUBBLE DISMISS
      ======================================================= */
 
-  const dismissIdleHint = useCallback(() => {
-    setIdleHintVisible(false);
-  }, []);
+  const dismissSuggestionBubble = useCallback(() => {
+    if (suggestionPhase === "hidden" || suggestionPhase === "blurringOut") return;
+    setSuggestionPhase("blurringOut");
 
-  const showPanel = useCallback(() => {
-    if (panelCloseTimerRef.current) {
-      clearTimeout(panelCloseTimerRef.current);
-      panelCloseTimerRef.current = null;
-    }
-    setPanelPresent(true);
-  }, []);
-
-  const hidePanel = useCallback(() => {
-    if (panelCloseTimerRef.current) clearTimeout(panelCloseTimerRef.current);
-    setPanelPresent(false);
-
-    panelCloseTimerRef.current = setTimeout(() => {
-      setResponse(null);
-      setSuggestions([]);
-      setSearchVisuals([]);
-      setShowExpandedSuggestions(false);
-      setIsStreamingResponse(false);
-      clearPersistedState();
-      panelCloseTimerRef.current = null;
-    }, 300);
-  }, [clearPersistedState]);
+    setTimeout(() => {
+      setShowTypewriter(false);
+      setSuggestionPhase("hidden");
+    }, 400);
+  }, [suggestionPhase]);
 
   /* =======================================================
      PLACEHOLDER
      ======================================================= */
 
-  const placeholderText = isLoading ? "Thinking…" : "Have a dialogue with GDx…";
+  useEffect(() => {
+    if (isLoading || isListening || isVoiceSession || isTranscribing || query) return;
+
+    const currentTarget = placeholderTexts[placeholderTarget];
+
+    if (placeholderPhase === "pause") {
+      const timer = setTimeout(() => setPlaceholderPhase("deleting"), 2500);
+      return () => clearTimeout(timer);
+    }
+
+    if (placeholderPhase === "deleting") {
+      if (!placeholderText.length) {
+        setPlaceholderTarget((prev) => (prev + 1) % placeholderTexts.length);
+        setPlaceholderPhase("typing");
+        return;
+      }
+
+      const timer = setTimeout(() => setPlaceholderText((current) => current.slice(0, -1)), 30);
+      return () => clearTimeout(timer);
+    }
+
+    if (placeholderPhase === "typing") {
+      if (placeholderText === currentTarget) {
+        setPlaceholderPhase("pause");
+        return;
+      }
+
+      const timer = setTimeout(() => setPlaceholderText(currentTarget.slice(0, placeholderText.length + 1)), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    placeholderText,
+    placeholderPhase,
+    placeholderTarget,
+    placeholderTexts,
+    isLoading,
+    isListening,
+    isVoiceSession,
+    isTranscribing,
+    query,
+  ]);
 
   /* =======================================================
      ACTIVITY TRACKING
@@ -916,33 +988,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
 
-  const markActivity = useCallback(() => {
+  const debouncedSetActivity = useCallback(() => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    debounceTimeoutRef.current = setTimeout(() => setLastActivityTime(Date.now()), 80);
-    setIdleHintVisible(false);
+    debounceTimeoutRef.current = setTimeout(() => setLastActivityTime(Date.now()), 100);
   }, []);
 
   useEffect(() => {
-    const handleImmediate = () => {
-      setLastActivityTime(Date.now());
-      setIdleHintVisible(false);
-    };
+    const handleImmediate = () => setLastActivityTime(Date.now());
 
-    window.addEventListener("mousemove", markActivity, { passive: true });
-    window.addEventListener("touchstart", handleImmediate, { passive: true });
-    window.addEventListener("keydown", handleImmediate);
-    window.addEventListener("click", handleImmediate);
-    window.addEventListener("scroll", handleImmediate, { passive: true });
+    window.addEventListener("mousemove", debouncedSetActivity);
+    ["keypress", "click", "scroll"].forEach((event) => window.addEventListener(event, handleImmediate));
 
     return () => {
-      window.removeEventListener("mousemove", markActivity);
-      window.removeEventListener("touchstart", handleImmediate);
-      window.removeEventListener("keydown", handleImmediate);
-      window.removeEventListener("click", handleImmediate);
-      window.removeEventListener("scroll", handleImmediate);
+      window.removeEventListener("mousemove", debouncedSetActivity);
+      ["keypress", "click", "scroll"].forEach((event) => window.removeEventListener(event, handleImmediate));
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
-  }, [markActivity]);
+  }, [debouncedSetActivity]);
 
   /* =======================================================
      FIRST VISIT
@@ -955,71 +1017,82 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
       localStorage.setItem(FIRST_VISIT_KEY, "true");
       const timer = setTimeout(() => {
-        handleSubmitRef.current?.(undefined, "introduce the website to the new user", false);
-      }, 900);
+        handleSubmit(undefined, "introduce the website to the new user", false);
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, []);
 
   /* =======================================================
-     IDLE HINT
+     TYPEWRITER & ROTATING BUBBLE
      ======================================================= */
 
-  const idleHintText = rotatingSuggestions[idleHintIndexRef.current] || "✨ Ask anything about Gaurav";
+  useEffect(() => {
+    if (response || suggestions.length > 0 || isVoiceSession || isTranscribing) return;
+
+    const timer = setTimeout(() => {
+      if (!hasInteracted) setShowTypewriter(true);
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, [hasInteracted, response, suggestions, isVoiceSession, isTranscribing]);
 
   useEffect(() => {
-    if (response || suggestions.length > 0 || isLoading || isVoiceSession || isTranscribing || query.trim()) {
-      setIdleHintVisible(false);
+    const idleTimer = setInterval(() => {
+      const idle = Date.now() - lastActivityTime;
+      if (response || suggestions.length > 0 || isVoiceSession || isTranscribing) return;
+
+      if (idle > 10000 && hasInteracted && !isLoading) {
+        setShowTypewriter(true);
+      }
+    }, 2000);
+
+    return () => clearInterval(idleTimer);
+  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions, isVoiceSession, isTranscribing]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const idle = Date.now() - lastActivityTime;
+      const shouldShow =
+        (response || suggestions.length > 0) && !isLoading && idle > 10000 && !isVoiceSession && !isTranscribing;
+
+      setShowExpandedSuggestions(shouldShow);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lastActivityTime, response, suggestions, isLoading, isVoiceSession, isTranscribing]);
+
+  useEffect(() => {
+    if (!showTypewriter || isVoiceSession || isTranscribing) {
+      if (suggestionPhase !== "blurringOut") {
+        setSuggestionPhase("hidden");
+      }
       return;
     }
 
-    if (idleHintTimerRef.current) clearTimeout(idleHintTimerRef.current);
+    if (!fullText) {
+      setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+    }
 
-    idleHintTimerRef.current = setTimeout(
-      () => {
-        setIdleHintVisible(true);
-      },
-      hasInteracted ? 8500 : 10000,
-    );
+    setSuggestionPhase("emerging");
+
+    const emergeTimer = setTimeout(() => setSuggestionPhase("visible"), 800);
+    const interval = setInterval(() => {
+      setSuggestionPhase("retreating");
+
+      setTimeout(() => {
+        suggestionIndexRef.current = (suggestionIndexRef.current + 1) % rotatingSuggestions.length;
+        setFullText(rotatingSuggestions[suggestionIndexRef.current]);
+        setSuggestionPhase("emerging");
+        setTimeout(() => setSuggestionPhase("visible"), 800);
+      }, 700);
+    }, 5500);
 
     return () => {
-      if (idleHintTimerRef.current) clearTimeout(idleHintTimerRef.current);
+      clearInterval(interval);
+      clearTimeout(emergeTimer);
     };
-  }, [response, suggestions.length, isLoading, isVoiceSession, isTranscribing, query, hasInteracted]);
-
-  useEffect(() => {
-    if (!idleHintVisible) return;
-
-    const interval = window.setInterval(() => {
-      idleHintIndexRef.current = (idleHintIndexRef.current + 1) % rotatingSuggestions.length;
-      setIdleHintVisible(false);
-
-      window.setTimeout(() => {
-        if (!response && !isLoading && !isVoiceSession && !isTranscribing && !query.trim()) {
-          setIdleHintVisible(true);
-        }
-      }, 380);
-    }, 9000);
-
-    return () => window.clearInterval(interval);
-  }, [idleHintVisible, rotatingSuggestions.length, response, isLoading, isVoiceSession, isTranscribing, query]);
-
-  useEffect(() => {
-    if (!response || suggestions.length === 0 || isLoading || isVoiceSession || isTranscribing) {
-      setShowExpandedSuggestions(false);
-      return;
-    }
-
-    const idleFor = Date.now() - lastActivityTime;
-    const revealAfter = 8500;
-    const remaining = Math.max(0, revealAfter - idleFor);
-
-    const timer = window.setTimeout(() => {
-      setShowExpandedSuggestions(true);
-    }, remaining);
-
-    return () => window.clearTimeout(timer);
-  }, [response, suggestions.length, isLoading, isVoiceSession, isTranscribing, lastActivityTime]);
+  }, [showTypewriter, rotatingSuggestions, fullText, isVoiceSession, isTranscribing]);
 
   /* =======================================================
      VOICE RESPONSE LINK BUBBLES
@@ -2473,8 +2546,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       setIsListening(false);
 
       if (shouldCollapseVoiceVisuals) {
+        setIsCollapsing(true);
         setShowExpandedSuggestions(false);
-        setPanelPresent(false);
 
         if (voiceVisualsExitTimerRef.current) {
           clearTimeout(voiceVisualsExitTimerRef.current);
@@ -2482,8 +2555,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         voiceVisualsExitTimerRef.current = window.setTimeout(() => {
           setSearchVisuals([]);
+          setIsCollapsing(false);
           voiceVisualsExitTimerRef.current = null;
-        }, 300);
+        }, 1400);
       }
 
       if (silenceTimerRef.current) {
@@ -2537,15 +2611,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopTranscribeRef.current?.();
     }
 
-    dismissIdleHint();
+    dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
 
-    setResponse(null);
-    setSuggestions([]);
-    setSearchVisuals([]);
-    setShowExpandedSuggestions(false);
-    setPanelPresent(false);
+    if (response || suggestions.length > 0) {
+      setIsCollapsing(true);
+      await new Promise((resolve) => setTimeout(resolve, 1400));
+      setResponse(null);
+      setSuggestions([]);
+      setIsCollapsing(false);
+    } else {
+      setResponse(null);
+      setSuggestions([]);
+    }
 
     isVoiceSessionRef.current = true;
     setIsVoiceSession(true);
@@ -2553,7 +2632,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     primeMobileAudioSession();
 
     void startListeningContinuousRef.current?.();
-  }, [isLoading, isTranscribing, response, suggestions.length, primeMobileAudioSession, dismissIdleHint]);
+  }, [isLoading, isTranscribing, response, suggestions.length, primeMobileAudioSession, dismissSuggestionBubble]);
 
   /* =======================================================
      TRANSCRIBE (SPEECH TO TEXT)
@@ -2661,7 +2740,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       stopVoiceSession();
     }
 
-    dismissIdleHint();
+    dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
     setQuery("");
@@ -2924,7 +3003,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     isLoading,
     stopVoiceSession,
     stopTranscribe,
-    dismissIdleHint,
+    dismissSuggestionBubble,
     primeMobileAudioSession,
     requestXiaomiTranscription,
   ]);
@@ -2941,16 +3020,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       voiceLinksExitTimerRef.current = null;
 
       if (voiceVisualsExitTimerRef.current) clearTimeout(voiceVisualsExitTimerRef.current);
-      voiceVisualsExitTimerRef.current = null;
-
-      if (streamRenderTimerRef.current) clearTimeout(streamRenderTimerRef.current);
-      streamRenderTimerRef.current = null;
-
-      if (panelCloseTimerRef.current) clearTimeout(panelCloseTimerRef.current);
-      panelCloseTimerRef.current = null;
-
-      if (idleHintTimerRef.current) clearTimeout(idleHintTimerRef.current);
-      idleHintTimerRef.current = null;
       voiceVisualsExitTimerRef.current = null;
 
       voiceLinksRef.current = [];
@@ -3032,6 +3101,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      SUBMIT
      ======================================================= */
 
+  const scheduleStreamPaint = useCallback((text: string) => {
+    pendingStreamTextRef.current = text;
+
+    if (streamFlushTimerRef.current) return;
+
+    streamFlushTimerRef.current = window.setTimeout(() => {
+      streamFlushTimerRef.current = null;
+
+      const next = pendingStreamTextRef.current;
+      pendingStreamTextRef.current = "";
+
+      setDisplayedStreamText(next);
+      setResponse(next);
+    }, 55);
+  }, []);
+
+  const openResponseSurface = useCallback(() => {
+    if (responseOpenRef.current) return;
+    responseOpenRef.current = true;
+    setIsResponseOpen(true);
+  }, []);
+
   const handleSubmit = async (event?: FormEvent, customQuery?: string, fromVoice = false) => {
     event?.preventDefault();
 
@@ -3045,20 +3136,32 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (!text) return;
 
     setHasInteracted(true);
-    dismissIdleHint();
+    dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
-    setSearchVisuals([]);
 
     if (!customQuery) setQuery("");
 
     if (!fromVoice) {
       stopVoiceSession(false);
       hideVoiceLinkBubbles();
-      setResponse(null);
-      setSuggestions([]);
-      setSearchVisuals([]);
-      setShowExpandedSuggestions(false);
-      showPanel();
+
+      /*
+       * IMPORTANT:
+       * Once the response surface is open, keep it open between questions.
+       * The old implementation collapsed the entire SearchBar before every
+       * request, which made the interface feel like it was constantly jumping.
+       */
+      if (!responseOpenRef.current) {
+        setResponse(null);
+        setSuggestions([]);
+        setSearchVisuals([]);
+        setDisplayedStreamText("");
+      } else {
+        setSuggestions([]);
+        setSearchVisuals([]);
+        setDisplayedStreamText("");
+        setResponse("");
+      }
     } else {
       setIsListening(false);
     }
@@ -3067,16 +3170,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
 
     try {
-      setSearchVisuals([]);
+      setStreamStarted(false);
       setIsStreamingResponse(false);
-      streamedTextRef.current = "";
+      pendingStreamTextRef.current = "";
+      if (streamFlushTimerRef.current) {
+        clearTimeout(streamFlushTimerRef.current);
+        streamFlushTimerRef.current = null;
+      }
 
-      /* Voice remains intentionally non-streamed so TTS receives one stable final response. */
       if (fromVoice) {
         const result = await sendChatMessage(text);
         const answer = String((result as any)?.response ?? "");
         const voiceAnswer = String((result as any)?.voice_response ?? answer);
         const returnedVisuals = extractVisualItems((result as any)?.visuals);
+        const suggs = (result as any)?.suggestions || [];
 
         if (returnedVisuals.length > 0) {
           await waitForVisualReady(returnedVisuals);
@@ -3086,10 +3193,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             voiceVisualsExitTimerRef.current = null;
           }
 
+          setIsCollapsing(false);
           setSearchVisuals(returnedVisuals);
-          showPanel();
+          setIsResponseOpen(true);
+          responseOpenRef.current = true;
+
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         }
+
+        setSuggestions(suggs);
 
         if (isVoiceSessionRef.current) {
           void speakVoiceResponse(voiceAnswer, answer);
@@ -3098,48 +3210,63 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return;
       }
 
-      /* SMOOTH LIVE TEXT STREAM
+      /*
+       * TEXT STREAMING
        *
-       * Network streaming stays real-time. The UI simply batches very small
-       * DOM updates so words/phrases settle naturally instead of looking typed.
+       * The pill remains compact while the model is thinking.
+       * The moment the first meaningful token arrives, the response surface
+       * opens once and stays open. Subsequent questions reuse the same surface.
        */
+      setIsPreparingToStream(true);
       setIsStreamingResponse(true);
-      showPanel();
-      setResponse("");
+
+      let firstTokenReceived = false;
+      let finalAccumulated = "";
 
       try {
         const result = await streamChatMessage(text, {
           onStart: () => {
+            setIsPreparingToStream(true);
             setIsStreamingResponse(true);
-            showPanel();
           },
           onToken: (_delta, accumulated) => {
-            streamedTextRef.current = accumulated;
+            const next = String(accumulated ?? "");
+            if (!next) return;
 
-            if (streamRenderTimerRef.current) return;
+            finalAccumulated = next;
+            pendingStreamTextRef.current = next;
 
-            streamRenderTimerRef.current = setTimeout(() => {
-              streamRenderTimerRef.current = null;
-              setResponse(streamedTextRef.current);
-            }, 34);
+            if (!firstTokenReceived) {
+              firstTokenReceived = true;
+              setStreamStarted(true);
+              setIsPreparingToStream(false);
+              openResponseSurface();
+            }
+
+            scheduleStreamPaint(next);
           },
         });
 
-        if (streamRenderTimerRef.current) {
-          clearTimeout(streamRenderTimerRef.current);
-          streamRenderTimerRef.current = null;
+        if (streamFlushTimerRef.current) {
+          clearTimeout(streamFlushTimerRef.current);
+          streamFlushTimerRef.current = null;
         }
 
-        const answer = String(result?.response ?? streamedTextRef.current ?? "");
+        const answer = String(result?.response ?? finalAccumulated ?? pendingStreamTextRef.current ?? "");
         const suggs = Array.isArray(result?.suggestions) ? result.suggestions : [];
         const returnedVisuals = extractVisualItems(result?.visuals);
 
+        pendingStreamTextRef.current = "";
+        setDisplayedStreamText(answer);
         setResponse(answer || null);
         setSuggestions(suggs);
-        showPanel();
         setIsRestoredFromStorage(false);
         setIsStreamingResponse(false);
-        streamedTextRef.current = answer;
+        setIsPreparingToStream(false);
+
+        if (answer && !responseOpenRef.current) {
+          openResponseSurface();
+        }
 
         if (returnedVisuals.length > 0) {
           await waitForVisualReady(returnedVisuals);
@@ -3148,21 +3275,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         onSearch?.(answer);
       } catch (streamError) {
-        /*
-         * Do NOT silently call sendChatMessage here: that would generate a
-         * second AI answer and could create duplicate rows in gd_ai_messages.
-         * The visible partial response is retained when available.
-         */
-        const partial = streamedTextRef.current.trim();
+        if (streamFlushTimerRef.current) {
+          clearTimeout(streamFlushTimerRef.current);
+          streamFlushTimerRef.current = null;
+        }
+
+        const partial = (finalAccumulated || pendingStreamTextRef.current || "").trim();
+
         if (partial) {
+          pendingStreamTextRef.current = "";
+          setDisplayedStreamText(partial);
           setResponse(partial);
           setSuggestions([]);
+          setIsPreparingToStream(false);
+          setIsStreamingResponse(false);
+          openResponseSurface();
           onSearch?.(partial);
         } else {
           throw streamError;
         }
       }
     } catch (error) {
+      setIsPreparingToStream(false);
       setIsStreamingResponse(false);
       setSearchVisuals([]);
 
@@ -3172,21 +3306,30 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         void speakVoiceResponse(message);
       } else {
         setResponse(message);
+        setDisplayedStreamText(message);
         setSuggestions([]);
         setIsRestoredFromStorage(false);
+        openResponseSurface();
         onSearch?.(message);
       }
     } finally {
+      setIsPreparingToStream(false);
       setIsStreamingResponse(false);
-      if (streamRenderTimerRef.current) {
-        clearTimeout(streamRenderTimerRef.current);
-        streamRenderTimerRef.current = null;
+      setStreamPulse(false);
+      setStreamStarted(false);
+
+      if (streamFlushTimerRef.current !== null) {
+        clearTimeout(streamFlushTimerRef.current);
+        streamFlushTimerRef.current = null;
       }
+
+      pendingStreamTextRef.current = "";
 
       isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
+
   handleSubmitRef.current = handleSubmit;
 
   /* =======================================================
@@ -3197,29 +3340,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     (suggestion: string) => {
       setQuery("");
       setHasInteracted(true);
-      dismissIdleHint();
+      dismissSuggestionBubble();
       setShowExpandedSuggestions(false);
       void handleSubmit(undefined, suggestion, false);
     },
-    [dismissIdleHint],
+    [dismissSuggestionBubble],
   );
 
   const handleInputFocus = useCallback(() => {
-    dismissIdleHint();
+    dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
     setHasInteracted(true);
-    setLastActivityTime(Date.now());
-  }, [dismissIdleHint]);
+  }, [dismissSuggestionBubble]);
 
   const handleInputChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       setQuery(event.target.value);
       setHasInteracted(true);
-      dismissIdleHint();
+      dismissSuggestionBubble();
       setShowExpandedSuggestions(false);
-      setLastActivityTime(Date.now());
     },
-    [dismissIdleHint],
+    [dismissSuggestionBubble],
   );
 
   /* =======================================================
@@ -3252,17 +3393,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (isNavigationClick) return;
 
-      dismissIdleHint();
-
-      if (query.trim() && !response && suggestions.length === 0 && !isStreamingResponse) {
+      /*
+       * Compact mode: an outside click dismisses accidental text entry.
+       * Expanded mode: do NOT collapse the answer anymore.
+       *
+       * The user can keep the response open while asking question after
+       * question, which is the central interaction change in this revision.
+       */
+      if (query.trim() && !responseOpenRef.current) {
         setQuery("");
         inputRef.current?.blur();
-        return;
-      }
-
-      if (response || suggestions.length > 0 || searchVisuals.length > 0 || isStreamingResponse) {
-        inputRef.current?.blur();
-        hidePanel();
       }
     };
 
@@ -3273,26 +3413,38 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [
-    response,
-    suggestions.length,
-    searchVisuals.length,
-    query,
-    isStreamingResponse,
-    stopVoiceSession,
-    stopTranscribe,
-    hidePanel,
-    dismissIdleHint,
-  ]);
+  }, [query, stopVoiceSession, stopTranscribe]);
 
   /* =======================================================
      LAYOUT
      ======================================================= */
 
-  const hasPanelContent =
-    response !== null || suggestions.length > 0 || searchVisuals.length > 0 || isStreamingResponse;
+  const layoutValues = useMemo(() => {
+    const shouldBeExpanded =
+      responseOpenRef.current ||
+      isResponseOpen ||
+      ((response || isStreamingResponse || searchVisuals.length > 0) && !isVoiceSession && !isTranscribing);
 
-  const showPanelSurface = panelPresent && hasPanelContent && !isVoiceSession && !isTranscribing;
+    const targetWidth =
+      shouldBeExpanded
+        ? "min(500px, 92vw)"
+        : isVoiceSession || isTranscribing
+          ? "min(320px, 78vw)"
+          : "min(380px, 92vw)";
+
+    return {
+      isExpanded: shouldBeExpanded,
+      targetWidth,
+      targetRadius: shouldBeExpanded ? "28px" : "999px",
+    };
+  }, [
+    response,
+    searchVisuals.length,
+    isVoiceSession,
+    isTranscribing,
+    isResponseOpen,
+    isStreamingResponse,
+  ]);
 
   /* =======================================================
      RENDER
@@ -3302,175 +3454,146 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     <div
       ref={searchBarRef}
       data-gdx-search
-      className="fixed inset-x-0 bottom-4 sm:bottom-6 z-50 flex flex-col items-center px-3 sm:px-4 pointer-events-none"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-3 sm:px-4 z-50 w-full flex flex-col items-center gap-3"
     >
-      <div className="w-full max-w-[520px] pointer-events-auto">
-        {idleHintVisible && !isVoiceSession && !isTranscribing && !isLoading && !response && (
-          <button
-            type="button"
-            onClick={() => handleSuggestionClick(idleHintText)}
-            className="mx-auto mb-2.5 block max-w-[92%] overflow-hidden rounded-full border border-foreground/10 bg-background/55 px-3.5 py-2 text-[11px] text-foreground/65 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:bg-background/75 hover:text-foreground/85 focus:outline-none focus:ring-2 focus:ring-foreground/10"
-            style={{ animation: "gdxHintIn 420ms cubic-bezier(.22,1,.36,1) both" }}
-            aria-label="Try a suggested question"
-          >
-            <span className="mr-1.5 text-foreground/45">Try asking</span>
-            <span className="truncate">{idleHintText.replace(/^✨\s*/, "")}</span>
-          </button>
-        )}
-
+      {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && !layoutValues.isExpanded && (
         <div
-          className={[
-            "gdx-search-container relative overflow-hidden rounded-[28px] border border-foreground/10",
-            "bg-background/65 text-foreground backdrop-blur-2xl",
-            "shadow-[0_18px_60px_rgba(0,0,0,0.14)]",
-            "transition-[box-shadow,border-color,background-color] duration-300",
-            isLoading ? "gdx-search-busy" : "",
-            isVoiceSession || isTranscribing || isListening ? "gdx-search-listening" : "",
-          ].join(" ")}
+          onClick={() => handleSuggestionClick(fullText)}
+          className="gdx-suggestion-bubble cursor-pointer text-[12px] sm:text-sm font-normal px-4 py-2 rounded-full whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
+        >
+          {fullText}
+        </div>
+      )}
+
+      {voiceLinks.length > 0 && voiceLinksVisible && isVoiceSession && !isTranscribing && (
+        <div
+          className="flex flex-wrap justify-center gap-2 max-w-[92vw]"
           style={{
+            animation: voiceLinksExiting
+              ? "gdxGlassFadeOut 280ms cubic-bezier(.22,1,.36,1) forwards"
+              : "gdxGlassFadeIn 420ms cubic-bezier(.22,1,.36,1) forwards",
+          }}
+        >
+          {voiceLinks.map((link) => (
+            <a
+              key={link.url}
+              href={link.url}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.location.assign(link.url);
+              }}
+              className="gdx-voice-link-bubble cursor-pointer text-sm font-normal px-4 py-2 rounded-full whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis"
+              aria-label={`Open ${link.label}`}
+            >
+              ↗ {link.label}
+            </a>
+          ))}
+        </div>
+      )}
+
+      <div
+        className={`gdx-search-container mx-auto text-foreground overflow-hidden select-none ${
+          isLoading ? "thinking-container" : ""
+        } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
+        style={
+          {
+            width: layoutValues.targetWidth,
+            maxWidth: "92vw",
+            "--gdx-mobile-width": layoutValues.isExpanded
+              ? "min(390px, 90vw)"
+              : isVoiceSession || isTranscribing
+                ? "min(300px, 82vw)"
+                : "min(350px, 90vw)",
+            borderRadius: layoutValues.targetRadius,
+            transition:
+              "width 920ms cubic-bezier(.22,1,.36,1), border-radius 920ms cubic-bezier(.22,1,.36,1), box-shadow 700ms cubic-bezier(.22,1,.36,1), background 700ms ease, border-color 700ms ease",
             WebkitTouchCallout: "none",
             WebkitUserSelect: "none",
             touchAction: "manipulation",
-          }}
-        >
-          <div
-            className="grid transition-[grid-template-rows] duration-[340ms] ease-[cubic-bezier(.22,1,.36,1)]"
-            style={{ gridTemplateRows: showPanelSurface ? "1fr" : "0fr" }}
-          >
-            <div className="min-h-0 overflow-hidden">
-              <div
-                className="px-4 pt-3.5 sm:px-5 sm:pt-4"
-                style={{
-                  opacity: showPanelSurface ? 1 : 0,
-                  transform: showPanelSurface ? "translateY(0)" : "translateY(-8px)",
-                  transition: "opacity 220ms ease, transform 300ms cubic-bezier(.22,1,.36,1)",
-                  transitionDelay: showPanelSurface ? "50ms" : "0ms",
-                }}
-              >
-                {searchVisuals.length > 0 && !isTranscribing && (
-                  <div className="mb-4" style={{ animation: "gdxPanelIn 360ms cubic-bezier(.22,1,.36,1) both" }}>
-                    <SearchVisualCarousel
-                      items={searchVisuals}
-                      visible={showPanelSurface && searchVisuals.length > 0}
-                    />
-                  </div>
-                )}
-
-                {response !== null && !isVoiceSession && !isTranscribing && (
-                  <div
-                    className="gdx-response-scroll max-h-[min(42vh,340px)] overflow-y-auto overscroll-contain pr-1 scrollbar-hide"
-                    style={{
-                      animation: isRestoredFromStorage ? "none" : "gdxPanelIn 360ms cubic-bezier(.22,1,.36,1) both",
-                    }}
-                  >
-                    <div
-                      className="px-1 text-[13px] leading-[1.7] sm:text-[14px]"
-                      dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
-                    />
-
-                    {isStreamingResponse && (
-                      <div className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-foreground/38">
-                        <span className="relative flex h-2 w-2">
-                          <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-25" />
-                          <span className="relative h-2 w-2 rounded-full bg-current opacity-70" />
-                        </span>
-                        <span>Live response</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!isStreamingResponse &&
-                  showExpandedSuggestions &&
-                  suggestions.length > 0 &&
-                  !isVoiceSession &&
-                  !isTranscribing && (
-                    <div
-                      className="mt-4 flex flex-wrap gap-2 border-t border-foreground/8 pt-3.5"
-                      style={{ animation: "gdxSuggestionsIn 320ms cubic-bezier(.22,1,.36,1) both" }}
-                    >
-                      {suggestions.map((suggestion, index) => (
-                        <button
-                          key={`${suggestion}-${index}`}
-                          type="button"
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          disabled={isLoading}
-                          className="rounded-full border border-foreground/8 bg-foreground/[0.035] px-3 py-1.5 text-[11px] text-foreground/62 transition-all duration-200 hover:-translate-y-px hover:bg-foreground/[0.07] hover:text-foreground/85 active:translate-y-0 disabled:pointer-events-none disabled:opacity-45"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
-
-          {voiceLinks.length > 0 && voiceLinksVisible && isVoiceSession && !isTranscribing && (
+          } as React.CSSProperties & { "--gdx-mobile-width": string }
+        }
+      >
+        <div className="gdx-search-inner">
+          {layoutValues.isExpanded && !isVoiceSession && !isTranscribing && (
             <div
-              className="flex flex-wrap justify-center gap-2 px-4 pb-2.5 pt-1 sm:px-5"
-              style={{
-                animation: voiceLinksExiting
-                  ? "gdxFadeOut 240ms ease both"
-                  : "gdxSuggestionsIn 320ms cubic-bezier(.22,1,.36,1) both",
-              }}
+              className={`gdx-response-stage ${response || isStreamingResponse || searchVisuals.length ? "gdx-response-stage-visible" : ""}`}
             >
-              {voiceLinks.map((link) => (
-                <a
-                  key={link.url}
-                  href={link.url}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    window.location.assign(link.url);
-                  }}
-                  className="rounded-full border border-foreground/10 bg-foreground/[0.045] px-3 py-1.5 text-[11px] text-foreground/70 backdrop-blur-md transition hover:bg-foreground/[0.08] hover:text-foreground active:scale-[0.98]"
-                  aria-label={`Open ${link.label}`}
-                >
-                  ↗ {link.label}
-                </a>
-              ))}
+              {searchVisuals.length > 0 && (
+                <div className="gdx-visual-wrap">
+                  <SearchVisualCarousel items={searchVisuals} visible={searchVisuals.length > 0} />
+                </div>
+              )}
+
+              {(response !== null || isStreamingResponse) && (
+                <div className="gdx-response-scroll">
+                  {isStreamingResponse ? (
+                    <div
+                      className="gdx-stream-copy"
+                      aria-live="polite"
+                    >
+                      {displayedStreamText || response || (
+                        <span className="gdx-thinking-dots" aria-label="Thinking">
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className="gdx-response-copy"
+                      dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response || "") }}
+                    />
+                  )}
+                </div>
+              )}
+
+              {showExpandedSuggestions && suggestions.length > 0 && (
+                <div className="gdx-suggestions-row">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={`${suggestion}-${index}`}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="gdx-suggestion-chip"
+                      disabled={isLoading}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           <form
             onSubmit={(event) => handleSubmit(event, undefined, false)}
-            className="flex min-h-[54px] items-center gap-2 px-2.5 py-2 sm:min-h-[60px] sm:px-3"
+            className="gdx-input-row"
             onFocus={handleInputFocus}
           >
             {!isVoiceSession && !isTranscribing && (
-              <div className="relative min-w-0 flex-1">
+              <div className="relative flex-1 min-w-0">
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={placeholderText}
+                  placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
+                  className="gdx-input"
                   disabled={isLoading}
                   aria-label="Ask anything"
-                  className="h-10 w-full border-0 bg-transparent px-2.5 text-[13px] font-normal text-foreground outline-none ring-0 placeholder:text-foreground/38 focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-11 sm:px-3 sm:text-[14px]"
                 />
               </div>
             )}
 
             {isVoiceSession && !isTranscribing && (
-              <div className="flex min-w-0 flex-1 items-center gap-2 pl-1.5 sm:pl-2.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/[0.05]">
-                  <span
-                    className={`h-2 w-2 rounded-full transition-all duration-300 ${
-                      isSpeaking ? "scale-125 bg-foreground/90" : "bg-foreground/45"
-                    }`}
-                  />
-                </div>
+              <div className="flex-1 flex items-center min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking || isListening} />
-                <span className="shrink-0 text-[11px] text-foreground/42">
-                  {isSpeaking ? "GDx is speaking" : isListening ? "Listening…" : "Voice session"}
-                </span>
               </div>
             )}
 
             {isTranscribing && (
-              <div className="flex min-w-0 flex-1 items-center gap-2.5 pl-1.5 sm:pl-2.5">
+              <div className="flex-1 flex items-center gap-2 pl-1 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={isListening} />
                 <RecordingTimer isActive={isTranscribing} />
               </div>
@@ -3480,7 +3603,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <button
                 type="button"
                 onClick={() => stopVoiceSession()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground/[0.07] text-foreground/75 transition-all duration-200 hover:bg-foreground/[0.12] hover:text-foreground active:scale-95 sm:h-11 sm:w-11"
+                className="gdx-icon-button gdx-danger-button"
                 title="End voice session"
                 aria-label="End voice session"
               >
@@ -3490,22 +3613,22 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <button
                 type="button"
                 onClick={isAndroidRef.current ? finishAndroidTranscription : stopTranscribe}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-foreground/80 transition-all duration-200 hover:bg-foreground/[0.13] active:scale-95 sm:h-11 sm:w-11"
+                className="gdx-icon-button gdx-action-button"
                 title="Done transcribing"
                 aria-label="Done transcribing"
               >
-                <Check className="h-4 w-4" strokeWidth={2.4} />
+                <Check className="h-4 w-4" strokeWidth={2.5} />
               </button>
             ) : (
-              <div className="flex shrink-0 items-center gap-0.5">
+              <div className="flex items-center gap-1 shrink-0 pr-0.5">
                 <button
                   type="button"
                   onClick={startTranscribe}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-foreground/48 transition-all duration-200 hover:bg-foreground/[0.06] hover:text-foreground/75 active:scale-95 sm:h-11 sm:w-11"
+                  className="gdx-icon-button"
                   title="Transcribe speech"
                   aria-label="Transcribe speech"
                 >
-                  <Mic className="h-[18px] w-[18px]" strokeWidth={1.9} />
+                  <Mic className="h-[18px] w-[18px]" strokeWidth={2} />
                 </button>
 
                 <button
@@ -3517,19 +3640,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       startVoiceSession();
                     }
                   }}
-                  className="gdx-tts-button relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-foreground text-background shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md active:scale-95 sm:h-11 sm:w-11"
+                  className="gdx-send-button"
                   title={query.trim() ? "Search" : "Talk with GDx"}
                   aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
-                  <span
-                    className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ${query.trim() ? "scale-75 opacity-0" : "scale-100 opacity-100"}`}
-                  >
-                    <ChatGPTWaveformIcon className="h-3.5 w-3.5 text-background sm:h-4 sm:w-4" />
+                  <span className={`gdx-send-icon ${query.trim() ? "gdx-send-icon-hidden" : ""}`}>
+                    <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
                   </span>
-                  <span
-                    className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ${query.trim() ? "scale-100 opacity-100" : "scale-75 opacity-0"}`}
-                  >
-                    <ArrowRight className="h-[18px] w-[18px]" strokeWidth={2.25} />
+                  <span className={`gdx-send-icon ${query.trim() ? "" : "gdx-send-icon-hidden"}`}>
+                    <ArrowRight className="h-[18px] w-[18px] text-white" strokeWidth={2.25} />
                   </span>
                 </button>
               </div>
@@ -3539,77 +3658,310 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
-        @media (max-width: 639px) {
-          [data-gdx-search] .gdx-search-container {
-            border-radius: 24px;
-          }
-
-          [data-gdx-search] .gdx-response-scroll {
-            max-height: min(42vh, 300px);
-          }
-        }
-
         .gdx-search-container {
-          will-change: box-shadow, background-color;
-        }
-
-        .gdx-search-container:focus-within {
+          position: relative;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.145), rgba(255,255,255,0.075));
+          border: 1px solid rgba(255,255,255,0.20);
           box-shadow:
-            0 20px 70px rgba(0,0,0,0.16),
-            0 0 0 1px rgba(127,127,127,0.08);
+            0 20px 55px rgba(0,0,0,0.20),
+            inset 0 1px 0 rgba(255,255,255,0.16),
+            inset 0 -1px 0 rgba(255,255,255,0.05);
+          backdrop-filter: blur(28px) saturate(145%);
+          -webkit-backdrop-filter: blur(28px) saturate(145%);
+          will-change: width, border-radius, box-shadow;
         }
 
-        .gdx-search-busy,
-        .gdx-search-listening {
-          box-shadow:
-            0 20px 72px rgba(0,0,0,0.16),
-            0 0 0 1px rgba(127,127,127,0.08);
+        .gdx-search-container::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          border-radius: inherit;
+          background:
+            radial-gradient(circle at 18% 0%, rgba(255,255,255,0.18), transparent 34%),
+            radial-gradient(circle at 84% 100%, rgba(255,255,255,0.07), transparent 32%);
+          opacity: 0.85;
         }
 
-        .gdx-search-container input:disabled {
+        .gdx-search-inner {
+          position: relative;
+          z-index: 1;
+          padding: 8px;
+        }
+
+        .gdx-input-row {
+          min-height: 40px;
+          display: flex;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .gdx-input {
+          width: 100%;
+          height: 40px;
+          padding: 0 12px;
+          border: 0 !important;
+          outline: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          color: inherit !important;
+          font-size: 14px;
+          font-weight: 400;
+        }
+
+        .gdx-input::placeholder {
+          color: rgba(255,255,255,0.60);
+          transition: color 450ms ease;
+        }
+
+        .gdx-input:focus::placeholder {
+          color: rgba(255,255,255,0.38);
+        }
+
+        .gdx-response-stage {
+          overflow: hidden;
+          max-height: 0;
+          opacity: 0;
+          transform: translateY(-5px) scaleY(0.985);
+          transform-origin: bottom center;
+          transition:
+            max-height 850ms cubic-bezier(.22,1,.36,1),
+            opacity 520ms cubic-bezier(.22,1,.36,1),
+            transform 850ms cubic-bezier(.22,1,.36,1),
+            padding 850ms cubic-bezier(.22,1,.36,1);
+          padding: 0 6px;
+        }
+
+        .gdx-response-stage-visible {
+          max-height: 560px;
           opacity: 1;
-          cursor: default;
+          transform: translateY(0) scaleY(1);
+          padding: 8px 6px 12px;
         }
 
-        .gdx-response-scroll a {
+        .gdx-response-scroll {
+          max-height: 310px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          scrollbar-width: none;
+          padding: 0 7px;
+        }
+
+        .gdx-response-scroll::-webkit-scrollbar {
+          display: none;
+        }
+
+        .gdx-stream-copy,
+        .gdx-response-copy {
+          font-size: 13px;
+          line-height: 1.72;
+          font-weight: 400;
+          letter-spacing: -0.005em;
+        }
+
+        .gdx-stream-copy {
+          animation: gdxTextSettle 360ms cubic-bezier(.22,1,.36,1);
+        }
+
+        .gdx-response-copy p {
+          margin: 0 0 10px;
+        }
+
+        .gdx-response-copy p:last-child {
+          margin-bottom: 0;
+        }
+
+        .gdx-response-copy h1,
+        .gdx-response-copy h2,
+        .gdx-response-copy h3 {
+          font-weight: 500;
+          letter-spacing: -0.015em;
+        }
+
+        .gdx-response-copy a {
           text-decoration: underline;
           text-underline-offset: 2px;
         }
 
-        .inline-code {
-          background: rgba(127,127,127,.09);
-          padding: .08rem .3rem;
-          border-radius: 5px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace;
-          font-size: .9em;
+        .gdx-suggestions-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
+          margin-top: 10px;
+          padding: 0 7px;
+          animation: gdxGlassFadeIn 420ms cubic-bezier(.22,1,.36,1);
         }
 
-        @keyframes gdxPanelIn {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        .gdx-suggestion-chip,
+        .gdx-suggestion-bubble,
+        .gdx-voice-link-bubble {
+          border: 1px solid rgba(255,255,255,0.14);
+          background: rgba(255,255,255,0.075);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.08),
+            0 8px 28px rgba(0,0,0,0.08);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
         }
 
-        @keyframes gdxSuggestionsIn {
-          from {
-            opacity: 0;
-            transform: translateY(5px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        .gdx-suggestion-chip {
+          padding: 7px 11px;
+          border-radius: 999px;
+          font-size: 11px;
+          color: inherit;
+          cursor: pointer;
+          transition:
+            transform 260ms cubic-bezier(.22,1,.36,1),
+            background 260ms ease,
+            border-color 260ms ease;
         }
 
-        @keyframes gdxHintIn {
+        .gdx-suggestion-chip:hover,
+        .gdx-suggestion-bubble:hover,
+        .gdx-voice-link-bubble:hover {
+          background: rgba(255,255,255,0.115);
+          border-color: rgba(255,255,255,0.22);
+        }
+
+        .gdx-suggestion-chip:active,
+        .gdx-voice-link-bubble:active {
+          transform: scale(0.97);
+        }
+
+        .gdx-icon-button,
+        .gdx-send-button {
+          flex: 0 0 auto;
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          border: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition:
+            transform 280ms cubic-bezier(.22,1,.36,1),
+            background 280ms ease,
+            opacity 280ms ease;
+        }
+
+        .gdx-icon-button {
+          color: rgba(255,255,255,0.78);
+          background: transparent;
+        }
+
+        .gdx-icon-button:hover {
+          background: rgba(255,255,255,0.075);
+          color: rgba(255,255,255,0.98);
+        }
+
+        .gdx-icon-button:active,
+        .gdx-send-button:active {
+          transform: scale(0.94);
+        }
+
+        .gdx-send-button {
+          position: relative;
+          overflow: hidden;
+          color: white;
+          background:
+            linear-gradient(145deg, rgba(0,132,255,0.98), rgba(0,102,220,0.96));
+          box-shadow:
+            0 8px 22px rgba(0,100,220,0.22),
+            inset 0 1px 0 rgba(255,255,255,0.22);
+        }
+
+        .gdx-send-icon {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 1;
+          transform: scale(1);
+          transition:
+            opacity 260ms cubic-bezier(.22,1,.36,1),
+            transform 420ms cubic-bezier(.22,1,.36,1);
+        }
+
+        .gdx-send-icon-hidden {
+          opacity: 0;
+          transform: scale(0.72);
+        }
+
+        .gdx-thinking-dots {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          height: 18px;
+        }
+
+        .gdx-thinking-dots i {
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: currentColor;
+          opacity: 0.28;
+          animation: gdxDotPulse 1.35s ease-in-out infinite;
+        }
+
+        .gdx-thinking-dots i:nth-child(2) {
+          animation-delay: 120ms;
+        }
+
+        .gdx-thinking-dots i:nth-child(3) {
+          animation-delay: 240ms;
+        }
+
+        .thinking-container {
+          border-color: rgba(255,255,255,0.25);
+          box-shadow:
+            0 22px 65px rgba(0,0,0,0.22),
+            inset 0 1px 0 rgba(255,255,255,0.16);
+        }
+
+        .listening-container {
+          border-color: rgba(255,255,255,0.25);
+          box-shadow:
+            0 22px 65px rgba(0,0,0,0.22),
+            inset 0 1px 0 rgba(255,255,255,0.16);
+        }
+
+        .thinking-container .gdx-input::placeholder {
+          color: rgba(255,255,255,0.46);
+        }
+
+        .gdx-danger-button {
+          background: rgba(255,255,255,0.08);
+        }
+
+        .gdx-action-button {
+          color: white;
+          background: rgba(255,255,255,0.10);
+        }
+
+        .gdx-visual-wrap {
+          margin-bottom: 10px;
+          animation: gdxGlassFadeIn 480ms cubic-bezier(.22,1,.36,1);
+        }
+
+        .gdx-voice-link-bubble {
+          padding: 8px 13px;
+          border-radius: 999px;
+          font-size: 12px;
+          color: inherit;
+        }
+
+        .gdx-suggestion-bubble {
+          padding: 8px 14px;
+          border-radius: 999px;
+          animation: gdxGlassFadeIn 480ms cubic-bezier(.22,1,.36,1);
+        }
+
+        @keyframes gdxGlassFadeIn {
           from {
             opacity: 0;
-            transform: translateY(7px) scale(.985);
+            transform: translateY(6px) scale(0.985);
             filter: blur(2px);
           }
           to {
@@ -3619,49 +3971,131 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
-        @keyframes gdxFadeOut {
+        @keyframes gdxGlassFadeOut {
           from {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
+            filter: blur(0);
           }
           to {
             opacity: 0;
-            transform: translateY(4px);
+            transform: translateY(4px) scale(0.985);
+            filter: blur(2px);
+          }
+        }
+
+        @keyframes gdxTextSettle {
+          from {
+            opacity: 0.82;
+            transform: translateY(2px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes gdxDotPulse {
+          0%, 60%, 100% {
+            opacity: 0.24;
+            transform: translateY(0) scale(0.9);
+          }
+          30% {
+            opacity: 0.76;
+            transform: translateY(-1px) scale(1);
+          }
+        }
+
+        @media (max-width: 639px) {
+          .gdx-search-container {
+            width: var(--gdx-mobile-width) !important;
+            max-width: 92vw !important;
+          }
+
+          .gdx-search-inner {
+            padding: 7px;
+          }
+
+          .gdx-response-stage-visible {
+            padding: 7px 4px 10px;
+          }
+
+          .gdx-response-scroll {
+            max-height: 280px;
+          }
+
+          .gdx-stream-copy,
+          .gdx-response-copy {
+            font-size: 12.5px;
+            line-height: 1.68;
+          }
+
+          .gdx-input {
+            font-size: 13px;
           }
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-search-container {
-          border-color: rgba(0,0,0,0.12);
-          background: rgba(0,0,0,0.035);
-          box-shadow: 0 18px 50px rgba(0,0,0,0.08);
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-search-container:focus-within {
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.90), rgba(248,248,248,0.78));
+          border-color: rgba(0,0,0,0.15);
           box-shadow:
-            0 20px 60px rgba(0,0,0,0.10),
-            0 0 0 1px rgba(0,0,0,0.06);
+            0 20px 55px rgba(0,0,0,0.10),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+          color: #000;
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-search-container::before {
+          background:
+            radial-gradient(circle at 18% 0%, rgba(255,255,255,0.95), transparent 34%),
+            radial-gradient(circle at 84% 100%, rgba(0,0,0,0.035), transparent 32%);
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-input::placeholder {
+          color: rgba(0,0,0,0.48);
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-icon-button {
+          color: rgba(0,0,0,0.68);
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-suggestion-chip,
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-suggestion-bubble,
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-voice-link-bubble {
+          border-color: rgba(0,0,0,0.11);
+          background: rgba(0,0,0,0.045);
+          color: #000;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-dots i {
           background: #000;
-          color: #fff;
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
-          color: #fff;
+        input,
+        button {
+          font-weight: 400;
+        }
+
+        strong,
+        h1,
+        h2,
+        h3 {
+          font-weight: 400;
         }
 
         @media (prefers-reduced-motion: reduce) {
-          [data-gdx-search] *,
-          [data-gdx-search] *::before,
-          [data-gdx-search] *::after {
-            scroll-behavior: auto !important;
-            animation-duration: 1ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 1ms !important;
+          .gdx-search-container,
+          .gdx-response-stage,
+          .gdx-stream-copy,
+          .gdx-suggestions-row,
+          .gdx-suggestion-bubble,
+          .gdx-voice-link-bubble {
+            animation: none !important;
+            transition: none !important;
           }
         }
-      `}</style>
+      `}
     </div>
   );
 };
