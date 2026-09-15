@@ -1,5 +1,3 @@
-// src/lib/api.ts
-
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "./session";
 
@@ -11,250 +9,260 @@ export interface VisualItem {
 export interface ChatResponse {
   response: string;
   success: boolean;
-  debug?: object;
+  debug?: any;
   visuals?: VisualItem[];
   suggestions?: string[];
+  voice_response?: string;
+  [key: string]: any;
 }
 
 export interface StreamChatHandlers {
-  onToken?: (chunk: string) => void;
+  onStart?: () => void;
+  onToken?: (chunk: string, accumulated: string) => void;
   onVisuals?: (visuals: VisualItem[]) => void;
 }
 
-/**
- * Normalize all visual formats returned by the Edge Function
- * into the single format expected by the SearchBar.
- */
 function normalizeVisuals(visuals: any): VisualItem[] {
   if (!visuals) return [];
 
   const items: VisualItem[] = [];
 
-  const addVisual = (urlValue: unknown, titleValue?: unknown) => {
-    const normalizedUrl = String(urlValue ?? "").trim();
-
-    if (!/^https?:\/\//i.test(normalizedUrl)) {
-      return;
-    }
-
+  const add = (url: unknown, title?: unknown) => {
+    const value = String(url ?? "").trim();
+    if (!/^https?:\/\//i.test(value)) return;
     items.push({
-      url: normalizedUrl,
-      title: String(titleValue ?? "").trim() || undefined,
+      url: value,
+      title: String(title ?? "").trim() || undefined,
     });
   };
 
-  /*
-   * Current backend format:
-   *
-   * {
-   *   type: "travel",
-   *   collections: [
-   *     {
-   *       title: "Japan 2025 Collection",
-   *       year: 2025,
-   *       imageUrls: ["url1", "url2", ...]
-   *     }
-   *   ],
-   *   image_urls: ["url1", "url2", ...]
-   * }
-   */
-  if (Array.isArray(visuals?.collections)) {
-    for (const collection of visuals.collections) {
-      const title = String(collection?.title ?? "").trim() || undefined;
-
-      /*
-       * Primary format:
-       *
-       * imageUrls: ["url1", "url2"]
-       */
-      if (Array.isArray(collection?.imageUrls)) {
-        for (const image of collection.imageUrls) {
-          /*
-           * Support both:
-           *
-           * "https://..."
-           *
-           * and, defensively:
-           *
-           * { url: "https://...", title: "..." }
-           */
-          if (typeof image === "object" && image !== null) {
-            addVisual((image as any)?.url, (image as any)?.title ?? title);
-          } else {
-            addVisual(image, title);
-          }
-        }
-      }
-
-      /*
-       * Compatibility with a collection using `items`.
-       */
-      if (Array.isArray(collection?.items)) {
-        for (const image of collection.items) {
-          if (typeof image === "object" && image !== null) {
-            addVisual((image as any)?.url, (image as any)?.title ?? title);
-          } else {
-            addVisual(image, title);
-          }
-        }
-      }
-    }
-  }
-
-  /*
-   * Fallback for the flattened image_urls format.
-   */
-  if (Array.isArray(visuals?.image_urls)) {
-    for (const image of visuals.image_urls) {
-      if (typeof image === "object" && image !== null) {
-        addVisual((image as any)?.url, (image as any)?.title ?? "Gaurav's Travels");
-      } else {
-        addVisual(image, "Gaurav's Travels");
-      }
-    }
-  }
-
-  /*
-   * Compatibility with an already-flat visual array:
-   *
-   * [
-   *   { url: "...", title: "..." },
-   *   { url: "...", title: "..." }
-   * ]
-   *
-   * or:
-   *
-   * [
-   *   "https://..."
-   * ]
-   */
   if (Array.isArray(visuals)) {
     for (const item of visuals) {
-      if (item && typeof item === "object") {
-        addVisual((item as any)?.url, (item as any)?.title);
-      } else if (typeof item === "string") {
-        addVisual(item, "Gaurav's Travels");
+      if (typeof item === "string") add(item, "Gaurav's Travels");
+      else if (item && typeof item === "object") add(item.url, item.title);
+    }
+  }
+
+  if (Array.isArray(visuals?.collections)) {
+    for (const collection of visuals.collections) {
+      const title = String(collection?.title ?? "").trim() || "Gaurav's Travels";
+      const images = [
+        ...(Array.isArray(collection?.imageUrls) ? collection.imageUrls : []),
+        ...(Array.isArray(collection?.items) ? collection.items : []),
+      ];
+
+      for (const image of images) {
+        if (typeof image === "string") add(image, title);
+        else if (image && typeof image === "object") add(image.url, image.title || title);
       }
     }
   }
 
-  /*
-   * Remove duplicate image URLs.
-   */
-  const seen = new Set<string>();
-
-  return items.filter((item) => {
-    const key = item.url.trim().toLowerCase();
-
-    if (!key || seen.has(key)) {
-      return false;
+  if (Array.isArray(visuals?.image_urls)) {
+    for (const image of visuals.image_urls) {
+      if (typeof image === "string") add(image, "Gaurav's Travels");
+      else if (image && typeof image === "object") add(image.url, image.title || "Gaurav's Travels");
     }
+  }
 
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.url.toLowerCase();
+    if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 }
 
-/**
- * Complete-response helper.
- *
- * The historical function name is kept so the rest of the app
- * does not need to change.
- *
- * It intentionally waits for the complete Edge Function response
- * before exposing the answer and visuals to the SearchBar.
- */
-export async function streamChatMessage(message: string, handlers: StreamChatHandlers = {}): Promise<ChatResponse> {
-  const result = await sendChatMessage(message);
-
-  if (result.response) {
-    handlers.onToken?.(result.response);
-  }
-
-  if (result.visuals && result.visuals.length > 0) {
-    handlers.onVisuals?.(result.visuals);
-  }
-
-  return result;
+function getEndpoint(): string {
+  const url = String(import.meta.env.VITE_SUPABASE_URL ?? "")
+    .trim()
+    .replace(/\/$/, "");
+  if (!url) throw new Error("VITE_SUPABASE_URL is missing.");
+  return `${url}/functions/v1/bright-action`;
 }
 
-export async function sendChatMessage(message: string): Promise<ChatResponse> {
-  const sessionId = getSessionId();
-
-  console.log("Sending chat message:", {
-    message,
-    sessionId,
-  });
+async function readError(response: Response): Promise<string> {
+  const text = await response.text().catch(() => "");
+  if (!text) return `GDx request failed (${response.status}).`;
 
   try {
-    const { data, error } = await supabase.functions.invoke("bright-action", {
-      body: {
-        message: message.trim(),
-        sessionId,
-      },
-    });
+    const json = JSON.parse(text);
+    return String(json?.error?.message || json?.error || json?.message || json?.response || text);
+  } catch {
+    return text;
+  }
+}
 
-    if (error) {
-      console.error("Edge function error:", error);
+export async function streamChatMessage(message: string, handlers: StreamChatHandlers = {}): Promise<ChatResponse> {
+  const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+  const anonKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "").trim();
 
-      throw new Error(error.message ?? "Edge function error");
+  if (!supabaseUrl || !anonKey) {
+    throw new Error("GDx configuration is missing.");
+  }
+
+  const sessionId = getSessionId();
+  const response = await fetch(getEndpoint(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      Accept: "text/event-stream",
+    },
+    body: JSON.stringify({
+      message: message.trim(),
+      sessionId,
+      mode: "text",
+      stream: true,
+    }),
+  }).catch((error) => {
+    throw new Error(error instanceof Error ? error.message : "Unable to connect to GDx.");
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  if (!response.body) {
+    throw new Error("GDx returned no streaming body.");
+  }
+
+  handlers.onStart?.();
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let accumulated = "";
+  let visuals: VisualItem[] = [];
+  let finalPayload: any = null;
+
+  const handleEvent = (raw: string) => {
+    const dataLines = raw
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""));
+
+    if (!dataLines.length) return;
+
+    const text = dataLines.join("\n").trim();
+    if (!text || text === "[DONE]") return;
+
+    let payload: any;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      return;
     }
 
-    console.log("Chat response data:", data);
+    if (payload?.type === "error" || payload?.error) {
+      throw new Error(
+        typeof payload?.error === "string"
+          ? payload.error
+          : String(payload?.error?.message || payload?.message || "The AI provider returned an error."),
+      );
+    }
 
-    /*
-     * IMPORTANT:
-     *
-     * The Edge Function returns visuals on:
-     *
-     *   data.visuals
-     *
-     * Normalize that structure and expose it directly as:
-     *
-     *   result.visuals
-     *
-     * This is what SearchBar reads.
-     */
-    const rawVisuals = (data as any)?.visuals;
+    if (payload?.type === "visuals") {
+      visuals = normalizeVisuals(payload.visuals);
+      if (visuals.length) handlers.onVisuals?.(visuals);
+      return;
+    }
 
-    console.log("Raw visuals from Edge Function:", rawVisuals);
+    if (payload?.type === "final" || payload?.type === "done") {
+      finalPayload = payload;
+      const finalText = typeof payload?.response === "string" ? payload.response : "";
+      if (finalText && finalText !== accumulated) {
+        accumulated = finalText;
+        handlers.onToken?.(finalText, accumulated);
+      }
+      if (payload?.visuals) {
+        visuals = normalizeVisuals(payload.visuals);
+        if (visuals.length) handlers.onVisuals?.(visuals);
+      }
+      return;
+    }
 
-    const visuals = normalizeVisuals(rawVisuals);
+    let delta = "";
 
-    const suggestions = Array.isArray((data as any)?.suggestions) ? (data as any).suggestions : [];
+    if (payload?.type === "delta" || payload?.type === "token") {
+      delta =
+        typeof payload?.delta === "string" ? payload.delta : typeof payload?.text === "string" ? payload.text : "";
+    }
 
-    console.log("Normalized visuals:", visuals);
+    if (!delta && typeof payload?.choices?.[0]?.delta?.content === "string") {
+      delta = payload.choices[0].delta.content;
+    }
 
-    return {
-      response: (data as any)?.response ?? "No response generated",
+    if (!delta) return;
 
-      success: true,
+    accumulated += delta;
+    handlers.onToken?.(delta, accumulated);
+  };
 
-      /*
-       * Preserve the complete raw backend response for
-       * debugging and compatibility.
-       */
-      debug: data,
+  const consume = (chunk: string) => {
+    buffer += chunk;
 
-      /*
-       * This is the important part:
-       * SearchBar can now access result.visuals directly.
-       */
-      visuals,
+    while (true) {
+      const match = /\r?\n\r?\n/.exec(buffer);
+      if (!match || match.index < 0) break;
 
-      suggestions,
-    };
+      const event = buffer.slice(0, match.index);
+      buffer = buffer.slice(match.index + match[0].length);
+      handleEvent(event);
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      consume(decoder.decode(value, { stream: true }));
+    }
+
+    consume(decoder.decode());
+    if (buffer.trim()) handleEvent(buffer);
   } catch (error) {
-    console.error("Chat API error:", error);
-
-    return {
-      response: `Error: ${error instanceof Error ? error.message : "Something went wrong"}`,
-
-      success: false,
-
-      visuals: [],
-
-      suggestions: [],
-    };
+    if (error instanceof Error) throw error;
+    throw new Error("GDx streaming failed.");
   }
+
+  const responseText = typeof finalPayload?.response === "string" ? finalPayload.response : accumulated;
+
+  if (!responseText.trim()) {
+    throw new Error("GDx returned an empty response.");
+  }
+
+  return {
+    ...(finalPayload && typeof finalPayload === "object" ? finalPayload : {}),
+    success: finalPayload?.success !== false,
+    response: responseText,
+    visuals,
+    suggestions: Array.isArray(finalPayload?.suggestions) ? finalPayload.suggestions : [],
+  };
+}
+
+/** Non-streaming compatibility path used by voice/TTS and other legacy callers. */
+export async function sendChatMessage(message: string): Promise<ChatResponse> {
+  const { data, error } = await supabase.functions.invoke("bright-action", {
+    body: {
+      message: message.trim(),
+      sessionId: getSessionId(),
+      mode: "text",
+      stream: false,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || "Edge function error");
+  }
+
+  return {
+    ...(data && typeof data === "object" ? data : {}),
+    success: data?.success !== false,
+    response: typeof data?.response === "string" ? data.response : "No response generated",
+    visuals: normalizeVisuals(data?.visuals),
+    suggestions: Array.isArray(data?.suggestions) ? data.suggestions : [],
+  };
 }
