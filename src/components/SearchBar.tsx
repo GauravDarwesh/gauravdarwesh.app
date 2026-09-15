@@ -10,57 +10,91 @@ import { sendChatMessage } from "@/lib/api";
    ========================================================= */
 
 type GdxStreamResult = {
+  success?: boolean;
   response: string;
   voice_response?: string;
   suggestions?: string[];
   visuals?: any;
   action?: string | null;
   bookingUrl?: string | null;
+  [key: string]: any;
 };
 
 type GdxStreamCallbacks = {
   onStart?: () => void;
   onDelta?: (delta: string, accumulated: string) => void;
-  onFinal?: (result: GdxStreamResult) => void;
 };
 
 const GDx_SESSION_KEYS = ["gdx_session_id", "gd_ai_session_id", "gd_session_id", "session_id"];
+
+let inMemoryGdxSessionId: string | null = null;
 
 const getGdxSessionIdForStreaming = (): string => {
   if (typeof window === "undefined") {
     return "server-rendering-session";
   }
 
+  /*
+   * Prefer an existing session id. This is intentionally conservative:
+   * the streaming transport must never silently create a second conversation
+   * when the existing frontend already has a GDx session id.
+   */
   for (const key of GDx_SESSION_KEYS) {
     try {
       const existing = window.localStorage.getItem(key)?.trim();
-      if (existing) return existing;
+      if (existing) {
+        inMemoryGdxSessionId = existing;
+        return existing;
+      }
     } catch {
-      /* Continue to the next candidate key. */
+      /* Continue. */
     }
   }
+
+  if (inMemoryGdxSessionId) return inMemoryGdxSessionId;
 
   const created =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `gdx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+  inMemoryGdxSessionId = created;
+
   try {
     window.localStorage.setItem(GDx_SESSION_KEYS[0], created);
   } catch {
-    /* The in-memory id still works for this page lifetime. */
+    /* In-memory fallback is still valid for this page lifetime. */
   }
 
   return created;
 };
 
-const parseSseEvent = (
+const normalizeGdxResult = (payload: any, accumulated = ""): GdxStreamResult => {
+  const response =
+    typeof payload?.response === "string"
+      ? payload.response
+      : typeof payload?.aiResponse === "string"
+        ? payload.aiResponse
+        : accumulated;
+
+  return {
+    ...(payload && typeof payload === "object" ? payload : {}),
+    success: payload?.success !== false,
+    response: response || "",
+  };
+};
+
+const parseGdxSseEvent = (
   rawEvent: string,
   callbacks: GdxStreamCallbacks,
-  state: { accumulated: string; final: GdxStreamResult | null; error: string | null },
+  state: {
+    accumulated: string;
+    result: GdxStreamResult | null;
+    error: string | null;
+  },
 ) => {
   const lines = rawEvent.split(/\r?\n/);
-  const dataLines = lines.filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim());
+  const dataLines = lines.filter((line) => /^data:\s?/.test(line)).map((line) => line.replace(/^data:\s?/, ""));
 
   if (!dataLines.length) return;
 
@@ -71,107 +105,231 @@ const parseSseEvent = (
   try {
     payload = JSON.parse(payloadText);
   } catch {
+    /*
+     * Ignore malformed/incomplete JSON frames. The outer transport buffer
+     * will continue collecting subsequent complete frames.
+     */
     return;
   }
 
-  if (payload?.type === "start") {
-    callbacks.onStart?.();
-    return;
+  switch (payload?.type) {
+    case "start":
+      callbacks.onStart?.();
+      return;
+
+    case "heartbeat":
+      return;
+
+    case "visuals":
+      /*
+       * Visuals are carried through the final result. Preserve any partial
+       * payload so the caller can still use them if the stream ends early.
+       */
+      state.result = {
+        ...(state.result ?? { success: true, response: state.accumulated }),
+        visuals: payload.visuals,
+        response: state.accumulated,
+      };
+      return;
+
+    case "delta": {
+      const delta =
+        typeof payload?.delta === "string" ? payload.delta : typeof payload?.text === "string" ? payload.text : "";
+
+      if (!delta) return;
+
+      state.accumulated += delta;
+      callbacks.onDelta?.(delta, state.accumulated);
+      return;
+    }
+
+    case "token": {
+      const delta = typeof payload?.text === "string" ? payload.text : "";
+      if (!delta) return;
+
+      state.accumulated += delta;
+      callbacks.onDelta?.(delta, state.accumulated);
+      return;
+    }
+
+    case "final":
+    case "done": {
+      const result = normalizeGdxResult(payload, state.accumulated);
+
+      /*
+       * Some backend variants put the complete answer only in `done`.
+       * If that happens, expose it to the same live UI before the request
+       * finishes.
+       */
+      if (result.response && result.response !== state.accumulated && result.response.startsWith(state.accumulated)) {
+        state.accumulated = result.response;
+        callbacks.onDelta?.("", state.accumulated);
+      }
+
+      state.result = result;
+      return;
+    }
+
+    case "error":
+      state.error =
+        typeof payload?.error === "string"
+          ? payload.error
+          : typeof payload?.message === "string"
+            ? payload.message
+            : "The assistant is temporarily unavailable.";
+      return;
+
+    default:
+      /*
+       * Be tolerant of future backend event wrappers that omit `type` but
+       * still carry a normal response object.
+       */
+      if (typeof payload?.response === "string") {
+        state.result = normalizeGdxResult(payload, state.accumulated);
+      }
   }
+};
 
-  if (payload?.type === "delta") {
-    const delta = typeof payload.delta === "string" ? payload.delta : "";
-    if (!delta) return;
+const parsePossiblyJson = async (response: Response): Promise<any> => {
+  const text = await response.text();
+  if (!text.trim()) return null;
 
-    state.accumulated += delta;
-    callbacks.onDelta?.(delta, state.accumulated);
-    return;
-  }
-
-  /* Backward-compatible event names. */
-  if (payload?.type === "token") {
-    const delta = typeof payload.text === "string" ? payload.text : "";
-    if (!delta) return;
-
-    state.accumulated += delta;
-    callbacks.onDelta?.(delta, state.accumulated);
-    return;
-  }
-
-  if (payload?.type === "final") {
-    const finalResponse = typeof payload.response === "string" ? payload.response : state.accumulated;
-
-    state.final = {
-      ...payload,
-      response: finalResponse,
-    };
-    return;
-  }
-
-  if (payload?.type === "error") {
-    state.error = typeof payload.error === "string" ? payload.error : "The assistant is temporarily unavailable.";
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
   }
 };
 
 const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbacks = {}): Promise<GdxStreamResult> => {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error("GDx configuration is missing.");
+  }
+
   const endpoint = `${SUPABASE_URL}/functions/v1/bright-action`;
   const sessionId = getGdxSessionIdForStreaming();
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      Accept: "text/event-stream",
-      "Cache-Control": "no-cache",
-    },
-    body: JSON.stringify({
-      message,
-      sessionId,
-      mode: "text",
-      stream: true,
-    }),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Accept: "text/event-stream, application/json",
+        "Cache-Control": "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({
+        message,
+        sessionId,
+        mode: "text",
+        stream: true,
+      }),
+    });
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Unable to connect to the GDx assistant.");
+  }
+
+  const contentType = (response.headers.get("content-type") || "").toLowerCase();
+
+  /*
+   * IMPORTANT:
+   * Supabase Edge Functions may return ordinary JSON for early exits /
+   * validation / compatibility paths even when the request asked for stream.
+   * Treat that as a valid response instead of trying to parse it as SSE.
+   */
+  if (contentType.includes("application/json") || contentType.includes("+json")) {
+    const payload = await parsePossiblyJson(response);
+
+    if (!response.ok) {
+      const messageText =
+        typeof payload === "object" ? String(payload?.error || payload?.response || "") : String(payload || "");
+
+      throw new Error(messageText || `GDx request failed (${response.status}).`);
+    }
+
+    const result = normalizeGdxResult(payload);
+
+    if (!result.response) {
+      throw new Error("GDx returned an empty response.");
+    }
+
+    callbacks.onStart?.();
+    callbacks.onDelta?.(result.response, result.response);
+    return result;
+  }
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     let readable = body;
+
     try {
       const json = JSON.parse(body);
       readable = String(json?.error || json?.response || body);
     } catch {
-      /* Keep text fallback. */
+      /* Keep text body. */
     }
-    throw new Error(readable || `GDx request failed (${response.status})`);
+
+    throw new Error(readable || `GDx request failed (${response.status}).`);
   }
 
   if (!response.body) {
+    /*
+     * A valid 2xx response without a stream body is still recoverable if the
+     * server sent text. Read it once and try JSON before failing.
+     */
+    const body = await response.text().catch(() => "");
+    if (body.trim()) {
+      try {
+        const payload = JSON.parse(body);
+        const result = normalizeGdxResult(payload);
+        if (result.response) {
+          callbacks.onStart?.();
+          callbacks.onDelta?.(result.response, result.response);
+          return result;
+        }
+      } catch {
+        /* Fall through to a useful error. */
+      }
+    }
+
     throw new Error("GDx streaming response body is unavailable.");
   }
 
-  /*
-   * The backend emits SSE. A browser ReadableStream chunk is NOT guaranteed
-   * to align with SSE event boundaries, so buffer until a blank line appears.
-   */
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
   let buffer = "";
-  const state: { accumulated: string; final: GdxStreamResult | null; error: string | null } = {
+  const state: {
+    accumulated: string;
+    result: GdxStreamResult | null;
+    error: string | null;
+  } = {
     accumulated: "",
-    final: null,
+    result: null,
     error: null,
   };
 
   const consume = (text: string) => {
     buffer += text;
 
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary >= 0) {
+    /*
+     * Handle both LF-LF and CRLF-CRLF safely.
+     */
+    let match = buffer.match(/\r?\n\r?\n/);
+
+    while (match?.index !== undefined) {
+      const boundary = match.index;
+      const separatorLength = match[0].length;
+
       const eventText = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      parseSseEvent(eventText, callbacks, state);
-      boundary = buffer.indexOf("\n\n");
+      buffer = buffer.slice(boundary + separatorLength);
+
+      parseGdxSseEvent(eventText, callbacks, state);
+      match = buffer.match(/\r?\n\r?\n/);
     }
   };
 
@@ -187,26 +345,31 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
   }
 
   if (buffer.trim()) {
-    parseSseEvent(buffer, callbacks, state);
+    parseGdxSseEvent(buffer, callbacks, state);
   }
 
   if (state.error) {
     throw new Error(state.error);
   }
 
-  const result = state.final ?? {
-    success: true,
-    response: state.accumulated,
-  };
+  const result =
+    state.result ??
+    normalizeGdxResult(
+      {
+        success: true,
+      },
+      state.accumulated,
+    );
 
-  if (!result.response && !state.accumulated) {
+  if (!result.response && state.accumulated) {
+    result.response = state.accumulated;
+  }
+
+  if (!result.response) {
     throw new Error("GDx returned an empty response.");
   }
 
-  return {
-    ...result,
-    response: result.response || state.accumulated,
-  };
+  return result;
 };
 
 /* =========================================================
