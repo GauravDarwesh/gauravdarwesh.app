@@ -203,10 +203,12 @@ const parsePossiblyJson = async (response: Response): Promise<any> => {
 
 const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbacks = {}): Promise<GdxStreamResult> => {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("GDx configuration is missing.");
+    throw new Error(
+      "GDx configuration is missing. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY).",
+    );
   }
 
-  const endpoint = `${SUPABASE_URL}/functions/v1/bright-action`;
+  const endpoint = SUPABASE_FUNCTION("bright-action");
   const sessionId = getGdxSessionIdForStreaming();
 
   let response: Response;
@@ -214,11 +216,13 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
   try {
     response = await fetch(endpoint, {
       method: "POST",
+      mode: "cors",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Accept: "text/event-stream, application/json",
+        Accept: "text/event-stream",
         "Cache-Control": "no-cache",
       },
       body: JSON.stringify({
@@ -229,27 +233,37 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
       }),
     });
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Unable to connect to the GDx assistant.");
+    const detail = error instanceof Error && error.message ? ` (${error.message})` : "";
+
+    throw new Error(
+      `Unable to reach GDx at ${endpoint}. Check the Supabase URL/key configuration and browser network access.${detail}`,
+    );
   }
 
   const contentType = (response.headers.get("content-type") || "").toLowerCase();
 
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    let readable = body;
+
+    try {
+      const json = JSON.parse(body);
+      readable = String(json?.error || json?.response || json?.message || body);
+    } catch {
+      /* Keep text body. */
+    }
+
+    throw new Error(
+      readable || `GDx request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ""}).`,
+    );
+  }
+
   /*
-   * IMPORTANT:
-   * Supabase Edge Functions may return ordinary JSON for early exits /
-   * validation / compatibility paths even when the request asked for stream.
-   * Treat that as a valid response instead of trying to parse it as SSE.
+   * Some Supabase compatibility/early-return paths legitimately send JSON.
+   * Parse those before touching the stream reader.
    */
   if (contentType.includes("application/json") || contentType.includes("+json")) {
     const payload = await parsePossiblyJson(response);
-
-    if (!response.ok) {
-      const messageText =
-        typeof payload === "object" ? String(payload?.error || payload?.response || "") : String(payload || "");
-
-      throw new Error(messageText || `GDx request failed (${response.status}).`);
-    }
-
     const result = normalizeGdxResult(payload);
 
     if (!result.response) {
@@ -261,42 +275,11 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
     return result;
   }
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    let readable = body;
-
-    try {
-      const json = JSON.parse(body);
-      readable = String(json?.error || json?.response || body);
-    } catch {
-      /* Keep text body. */
-    }
-
-    throw new Error(readable || `GDx request failed (${response.status}).`);
-  }
-
   if (!response.body) {
-    /*
-     * A valid 2xx response without a stream body is still recoverable if the
-     * server sent text. Read it once and try JSON before failing.
-     */
-    const body = await response.text().catch(() => "");
-    if (body.trim()) {
-      try {
-        const payload = JSON.parse(body);
-        const result = normalizeGdxResult(payload);
-        if (result.response) {
-          callbacks.onStart?.();
-          callbacks.onDelta?.(result.response, result.response);
-          return result;
-        }
-      } catch {
-        /* Fall through to a useful error. */
-      }
-    }
-
-    throw new Error("GDx streaming response body is unavailable.");
+    throw new Error("GDx connected successfully but returned no response stream.");
   }
+
+  callbacks.onStart?.();
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -312,23 +295,16 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
     error: null,
   };
 
-  const consume = (text: string) => {
-    buffer += text;
+  const processBuffer = () => {
+    let boundary = buffer.match(/\r?\n\r?\n/);
 
-    /*
-     * Handle both LF-LF and CRLF-CRLF safely.
-     */
-    let match = buffer.match(/\r?\n\r?\n/);
-
-    while (match?.index !== undefined) {
-      const boundary = match.index;
-      const separatorLength = match[0].length;
-
-      const eventText = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + separatorLength);
+    while (boundary?.index !== undefined) {
+      const eventText = buffer.slice(0, boundary.index);
+      buffer = buffer.slice(boundary.index + boundary[0].length);
 
       parseGdxSseEvent(eventText, callbacks, state);
-      match = buffer.match(/\r?\n\r?\n/);
+
+      boundary = buffer.match(/\r?\n\r?\n/);
     }
   };
 
@@ -340,7 +316,11 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
       break;
     }
 
-    consume(decoder.decode(value, { stream: true }));
+    buffer += decoder.decode(value, {
+      stream: true,
+    });
+
+    processBuffer();
   }
 
   if (buffer.trim()) {
@@ -351,21 +331,23 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
     throw new Error(state.error);
   }
 
-  const result =
-    state.result ??
-    normalizeGdxResult(
-      {
-        success: true,
-      },
-      state.accumulated,
-    );
+  const result = state.result ?? normalizeGdxResult({ success: true }, state.accumulated);
 
   if (!result.response && state.accumulated) {
     result.response = state.accumulated;
   }
 
   if (!result.response) {
-    throw new Error("GDx returned an empty response.");
+    /*
+     * The stream reached EOF cleanly, but the provider never produced a
+     * visible reply. Surface a useful transport/provider error instead of
+     * pretending the request never happened.
+     */
+    throw new Error(
+      contentType.includes("text/event-stream")
+        ? "GDx stream ended before a response was produced."
+        : "GDx returned an unsupported response format.",
+    );
   }
 
   return result;
@@ -375,10 +357,18 @@ const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbac
    0. TTS CONFIG
    ========================================================= */
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
-const TRANSCRIBE_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-transcribe`;
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "")
+  .trim()
+  .replace(/\/+$/, "");
+
+const SUPABASE_ANON_KEY = String(
+  import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+).trim();
+
+const SUPABASE_FUNCTION = (name: string): string => `${SUPABASE_URL}/functions/v1/${name}`;
+
+const TTS_ENDPOINT = SUPABASE_FUNCTION("gdx-tts");
+const TRANSCRIBE_ENDPOINT = SUPABASE_FUNCTION("gdx-transcribe");
 
 const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
 const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
