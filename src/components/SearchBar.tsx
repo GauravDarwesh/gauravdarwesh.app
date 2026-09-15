@@ -6,6 +6,210 @@ import { Mic, Check, X, ArrowRight } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 
 /* =========================================================
+   STREAMING CHAT TRANSPORT
+   ========================================================= */
+
+type GdxStreamResult = {
+  response: string;
+  voice_response?: string;
+  suggestions?: string[];
+  visuals?: any;
+  action?: string | null;
+  bookingUrl?: string | null;
+};
+
+type GdxStreamCallbacks = {
+  onStart?: () => void;
+  onDelta?: (delta: string, accumulated: string) => void;
+  onFinal?: (result: GdxStreamResult) => void;
+};
+
+const GDx_SESSION_KEYS = ["gdx_session_id", "gd_ai_session_id", "gd_session_id", "session_id"];
+
+const getGdxSessionIdForStreaming = (): string => {
+  if (typeof window === "undefined") {
+    return "server-rendering-session";
+  }
+
+  for (const key of GDx_SESSION_KEYS) {
+    try {
+      const existing = window.localStorage.getItem(key)?.trim();
+      if (existing) return existing;
+    } catch {
+      /* Continue to the next candidate key. */
+    }
+  }
+
+  const created =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `gdx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  try {
+    window.localStorage.setItem(GDx_SESSION_KEYS[0], created);
+  } catch {
+    /* The in-memory id still works for this page lifetime. */
+  }
+
+  return created;
+};
+
+const parseSseEvent = (
+  rawEvent: string,
+  callbacks: GdxStreamCallbacks,
+  state: { accumulated: string; final: GdxStreamResult | null; error: string | null },
+) => {
+  const lines = rawEvent.split(/\r?\n/);
+  const dataLines = lines.filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim());
+
+  if (!dataLines.length) return;
+
+  const payloadText = dataLines.join("\n").trim();
+  if (!payloadText || payloadText === "[DONE]") return;
+
+  let payload: any;
+  try {
+    payload = JSON.parse(payloadText);
+  } catch {
+    return;
+  }
+
+  if (payload?.type === "start") {
+    callbacks.onStart?.();
+    return;
+  }
+
+  if (payload?.type === "delta") {
+    const delta = typeof payload.delta === "string" ? payload.delta : "";
+    if (!delta) return;
+
+    state.accumulated += delta;
+    callbacks.onDelta?.(delta, state.accumulated);
+    return;
+  }
+
+  /* Backward-compatible event names. */
+  if (payload?.type === "token") {
+    const delta = typeof payload.text === "string" ? payload.text : "";
+    if (!delta) return;
+
+    state.accumulated += delta;
+    callbacks.onDelta?.(delta, state.accumulated);
+    return;
+  }
+
+  if (payload?.type === "final") {
+    const finalResponse = typeof payload.response === "string" ? payload.response : state.accumulated;
+
+    state.final = {
+      ...payload,
+      response: finalResponse,
+    };
+    return;
+  }
+
+  if (payload?.type === "error") {
+    state.error = typeof payload.error === "string" ? payload.error : "The assistant is temporarily unavailable.";
+  }
+};
+
+const streamGdxChatMessage = async (message: string, callbacks: GdxStreamCallbacks = {}): Promise<GdxStreamResult> => {
+  const endpoint = `${SUPABASE_URL}/functions/v1/bright-action`;
+  const sessionId = getGdxSessionIdForStreaming();
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Accept: "text/event-stream",
+      "Cache-Control": "no-cache",
+    },
+    body: JSON.stringify({
+      message,
+      sessionId,
+      mode: "text",
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    let readable = body;
+    try {
+      const json = JSON.parse(body);
+      readable = String(json?.error || json?.response || body);
+    } catch {
+      /* Keep text fallback. */
+    }
+    throw new Error(readable || `GDx request failed (${response.status})`);
+  }
+
+  if (!response.body) {
+    throw new Error("GDx streaming response body is unavailable.");
+  }
+
+  /*
+   * The backend emits SSE. A browser ReadableStream chunk is NOT guaranteed
+   * to align with SSE event boundaries, so buffer until a blank line appears.
+   */
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const state: { accumulated: string; final: GdxStreamResult | null; error: string | null } = {
+    accumulated: "",
+    final: null,
+    error: null,
+  };
+
+  const consume = (text: string) => {
+    buffer += text;
+
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const eventText = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      parseSseEvent(eventText, callbacks, state);
+      boundary = buffer.indexOf("\n\n");
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      buffer += decoder.decode();
+      break;
+    }
+
+    consume(decoder.decode(value, { stream: true }));
+  }
+
+  if (buffer.trim()) {
+    parseSseEvent(buffer, callbacks, state);
+  }
+
+  if (state.error) {
+    throw new Error(state.error);
+  }
+
+  const result = state.final ?? {
+    success: true,
+    response: state.accumulated,
+  };
+
+  if (!result.response && !state.accumulated) {
+    throw new Error("GDx returned an empty response.");
+  }
+
+  return {
+    ...result,
+    response: result.response || state.accumulated,
+  };
+};
+
+/* =========================================================
    0. TTS CONFIG
    ========================================================= */
 
@@ -683,6 +887,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
   const [isPreparingToStream, setIsPreparingToStream] = useState(false);
   const streamPulseFrameRef = useRef<number | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const streamedTextRef = useRef("");
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -3137,14 +3343,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     try {
       setSearchVisuals([]);
+      setStreamPulse(false);
       setIsStreamingResponse(false);
+      streamedTextRef.current = "";
 
+      /* Voice remains intentionally non-streamed so TTS receives one stable final response. */
       if (fromVoice) {
         const result = await sendChatMessage(text);
         const answer = String((result as any)?.response ?? "");
         const voiceAnswer = String((result as any)?.voice_response ?? answer);
         const returnedVisuals = extractVisualItems((result as any)?.visuals);
-        const suggs = (result as any)?.suggestions || [];
 
         if (returnedVisuals.length > 0) {
           await waitForVisualReady(returnedVisuals);
@@ -3156,9 +3364,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           setIsCollapsing(false);
           setSearchVisuals(returnedVisuals);
-
-          // Let the SearchBar commit the expanded visual state first so
-          // TTS always starts after the normal horizontal-then-vertical open.
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         }
 
@@ -3170,26 +3375,77 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       /*
-       * Wait for the complete response before expanding the SearchBar.
-       * For visual requests, the first image is also loaded before the
-       * response is released to the UI.
+       * STREAMING TEXT PATH
+       *
+       * We open the response container as soon as the first server event/tokens
+       * arrive. Each delta is committed to React using requestAnimationFrame so
+       * the visitor sees the actual model output growing rather than a fake
+       * typewriter animation after the request has already finished.
        */
-      setIsPreparingToStream(true);
+      setIsPreparingToStream(false);
+      setIsStreamingResponse(true);
+      setResponse("");
 
-      const result = await sendChatMessage(text);
-      const answer = String((result as any)?.response ?? "");
-      const suggs = (result as any)?.suggestions || [];
-      const returnedVisuals = extractVisualItems((result as any)?.visuals);
+      let pendingFrame: number | null = null;
+      let pendingText = "";
 
-      if (returnedVisuals.length > 0) {
-        await waitForVisualReady(returnedVisuals);
-        setSearchVisuals(returnedVisuals);
+      const flushStreamText = () => {
+        pendingFrame = null;
+        const next = pendingText;
+        streamedTextRef.current = next;
+        setResponse(next);
+      };
+
+      try {
+        const result = await streamGdxChatMessage(text, {
+          onStart: () => {
+            setIsPreparingToStream(false);
+            setIsStreamingResponse(true);
+          },
+          onDelta: (_delta, accumulated) => {
+            pendingText = accumulated;
+            if (pendingFrame === null) {
+              pendingFrame = requestAnimationFrame(flushStreamText);
+            }
+          },
+        });
+
+        if (pendingFrame !== null) {
+          cancelAnimationFrame(pendingFrame);
+          pendingFrame = null;
+        }
+
+        const answer = String(result?.response ?? streamedTextRef.current ?? "");
+        const suggs = Array.isArray(result?.suggestions) ? result.suggestions : [];
+        const returnedVisuals = extractVisualItems(result?.visuals);
+
+        setResponse(answer || null);
+        setSuggestions(suggs);
+        setIsRestoredFromStorage(false);
+        setIsStreamingResponse(false);
+        streamedTextRef.current = answer;
+
+        if (returnedVisuals.length > 0) {
+          await waitForVisualReady(returnedVisuals);
+          setSearchVisuals(returnedVisuals);
+        }
+
+        onSearch?.(answer);
+      } catch (streamError) {
+        /*
+         * Do NOT silently call sendChatMessage here: that would generate a
+         * second AI answer and could create duplicate rows in gd_ai_messages.
+         * The visible partial response is retained when available.
+         */
+        const partial = streamedTextRef.current.trim();
+        if (partial) {
+          setResponse(partial);
+          setSuggestions([]);
+          onSearch?.(partial);
+        } else {
+          throw streamError;
+        }
       }
-
-      setResponse(answer || null);
-      setSuggestions(suggs);
-      setIsRestoredFromStorage(false);
-      onSearch?.(answer);
     } catch (error) {
       setIsPreparingToStream(false);
       setIsStreamingResponse(false);
@@ -3320,7 +3576,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const layoutValues = useMemo(() => {
     const hasContent =
-      ((suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing) ||
+      ((suggestions.length > 0 || response !== null || isStreamingResponse) && !isVoiceSession && !isTranscribing) ||
       (searchVisuals.length > 0 && !isTranscribing);
 
     const isExpanded = hasContent && !isPreparingToStream;
@@ -3458,7 +3714,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
+              (response !== null && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
                 ? isCollapsing || isCollapsingToThink
                   ? "opacity-0 mb-0"
                   : "opacity-100 mb-5"
@@ -3468,7 +3724,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               maxHeight:
                 isCollapsing || isCollapsingToThink
                   ? "0px"
-                  : (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
+                  : (response !== null && !isVoiceSession && !isTranscribing) ||
+                      (searchVisuals.length > 0 && !isTranscribing)
                     ? "600px"
                     : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
@@ -3484,10 +3741,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <SearchVisualCarousel items={searchVisuals} visible={searchVisuals.length > 0 && !isTranscribing} />
             )}
 
-            {response && !isVoiceSession && !isTranscribing && (
+            {response !== null && !isVoiceSession && !isTranscribing && (
               <>
                 <div
-                  className="text-foreground text-[13px] sm:text-sm leading-relaxed font-normal px-3 sm:px-4 overflow-y-auto scrollbar-hide"
+                  className={`text-foreground text-[13px] sm:text-sm leading-relaxed font-normal px-3 sm:px-4 overflow-y-auto scrollbar-hide ${isStreamingResponse ? "gdx-live-stream-text" : ""}`}
                   style={{
                     animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
                     animationDelay: "0ms",
@@ -3496,6 +3753,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   }}
                   dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
                 />
+                {isStreamingResponse && (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block align-baseline ml-1 h-[1em] w-[2px] rounded-full bg-current opacity-80"
+                    style={{ animation: "gdxStreamCursor 900ms step-end infinite" }}
+                  />
+                )}
               </>
             )}
           </div>
