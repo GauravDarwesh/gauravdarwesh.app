@@ -3533,10 +3533,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       /*
        * STREAMING TEXT PATH
        *
-       * We open the response container as soon as the first server event/tokens
-       * arrive. Each delta is committed to React using requestAnimationFrame so
-       * the visitor sees the actual model output growing rather than a fake
-       * typewriter animation after the request has already finished.
+       * We open the response container when the SSE stream starts.
+       * Every server delta is committed immediately; there is no typewriter
+       * animation, artificial delay, or requestAnimationFrame batching.
        */
       setIsPreparingToStream(false);
       setIsStreamingResponse(true);
