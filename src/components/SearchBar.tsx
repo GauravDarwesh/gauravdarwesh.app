@@ -180,6 +180,188 @@ const extractVoiceLinks = (text: string): VoiceLink[] => {
   return links.slice(0, 4);
 };
 
+type VisualItem = {
+  url: string;
+  title?: string;
+};
+
+const extractVisualItems = (visuals: any): VisualItem[] => {
+  if (!visuals) return [];
+
+  const items: VisualItem[] = [];
+
+  if (Array.isArray(visuals)) {
+    items.push(
+      ...visuals.map((item: any) => ({
+        url: String(item?.url ?? "").trim(),
+        title: String(item?.title ?? "").trim() || undefined,
+      })),
+    );
+  } else if (Array.isArray(visuals?.collections)) {
+    for (const collection of visuals.collections) {
+      const title = String(collection?.title ?? "").trim() || undefined;
+      const collectionImages = Array.isArray(collection?.imageUrls)
+        ? collection.imageUrls
+        : Array.isArray(collection?.items)
+          ? collection.items
+          : [];
+
+      for (const url of collectionImages) {
+        items.push({
+          url: String(url ?? "").trim(),
+          title,
+        });
+      }
+    }
+  }
+
+  if (!items.length && Array.isArray(visuals?.image_urls)) {
+    items.push(
+      ...visuals.image_urls.map((url: any) => ({
+        url: String(url ?? "").trim(),
+        title: "Gaurav's Travels",
+      })),
+    );
+  }
+
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (!/^https?:\/\//i.test(item.url)) return false;
+    const key = item.url.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const waitForVisualReady = (items: VisualItem[]): Promise<void> => {
+  const firstUrl = items[0]?.url;
+  if (!firstUrl) return Promise.resolve();
+
+  return new Promise<void>((resolve) => {
+    const image = new Image();
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    image.onload = finish;
+    image.onerror = finish;
+    image.src = firstUrl;
+
+    window.setTimeout(finish, 5000);
+  });
+};
+
+const SearchVisualCarousel: React.FC<{
+  items: VisualItem[];
+  visible: boolean;
+}> = ({ items, visible }) => {
+  const [index, setIndex] = useState(0);
+  const [loaded, setLoaded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!items.length) {
+      setIndex(0);
+      setLoaded(new Set());
+      return;
+    }
+
+    setIndex(0);
+
+    const preloaded: HTMLImageElement[] = [];
+    const loadedUrls = new Set<string>();
+    let cancelled = false;
+
+    const markLoaded = (url: string) => {
+      if (cancelled) return;
+      loadedUrls.add(url);
+      setLoaded(new Set(loadedUrls));
+    };
+
+    for (const item of items) {
+      const image = new Image();
+      image.decoding = "async";
+      image.onload = () => markLoaded(item.url);
+      image.onerror = () => {
+        /* Keep the current image visible; do not switch to a failed image. */
+      };
+      image.src = item.url;
+      preloaded.push(image);
+
+      if (image.complete && image.naturalWidth > 0) {
+        markLoaded(item.url);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      for (const image of preloaded) {
+        image.onload = null;
+        image.onerror = null;
+      }
+    };
+  }, [items]);
+
+  useEffect(() => {
+    if (!visible || items.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setIndex((current) => {
+        for (let step = 1; step <= items.length; step++) {
+          const next = (current + step) % items.length;
+          if (loaded.has(items[next].url)) {
+            return next;
+          }
+        }
+
+        return current;
+      });
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [items, loaded, visible]);
+
+  if (!items.length) return null;
+
+  const current = items[index];
+
+  return (
+    <div className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg backdrop-blur-sm">
+      <div className="relative w-full h-[150px] sm:h-[160px] overflow-hidden bg-black/5">
+        {items.map((item, itemIndex) => (
+          <img
+            key={item.url}
+            src={item.url}
+            alt={item.title || "Gaurav's travel visual"}
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              opacity: itemIndex === index && loaded.has(item.url) ? 1 : 0,
+              transition: "opacity 900ms cubic-bezier(0.25,1,0.3,1)",
+              willChange: "opacity",
+              pointerEvents: itemIndex === index ? "auto" : "none",
+            }}
+            loading={itemIndex === 0 ? "eager" : "lazy"}
+            decoding="async"
+            draggable={false}
+          />
+        ))}
+
+        <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/90 text-[11px] border border-white/15">
+          {current.title || "Visuals"}
+        </div>
+
+        <div className="absolute right-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/80 text-[11px] border border-white/15 tabular-nums">
+          {index + 1} / {items.length}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* =========================================================
    3. FADE HELPER
    ========================================================= */
@@ -496,6 +678,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
+  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [streamPulse, setStreamPulse] = useState(false);
+  const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
+  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
+  const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -2887,6 +3074,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
+    setSearchVisuals([]);
 
     if (!customQuery) setQuery("");
 
@@ -2913,27 +3101,48 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
 
     try {
-      const chatRequest = sendChatMessage as unknown as (
-        message: string,
-        options?: { mode?: "text" | "voice" },
-      ) => Promise<any>;
+      setSearchVisuals([]);
+      setIsStreamingResponse(false);
 
-      const result = await chatRequest(text, {
-        mode: fromVoice ? "voice" : "text",
-      });
-      const answer = String((result as any)?.response ?? "");
-      const voiceAnswer = String((result as any)?.voice_response ?? answer);
-      const suggs = (result as any)?.suggestions || [];
+      if (fromVoice) {
+        const result = await sendChatMessage(text);
+        const answer = String((result as any)?.response ?? "");
+        const voiceAnswer = String((result as any)?.voice_response ?? answer);
+        const suggs = (result as any)?.suggestions || [];
 
-      if (fromVoice && isVoiceSessionRef.current) {
-        void speakVoiceResponse(voiceAnswer, answer);
-      } else {
-        setResponse(answer);
-        setSuggestions(suggs);
-        setIsRestoredFromStorage(false);
-        onSearch?.(answer);
+        if (isVoiceSessionRef.current) {
+          void speakVoiceResponse(voiceAnswer, answer);
+        }
+
+        return;
       }
+
+      /*
+       * Wait for the complete response before expanding the SearchBar.
+       * For visual requests, the first image is also loaded before the
+       * response is released to the UI.
+       */
+      setIsPreparingToStream(true);
+
+      const result = await sendChatMessage(text);
+      const answer = String((result as any)?.response ?? "");
+      const suggs = (result as any)?.suggestions || [];
+      const returnedVisuals = extractVisualItems((result as any)?.visuals);
+
+      if (returnedVisuals.length > 0) {
+        await waitForVisualReady(returnedVisuals);
+        setSearchVisuals(returnedVisuals);
+      }
+
+      setResponse(answer || null);
+      setSuggestions(suggs);
+      setIsRestoredFromStorage(false);
+      onSearch?.(answer);
     } catch (error) {
+      setIsPreparingToStream(false);
+      setIsStreamingResponse(false);
+      setSearchVisuals([]);
+
       const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
 
       if (fromVoice && isVoiceSessionRef.current) {
@@ -2945,11 +3154,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         onSearch?.(message);
       }
     } finally {
+      setIsPreparingToStream(false);
+      setIsStreamingResponse(false);
+      setStreamPulse(false);
+
+      if (streamPulseFrameRef.current !== null) {
+        cancelAnimationFrame(streamPulseFrameRef.current);
+        streamPulseFrameRef.current = null;
+      }
+
       isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
-
   handleSubmitRef.current = handleSubmit;
 
   /* =======================================================
@@ -3048,16 +3265,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   const layoutValues = useMemo(() => {
     const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
-    const isExpanded = hasContent && !isLoading;
+
+    const isExpanded = hasContent && !isLoading && !isPreparingToStream;
+
     const targetWidth = isExpanded
       ? "min(460px, 92vw)"
       : isVoiceSession || isTranscribing
         ? "min(320px, 78vw)"
         : "min(360px, 92vw)";
+
     const targetRadius = isExpanded ? "16px" : "999px";
 
-    return { isExpanded, targetWidth, targetRadius };
-  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading]);
+    return {
+      isExpanded,
+      targetWidth,
+      targetRadius,
+    };
+  }, [
+    suggestions.length,
+    response,
+    isVoiceSession,
+    isTranscribing,
+    isLoading,
+    isStreamingResponse,
+    isPreparingToStream,
+  ]);
 
   /* =======================================================
      RENDER
@@ -3172,7 +3404,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 isCollapsing || isCollapsingToThink
                   ? "0px"
                   : response && !isVoiceSession && !isTranscribing
-                    ? "384px"
+                    ? "600px"
                     : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
               transitionDelay:
@@ -3180,16 +3412,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             }}
           >
             {response && !isVoiceSession && !isTranscribing && (
-              <div
-                className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
-                style={{
-                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
-                  maxHeight: "300px",
-                  fontWeight: 400,
-                }}
-                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
-              />
+              <>
+                <SearchVisualCarousel
+                  items={searchVisuals}
+                  visible={searchVisuals.length > 0 && !isVoiceSession && !isTranscribing}
+                />
+
+                <div
+                  className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
+                  style={{
+                    animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                    animationDelay: "0ms",
+                    maxHeight: "300px",
+                    fontWeight: 400,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+                />
+              </>
             )}
           </div>
 
@@ -3311,6 +3550,37 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes streamTextPulse {
+          from {
+            opacity: 0.86;
+            filter: blur(1.2px);
+          }
+          to {
+            opacity: 1;
+            filter: blur(0);
+          }
+        }
+
+        @keyframes searchVisualsReveal {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes searchVisualImage {
+          from {
+            opacity: 0.7;
+          }
+          to {
+            opacity: 1;
+          }
         }
 
         @keyframes delayedFadeIn {
