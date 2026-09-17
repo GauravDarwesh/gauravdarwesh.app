@@ -3325,11 +3325,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     const isExpanded = hasContent && !isPreparingToStream;
 
-    const targetWidth = isExpanded
-      ? "min(460px, 92vw)"
-      : isVoiceSession || isTranscribing
-        ? "min(320px, 78vw)"
-        : "min(360px, 92vw)";
+    const targetWidth = isExpanded ? "460px" : isVoiceSession || isTranscribing ? "320px" : "360px";
 
     const targetRadius = isExpanded ? "16px" : "999px";
 
@@ -3412,12 +3408,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         style={
           {
             width: layoutValues.targetWidth,
-            maxWidth: "92vw",
-            "--gdx-mobile-width": layoutValues.isExpanded
-              ? "min(360px, 88vw)"
-              : isVoiceSession || isTranscribing
-                ? "min(290px, 82vw)"
-                : "min(320px, 88vw)",
             borderRadius: layoutValues.targetRadius,
             transition:
               "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
@@ -3425,7 +3415,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             WebkitTouchCallout: "none",
             WebkitUserSelect: "none",
             touchAction: "manipulation",
-          } as React.CSSProperties & { "--gdx-mobile-width": string }
+          } as React.CSSProperties
         }
       >
         <div
@@ -3610,12 +3600,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
-        @media (max-width: 639px) {
-          .gdx-search-container {
-            width: var(--gdx-mobile-width) !important;
-            max-width: 88vw !important;
-          }
-        }
 
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
