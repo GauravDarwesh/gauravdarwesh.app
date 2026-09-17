@@ -180,188 +180,6 @@ const extractVoiceLinks = (text: string): VoiceLink[] => {
   return links.slice(0, 4);
 };
 
-type VisualItem = {
-  url: string;
-  title?: string;
-};
-
-const extractVisualItems = (visuals: any): VisualItem[] => {
-  if (!visuals) return [];
-
-  const items: VisualItem[] = [];
-
-  if (Array.isArray(visuals)) {
-    items.push(
-      ...visuals.map((item: any) => ({
-        url: String(item?.url ?? "").trim(),
-        title: String(item?.title ?? "").trim() || undefined,
-      })),
-    );
-  } else if (Array.isArray(visuals?.collections)) {
-    for (const collection of visuals.collections) {
-      const title = String(collection?.title ?? "").trim() || undefined;
-      const collectionImages = Array.isArray(collection?.imageUrls)
-        ? collection.imageUrls
-        : Array.isArray(collection?.items)
-          ? collection.items
-          : [];
-
-      for (const url of collectionImages) {
-        items.push({
-          url: String(url ?? "").trim(),
-          title,
-        });
-      }
-    }
-  }
-
-  if (!items.length && Array.isArray(visuals?.image_urls)) {
-    items.push(
-      ...visuals.image_urls.map((url: any) => ({
-        url: String(url ?? "").trim(),
-        title: "Gaurav's Travels",
-      })),
-    );
-  }
-
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    if (!/^https?:\/\//i.test(item.url)) return false;
-    const key = item.url.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-const waitForVisualReady = (items: VisualItem[]): Promise<void> => {
-  const firstUrl = items[0]?.url;
-  if (!firstUrl) return Promise.resolve();
-
-  return new Promise<void>((resolve) => {
-    const image = new Image();
-    let settled = false;
-
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-
-    image.onload = finish;
-    image.onerror = finish;
-    image.src = firstUrl;
-
-    window.setTimeout(finish, 5000);
-  });
-};
-
-const SearchVisualCarousel: React.FC<{
-  items: VisualItem[];
-  visible: boolean;
-}> = ({ items, visible }) => {
-  const [index, setIndex] = useState(0);
-  const [loaded, setLoaded] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!items.length) {
-      setIndex(0);
-      setLoaded(new Set());
-      return;
-    }
-
-    setIndex(0);
-
-    const preloaded: HTMLImageElement[] = [];
-    const loadedUrls = new Set<string>();
-    let cancelled = false;
-
-    const markLoaded = (url: string) => {
-      if (cancelled) return;
-      loadedUrls.add(url);
-      setLoaded(new Set(loadedUrls));
-    };
-
-    for (const item of items) {
-      const image = new Image();
-      image.decoding = "async";
-      image.onload = () => markLoaded(item.url);
-      image.onerror = () => {
-        /* Keep the current image visible; do not switch to a failed image. */
-      };
-      image.src = item.url;
-      preloaded.push(image);
-
-      if (image.complete && image.naturalWidth > 0) {
-        markLoaded(item.url);
-      }
-    }
-
-    return () => {
-      cancelled = true;
-      for (const image of preloaded) {
-        image.onload = null;
-        image.onerror = null;
-      }
-    };
-  }, [items]);
-
-  useEffect(() => {
-    if (!visible || items.length <= 1) return;
-
-    const timer = window.setInterval(() => {
-      setIndex((current) => {
-        for (let step = 1; step <= items.length; step++) {
-          const next = (current + step) % items.length;
-          if (loaded.has(items[next].url)) {
-            return next;
-          }
-        }
-
-        return current;
-      });
-    }, 5000);
-
-    return () => window.clearInterval(timer);
-  }, [items, loaded, visible]);
-
-  if (!items.length) return null;
-
-  const current = items[index];
-
-  return (
-    <div className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg backdrop-blur-sm">
-      <div className="relative w-full h-[150px] sm:h-[160px] overflow-hidden bg-black/5">
-        {items.map((item, itemIndex) => (
-          <img
-            key={item.url}
-            src={item.url}
-            alt={item.title || "Gaurav's travel visual"}
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              opacity: itemIndex === index && loaded.has(item.url) ? 1 : 0,
-              transition: "opacity 900ms cubic-bezier(0.25,1,0.3,1)",
-              willChange: "opacity",
-              pointerEvents: itemIndex === index ? "auto" : "none",
-            }}
-            loading={itemIndex === 0 ? "eager" : "lazy"}
-            decoding="async"
-            draggable={false}
-          />
-        ))}
-
-        <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/90 text-[11px] border border-white/15">
-          {current.title || "Visuals"}
-        </div>
-
-        <div className="absolute right-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/80 text-[11px] border border-white/15 tabular-nums">
-          {index + 1} / {items.length}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 /* =========================================================
    3. FADE HELPER
    ========================================================= */
@@ -538,7 +356,7 @@ const BarWaveform: React.FC<{
   if (!isActive) return null;
 
   return (
-    <div ref={containerRef} className="flex-1 h-7 sm:h-8 min-w-0 overflow-hidden">
+    <div ref={containerRef} className="flex-1 h-8 min-w-0 overflow-hidden">
       <canvas ref={canvasRef} className="pointer-events-none block w-full h-full" />
     </div>
   );
@@ -576,7 +394,7 @@ const RecordingTimer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const secs = seconds % 60;
 
   return (
-    <span className="text-xs sm:text-sm font-mono font-normal text-white/70 tabular-nums shrink-0">
+    <span className="text-sm font-mono font-normal text-white/70 tabular-nums shrink-0">
       {mins}:{secs.toString().padStart(2, "0")}
     </span>
   );
@@ -678,11 +496,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
   const [isCollapsingToThink, setIsCollapsingToThink] = useState(false);
-  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
-  const [streamPulse, setStreamPulse] = useState(false);
-  const [searchVisuals, setSearchVisuals] = useState<VisualItem[]>([]);
-  const [isPreparingToStream, setIsPreparingToStream] = useState(false);
-  const streamPulseFrameRef = useRef<number | null>(null);
 
   /* -------------------------------------------------------
      Modes: Voice Session vs Transcribe
@@ -699,7 +512,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const voiceLinksShownRef = useRef(false);
   const voiceLinksRef = useRef<VoiceLink[]>([]);
   const voiceLinksExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const voiceVisualsExitTimerRef = useRef<number | null>(null);
 
   const isVoiceSessionRef = useRef(false);
   const isTranscribingRef = useRef(false);
@@ -764,7 +576,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const searchBarRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const handleSubmitRef = useRef<(e?: FormEvent, customQuery?: string, fromVoice?: boolean) => void>();
-  const stopVoiceSessionRef = useRef<((collapseVisuals?: boolean) => void) | null>(null);
+  const stopVoiceSessionRef = useRef<(() => void) | null>(null);
   const stopTranscribeRef = useRef<(() => void) | null>(null);
   const startListeningContinuousRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -2528,68 +2340,48 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      STOP VOICE SESSION (AGENT)
      ======================================================= */
 
-  const stopVoiceSession = useCallback(
-    (collapseVisuals = true) => {
-      const shouldCollapseVoiceVisuals = collapseVisuals && searchVisuals.length > 0;
+  const stopVoiceSession = useCallback(() => {
+    isVoiceSessionRef.current = false;
+    recognitionGenerationRef.current += 1;
 
-      isVoiceSessionRef.current = false;
-      recognitionGenerationRef.current += 1;
+    setIsVoiceSession(false);
+    setIsListening(false);
 
-      setIsVoiceSession(false);
-      setIsListening(false);
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
 
-      if (shouldCollapseVoiceVisuals) {
-        setIsCollapsing(true);
-        setShowExpandedSuggestions(false);
-
-        if (voiceVisualsExitTimerRef.current) {
-          clearTimeout(voiceVisualsExitTimerRef.current);
-        }
-
-        voiceVisualsExitTimerRef.current = window.setTimeout(() => {
-          setSearchVisuals([]);
-          setIsCollapsing(false);
-          voiceVisualsExitTimerRef.current = null;
-        }, 1400);
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      } catch {
+        /* noop */
       }
+      recognitionRef.current = null;
+    }
 
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
+    transcriptRef.current = "";
+
+    if (micSourceRef.current) {
+      try {
+        micSourceRef.current.disconnect();
+      } catch {
+        /* noop */
       }
+      micSourceRef.current = null;
+    }
 
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.onend = null;
-          recognitionRef.current.onerror = null;
-          recognitionRef.current.stop();
-        } catch {
-          /* noop */
-        }
-        recognitionRef.current = null;
-      }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
 
-      transcriptRef.current = "";
-
-      if (micSourceRef.current) {
-        try {
-          micSourceRef.current.disconnect();
-        } catch {
-          /* noop */
-        }
-        micSourceRef.current = null;
-      }
-
-      if (micStreamRef.current) {
-        micStreamRef.current.getTracks().forEach((track) => track.stop());
-        micStreamRef.current = null;
-      }
-
-      stopAudioOnly();
-      hideVoiceLinkBubbles();
-    },
-    [searchVisuals.length, stopAudioOnly, hideVoiceLinkBubbles],
-  );
+    stopAudioOnly();
+    hideVoiceLinkBubbles();
+  }, [stopAudioOnly, hideVoiceLinkBubbles]);
 
   stopVoiceSessionRef.current = stopVoiceSession;
 
@@ -2597,35 +2389,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      START VOICE SESSION (AGENT)
      ======================================================= */
 
-  const startVoiceSession = useCallback(async () => {
+  const startVoiceSession = useCallback(() => {
     if (isLoading) return;
 
     if (isTranscribing) {
       stopTranscribeRef.current?.();
     }
 
-    dismissSuggestionBubble();
-    setShowExpandedSuggestions(false);
-    setHasInteracted(true);
-
-    if (response || suggestions.length > 0) {
-      setIsCollapsing(true);
-      await new Promise((resolve) => setTimeout(resolve, 1400));
-      setResponse(null);
-      setSuggestions([]);
-      setIsCollapsing(false);
-    } else {
-      setResponse(null);
-      setSuggestions([]);
-    }
-
     isVoiceSessionRef.current = true;
     setIsVoiceSession(true);
 
     primeMobileAudioSession();
+    setResponse(null);
+    setSuggestions([]);
+    dismissSuggestionBubble();
+    setShowExpandedSuggestions(false);
+    setHasInteracted(true);
 
     void startListeningContinuousRef.current?.();
-  }, [isLoading, isTranscribing, response, suggestions.length, primeMobileAudioSession, dismissSuggestionBubble]);
+  }, [isLoading, isTranscribing, primeMobileAudioSession, dismissSuggestionBubble]);
 
   /* =======================================================
      TRANSCRIBE (SPEECH TO TEXT)
@@ -3011,10 +2793,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
       if (voiceLinksExitTimerRef.current) clearTimeout(voiceLinksExitTimerRef.current);
       voiceLinksExitTimerRef.current = null;
-
-      if (voiceVisualsExitTimerRef.current) clearTimeout(voiceVisualsExitTimerRef.current);
-      voiceVisualsExitTimerRef.current = null;
-
       voiceLinksRef.current = [];
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -3109,12 +2887,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setHasInteracted(true);
     dismissSuggestionBubble();
     setShowExpandedSuggestions(false);
-    setSearchVisuals([]);
 
     if (!customQuery) setQuery("");
 
     if (!fromVoice) {
-      stopVoiceSession(false);
+      stopVoiceSession();
       hideVoiceLinkBubbles();
 
       if (response || suggestions.length > 0) {
@@ -3136,65 +2913,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setIsLoading(true);
 
     try {
-      setSearchVisuals([]);
-      setIsStreamingResponse(false);
+      const chatRequest = sendChatMessage as unknown as (
+        message: string,
+        options?: { mode?: "text" | "voice" },
+      ) => Promise<any>;
 
-      if (fromVoice) {
-        const result = await sendChatMessage(text);
-        const answer = String((result as any)?.response ?? "");
-        const voiceAnswer = String((result as any)?.voice_response ?? answer);
-        const returnedVisuals = extractVisualItems((result as any)?.visuals);
-        const suggs = (result as any)?.suggestions || [];
-
-        if (returnedVisuals.length > 0) {
-          await waitForVisualReady(returnedVisuals);
-
-          if (voiceVisualsExitTimerRef.current) {
-            clearTimeout(voiceVisualsExitTimerRef.current);
-            voiceVisualsExitTimerRef.current = null;
-          }
-
-          setIsCollapsing(false);
-          setSearchVisuals(returnedVisuals);
-
-          // Let the SearchBar commit the expanded visual state first so
-          // TTS always starts after the normal horizontal-then-vertical open.
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        }
-
-        if (isVoiceSessionRef.current) {
-          void speakVoiceResponse(voiceAnswer, answer);
-        }
-
-        return;
-      }
-
-      /*
-       * Wait for the complete response before expanding the SearchBar.
-       * For visual requests, the first image is also loaded before the
-       * response is released to the UI.
-       */
-      setIsPreparingToStream(true);
-
-      const result = await sendChatMessage(text);
+      const result = await chatRequest(text, {
+        mode: fromVoice ? "voice" : "text",
+      });
       const answer = String((result as any)?.response ?? "");
+      const voiceAnswer = String((result as any)?.voice_response ?? answer);
       const suggs = (result as any)?.suggestions || [];
-      const returnedVisuals = extractVisualItems((result as any)?.visuals);
 
-      if (returnedVisuals.length > 0) {
-        await waitForVisualReady(returnedVisuals);
-        setSearchVisuals(returnedVisuals);
+      if (fromVoice && isVoiceSessionRef.current) {
+        void speakVoiceResponse(voiceAnswer, answer);
+      } else {
+        setResponse(answer);
+        setSuggestions(suggs);
+        setIsRestoredFromStorage(false);
+        onSearch?.(answer);
       }
-
-      setResponse(answer || null);
-      setSuggestions(suggs);
-      setIsRestoredFromStorage(false);
-      onSearch?.(answer);
     } catch (error) {
-      setIsPreparingToStream(false);
-      setIsStreamingResponse(false);
-      setSearchVisuals([]);
-
       const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
 
       if (fromVoice && isVoiceSessionRef.current) {
@@ -3206,19 +2945,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         onSearch?.(message);
       }
     } finally {
-      setIsPreparingToStream(false);
-      setIsStreamingResponse(false);
-      setStreamPulse(false);
-
-      if (streamPulseFrameRef.current !== null) {
-        cancelAnimationFrame(streamPulseFrameRef.current);
-        streamPulseFrameRef.current = null;
-      }
-
       isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
+
   handleSubmitRef.current = handleSubmit;
 
   /* =======================================================
@@ -3288,17 +3019,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         return;
       }
 
-      if (response || suggestions.length > 0 || searchVisuals.length > 0) {
+      if (response || suggestions.length > 0) {
         const COLLAPSE_MS = 1400;
         setIsCollapsing(true);
         setShowExpandedSuggestions(false);
 
-        // Keep the existing close animation intact, but clear visual results
-        // at the same end point so the image frame cannot re-expand afterward.
         window.setTimeout(() => {
           setResponse(null);
           setSuggestions([]);
-          setSearchVisuals([]);
           setIsCollapsing(false);
           clearPersistedState();
         }, COLLAPSE_MS);
@@ -3312,38 +3040,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [response, suggestions, searchVisuals.length, query, stopVoiceSession, stopTranscribe, clearPersistedState]);
+  }, [response, suggestions, query, stopVoiceSession, stopTranscribe, clearPersistedState]);
 
   /* =======================================================
      LAYOUT
      ======================================================= */
 
   const layoutValues = useMemo(() => {
-    const hasContent =
-      ((suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing) ||
-      (searchVisuals.length > 0 && !isTranscribing);
-
-    const isExpanded = hasContent && !isPreparingToStream;
-
-    const targetWidth = isExpanded ? "460px" : isVoiceSession || isTranscribing ? "320px" : "360px";
-
+    const hasContent = (suggestions.length > 0 || response) && !isVoiceSession && !isTranscribing;
+    const isExpanded = hasContent && !isLoading;
+    const targetWidth = isExpanded
+      ? "min(460px, 92vw)"
+      : isVoiceSession || isTranscribing
+        ? "min(320px, 78vw)"
+        : "min(360px, 92vw)";
     const targetRadius = isExpanded ? "16px" : "999px";
 
-    return {
-      isExpanded,
-      targetWidth,
-      targetRadius,
-    };
-  }, [
-    suggestions.length,
-    response,
-    searchVisuals.length,
-    isVoiceSession,
-    isTranscribing,
-    isLoading,
-    isStreamingResponse,
-    isPreparingToStream,
-  ]);
+    return { isExpanded, targetWidth, targetRadius };
+  }, [suggestions.length, response, isVoiceSession, isTranscribing, isLoading]);
 
   /* =======================================================
      RENDER
@@ -3353,7 +3067,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     <div
       ref={searchBarRef}
       data-gdx-search
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-3 sm:px-4 z-50 w-full flex flex-col items-center gap-3"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 z-50 w-full flex flex-col items-center gap-3"
     >
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
@@ -3402,24 +3116,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       <div
-        className={`gdx-search-container mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
+        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
-        style={
-          {
-            width: layoutValues.targetWidth,
-            borderRadius: layoutValues.targetRadius,
-            transition:
-              "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
-            cursor: isListening ? "default" : undefined,
-            WebkitTouchCallout: "none",
-            WebkitUserSelect: "none",
-            touchAction: "manipulation",
-          } as React.CSSProperties
-        }
+        style={{
+          width: layoutValues.targetWidth,
+          maxWidth: "92vw",
+          borderRadius: layoutValues.targetRadius,
+          transition:
+            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+          cursor: isListening ? "default" : undefined,
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          touchAction: "manipulation",
+        }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-3.5 pt-4 sm:p-5 sm:pt-6" : "p-1.5 sm:p-2"}`}
+          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
             transitionDuration: "800ms",
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
@@ -3430,14 +3143,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             duration={800}
           >
             <div
-              className="flex gap-1.5 sm:gap-2 flex-wrap justify-center mb-2.5 sm:mb-3 animate-fadeIn"
+              className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
               style={{ animation: "fadeIn 0.8s ease forwards" }}
             >
               {suggestions.map((suggestion, index) => (
                 <button
                   key={index}
                   onClick={() => handleSuggestionClick(suggestion)}
-                  className="px-2.5 sm:px-3 py-1 bg-white/20 text-[11px] sm:text-sm font-normal rounded-full hover:bg-white/30 transition cursor-pointer"
+                  className="px-3 py-1 bg-white/20 text-xs sm:text-sm font-normal rounded-full hover:bg-white/30 transition cursor-pointer"
                   disabled={isLoading}
                 >
                   {suggestion}
@@ -3448,7 +3161,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
           <div
             className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
-              (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
+              response && !isVoiceSession && !isTranscribing
                 ? isCollapsing || isCollapsingToThink
                   ? "opacity-0 mb-0"
                   : "opacity-100 mb-5"
@@ -3458,41 +3171,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               maxHeight:
                 isCollapsing || isCollapsingToThink
                   ? "0px"
-                  : (response && !isVoiceSession && !isTranscribing) || (searchVisuals.length > 0 && !isTranscribing)
-                    ? "600px"
+                  : response && !isVoiceSession && !isTranscribing
+                    ? "384px"
                     : "0px",
               transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
               transitionDelay:
-                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage
-                  ? "900ms"
-                  : searchVisuals.length > 0 && isVoiceSession && !isCollapsing
-                    ? "900ms"
-                    : "0ms",
+                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
             }}
           >
-            {searchVisuals.length > 0 && !isTranscribing && (
-              <SearchVisualCarousel items={searchVisuals} visible={searchVisuals.length > 0 && !isTranscribing} />
-            )}
-
             {response && !isVoiceSession && !isTranscribing && (
-              <>
-                <div
-                  className="text-foreground text-[13px] sm:text-sm leading-relaxed font-normal px-3 sm:px-4 overflow-y-auto scrollbar-hide"
-                  style={{
-                    animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
-                    animationDelay: "0ms",
-                    maxHeight: "300px",
-                    fontWeight: 400,
-                  }}
-                  dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
-                />
-              </>
+              <div
+                className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
+                style={{
+                  animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                  animationDelay: isRestoredFromStorage ? "0ms" : "1000ms",
+                  maxHeight: "300px",
+                  fontWeight: 400,
+                }}
+                dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+              />
             )}
           </div>
 
           <form
             onSubmit={(event) => handleSubmit(event, undefined, false)}
-            className="flex items-center gap-1.5 sm:gap-2 relative min-h-[36px] sm:min-h-[40px]"
+            className="flex items-center gap-2 relative min-h-[40px]"
             onFocus={handleInputFocus}
           >
             {!isVoiceSession && !isTranscribing && (
@@ -3503,7 +3206,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   placeholder={isLoading ? "Thinking…" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-sm sm:text-base font-normal px-2.5 sm:px-4 h-9 sm:h-10 ${
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10 ${
                     isLoading ? "thinking-placeholder" : ""
                   }`}
                   disabled={isLoading}
@@ -3515,14 +3218,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
             {/* Talk with agent voice mode: Waveform WITHOUT timer */}
             {isVoiceSession && !isTranscribing && (
-              <div className="flex-1 flex items-center gap-1 sm:gap-2 pl-1.5 sm:pl-3 min-w-0">
+              <div className="flex-1 flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isVoiceSession} isSpeaking={isSpeaking || isListening} />
               </div>
             )}
 
             {/* Transcribe mode: Waveform WITH timer */}
             {isTranscribing && (
-              <div className="flex-1 flex items-center gap-1.5 sm:gap-3 pl-1.5 sm:pl-3 min-w-0">
+              <div className="flex-1 flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 min-w-0">
                 <BarWaveform analyser={analyserNode} isActive={isTranscribing} isSpeaking={isListening} />
                 <RecordingTimer isActive={isTranscribing} />
               </div>
@@ -3532,34 +3235,34 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             {isVoiceSession ? (
               <button
                 type="button"
-                onClick={() => stopVoiceSession()}
-                className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                onClick={stopVoiceSession}
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="End voice session"
                 aria-label="End voice session"
               >
-                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" strokeWidth={2} />
+                <X className="h-4 w-4 text-white" strokeWidth={2} />
               </button>
             ) : isTranscribing ? (
               <button
                 type="button"
                 onClick={isAndroidRef.current ? finishAndroidTranscription : stopTranscribe}
-                className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
                 title="Done transcribing"
                 aria-label="Done transcribing"
               >
-                <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" strokeWidth={2.5} />
+                <Check className="h-4 w-4 text-white" strokeWidth={2.5} />
               </button>
             ) : (
-              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pr-0.5 sm:pr-1">
+              <div className="flex items-center gap-1.5 shrink-0 pr-1">
                 {/* Transcribe mic button */}
                 <button
                   type="button"
                   onClick={startTranscribe}
-                  className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                  className="h-9 w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
                   title="Transcribe speech"
                   aria-label="Transcribe speech"
                 >
-                  <Mic className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2} />
+                  <Mic className="h-5 w-5" strokeWidth={2} />
                 </button>
 
                 {/* Talk with agent button (ChatGPT style) */}
@@ -3572,25 +3275,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       startVoiceSession();
                     }
                   }}
-                  className={`gdx-tts-button h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
+                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
                     query.trim() ? "bg-[#0084FF] hover:bg-[#0074E8]" : "bg-[#0084FF] hover:bg-[#0074E8]"
                   }`}
                   title={query.trim() ? "Search" : "Talk with GDx"}
                   aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
                   <span
-                    className={`absolute flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
                       query.trim() ? "opacity-0 scale-75 -translate-x-1.5" : "opacity-100 scale-100 translate-x-0"
                     }`}
                   >
-                    <ChatGPTWaveformIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+                    <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
                   </span>
                   <span
-                    className={`absolute flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
                       query.trim() ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-75 translate-x-1.5"
                     }`}
                   >
-                    <ArrowRight className="h-4 w-4 sm:h-[18px] sm:w-[18px] text-white" strokeWidth={2.25} />
+                    <ArrowRight className="h-[18px] w-[18px] text-white" strokeWidth={2.25} />
                   </span>
                 </button>
               </div>
@@ -3600,7 +3303,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
-
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
@@ -3609,37 +3311,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes streamTextPulse {
-          from {
-            opacity: 0.86;
-            filter: blur(1.2px);
-          }
-          to {
-            opacity: 1;
-            filter: blur(0);
-          }
-        }
-
-        @keyframes searchVisualsReveal {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes searchVisualImage {
-          from {
-            opacity: 0.7;
-          }
-          to {
-            opacity: 1;
-          }
         }
 
         @keyframes delayedFadeIn {
