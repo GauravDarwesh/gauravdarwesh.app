@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, ChangeEvent, FormEvent, type CSSProperties } from "react";
 import { Input } from "@/components/ui/input";
 import { Mic, Check, X, ArrowRight } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
@@ -63,6 +63,111 @@ const ChatGPTWaveformIcon: React.FC<{ className?: string }> = ({ className = "h-
     <rect x="18.5" y="9" width="2.5" height="6" rx="1.25" />
   </svg>
 );
+
+/* =========================================================
+   2. AICSS-INSPIRED G1 PROCESSING ORB
+   Kept inline so the SearchBar adds no dependency or layout work.
+   The geometry follows the G1 helix/globe concept from AICSS Orbs.
+   ========================================================= */
+
+type G1Dot = {
+  x: number;
+  y: number;
+  opacity: number;
+  delay: number;
+};
+
+const buildG1Dots = (): G1Dot[] => {
+  const radius = 8.5;
+  const tilt = (14 * Math.PI) / 180;
+  const steps = 8;
+  const rings = [
+    { lat: 52, count: 8 },
+    { lat: 26, count: 8 },
+    { lat: 0, count: 8 },
+    { lat: -26, count: 8 },
+    { lat: -52, count: 8 },
+  ];
+
+  const project = (x: number, y: number, z: number, spin: number) => {
+    const cs = Math.cos(spin);
+    const ss = Math.sin(spin);
+    const x1 = x * cs - z * ss;
+    const z1 = x * ss + z * cs;
+    const ct = Math.cos(tilt);
+    const st = Math.sin(tilt);
+    return {
+      x: x1,
+      y: y * ct - z1 * st,
+      z: y * st + z1 * ct,
+    };
+  };
+
+  const depthOpacity = (z: number) => {
+    const t = Math.max(0, Math.min(1, (z / radius + 0.15) / 1.15));
+    return 0.18 + t * 0.82;
+  };
+
+  const dots: G1Dot[] = [];
+  for (let ringIndex = 0; ringIndex < rings.length; ringIndex += 1) {
+    const ring = rings[ringIndex];
+    const lat = (ring.lat * Math.PI) / 180;
+    const y0 = Math.sin(lat) * radius;
+    const ringRadius = Math.cos(lat) * radius;
+
+    for (let j = 0; j < ring.count; j += 1) {
+      const lon = (j / ring.count) * Math.PI * 2;
+      const point = project(
+        Math.cos(lon) * ringRadius,
+        y0,
+        Math.sin(lon) * ringRadius,
+        0,
+      );
+
+      // Negative delays seed the dots around the rotation so the globe is
+      // already in motion when it first mounts.
+      dots.push({
+        x: point.x,
+        y: -point.y,
+        opacity: depthOpacity(point.z),
+        delay: -((j + ringIndex * 0.65) % steps) * 90,
+      });
+    }
+  }
+
+  return dots;
+};
+
+const G1_DOTS = buildG1Dots();
+
+const G1ProcessingOrb: React.FC<{ size?: number; className?: string }> = ({ size = 18, className = "" }) => {
+  return (
+    <span
+      className={`gdx-g1-orb ${className}`}
+      aria-hidden="true"
+      style={
+        {
+          width: size,
+          height: size,
+          "--g1-scale": size / 28,
+        } as CSSProperties
+      }
+    >
+      <span className="gdx-g1-orb-stage">
+        {G1_DOTS.map((dot, index) => {
+          const vars = {
+            "--g1-x": `${dot.x}px`,
+            "--g1-y": `${dot.y}px`,
+            "--g1-o": dot.opacity.toFixed(3),
+            "--g1-delay": `${dot.delay}ms`,
+          } as CSSProperties;
+
+          return <span key={index} className="gdx-g1-orb-dot" style={vars} />;
+        })}
+      </span>
+    </span>
+  );
+};
 
 /* =========================================================
    2. MARKDOWN → HTML
@@ -234,74 +339,75 @@ const extractVisualItems = (visuals: any): VisualItem[] => {
   });
 };
 
-const waitForVisualReady = (items: VisualItem[]): Promise<void> => {
-  const firstUrl = items[0]?.url;
-  if (!firstUrl) return Promise.resolve();
-
-  return new Promise<void>((resolve) => {
-    const image = new Image();
-    let settled = false;
-
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-
-    image.onload = finish;
-    image.onerror = finish;
-    image.src = firstUrl;
-
-    window.setTimeout(finish, 5000);
-  });
-};
-
 const SearchVisualCarousel: React.FC<{
   items: VisualItem[];
   visible: boolean;
-}> = ({ items, visible }) => {
+}> = React.memo(({ items, visible }) => {
   const [index, setIndex] = useState(0);
-  const [loaded, setLoaded] = useState<Set<string>>(new Set());
+  const [readyUrl, setReadyUrl] = useState<string | null>(null);
+  const readyUrlsRef = useRef<Set<string>>(new Set());
+  const preloadIndexRef = useRef(0);
+  const preloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!items.length) {
-      setIndex(0);
-      setLoaded(new Set());
-      return;
-    }
-
-    setIndex(0);
-
-    const preloaded: HTMLImageElement[] = [];
-    const loadedUrls = new Set<string>();
     let cancelled = false;
 
-    const markLoaded = (url: string) => {
-      if (cancelled) return;
-      loadedUrls.add(url);
-      setLoaded(new Set(loadedUrls));
-    };
+    setIndex(0);
+    setReadyUrl(null);
+    readyUrlsRef.current = new Set();
+    preloadIndexRef.current = 0;
 
-    for (const item of items) {
+    if (preloadTimerRef.current) {
+      clearTimeout(preloadTimerRef.current);
+      preloadTimerRef.current = null;
+    }
+
+    if (!items.length) return;
+
+    const preloadOne = () => {
+      if (cancelled || preloadIndexRef.current >= items.length) return;
+
+      const item = items[preloadIndexRef.current];
+      preloadIndexRef.current += 1;
+
       const image = new Image();
       image.decoding = "async";
-      image.onload = () => markLoaded(item.url);
-      image.onerror = () => {
-        /* Keep the current image visible; do not switch to a failed image. */
-      };
-      image.src = item.url;
-      preloaded.push(image);
 
-      if (image.complete && image.naturalWidth > 0) {
-        markLoaded(item.url);
-      }
-    }
+      image.onload = () => {
+        if (cancelled) return;
+
+        readyUrlsRef.current.add(item.url);
+        if (item.url === items[0]?.url) {
+          setReadyUrl(item.url);
+        }
+
+        // Decode/load one image at a time. This prevents a large gallery
+        // from competing with the SearchBar expansion for the main thread.
+        preloadTimerRef.current = setTimeout(preloadOne, 40);
+      };
+
+      image.onerror = () => {
+        if (cancelled) return;
+        preloadTimerRef.current = setTimeout(preloadOne, 40);
+      };
+
+      image.src = item.url;
+    };
+
+    // Give React/browser one paint for the shell expansion before starting image work.
+    let frame2: number | null = null;
+    const frame1 = window.requestAnimationFrame(() => {
+      frame2 = window.requestAnimationFrame(preloadOne);
+    });
 
     return () => {
       cancelled = true;
-      for (const image of preloaded) {
-        image.onload = null;
-        image.onerror = null;
+      window.cancelAnimationFrame(frame1);
+      if (frame2 !== null) window.cancelAnimationFrame(frame2);
+
+      if (preloadTimerRef.current) {
+        clearTimeout(preloadTimerRef.current);
+        preloadTimerRef.current = null;
       }
     };
   }, [items]);
@@ -311,56 +417,59 @@ const SearchVisualCarousel: React.FC<{
 
     const timer = window.setInterval(() => {
       setIndex((current) => {
-        for (let step = 1; step <= items.length; step++) {
+        for (let step = 1; step <= items.length; step += 1) {
           const next = (current + step) % items.length;
-          if (loaded.has(items[next].url)) {
+          if (readyUrlsRef.current.has(items[next].url)) {
             return next;
           }
         }
-
         return current;
       });
     }, 5000);
 
     return () => window.clearInterval(timer);
-  }, [items, loaded, visible]);
+  }, [items, visible]);
 
   if (!items.length) return null;
 
   const current = items[index];
+  const currentReady = readyUrlsRef.current.has(current.url) || readyUrl === current.url;
 
   return (
-    <div className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg backdrop-blur-sm">
-      <div className="relative w-full h-[150px] sm:h-[160px] overflow-hidden bg-black/5">
-        {items.map((item, itemIndex) => (
-          <img
-            key={item.url}
-            src={item.url}
-            alt={item.title || "Gaurav's travel visual"}
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              opacity: itemIndex === index && loaded.has(item.url) ? 1 : 0,
-              transition: "opacity 900ms cubic-bezier(0.25,1,0.3,1)",
-              willChange: "opacity",
-              pointerEvents: itemIndex === index ? "auto" : "none",
-            }}
-            loading={itemIndex === 0 ? "eager" : "lazy"}
-            decoding="async"
-            draggable={false}
-          />
-        ))}
+    <div
+      className="w-full mb-4 overflow-hidden rounded-2xl border border-foreground/15 bg-white/5 shadow-lg"
+      style={{ contain: "paint", contentVisibility: "auto" }}
+    >
+      <div
+        className="relative w-full h-[150px] sm:h-[160px] overflow-hidden bg-black/5"
+        style={{ contain: "paint" }}
+      >
+        <img
+          key={current.url}
+          src={current.url}
+          alt={current.title || "Gaurav's travel visual"}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{
+            opacity: currentReady ? 1 : 0,
+            transition: "opacity 450ms cubic-bezier(0.22, 1, 0.36, 1)",
+            willChange: "opacity",
+          }}
+          loading="eager"
+          decoding="async"
+          draggable={false}
+        />
 
-        <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/90 text-[11px] border border-white/15">
+        <div className="absolute left-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 text-white/90 text-[11px] border border-white/15">
           {current.title || "Visuals"}
         </div>
 
-        <div className="absolute right-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-sm text-white/80 text-[11px] border border-white/15 tabular-nums">
+        <div className="absolute right-3 bottom-3 px-2.5 py-1 rounded-full bg-black/35 text-white/80 text-[11px] border border-white/15 tabular-nums">
           {index + 1} / {items.length}
         </div>
       </div>
     </div>
   );
-};
+});
 
 /* =========================================================
    3. FADE HELPER
@@ -673,7 +782,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [fullText, setFullText] = useState("");
   const suggestionIndexRef = useRef(0);
   const [hasInteracted, setHasInteracted] = useState(persistedState.hasInteracted);
-  const [lastActivityTime, setLastActivityTime] = useState(persistedState.lastActivityTime);
+  const lastActivityTimeRef = useRef<number>(persistedState.lastActivityTime);
   const [showExpandedSuggestions, setShowExpandedSuggestions] = useState(persistedState.showExpandedSuggestions);
   const [isCollapsing, setIsCollapsing] = useState(false);
   const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(!!persistedState.response);
@@ -777,9 +886,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       suggestions,
       hasInteracted,
       showExpandedSuggestions,
-      lastActivityTime,
+      lastActivityTime: lastActivityTimeRef.current,
     });
-  }, [response, suggestions, hasInteracted, showExpandedSuggestions, lastActivityTime, saveState]);
+  }, [response, suggestions, hasInteracted, showExpandedSuggestions, saveState]);
 
   const clearPersistedState = useCallback(() => {
     try {
@@ -978,25 +1087,35 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ACTIVITY TRACKING
      ======================================================= */
 
-  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
+  const activityRafRef = useRef<number | null>(null);
 
-  const debouncedSetActivity = useCallback(() => {
-    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    debounceTimeoutRef.current = setTimeout(() => setLastActivityTime(Date.now()), 100);
+  const markActivity = useCallback(() => {
+    lastActivityTimeRef.current = Date.now();
+
+    // Keep activity tracking off the React render path.
+    if (activityRafRef.current !== null) return;
+    activityRafRef.current = window.requestAnimationFrame(() => {
+      activityRafRef.current = null;
+    });
   }, []);
 
   useEffect(() => {
-    const handleImmediate = () => setLastActivityTime(Date.now());
-
-    window.addEventListener("mousemove", debouncedSetActivity);
-    ["keypress", "click", "scroll"].forEach((event) => window.addEventListener(event, handleImmediate));
+    window.addEventListener("mousemove", markActivity, { passive: true });
+    window.addEventListener("keypress", markActivity);
+    window.addEventListener("click", markActivity);
+    window.addEventListener("scroll", markActivity, { passive: true });
 
     return () => {
-      window.removeEventListener("mousemove", debouncedSetActivity);
-      ["keypress", "click", "scroll"].forEach((event) => window.removeEventListener(event, handleImmediate));
-      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+      window.removeEventListener("mousemove", markActivity);
+      window.removeEventListener("keypress", markActivity);
+      window.removeEventListener("click", markActivity);
+      window.removeEventListener("scroll", markActivity);
+      if (activityRafRef.current !== null) {
+        window.cancelAnimationFrame(activityRafRef.current);
+        activityRafRef.current = null;
+      }
     };
-  }, [debouncedSetActivity]);
+  }, [markActivity]);
 
   /* =======================================================
      FIRST VISIT
@@ -1031,7 +1150,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
   useEffect(() => {
     const idleTimer = setInterval(() => {
-      const idle = Date.now() - lastActivityTime;
+      const idle = Date.now() - lastActivityTimeRef.current;
       if (response || suggestions.length > 0 || isVoiceSession || isTranscribing) return;
 
       if (idle > 10000 && hasInteracted && !isLoading) {
@@ -1040,11 +1159,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 2000);
 
     return () => clearInterval(idleTimer);
-  }, [lastActivityTime, hasInteracted, isLoading, response, suggestions, isVoiceSession, isTranscribing]);
+  }, [hasInteracted, isLoading, response, suggestions, isVoiceSession, isTranscribing]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const idle = Date.now() - lastActivityTime;
+      const idle = Date.now() - lastActivityTimeRef.current;
       const shouldShow =
         (response || suggestions.length > 0) && !isLoading && idle > 10000 && !isVoiceSession && !isTranscribing;
 
@@ -1052,7 +1171,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [lastActivityTime, response, suggestions, isLoading, isVoiceSession, isTranscribing]);
+  }, [response, suggestions, isLoading, isVoiceSession, isTranscribing]);
 
   useEffect(() => {
     if (!showTypewriter || isVoiceSession || isTranscribing) {
@@ -3118,25 +3237,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       }
 
       /*
-       * Wait for the complete response before expanding the SearchBar.
-       * For visual requests, the first image is also loaded before the
-       * response is released to the UI.
+       * Release the response immediately. Visual loading is intentionally
+       * decoupled from the SearchBar expansion so large image collections
+       * cannot block or stutter the shell animation.
        */
       setIsPreparingToStream(true);
 
       const result = await sendChatMessage(text);
       const answer = String((result as any)?.response ?? "");
-      const suggs = (result as any)?.suggestions || [];
+      const suggs = Array.isArray((result as any)?.suggestions)
+        ? (result as any).suggestions
+        : [];
       const returnedVisuals = extractVisualItems((result as any)?.visuals);
-
-      if (returnedVisuals.length > 0) {
-        await waitForVisualReady(returnedVisuals);
-        setSearchVisuals(returnedVisuals);
-      }
 
       setResponse(answer || null);
       setSuggestions(suggs);
       setIsRestoredFromStorage(false);
+      setSearchVisuals(returnedVisuals);
       onSearch?.(answer);
     } catch (error) {
       setIsPreparingToStream(false);
@@ -3295,6 +3412,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      RENDER
      ======================================================= */
 
+  const renderedResponseHtml = useMemo(
+    () => (response ? convertMarkdownToHtml(response) : ""),
+    [response],
+  );
+
   return (
     <div
       ref={searchBarRef}
@@ -3304,7 +3426,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       {showTypewriter && fullText && suggestionPhase !== "hidden" && !isVoiceSession && !isTranscribing && (
         <div
           onClick={() => handleSuggestionClick(fullText)}
-          className="gdx-suggestion-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full border border-white/20 shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-all"
+          className="gdx-suggestion-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full border border-white/20 shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis transition-[opacity,transform,background-color,color] duration-200"
           style={{
             animation:
               suggestionPhase === "emerging"
@@ -3338,7 +3460,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 event.stopPropagation();
                 window.location.assign(link.url);
               }}
-              className="gdx-voice-link-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis hover:bg-white/30 active:scale-95 transition-all"
+              className="gdx-voice-link-bubble cursor-pointer bg-white/20 backdrop-blur-sm text-sm font-normal text-white px-4 py-2 rounded-full shadow-md whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis hover:bg-white/30 active:scale-95 transition-[opacity,transform,background-color,color] duration-200"
               aria-label={`Open ${link.label}`}
             >
               ↗ {link.label}
@@ -3348,7 +3470,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       )}
 
       <div
-        className={`mx-auto shadow-lg border bg-white/10 backdrop-blur-xl text-foreground border-foreground/30 overflow-hidden select-none ${
+        className={`gdx-search-shell mx-auto shadow-lg border bg-white/10 backdrop-blur-md text-foreground border-foreground/30 overflow-hidden select-none ${
           isLoading ? "thinking-container" : ""
         } ${isVoiceSession || isTranscribing || isListening ? "listening-container" : ""}`}
         style={{
@@ -3356,7 +3478,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           maxWidth: "92vw",
           borderRadius: layoutValues.targetRadius,
           transition:
-            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+            "width 650ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 520ms cubic-bezier(0.22, 1, 0.36, 1), background-color 300ms ease, box-shadow 300ms ease",
+          willChange: "width, border-radius",
+          contain: "layout paint style",
+          isolation: "isolate",
+          transform: "translateZ(0)",
+          backfaceVisibility: "hidden",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
@@ -3364,10 +3491,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
+          className={`gdx-search-shell-inner ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
-            transitionDuration: "800ms",
-            transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
+            transition:
+              "padding 520ms cubic-bezier(0.22, 1, 0.36, 1)",
+            transitionDelay: "0ms",
           }}
         >
           <Fade
@@ -3406,9 +3534,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   : response && !isVoiceSession && !isTranscribing
                     ? "600px"
                     : "0px",
-              transitionDuration: isCollapsingToThink ? "400ms" : "1000ms",
-              transitionDelay:
-                response && !isCollapsing && !isCollapsingToThink && !isRestoredFromStorage ? "900ms" : "0ms",
+              transition:
+                "max-height 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease, margin 360ms ease",
+              transitionDelay: "0ms",
             }}
           >
             {response && !isVoiceSession && !isTranscribing && (
@@ -3426,7 +3554,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                     maxHeight: "300px",
                     fontWeight: 400,
                   }}
-                  dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(response) }}
+                  dangerouslySetInnerHTML={{ __html: renderedResponseHtml }}
                 />
               </>
             )}
@@ -3442,7 +3570,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <Input
                   ref={inputRef}
                   type="text"
-                  placeholder={isLoading ? "Thinking…" : placeholderText}
+                  placeholder={isLoading ? "" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
                   className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground text-base font-normal px-4 h-10 ${
@@ -3452,6 +3580,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   aria-label="Ask anything"
                   style={{ fontWeight: 400 }}
                 />
+                {isLoading && (
+                  <div className="gdx-thinking-indicator" aria-live="polite">
+                    <G1ProcessingOrb size={18} />
+                    <span className="gdx-thinking-label">Thinking…</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -3475,7 +3609,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <button
                 type="button"
                 onClick={stopVoiceSession}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-[transform,background-color,color] duration-200 active:scale-95 cursor-pointer"
                 title="End voice session"
                 aria-label="End voice session"
               >
@@ -3485,7 +3619,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <button
                 type="button"
                 onClick={isAndroidRef.current ? finishAndroidTranscription : stopTranscribe}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-[transform,background-color,color] duration-200 active:scale-95 cursor-pointer"
                 title="Done transcribing"
                 aria-label="Done transcribing"
               >
@@ -3497,7 +3631,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <button
                   type="button"
                   onClick={startTranscribe}
-                  className="h-9 w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                  className="h-9 w-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-[transform,background-color,color] duration-200 active:scale-95 cursor-pointer"
                   title="Transcribe speech"
                   aria-label="Transcribe speech"
                 >
@@ -3542,6 +3676,148 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       </div>
 
       <style>{`
+        /* -------------------------------------------------------
+           G1 processing indicator
+           Only transform/opacity animate so it stays on the compositor.
+           ------------------------------------------------------- */
+        .gdx-thinking-indicator {
+          position: absolute;
+          inset: 0 auto 0 0;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding-left: 16px;
+          pointer-events: none;
+          user-select: none;
+          z-index: 2;
+          contain: layout paint;
+        }
+
+        .gdx-thinking-label {
+          color: rgba(255, 255, 255, 0.64);
+          font-size: 1rem;
+          line-height: 1;
+          font-weight: 400;
+          text-shadow: 0 0 3px rgba(255, 255, 255, 0.08);
+        }
+
+        .gdx-g1-orb {
+          position: relative;
+          display: inline-block;
+          flex: 0 0 auto;
+          contain: layout paint;
+          overflow: visible;
+          color: currentColor;
+          transform: translateZ(0);
+        }
+
+        .gdx-g1-orb-stage {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 28px;
+          height: 28px;
+          transform: translate(-50%, -50%) scale(var(--g1-scale));
+          transform-origin: center;
+          will-change: transform;
+        }
+
+        .gdx-g1-orb-dot {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 2.2px;
+          height: 2.2px;
+          margin-left: -1.1px;
+          margin-top: -1.1px;
+          border-radius: 999px;
+          background: currentColor;
+          opacity: var(--g1-o);
+          transform: translate3d(var(--g1-x), var(--g1-y), 0);
+          animation: gdxG1Spin 1.32s linear infinite;
+          animation-delay: var(--g1-delay, 0ms);
+          will-change: transform, opacity;
+          backface-visibility: hidden;
+        }
+
+        @keyframes gdxG1Spin {
+          0% {
+            transform: translate3d(var(--g1-x), var(--g1-y), 0) scale(1);
+            opacity: var(--g1-o);
+          }
+          12.5% {
+            transform: translate3d(calc(var(--g1-x) * 0.72), calc(var(--g1-y) * 0.72), 0) scale(0.95);
+            opacity: calc(var(--g1-o) * 0.92);
+          }
+          25% {
+            transform: translate3d(calc(var(--g1-x) * 0.18), calc(var(--g1-y) * 0.18), 0) scale(0.8);
+            opacity: calc(var(--g1-o) * 0.72);
+          }
+          37.5% {
+            transform: translate3d(calc(var(--g1-x) * -0.55), calc(var(--g1-y) * -0.55), 0) scale(0.72);
+            opacity: calc(var(--g1-o) * 0.48);
+          }
+          50% {
+            transform: translate3d(calc(var(--g1-x) * -0.92), calc(var(--g1-y) * -0.92), 0) scale(0.7);
+            opacity: calc(var(--g1-o) * 0.38);
+          }
+          62.5% {
+            transform: translate3d(calc(var(--g1-x) * -0.55), calc(var(--g1-y) * -0.55), 0) scale(0.72);
+            opacity: calc(var(--g1-o) * 0.48);
+          }
+          75% {
+            transform: translate3d(calc(var(--g1-x) * 0.18), calc(var(--g1-y) * 0.18), 0) scale(0.8);
+            opacity: calc(var(--g1-o) * 0.72);
+          }
+          87.5% {
+            transform: translate3d(calc(var(--g1-x) * 0.72), calc(var(--g1-y) * 0.72), 0) scale(0.95);
+            opacity: calc(var(--g1-o) * 0.92);
+          }
+          100% {
+            transform: translate3d(var(--g1-x), var(--g1-y), 0) scale(1);
+            opacity: var(--g1-o);
+          }
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-label {
+          color: rgba(0, 0, 0, 0.58);
+          text-shadow: 0 0 3px rgba(0, 0, 0, 0.08);
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-g1-orb {
+          color: rgba(0, 0, 0, 0.72);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .gdx-g1-orb-dot {
+            animation: none !important;
+          }
+        }
+
+        .gdx-search-shell,
+        .gdx-search-shell-inner,
+        .gdx-suggestion-bubble,
+        .gdx-voice-link-bubble {
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+        }
+
+        .gdx-search-shell-inner {
+          transform: translateZ(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .gdx-search-shell,
+          .gdx-search-shell-inner,
+          .gdx-suggestion-bubble,
+          .gdx-voice-link-bubble,
+          .gdx-tts-button,
+          .gdx-search-shell img {
+            animation: none !important;
+            transition-duration: 1ms !important;
+          }
+        }
+
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
