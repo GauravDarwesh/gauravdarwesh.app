@@ -85,16 +85,20 @@ const blogPosts: BlogPost[] = [
   },
 ];
 
-const Book = ({ post, index, onOpen }: { post: BlogPost; index: number; onOpen: () => void }) => {
-  const heights = [224, 246, 234, 252, 240, 248, 228, 242];
+/* -------------------------------------------------------------------------- */
+/* BOOK                                                                        */
+/* -------------------------------------------------------------------------- */
 
-  const rotations = [-1.1, 0.7, -0.5, 0.9, -0.8, 0.5, -0.9, 0.7];
+const Book = ({ post, index, onOpen }: { post: BlogPost; index: number; onOpen: () => void }) => {
+  const heights = [218, 242, 228, 250, 235, 246, 222, 238];
+
+  const rotations = [-1, 0.5, -0.5, 0.8, -0.7, 0.4, -0.8, 0.6];
 
   const backgrounds = [
-    "linear-gradient(145deg, rgba(255,255,255,.17), rgba(255,255,255,.055))",
-    "linear-gradient(145deg, rgba(255,255,255,.13), rgba(255,255,255,.035))",
-    "linear-gradient(145deg, rgba(255,255,255,.20), rgba(255,255,255,.06))",
-    "linear-gradient(145deg, rgba(255,255,255,.115), rgba(255,255,255,.04))",
+    "linear-gradient(150deg, rgba(255,255,255,.18), rgba(255,255,255,.055))",
+    "linear-gradient(150deg, rgba(255,255,255,.13), rgba(255,255,255,.035))",
+    "linear-gradient(150deg, rgba(255,255,255,.20), rgba(255,255,255,.06))",
+    "linear-gradient(150deg, rgba(255,255,255,.115), rgba(255,255,255,.04))",
   ];
 
   const height = heights[index % heights.length];
@@ -109,29 +113,29 @@ const Book = ({ post, index, onOpen }: { post: BlogPost; index: number; onOpen: 
       className="
         group
         relative
-        shrink-0
-        w-[112px]
-        sm:w-[124px]
-        md:w-[134px]
-        lg:w-[142px]
-        self-end
+        flex-1
+        min-w-0
+        max-w-[145px]
+        h-[250px]
+        sm:h-[275px]
+        md:h-[295px]
+        lg:h-[310px]
         focus:outline-none
       "
       style={{
-        height: `${height}px`,
         transform: `rotate(${rotation}deg)`,
         transformOrigin: "bottom center",
         zIndex: index + 1,
       }}
     >
-      {/* Ground shadow */}
+      {/* Shadow */}
       <div
         className="
           absolute
-          bottom-[-7px]
           left-1/2
+          bottom-[2px]
           -translate-x-1/2
-          w-[78%]
+          w-[76%]
           h-3
           rounded-full
           bg-black/35
@@ -139,69 +143,52 @@ const Book = ({ post, index, onOpen }: { post: BlogPost; index: number; onOpen: 
           opacity-70
           transition-all
           duration-500
-          group-hover:w-[70%]
+          group-hover:w-[65%]
           group-hover:opacity-45
         "
       />
 
-      {/* Book itself */}
+      {/* Book */}
       <div
         className="
           absolute
-          inset-0
-          overflow-hidden
+          left-1/2
+          bottom-[10px]
+          -translate-x-1/2
+          w-[76%]
+          h-[var(--book-height)]
           rounded-[4px]
-          border
-          border-white/[0.13]
+          overflow-hidden
+          shadow-[0_18px_35px_rgba(0,0,0,.24)]
           transition-all
           duration-500
-          ease-out
-          shadow-[0_18px_32px_rgba(0,0,0,.24)]
-          group-hover:border-white/[0.22]
-          group-hover:shadow-[0_22px_38px_rgba(0,0,0,.30)]
+          ease-[cubic-bezier(.22,1,.36,1)]
+          group-hover:-translate-y-5
+          group-hover:shadow-[0_25px_42px_rgba(0,0,0,.30)]
         "
-        style={{
-          background,
-        }}
+        style={
+          {
+            "--book-height": `${height}px`,
+            background,
+          } as React.CSSProperties
+        }
       >
-        {/* Left edge */}
-        <div
-          className="
-            absolute
-            inset-y-0
-            left-0
-            w-[6px]
-            bg-black/[0.08]
-          "
-        />
+        {/* Minimal book depth */}
+        <div className="absolute inset-y-0 left-0 w-[5px] bg-black/[0.08]" />
 
-        {/* Right depth */}
-        <div
-          className="
-            absolute
-            inset-y-0
-            right-0
-            w-[5px]
-            bg-black/[0.08]
-          "
-        />
+        <div className="absolute inset-y-0 right-0 w-[4px] bg-black/[0.08]" />
 
-        {/* Cover frame */}
-        <div
-          className="
-            absolute
-            inset-[9px]
-            rounded-[2px]
-            border
-            border-white/[0.085]
-          "
-        >
-          {/* Top metadata */}
-          <div className="absolute top-3 left-3 right-3 flex justify-between items-center">
-            <span className="text-[7px] tracking-[0.16em] text-white/28">{String(index + 1).padStart(2, "0")}</span>
+        {/* Cover */}
+        <div className="absolute inset-[9px] rounded-[2px] border border-white/[0.075]">
+          {/* Number */}
+          <span className="absolute top-3 left-3 text-[7px] tracking-[0.18em] text-white/25">
+            {String(index + 1).padStart(2, "0")}
+          </span>
 
-            <span className="text-[7px] tracking-[0.12em] text-white/25">{new Date(post.date).getFullYear()}</span>
-          </div>
+          {/* Year */}
+          <span className="absolute top-3 right-3 text-[7px] tracking-[0.12em] text-white/22">
+            {new Date(post.date).getFullYear()}
+          </span>
 
           {/* Title */}
           <div className="absolute inset-x-4 top-1/2 -translate-y-1/2">
@@ -212,8 +199,8 @@ const Book = ({ post, index, onOpen }: { post: BlogPost; index: number; onOpen: 
                 text-[14px]
                 sm:text-[15px]
                 md:text-[16px]
-                leading-[1.12]
-                tracking-[-0.018em]
+                leading-[1.13]
+                tracking-[-0.02em]
                 text-white/[0.88]
                 text-left
               "
@@ -221,29 +208,22 @@ const Book = ({ post, index, onOpen }: { post: BlogPost; index: number; onOpen: 
               {post.displayTitle}
             </span>
           </div>
-
-          {/* Bottom metadata */}
-          <div className="absolute left-4 right-4 bottom-3">
-            <div className="h-px bg-white/[0.075] mb-2" />
-
-            <span className="block text-[7px] uppercase tracking-[0.16em] text-white/27 truncate">{post.tags[0]}</span>
-          </div>
         </div>
 
-        {/* Soft cover reflection */}
+        {/* Soft light */}
         <div
           className="
-            pointer-events-none
             absolute
             inset-0
+            pointer-events-none
             bg-gradient-to-br
             from-white/[0.09]
             via-transparent
             to-transparent
             opacity-70
+            group-hover:opacity-100
             transition-opacity
             duration-500
-            group-hover:opacity-100
           "
         />
       </div>
@@ -251,14 +231,26 @@ const Book = ({ post, index, onOpen }: { post: BlogPost; index: number; onOpen: 
   );
 };
 
+/* -------------------------------------------------------------------------- */
+/* BLOG                                                                        */
+/* -------------------------------------------------------------------------- */
+
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
+
   const [filterOpen, setFilterOpen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
   const [sortOrder, setSortOrder] = useState<"newer" | "older">("newer");
+
   const [sortOpen, setSortOpen] = useState(false);
   const [isSortAnimating, setIsSortAnimating] = useState(false);
+
+  /* ------------------------------------------------------------------------ */
+  /* Prevent background scrolling when Notion modal is open                   */
+  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     if (activeNotion) {
@@ -272,6 +264,10 @@ const Blog = () => {
     };
   }, [activeNotion]);
 
+  /* ------------------------------------------------------------------------ */
+  /* Tags                                                                      */
+  /* ------------------------------------------------------------------------ */
+
   const allTags = useMemo(() => Array.from(new Set(blogPosts.flatMap((post) => post.tags))), []);
 
   const toggleTag = (tag: string) => {
@@ -281,6 +277,10 @@ const Blog = () => {
       setSelectedTags([...selectedTags, tag]);
     }
   };
+
+  /* ------------------------------------------------------------------------ */
+  /* Filter + Sort                                                             */
+  /* ------------------------------------------------------------------------ */
 
   const filteredPosts = useMemo(() => {
     const posts =
@@ -296,30 +296,12 @@ const Blog = () => {
     });
   }, [selectedTags, sortOrder]);
 
-  const closeFilters = () => {
-    if (filterOpen) {
-      setIsAnimating(true);
-
-      setTimeout(() => {
-        setFilterOpen(false);
-        setIsAnimating(false);
-      }, 300);
-    }
-  };
-
-  const closeSort = () => {
-    if (sortOpen) {
-      setIsSortAnimating(true);
-
-      setTimeout(() => {
-        setSortOpen(false);
-        setIsSortAnimating(false);
-      }, 300);
-    }
-  };
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                    */
+  /* ------------------------------------------------------------------------ */
 
   return (
-    <div className="site-page min-h-screen w-full relative overflow-hidden">
+    <div className="site-page blog-page min-h-screen w-full relative overflow-x-hidden">
       <Helmet>
         <title>Notions — Writing by Gaurav Darwesh</title>
 
@@ -349,9 +331,9 @@ const Blog = () => {
       />
 
       <div className="relative z-10 min-h-screen flex flex-col">
-        {/* ---------------------------------------------------------------- */}
-        {/* HEADER - SAME AS ORIGINAL                                        */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ------------------------------------------------------------------ */}
+        {/* ORIGINAL TAGLINE — UNCHANGED                                      */}
+        {/* ------------------------------------------------------------------ */}
 
         <div className="flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-12">
           <div className="text-center">
@@ -361,22 +343,27 @@ const Blog = () => {
           </div>
         </div>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* MAIN                                                              */}
-        {/* ---------------------------------------------------------------- */}
+        {/* ------------------------------------------------------------------ */}
+        {/* CONTENT                                                            */}
+        {/* ------------------------------------------------------------------ */}
 
         <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-40">
           {/* ---------------------------------------------------------------- */}
-          {/* FILTER / SORT                                                    */}
+          {/* FILTERS                                                          */}
           {/* ---------------------------------------------------------------- */}
 
-          <div className="mb-14 relative">
-            <div className="flex items-center gap-3 flex-wrap justify-start">
+          <div className="mb-12 relative">
+            <div className="flex items-center gap-3 flex-wrap">
               {/* Filter */}
               <button
                 onClick={() => {
                   if (filterOpen) {
-                    closeFilters();
+                    setIsAnimating(true);
+
+                    setTimeout(() => {
+                      setFilterOpen(false);
+                      setIsAnimating(false);
+                    }, 300);
                   } else {
                     setFilterOpen(true);
                     setSortOpen(false);
@@ -419,14 +406,13 @@ const Blog = () => {
                     backdrop-blur-sm
                     hover:bg-white/20
                     transition-all
-                    duration-300
                   "
                 >
                   Clear All
                 </button>
               )}
 
-              {/* Active tags */}
+              {/* Selected filters */}
               {selectedTags.map((tag) => (
                 <span
                   key={tag}
@@ -447,15 +433,7 @@ const Blog = () => {
                 >
                   {tag}
 
-                  <button
-                    onClick={() => toggleTag(tag)}
-                    className="
-                      text-white/70
-                      hover:text-white
-                      transition-colors
-                    "
-                    aria-label={`Remove ${tag} filter`}
-                  >
+                  <button onClick={() => toggleTag(tag)} className="text-white/70 hover:text-white">
                     ✕
                   </button>
                 </span>
@@ -465,7 +443,12 @@ const Blog = () => {
               <button
                 onClick={() => {
                   if (sortOpen) {
-                    closeSort();
+                    setIsSortAnimating(true);
+
+                    setTimeout(() => {
+                      setSortOpen(false);
+                      setIsSortAnimating(false);
+                    }, 300);
                   } else {
                     setSortOpen(true);
                     setFilterOpen(false);
@@ -509,11 +492,21 @@ const Blog = () => {
                 `}
                 onClick={() => {
                   if (filterOpen) {
-                    closeFilters();
+                    setIsAnimating(true);
+
+                    setTimeout(() => {
+                      setFilterOpen(false);
+                      setIsAnimating(false);
+                    }, 300);
                   }
 
                   if (sortOpen) {
-                    closeSort();
+                    setIsSortAnimating(true);
+
+                    setTimeout(() => {
+                      setSortOpen(false);
+                      setIsSortAnimating(false);
+                    }, 300);
                   }
                 }}
               />
@@ -655,36 +648,13 @@ const Blog = () => {
           </div>
 
           {/* ---------------------------------------------------------------- */}
-          {/* SINGLE SHELF                                                     */}
+          {/* SINGLE SEAMLESS SHELF                                            */}
           {/* ---------------------------------------------------------------- */}
 
-          <div className="relative">
-            {/* Book area */}
-            <div
-              className="
-                relative
-                py-8
-                overflow-x-auto
-                overflow-y-hidden
-                scrollbar-none
-              "
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-              }}
-            >
-              <div
-                className="
-                  flex
-                  items-end
-                  justify-center
-                  min-w-max
-                  px-5
-                  gap-[2px]
-                  sm:gap-[3px]
-                  md:gap-[4px]
-                "
-              >
+          <section className="relative pt-8">
+            {/* Books */}
+            <div className="relative z-10 w-full px-1 sm:px-2">
+              <div className="flex items-end justify-center w-full gap-0">
                 {filteredPosts.map((post, index) => (
                   <Book
                     key={`${post.title}-${post.date}`}
@@ -697,53 +667,38 @@ const Blog = () => {
             </div>
 
             {/* Shelf */}
-            <div className="relative">
-              {/* shelf surface */}
+            <div className="relative z-0 -mt-[1px] px-3 sm:px-6">
+              {/* The shelf itself — NO TOP LINE */}
               <div
                 className="
-                  mx-4
-                  sm:mx-8
-                  md:mx-12
                   h-[9px]
-                  rounded-full
+                  rounded-[4px]
                   bg-white/[0.075]
-                  shadow-[0_13px_26px_rgba(0,0,0,.28)]
+                  shadow-[0_16px_30px_rgba(0,0,0,.30)]
                 "
               />
 
-              {/* subtle shelf highlight */}
+              {/* Under-shelf shadow */}
               <div
                 className="
                   absolute
-                  left-[9%]
-                  right-[9%]
-                  top-0
-                  h-px
-                  bg-white/[0.17]
-                "
-              />
-
-              {/* subtle underside */}
-              <div
-                className="
-                  absolute
-                  left-[13%]
-                  right-[13%]
+                  left-[12%]
+                  right-[12%]
                   top-[9px]
-                  h-[4px]
-                  rounded-b-full
-                  bg-black/[0.13]
-                  blur-[2px]
+                  h-4
+                  rounded-full
+                  bg-black/[0.12]
+                  blur-md
                 "
               />
 
               {/* supports */}
-              <div className="flex items-start justify-between px-10 sm:px-20">
-                <div className="w-[3px] h-[22px] rounded-b-full bg-white/[0.045]" />
-                <div className="w-[3px] h-[22px] rounded-b-full bg-white/[0.045]" />
+              <div className="flex justify-between px-7 sm:px-16">
+                <div className="w-[3px] h-6 rounded-b-full bg-white/[0.045]" />
+                <div className="w-[3px] h-6 rounded-b-full bg-white/[0.045]" />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Empty state */}
           {filteredPosts.length === 0 && (
@@ -765,7 +720,7 @@ const Blog = () => {
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* NOTION MODAL - ORIGINAL BEHAVIOR                                    */}
+      {/* NOTION MODAL — SAME AS ORIGINAL                                      */}
       {/* -------------------------------------------------------------------- */}
 
       {activeNotion && (
@@ -843,12 +798,17 @@ const Blog = () => {
       )}
 
       {/* -------------------------------------------------------------------- */}
-      {/* HIDE SCROLLBAR                                                      */}
+      {/* HIDE SCROLLBARS WITHOUT DISABLING PAGE SCROLLING                      */}
       {/* -------------------------------------------------------------------- */}
 
       <style>
         {`
-          .scrollbar-none::-webkit-scrollbar {
+          .blog-page {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+
+          .blog-page::-webkit-scrollbar {
             width: 0;
             height: 0;
             display: none;
