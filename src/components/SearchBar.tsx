@@ -3736,19 +3736,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-container {
           border: 1px solid rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.05);
-          animation: glowPulse 1.6s infinite ease-in-out;
+          animation: glowPulse 2s infinite ease-in-out;
         }
 
         @keyframes glowPulse {
           0%, 100% {
             box-shadow:
-              0 0 20px rgba(255,255,255,0.3),
-              inset 0 0 20px rgba(255,255,255,0.15);
+              0 0 5px rgba(255,255,255,0.1),
+              inset 0 0 10px rgba(255,255,255,0.05);
           }
           50% {
             box-shadow:
-              0 0 5px rgba(255,255,255,0.1),
-              inset 0 0 10px rgba(255,255,255,0.05);
+              0 0 20px rgba(255,255,255,0.3),
+              inset 0 0 20px rgba(255,255,255,0.15);
           }
         }
 
@@ -3777,19 +3777,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         :root[data-theme="minimal"] [data-gdx-search] .thinking-container {
           border-color: rgba(0,0,0,0.18);
           background: rgba(0,0,0,0.04);
-          animation: glowPulseMinimal 1.6s infinite ease-in-out;
+          animation: glowPulseMinimal 2s infinite ease-in-out;
         }
 
         @keyframes glowPulseMinimal {
           0%, 100% {
             box-shadow:
-              0 0 20px rgba(0,0,0,0.18),
-              inset 0 0 20px rgba(0,0,0,0.08);
+              0 0 5px rgba(0,0,0,0.06),
+              inset 0 0 10px rgba(0,0,0,0.03);
           }
           50% {
             box-shadow:
-              0 0 5px rgba(0,0,0,0.06),
-              inset 0 0 10px rgba(0,0,0,0.03);
+              0 0 20px rgba(0,0,0,0.18),
+              inset 0 0 20px rgba(0,0,0,0.08);
           }
         }
 
@@ -3869,7 +3869,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           font-size: 1rem;
           line-height: 1;
           font-weight: 400;
-          animation: thinkingTextGlow 1.6s ease-in-out infinite;
+          animation: thinkingTextGlow 2s ease-in-out infinite;
           will-change: opacity, text-shadow;
         }
 
@@ -3883,8 +3883,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           filter:
             drop-shadow(0 0 2px rgba(255,255,255,0.48))
             drop-shadow(0 0 5px rgba(255,255,255,0.20));
-          animation: thinkingOrbGlow 1.6s ease-in-out infinite;
-          will-change: filter;
         }
 
         .gdx-g1-orb-stage {
@@ -3955,37 +3953,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
-        @keyframes thinkingOrbGlow {
-          0%, 100% {
-            filter:
-              drop-shadow(0 0 3px rgba(255,255,255,0.62))
-              drop-shadow(0 0 7px rgba(255,255,255,0.28));
-          }
-          50% {
-            filter:
-              drop-shadow(0 0 2px rgba(255,255,255,0.42))
-              drop-shadow(0 0 5px rgba(255,255,255,0.17));
-          }
-        }
-
         @keyframes thinkingTextGlow {
           0%, 100% {
-            opacity: 0.94;
-            text-shadow:
-              0 0 3px rgba(255,255,255,0.36),
-              0 0 9px rgba(255,255,255,0.16);
-          }
-          50% {
             opacity: 0.62;
             text-shadow:
               0 0 2px rgba(255,255,255,0.16),
               0 0 6px rgba(255,255,255,0.08);
           }
+          50% {
+            opacity: 0.94;
+            text-shadow:
+              0 0 3px rgba(255,255,255,0.36),
+              0 0 9px rgba(255,255,255,0.16);
+          }
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-label {
           color: rgba(0,0,0,0.60);
-          animation: thinkingTextGlowMinimal 1.6s ease-in-out infinite;
+          animation: thinkingTextGlowMinimal 2s ease-in-out infinite;
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-g1-orb {
@@ -3993,39 +3978,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           filter:
             drop-shadow(0 0 2px rgba(0,0,0,0.24))
             drop-shadow(0 0 5px rgba(0,0,0,0.10));
-          animation: thinkingOrbGlowMinimal 1.6s ease-in-out infinite;
-        }
-
-        @keyframes thinkingOrbGlowMinimal {
-          0%, 100% {
-            filter:
-              drop-shadow(0 0 3px rgba(0,0,0,0.38))
-              drop-shadow(0 0 7px rgba(0,0,0,0.18));
-          }
-          50% {
-            filter:
-              drop-shadow(0 0 2px rgba(0,0,0,0.20))
-              drop-shadow(0 0 5px rgba(0,0,0,0.08));
-          }
         }
 
         @keyframes thinkingTextGlowMinimal {
           0%, 100% {
-            opacity: 0.94;
+            opacity: 0.48;
             text-shadow:
-              0 0 4px rgba(0,0,0,0.34),
-              0 0 10px rgba(0,0,0,0.16);
+              0 0 2px rgba(0,0,0,0.08),
+              0 0 6px rgba(0,0,0,0.04);
           }
           50% {
-            opacity: 0.38;
+            opacity: 0.86;
             text-shadow:
               0 0 3px rgba(0,0,0,0.18),
-              0 0 8px rgba(0,0,0,0.09);
+              0 0 9px rgba(0,0,0,0.08);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .gdx-g1-orb,
           .gdx-g1-orb-dot,
           .gdx-thinking-label {
             animation: none !important;
