@@ -3736,19 +3736,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         .thinking-container {
           border: 1px solid rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.05);
-          animation: glowPulse 2s infinite ease-in-out;
+          animation: glowPulse 1.32s infinite ease-in-out;
         }
 
         @keyframes glowPulse {
           0%, 100% {
             box-shadow:
-              0 0 5px rgba(255,255,255,0.1),
-              inset 0 0 10px rgba(255,255,255,0.05);
+              0 0 20px rgba(255,255,255,0.3),
+              inset 0 0 20px rgba(255,255,255,0.15);
           }
           50% {
             box-shadow:
-              0 0 20px rgba(255,255,255,0.3),
-              inset 0 0 20px rgba(255,255,255,0.15);
+              0 0 5px rgba(255,255,255,0.1),
+              inset 0 0 10px rgba(255,255,255,0.05);
           }
         }
 
@@ -3777,19 +3777,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         :root[data-theme="minimal"] [data-gdx-search] .thinking-container {
           border-color: rgba(0,0,0,0.18);
           background: rgba(0,0,0,0.04);
-          animation: glowPulseMinimal 2s infinite ease-in-out;
+          animation: glowPulseMinimal 1.32s infinite ease-in-out;
         }
 
         @keyframes glowPulseMinimal {
           0%, 100% {
             box-shadow:
-              0 0 5px rgba(0,0,0,0.06),
-              inset 0 0 10px rgba(0,0,0,0.03);
+              0 0 20px rgba(0,0,0,0.18),
+              inset 0 0 20px rgba(0,0,0,0.08);
           }
           50% {
             box-shadow:
-              0 0 20px rgba(0,0,0,0.18),
-              inset 0 0 20px rgba(0,0,0,0.08);
+              0 0 5px rgba(0,0,0,0.06),
+              inset 0 0 10px rgba(0,0,0,0.03);
           }
         }
 
@@ -3883,6 +3883,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           filter:
             drop-shadow(0 0 2px rgba(255,255,255,0.48))
             drop-shadow(0 0 5px rgba(255,255,255,0.20));
+          animation: thinkingOrbGlow 1.32s ease-in-out infinite;
+          will-change: filter;
         }
 
         .gdx-g1-orb-stage {
@@ -3953,6 +3955,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
+        @keyframes thinkingOrbGlow {
+          0%, 100% {
+            filter:
+              drop-shadow(0 0 3px rgba(255,255,255,0.72))
+              drop-shadow(0 0 8px rgba(255,255,255,0.34));
+          }
+          50% {
+            filter:
+              drop-shadow(0 0 2px rgba(255,255,255,0.48))
+              drop-shadow(0 0 5px rgba(255,255,255,0.20));
+          }
+        }
+
         @keyframes thinkingTextGlow {
           0%, 100% {
             opacity: 0.62;
@@ -3978,6 +3993,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           filter:
             drop-shadow(0 0 2px rgba(0,0,0,0.24))
             drop-shadow(0 0 5px rgba(0,0,0,0.10));
+          animation: thinkingOrbGlowMinimal 1.32s ease-in-out infinite;
+        }
+
+        @keyframes thinkingOrbGlowMinimal {
+          0%, 100% {
+            filter:
+              drop-shadow(0 0 3px rgba(0,0,0,0.46))
+              drop-shadow(0 0 8px rgba(0,0,0,0.22));
+          }
+          50% {
+            filter:
+              drop-shadow(0 0 2px rgba(0,0,0,0.24))
+              drop-shadow(0 0 5px rgba(0,0,0,0.10));
+          }
         }
 
         @keyframes thinkingTextGlowMinimal {
@@ -3996,6 +4025,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
 
         @media (prefers-reduced-motion: reduce) {
+          .gdx-g1-orb,
           .gdx-g1-orb-dot,
           .gdx-thinking-label {
             animation: none !important;
