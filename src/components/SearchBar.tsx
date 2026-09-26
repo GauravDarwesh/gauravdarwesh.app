@@ -3869,7 +3869,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           font-size: 1rem;
           line-height: 1;
           font-weight: 400;
-          animation: thinkingTextGlow 2s ease-in-out infinite;
+          animation: thinkingTextGlow 1.32s ease-in-out infinite;
           will-change: opacity, text-shadow;
         }
 
@@ -3985,7 +3985,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-label {
           color: rgba(0,0,0,0.60);
-          animation: thinkingTextGlowMinimal 2s ease-in-out infinite;
+          animation: thinkingTextGlowMinimal 1.32s ease-in-out infinite;
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-g1-orb {
@@ -4011,16 +4011,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         @keyframes thinkingTextGlowMinimal {
           0%, 100% {
-            opacity: 0.48;
-            text-shadow:
-              0 0 2px rgba(0,0,0,0.08),
-              0 0 6px rgba(0,0,0,0.04);
-          }
-          50% {
-            opacity: 0.86;
+            opacity: 0.38;
             text-shadow:
               0 0 3px rgba(0,0,0,0.18),
-              0 0 9px rgba(0,0,0,0.08);
+              0 0 8px rgba(0,0,0,0.09);
+          }
+          50% {
+            opacity: 0.94;
+            text-shadow:
+              0 0 4px rgba(0,0,0,0.34),
+              0 0 10px rgba(0,0,0,0.16);
           }
         }
 
