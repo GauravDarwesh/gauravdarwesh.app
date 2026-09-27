@@ -96,31 +96,26 @@
 /* ============================================================
    PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
-   Fixed checker geometry + one continuous global light field.
-   No cursor interaction.
+   Shrey-style fixed LED geometry + continuously evolving canvas field.
+   No pointer interaction. The 1px gaps are the checkerboard itself.
    ============================================================ */
 
 .orange-bg {
   --tile: 19px;
   --gap: 1px;
   --cell: 20px;
-  --led-base: #140705;
-  --led-line: rgba(57, 20, 9, 0.68);
+  --led-base: #140c08;
 
   position: fixed;
   inset: 0;
   z-index: 0;
-
   width: 100%;
   height: 100%;
   min-height: 100dvh;
-
   overflow: hidden;
   pointer-events: none;
   isolation: isolate;
-
   background: var(--led-base);
-
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -138,53 +133,28 @@
 .orange-bg .led-wallpaper-canvas {
   position: absolute;
   inset: 0;
-
   display: block;
   width: 100%;
   height: 100%;
-
   pointer-events: none;
   user-select: none;
   z-index: 0;
-
   transform: translateZ(0);
   backface-visibility: hidden;
+  image-rendering: pixelated;
 }
 
 /*
- * Extremely subtle structural seams. The canvas supplies the moving
- * illumination; this layer only preserves the checkerboard definition.
+ * IMPORTANT: there is deliberately no ::after grid overlay here.
+ * Shrey's effect gets the checkerboard from tile < cell geometry:
+ * each 19px LED is separated by a 1px background gap.
+ * Putting another static grid over the canvas made the movement look frozen.
  */
-.orange-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-
-  background-image:
-    repeating-linear-gradient(to right, transparent 0 var(--tile), var(--led-line) var(--tile) var(--cell)),
-    repeating-linear-gradient(to bottom, transparent 0 var(--tile), var(--led-line) var(--tile) var(--cell));
-
-  background-size:
-    var(--cell) var(--cell),
-    var(--cell) var(--cell);
-
-  background-repeat: repeat;
-  opacity: 0.16;
-
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
 
 @media (max-width: 900px) {
   .orange-bg {
     --tile: 17px;
     --cell: 18px;
-  }
-
-  .orange-bg::after {
-    opacity: 0.15;
   }
 }
 
@@ -192,10 +162,6 @@
   .orange-bg {
     --tile: 16px;
     --cell: 17px;
-  }
-
-  .orange-bg::after {
-    opacity: 0.14;
   }
 }
 
