@@ -74,106 +74,6 @@ const ChatGPTWaveformIcon: React.FC<{ className?: string }> = ({ className = "h-
 );
 
 /* =========================================================
-   2. AICSS G1 PROCESSING ORB
-   Kept inline so the SearchBar adds no dependency or layout work.
-   The geometry follows the G1 helix/globe concept from AICSS Orbs.
-   ========================================================= */
-
-type G1Dot = {
-  x: number;
-  y: number;
-  opacity: number;
-  delay: number;
-};
-
-const buildG1Dots = (): G1Dot[] => {
-  const radius = 8.5;
-  const tilt = (14 * Math.PI) / 180;
-  const steps = 8;
-  const rings = [
-    { lat: 52, count: 8 },
-    { lat: 26, count: 8 },
-    { lat: 0, count: 8 },
-    { lat: -26, count: 8 },
-    { lat: -52, count: 8 },
-  ];
-
-  const project = (x: number, y: number, z: number, spin: number) => {
-    const cs = Math.cos(spin);
-    const ss = Math.sin(spin);
-    const x1 = x * cs - z * ss;
-    const z1 = x * ss + z * cs;
-    const ct = Math.cos(tilt);
-    const st = Math.sin(tilt);
-    return {
-      x: x1,
-      y: y * ct - z1 * st,
-      z: y * st + z1 * ct,
-    };
-  };
-
-  const depthOpacity = (z: number) => {
-    const t = Math.max(0, Math.min(1, (z / radius + 0.15) / 1.15));
-    return 0.18 + t * 0.82;
-  };
-
-  const dots: G1Dot[] = [];
-  for (let ringIndex = 0; ringIndex < rings.length; ringIndex += 1) {
-    const ring = rings[ringIndex];
-    const lat = (ring.lat * Math.PI) / 180;
-    const y0 = Math.sin(lat) * radius;
-    const ringRadius = Math.cos(lat) * radius;
-
-    for (let j = 0; j < ring.count; j += 1) {
-      const lon = (j / ring.count) * Math.PI * 2;
-      const point = project(Math.cos(lon) * ringRadius, y0, Math.sin(lon) * ringRadius, 0);
-
-      // Negative delays seed the dots around the rotation so the globe is
-      // already in motion when it first mounts.
-      dots.push({
-        x: point.x,
-        y: -point.y,
-        opacity: depthOpacity(point.z),
-        delay: -((j + ringIndex * 0.65) % steps) * 90,
-      });
-    }
-  }
-
-  return dots;
-};
-
-const G1_DOTS = buildG1Dots();
-
-const G1ProcessingOrb: React.FC<{ size?: number; className?: string }> = ({ size = 18, className = "" }) => {
-  return (
-    <span
-      className={`gdx-g1-orb ${className}`}
-      aria-hidden="true"
-      style={
-        {
-          width: size,
-          height: size,
-          "--g1-scale": size / 28,
-        } as CSSProperties
-      }
-    >
-      <span className="gdx-g1-orb-stage">
-        {G1_DOTS.map((dot, index) => {
-          const vars = {
-            "--g1-x": `${dot.x}px`,
-            "--g1-y": `${dot.y}px`,
-            "--g1-o": dot.opacity.toFixed(3),
-            "--g1-delay": `${dot.delay}ms`,
-          } as CSSProperties;
-
-          return <span key={index} className="gdx-g1-orb-dot" style={vars} />;
-        })}
-      </span>
-    </span>
-  );
-};
-
-/* =========================================================
    2. MARKDOWN → HTML
    ========================================================= */
 
@@ -3584,8 +3484,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 />
                 {isLoading && (
                   <div className="gdx-thinking-indicator" aria-live="polite">
-                    <G1ProcessingOrb size={18} />
-                    <span className="gdx-thinking-label">Thinking…</span>
+                    <span className="gdx-thinking-signal" aria-hidden="true">
+                      <span className="gdx-thinking-signal-core" />
+                    </span>
+                    <span className="gdx-thinking-copy">
+                      <span className="gdx-thinking-label">Thinking</span>
+                      <span className="gdx-thinking-dots" aria-hidden="true">
+                        <span>·</span>
+                        <span>·</span>
+                        <span>·</span>
+                      </span>
+                    </span>
                   </div>
                 )}
               </div>
@@ -3848,225 +3757,241 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
 
         /* -------------------------------------------------------
-           G1 processing indicator
-           Geometry/animation is isolated from the SearchBar shell.
-           Only transform/opacity are animated on the moving dots.
+           Thinking state
+           A compact search-native processing signal: one breathing
+           micro-mark + a glyph-clipped shimmer + soft activity dots.
+           It does not affect the SearchBar shell/layout animation.
            ------------------------------------------------------- */
         .gdx-thinking-indicator {
           position: absolute;
           inset: 0 auto 0 0;
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           padding-left: 16px;
           pointer-events: none;
           user-select: none;
           z-index: 2;
         }
 
+        .gdx-thinking-signal {
+          position: relative;
+          width: 3px;
+          height: 12px;
+          flex: 0 0 3px;
+          border-radius: 999px;
+          overflow: visible;
+          opacity: 0.78;
+          transform: translateZ(0) scaleY(0.82);
+          background: rgba(255,255,255,0.18);
+          box-shadow: 0 0 0 rgba(255,255,255,0);
+          animation: thinkingSignalBreath 2.25s cubic-bezier(0.4,0,0.2,1) infinite;
+          will-change: transform, opacity, box-shadow;
+        }
+
+        .gdx-thinking-signal-core {
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background: linear-gradient(180deg,
+            rgba(255,255,255,0.34) 0%,
+            rgba(255,255,255,0.94) 48%,
+            rgba(255,255,255,0.30) 100%);
+          background-size: 100% 230%;
+          background-position: 0 100%;
+          animation: thinkingSignalSweep 2.25s cubic-bezier(0.45,0,0.55,1) infinite;
+          box-shadow: 0 0 6px rgba(255,255,255,0.24);
+          will-change: background-position, opacity;
+        }
+
+        .gdx-thinking-copy {
+          display: inline-flex;
+          align-items: baseline;
+          min-width: 0;
+          line-height: 1;
+        }
+
         .gdx-thinking-label {
-          color: rgba(255,255,255,0.66);
+          position: relative;
+          color: rgba(255,255,255,0.68);
           font-size: 1rem;
           line-height: 1;
           font-weight: 400;
-          transform-origin: left center;
-          animation: thinkingTextOrbit 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-          will-change: transform, opacity, filter, text-shadow;
+          letter-spacing: -0.01em;
           white-space: nowrap;
+          background-image: linear-gradient(110deg,
+            rgba(255,255,255,0.58) 0%,
+            rgba(255,255,255,0.58) 35%,
+            rgba(255,255,255,0.98) 49%,
+            rgba(255,255,255,0.98) 53%,
+            rgba(255,255,255,0.58) 67%,
+            rgba(255,255,255,0.58) 100%);
+          background-size: 260% 100%;
+          background-position: 100% 0;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: thinkingTextShimmer 2.8s cubic-bezier(0.45,0,0.55,1) infinite;
+          will-change: background-position;
         }
 
-        .gdx-g1-orb {
-          position: relative;
+        .gdx-thinking-dots {
+          display: inline-flex;
+          align-items: center;
+          gap: 1px;
+          margin-left: 2px;
+          color: rgba(255,255,255,0.55);
+          font-size: 1rem;
+          line-height: 1;
+          min-width: 14px;
+        }
+
+        .gdx-thinking-dots span {
           display: inline-block;
-          flex: 0 0 auto;
-          color: rgba(255,255,255,0.88);
-          overflow: visible;
-          transform: translateZ(0);
-          filter:
-            drop-shadow(0 0 2px rgba(255,255,255,0.48))
-            drop-shadow(0 0 5px rgba(255,255,255,0.20));
-        }
-
-        .gdx-g1-orb-stage {
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          width: 28px;
-          height: 28px;
-          transform: translate(-50%, -50%) scale(var(--g1-scale));
-          transform-origin: center;
-          will-change: transform;
-        }
-
-        .gdx-g1-orb-dot {
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          width: 2.2px;
-          height: 2.2px;
-          margin-left: -1.1px;
-          margin-top: -1.1px;
-          border-radius: 999px;
-          background: currentColor;
-          opacity: var(--g1-o);
-          transform: translate3d(var(--g1-x), var(--g1-y), 0);
-          animation: gdxG1Spin 1.32s linear infinite;
-          animation-delay: var(--g1-delay, 0ms);
+          opacity: 0.18;
+          transform: translateY(0) scale(0.72);
+          animation: thinkingDotPulse 1.35s ease-in-out infinite;
           will-change: transform, opacity;
-          backface-visibility: hidden;
         }
 
-        @keyframes gdxG1Spin {
-          0% {
-            transform: translate3d(var(--g1-x), var(--g1-y), 0) scale(1);
-            opacity: var(--g1-o);
+        .gdx-thinking-dots span:nth-child(2) {
+          animation-delay: 150ms;
+        }
+
+        .gdx-thinking-dots span:nth-child(3) {
+          animation-delay: 300ms;
+        }
+
+        @keyframes thinkingTextShimmer {
+          0%, 15% {
+            background-position: 100% 0;
           }
-          12.5% {
-            transform: translate3d(calc(var(--g1-x) * 0.72), calc(var(--g1-y) * 0.72), 0) scale(0.95);
-            opacity: calc(var(--g1-o) * 0.92);
-          }
-          25% {
-            transform: translate3d(calc(var(--g1-x) * 0.18), calc(var(--g1-y) * 0.18), 0) scale(0.80);
-            opacity: calc(var(--g1-o) * 0.72);
-          }
-          37.5% {
-            transform: translate3d(calc(var(--g1-x) * -0.55), calc(var(--g1-y) * -0.55), 0) scale(0.72);
-            opacity: calc(var(--g1-o) * 0.48);
-          }
-          50% {
-            transform: translate3d(calc(var(--g1-x) * -0.92), calc(var(--g1-y) * -0.92), 0) scale(0.70);
-            opacity: calc(var(--g1-o) * 0.38);
-          }
-          62.5% {
-            transform: translate3d(calc(var(--g1-x) * -0.55), calc(var(--g1-y) * -0.55), 0) scale(0.72);
-            opacity: calc(var(--g1-o) * 0.48);
-          }
-          75% {
-            transform: translate3d(calc(var(--g1-x) * 0.18), calc(var(--g1-y) * 0.18), 0) scale(0.80);
-            opacity: calc(var(--g1-o) * 0.72);
-          }
-          87.5% {
-            transform: translate3d(calc(var(--g1-x) * 0.72), calc(var(--g1-y) * 0.72), 0) scale(0.95);
-            opacity: calc(var(--g1-o) * 0.92);
-          }
-          100% {
-            transform: translate3d(var(--g1-x), var(--g1-y), 0) scale(1);
-            opacity: var(--g1-o);
+          58%, 100% {
+            background-position: -45% 0;
           }
         }
 
-        @keyframes thinkingTextOrbit {
-          0%, 16% {
-            opacity: 0.94;
-            filter: blur(0) brightness(1);
-            transform: translateX(0) scaleX(1) scaleY(1);
-            text-shadow:
-              0 0 3px rgba(255,255,255,0.30),
-              0 0 9px rgba(255,255,255,0.12);
-          }
-
-          30% {
-            opacity: 0.72;
-            filter: blur(0.8px) brightness(1.08);
-            transform: translateX(-4px) scaleX(0.78) scaleY(0.96);
-            text-shadow:
-              0 0 5px rgba(255,255,255,0.34),
-              0 0 12px rgba(255,255,255,0.14);
-          }
-
-          39%, 52% {
-            opacity: 0;
-            filter: blur(3px) brightness(1.18);
-            transform: translateX(-13px) scaleX(0.08) scaleY(0.72);
-            text-shadow: 0 0 0 rgba(255,255,255,0);
-          }
-
-          66% {
+        @keyframes thinkingDotPulse {
+          0%, 100% {
             opacity: 0.18;
-            filter: blur(2.5px) brightness(1.12);
-            transform: translateX(-10px) scaleX(0.24) scaleY(0.78);
+            transform: translateY(0) scale(0.72);
           }
+          42% {
+            opacity: 0.9;
+            transform: translateY(-1px) scale(1);
+          }
+          68% {
+            opacity: 0.42;
+            transform: translateY(0) scale(0.84);
+          }
+        }
 
-          78% {
+        @keyframes thinkingSignalBreath {
+          0%, 18%, 100% {
             opacity: 0.62;
-            filter: blur(1px) brightness(1.06);
-            transform: translateX(-4px) scaleX(0.76) scaleY(0.95);
+            transform: scaleY(0.78);
+            box-shadow: 0 0 0 rgba(255,255,255,0);
           }
+          44% {
+            opacity: 0.96;
+            transform: scaleY(1);
+            box-shadow: 0 0 7px rgba(255,255,255,0.12);
+          }
+          66% {
+            opacity: 0.76;
+            transform: scaleY(0.9);
+          }
+        }
 
-          90%, 100% {
-            opacity: 0.94;
-            filter: blur(0) brightness(1);
-            transform: translateX(0) scaleX(1) scaleY(1);
-            text-shadow:
-              0 0 3px rgba(255,255,255,0.30),
-              0 0 9px rgba(255,255,255,0.12);
+        @keyframes thinkingSignalSweep {
+          0%, 16%, 100% {
+            background-position: 0 100%;
+            opacity: 0.68;
           }
+          48% {
+            background-position: 0 0%;
+            opacity: 1;
+          }
+          64% {
+            background-position: 0 -20%;
+            opacity: 0.74;
+          }
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-signal {
+          background: rgba(0,0,0,0.10);
+          box-shadow: 0 0 0 rgba(0,0,0,0);
+          animation-name: thinkingSignalBreathMinimal;
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-signal-core {
+          background: linear-gradient(180deg,
+            rgba(0,0,0,0.28) 0%,
+            rgba(0,0,0,0.82) 48%,
+            rgba(0,0,0,0.24) 100%);
+          background-size: 100% 230%;
+          background-position: 0 100%;
+          animation-name: thinkingSignalSweepMinimal;
+          box-shadow: 0 0 5px rgba(0,0,0,0.12);
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-label {
-          color: rgba(0,0,0,0.60);
-          animation: thinkingTextOrbitMinimal 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+          color: rgba(0,0,0,0.62);
+          background-image: linear-gradient(110deg,
+            rgba(0,0,0,0.50) 0%,
+            rgba(0,0,0,0.50) 35%,
+            rgba(0,0,0,0.88) 49%,
+            rgba(0,0,0,0.88) 53%,
+            rgba(0,0,0,0.50) 67%,
+            rgba(0,0,0,0.50) 100%);
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-g1-orb {
-          color: rgba(0,0,0,0.78);
-          filter:
-            drop-shadow(0 0 2px rgba(0,0,0,0.24))
-            drop-shadow(0 0 5px rgba(0,0,0,0.10));
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-dots {
+          color: rgba(0,0,0,0.48);
         }
 
-        @keyframes thinkingTextOrbitMinimal {
-          0%, 16% {
-            opacity: 0.86;
-            filter: blur(0) brightness(1);
-            transform: translateX(0) scaleX(1) scaleY(1);
-            text-shadow:
-              0 0 3px rgba(0,0,0,0.14),
-              0 0 9px rgba(0,0,0,0.06);
-          }
-
-          30% {
-            opacity: 0.66;
-            filter: blur(0.8px) brightness(1.04);
-            transform: translateX(-4px) scaleX(0.78) scaleY(0.96);
-            text-shadow:
-              0 0 5px rgba(0,0,0,0.16),
-              0 0 12px rgba(0,0,0,0.07);
-          }
-
-          39%, 52% {
-            opacity: 0;
-            filter: blur(3px) brightness(1.08);
-            transform: translateX(-13px) scaleX(0.08) scaleY(0.72);
-            text-shadow: 0 0 0 rgba(0,0,0,0);
-          }
-
-          66% {
-            opacity: 0.14;
-            filter: blur(2.5px) brightness(1.06);
-            transform: translateX(-10px) scaleX(0.24) scaleY(0.78);
-          }
-
-          78% {
+        @keyframes thinkingSignalBreathMinimal {
+          0%, 18%, 100% {
             opacity: 0.52;
-            filter: blur(1px) brightness(1.03);
-            transform: translateX(-4px) scaleX(0.76) scaleY(0.95);
+            transform: scaleY(0.78);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
           }
+          44% {
+            opacity: 0.88;
+            transform: scaleY(1);
+            box-shadow: 0 0 6px rgba(0,0,0,0.08);
+          }
+          66% {
+            opacity: 0.66;
+            transform: scaleY(0.9);
+          }
+        }
 
-          90%, 100% {
-            opacity: 0.86;
-            filter: blur(0) brightness(1);
-            transform: translateX(0) scaleX(1) scaleY(1);
-            text-shadow:
-              0 0 3px rgba(0,0,0,0.14),
-              0 0 9px rgba(0,0,0,0.06);
+        @keyframes thinkingSignalSweepMinimal {
+          0%, 16%, 100% {
+            background-position: 0 100%;
+            opacity: 0.58;
+          }
+          48% {
+            background-position: 0 0%;
+            opacity: 0.94;
+          }
+          64% {
+            background-position: 0 -20%;
+            opacity: 0.66;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .gdx-g1-orb-dot,
-          .gdx-thinking-label {
+          .gdx-thinking-label,
+          .gdx-thinking-dots span,
+          .gdx-thinking-signal,
+          .gdx-thinking-signal-core {
             animation: none !important;
+          }
+
+          .gdx-thinking-label {
+            background-position: 50% 0;
           }
         }
 
