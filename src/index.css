@@ -94,16 +94,17 @@
 }
 
 /* ============================================================
-   LED CHECKERBOARD / LIVE WALLPAPER
+   PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
    Warm orange / yellow LED wall.
 
-   The tile geometry never moves.
-   The actual light inside each tile does.
-   This is intentionally split into three visual layers:
-     1. static warm atmosphere
-     2. animated LED light centers
-     3. fixed 1px grid lines
+   IMPORTANT:
+   - The LED grid itself never moves.
+   - The animated light field is rendered by
+     AnimatedLedBackground.tsx on a canvas.
+   - There is NO cursor / pointer dependency.
+   - CSS is responsible only for the fixed grid,
+     base atmosphere, positioning and responsive sizing.
    ============================================================ */
 
 .orange-bg {
@@ -117,55 +118,30 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
+
   overflow: hidden;
   pointer-events: none;
   isolation: isolate;
-  transform: translateZ(0);
-  backface-visibility: hidden;
 
-  /* ----------------------------------------------------------
-     STATIC WARM ATMOSPHERE
-     ---------------------------------------------------------- */
-  background-color: var(--led-base);
-  background-image:
+  background:
+    radial-gradient(ellipse 82% 68% at 7% 5%, hsl(39 82% 28% / 0.62) 0%, hsl(31 76% 17% / 0.46) 34%, transparent 76%),
     radial-gradient(
-      ellipse 72% 58% at 6% 8%,
-      hsl(39 82% 56% / 0.88) 0%,
-      hsl(31 78% 43% / 0.72) 23%,
-      hsl(22 73% 31% / 0.55) 47%,
-      transparent 78%
-    ),
-    radial-gradient(
-      ellipse 66% 62% at 28% 50%,
-      hsl(17 84% 47% / 0.8) 0%,
-      hsl(12 74% 32% / 0.68) 34%,
-      hsl(9 64% 19% / 0.46) 68%,
-      transparent 90%
-    ),
-    radial-gradient(
-      ellipse 68% 66% at 58% 43%,
-      hsl(8 84% 40% / 0.72) 0%,
-      hsl(8 72% 25% / 0.58) 40%,
-      hsl(8 60% 13% / 0.7) 76%,
+      ellipse 74% 78% at 37% 48%,
+      hsl(17 82% 20% / 0.42) 0%,
+      hsl(11 68% 11% / 0.32) 50%,
       transparent 100%
     ),
     radial-gradient(
-      ellipse 54% 80% at 100% 46%,
-      hsl(9 69% 22% / 0.86) 0%,
-      hsl(8 58% 11% / 0.93) 58%,
-      hsl(8 48% 7% / 1) 100%
+      ellipse 64% 82% at 100% 48%,
+      hsl(10 64% 13% / 0.5) 0%,
+      hsl(8 50% 7% / 0.82) 58%,
+      hsl(8 48% 6%) 100%
     ),
-    linear-gradient(
-      132deg,
-      hsl(29 66% 26%) 0%,
-      hsl(19 75% 22%) 25%,
-      hsl(12 74% 17%) 53%,
-      hsl(9 63% 11%) 77%,
-      hsl(8 55% 7%) 100%
-    );
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
+    linear-gradient(135deg, hsl(29 66% 18%) 0%, hsl(19 70% 13%) 30%, hsl(12 65% 9%) 62%, hsl(8 52% 6%) 100%);
+
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* ------------------------------------------------------------
@@ -175,219 +151,84 @@
 .site-background.orange-bg {
   position: fixed;
   inset: 0;
+
   z-index: 0;
+
   width: 100%;
   height: 100%;
   min-height: 100%;
+
   transition: none;
-}
-
-/* ------------------------------------------------------------
-   ANIMATED LED LIGHT FIELD
-   ------------------------------------------------------------
-   The first two repeating radial gradients are deliberately tied
-   to the 20px cell size. Their centers move by several pixels,
-   while the grid below stays perfectly locked in place.
-   That creates visible movement in the LEDs themselves.
-   ------------------------------------------------------------ */
-
-.orange-bg::before {
-  content: "";
-  position: absolute;
-  inset: -8%;
-  z-index: 1;
-  pointer-events: none;
-
-  background-image:
-    /* 19px LED glow -- bright center moves inside each cell */
-    radial-gradient(
-      circle at 50% 50%,
-      hsl(45 100% 78% / 0.78) 0,
-      hsl(41 100% 66% / 0.48) 24%,
-      hsl(35 100% 54% / 0.19) 47%,
-      transparent 71%
-    ),
-    /* secondary LED halo, intentionally out of phase */
-    radial-gradient(circle at 36% 62%, hsl(24 100% 62% / 0.44) 0, hsl(18 100% 53% / 0.19) 30%, transparent 72%),
-    /* slow broad atmospheric sweep */
-    repeating-linear-gradient(
-        118deg,
-        transparent 0 180px,
-        hsl(44 100% 68% / 0) 180px,
-        hsl(44 100% 68% / 0.07) 235px,
-        hsl(28 100% 57% / 0.12) 285px,
-        hsl(16 100% 47% / 0.04) 330px,
-        transparent 400px 620px
-      ),
-    /* large moving glow pockets */
-    radial-gradient(ellipse 27% 25% at 12% 15%, hsl(44 100% 70% / 0.34) 0, hsl(36 100% 58% / 0.15) 38%, transparent 79%),
-    radial-gradient(
-      ellipse 30% 32% at 68% 72%,
-      hsl(18 100% 52% / 0.22) 0,
-      hsl(10 100% 42% / 0.09) 42%,
-      transparent 80%
-    );
-
-  background-repeat: repeat, repeat, repeat, no-repeat, no-repeat;
-
-  /* First pattern is exactly one LED cell. */
-  background-size:
-    var(--cell) var(--cell),
-    46px 46px,
-    760px 760px,
-    140% 140%,
-    150% 150%;
-
-  background-position:
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0;
-
-  opacity: 0.92;
-  transform: translate3d(0, 0, 0) scale(1.02);
-  transform-origin: 50% 50%;
-
-  animation:
-    gd-led-pixels 11s linear infinite,
-    gd-led-breathe 8s ease-in-out infinite;
-
-  will-change: background-position, transform, opacity;
-  backface-visibility: hidden;
-}
-
-/* ------------------------------------------------------------
-   FIXED LED GRID
-   ------------------------------------------------------------ */
-
-.orange-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-
-  background-image:
-    repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
-    repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
-
-  background-size: var(--cell) var(--cell);
-  background-repeat: repeat;
-  opacity: 0.82;
 
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
 /* ------------------------------------------------------------
-   ACTUAL LED MOVEMENT
-   ------------------------------------------------------------
-   Notice that the first background moves from 0 -> 8px -> -5px.
-   Since its texture is exactly one cell wide, this visibly shifts
-   the light source from one side of every LED to another side,
-   while the 1px grid never moves.
+   CANVAS LIGHT FIELD
    ------------------------------------------------------------ */
 
-@keyframes gd-led-pixels {
-  0% {
-    background-position:
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0;
-  }
+/*
+ * AnimatedLedBackground.tsx owns the moving illumination.
+ *
+ * The canvas is intentionally kept below the CSS grid and above
+ * the static atmospheric base.
+ */
+.orange-bg .led-wallpaper-canvas {
+  position: absolute;
+  inset: 0;
 
-  14% {
-    background-position:
-      5px -3px,
-      -9px 7px,
-      -130px 45px,
-      -1% 1%,
-      2% -1%;
-  }
+  display: block;
 
-  28% {
-    background-position:
-      9px 2px,
-      10px 15px,
-      -20px 130px,
-      3% 4%,
-      -3% 2%;
-  }
+  width: 100%;
+  height: 100%;
 
-  44% {
-    background-position:
-      4px 8px,
-      19px 2px,
-      120px -80px,
-      5% 0%,
-      -1% 5%;
-  }
+  pointer-events: none;
+  user-select: none;
 
-  60% {
-    background-position:
-      -4px 5px,
-      4px -14px,
-      210px 30px,
-      1% -3%,
-      4% 1%;
-  }
+  z-index: 1;
 
-  76% {
-    background-position:
-      -8px -2px,
-      -15px -3px,
-      65px 170px,
-      -2% 2%,
-      0% -4%;
-  }
+  transform: translateZ(0);
+  backface-visibility: hidden;
 
-  90% {
-    background-position:
-      -3px -6px,
-      -8px 10px,
-      -100px 70px,
-      2% 0%,
-      -2% 2%;
-  }
-
-  100% {
-    background-position:
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0;
-  }
+  /*
+   * The renderer handles its own animation timing.
+   * Do not add CSS transforms/animations here.
+   */
 }
 
 /* ------------------------------------------------------------
-   VISIBLE BREATHING
+   FIXED LED GRID
    ------------------------------------------------------------ */
 
-@keyframes gd-led-breathe {
-  0%,
-  100% {
-    opacity: 0.78;
-    transform: translate3d(-1.4%, -0.8%, 0) scale(1);
-  }
+/*
+ * 19px illuminated tile + 1px separator = 20px cell.
+ *
+ * This layer never moves.
+ */
+.orange-bg::after {
+  content: "";
 
-  25% {
-    opacity: 0.98;
-    transform: translate3d(0.4%, 0.9%, 0) scale(1.035);
-  }
+  position: absolute;
+  inset: 0;
 
-  50% {
-    opacity: 0.86;
-    transform: translate3d(1.5%, 1.2%, 0) scale(1.055);
-  }
+  pointer-events: none;
+  z-index: 2;
 
-  75% {
-    opacity: 0.96;
-    transform: translate3d(0.2%, -0.3%, 0) scale(1.025);
-  }
+  background-image:
+    repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
+
+  background-size:
+    var(--cell) var(--cell),
+    var(--cell) var(--cell);
+
+  background-repeat: repeat;
+
+  opacity: 0.84;
+
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* ------------------------------------------------------------
@@ -399,11 +240,6 @@
     --tile: 17px;
     --gap: 1px;
     --cell: 18px;
-  }
-
-  .orange-bg::before {
-    animation-duration: 12.5s, 9.5s;
-    opacity: 0.88;
   }
 
   .orange-bg::after {
@@ -422,14 +258,8 @@
     --cell: 17px;
   }
 
-  .orange-bg::before {
-    inset: -12%;
-    animation-duration: 14s, 10.5s;
-    opacity: 0.82;
-  }
-
   .orange-bg::after {
-    opacity: 0.72;
+    opacity: 0.7;
   }
 
   .orange-bg {
@@ -442,16 +272,8 @@
    ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-  .orange-bg::before {
-    animation: none;
-    background-position:
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0;
-    transform: translate3d(0, 0, 0) scale(1.02);
-    opacity: 0.86;
+  .orange-bg .led-wallpaper-canvas {
+    opacity: 0.96;
   }
 }
 
