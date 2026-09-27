@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ExternalLink } from "lucide-react";
+import LEDBackground from "@/LEDBackground";
 
 const Blog = () => {
   const [activeNotion, setActiveNotion] = useState<string | null>(null);
