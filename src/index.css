@@ -71,7 +71,7 @@
 }
 
 /* ============================================================
-   SLOW FADE IN
+   FADE IN
    ============================================================ */
 
 @keyframes fadeInSlow {
@@ -94,18 +94,31 @@
    LED TILE WALLPAPER
    ============================================================
 
-   IMPORTANT:
+   VISUAL MODEL
 
-   The grid NEVER moves.
+   The wallpaper is built from 3 independent layers:
 
-   The illumination underneath the grid moves independently.
+   1. Dark atmospheric base
+   2. Moving warm illumination field
+   3. Fixed LED grid
 
-   19px illuminated tile
-   1px separator
-   20px total cell
+   The grid never moves.
 
-   The light field is deliberately oversized so the movement
-   can happen without revealing its edges.
+   The illumination beneath it is continuously redistributed.
+   This creates the feeling that individual tiles are changing
+   state instead of one giant gradient simply sliding around.
+
+   The palette deliberately stays in the same family:
+
+   deep brown
+   deep red
+   burnt orange
+   orange
+   amber
+   gold
+
+   This prevents sudden "orange background -> yellow blob"
+   transitions and keeps the field visually cohesive.
    ============================================================ */
 
 .orange-bg {
@@ -113,9 +126,8 @@
   --gap: 1px;
   --cell: 20px;
 
-  /* Base darkness */
-  --led-base: hsl(10 45% 6%);
-  --led-line: hsl(10 40% 3%);
+  --led-base: hsl(11 45% 5%);
+  --led-line: hsl(12 42% 2.6%);
 
   position: relative;
 
@@ -126,42 +138,34 @@
   overflow: hidden;
   pointer-events: none;
 
-  background: linear-gradient(135deg, hsl(13 48% 8%) 0%, hsl(9 42% 6%) 45%, hsl(8 38% 5%) 100%);
-
   isolation: isolate;
 
+  background:
+    /* --------------------------------------------------------
+       ATMOSPHERIC BASE
+       -------------------------------------------------------- */
+    radial-gradient(ellipse 80% 70% at 8% 15%, hsl(27 55% 14% / 0.78) 0%, hsl(18 48% 9% / 0.6) 32%, transparent 72%),
+    radial-gradient(ellipse 85% 80% at 91% 82%, hsl(9 54% 10% / 0.75) 0%, hsl(8 42% 6% / 0.9) 46%, transparent 80%),
+    linear-gradient(135deg, hsl(12 44% 7%) 0%, hsl(9 42% 5.5%) 48%, hsl(8 38% 4.5%) 100%);
+
+  background-repeat: no-repeat;
+
   transform: translateZ(0);
+
   backface-visibility: hidden;
+
+  will-change: background-position;
 }
 
 /* ============================================================
-   FIXED SITE BACKGROUND
-   ============================================================ */
-
-.site-background.orange-bg {
-  position: fixed;
-  inset: 0;
-
-  z-index: 0;
-
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-
-  transition: none;
-}
-
-/* ============================================================
-   MOVING LIGHT FIELD
+   PRIMARY MOVING LIGHT FIELD
    ============================================================
 
-   This is intentionally separate from the grid.
+   This replaces the old "large orange blob" behavior.
 
-   The light field is much larger than the viewport.
-   Multiple gradients move in different directions.
-
-   This makes the illumination visibly travel from tile
-   to tile rather than appearing like a static gradient.
+   Several fields overlap each other and move at different rates.
+   Because they aren't travelling together, the resulting color
+   distribution continually changes.
    ============================================================ */
 
 .orange-bg::before {
@@ -170,110 +174,287 @@
   position: absolute;
 
   /*
-   * Oversize the field significantly.
-   * This gives the gradients room to travel.
+   * Oversized field.
+   * This gives it enough room to travel without exposing edges.
    */
-  inset: -65%;
+  inset: -55%;
 
   pointer-events: none;
 
+  z-index: 1;
+
   background:
+
     /* --------------------------------------------------------
-       LIGHT MASS 1 — warm yellow/orange
+       FIELD A — warm amber
        -------------------------------------------------------- */
     radial-gradient(
-      ellipse 28% 24% at 18% 18%,
-      hsl(43 100% 69% / 0.95) 0%,
-      hsl(38 96% 58% / 0.78) 22%,
-      hsl(29 90% 45% / 0.4) 48%,
-      transparent 78%
+      ellipse 25% 22% at 17% 18%,
+      hsl(42 100% 66% / 0.8) 0%,
+      hsl(36 94% 56% / 0.62) 20%,
+      hsl(28 86% 42% / 0.3) 48%,
+      transparent 76%
     ),
     /* --------------------------------------------------------
-       LIGHT MASS 2 — orange
+       FIELD B — orange
        -------------------------------------------------------- */
     radial-gradient(
-        ellipse 34% 30% at 72% 22%,
-        hsl(24 96% 55% / 0.82) 0%,
-        hsl(17 91% 44% / 0.64) 30%,
-        hsl(12 78% 28% / 0.3) 60%,
+        ellipse 31% 26% at 72% 16%,
+        hsl(25 97% 54% / 0.76) 0%,
+        hsl(18 90% 45% / 0.58) 28%,
+        hsl(12 74% 28% / 0.3) 58%,
+        transparent 82%
+      ),
+    /* --------------------------------------------------------
+       FIELD C — red-orange
+       -------------------------------------------------------- */
+    radial-gradient(
+        ellipse 28% 34% at 28% 79%,
+        hsl(9 94% 47% / 0.7) 0%,
+        hsl(7 82% 35% / 0.5) 34%,
+        hsl(7 63% 21% / 0.26) 61%,
         transparent 84%
       ),
     /* --------------------------------------------------------
-       LIGHT MASS 3 — deep red/orange
+       FIELD D — restrained amber
        -------------------------------------------------------- */
     radial-gradient(
-        ellipse 32% 38% at 35% 72%,
-        hsl(10 94% 48% / 0.76) 0%,
-        hsl(8 83% 35% / 0.58) 34%,
-        hsl(7 68% 21% / 0.28) 64%,
+        ellipse 27% 28% at 88% 70%,
+        hsl(32 94% 54% / 0.58) 0%,
+        hsl(22 83% 40% / 0.42) 35%,
+        hsl(13 64% 23% / 0.22) 62%,
+        transparent 82%
+      ),
+    /* --------------------------------------------------------
+       FIELD E — central fire
+       -------------------------------------------------------- */
+    radial-gradient(
+        ellipse 34% 28% at 53% 49%,
+        hsl(15 90% 45% / 0.46) 0%,
+        hsl(10 78% 32% / 0.34) 33%,
+        hsl(9 55% 19% / 0.18) 62%,
         transparent 86%
       ),
     /* --------------------------------------------------------
-       LIGHT MASS 4 — soft amber
+       FIELD F — dark counterweight
        -------------------------------------------------------- */
-    radial-gradient(ellipse 25% 28% at 86% 76%, hsl(29 94% 53% / 0.64) 0%, hsl(19 84% 38% / 0.45) 36%, transparent 80%),
-    /* --------------------------------------------------------
-       LIGHT MASS 5 — central warm glow
-       -------------------------------------------------------- */
-    radial-gradient(ellipse 42% 32% at 52% 46%, hsl(15 92% 43% / 0.5) 0%, hsl(10 76% 29% / 0.28) 42%, transparent 82%);
+    radial-gradient(ellipse 42% 42% at 52% 8%, hsl(8 50% 7% / 0.65) 0%, transparent 72%);
 
   background-repeat: no-repeat;
 
-  /*
-   * This is important:
-   * the gradient field itself is larger than the viewport.
-   */
-  background-size: 135% 135%;
+  background-size:
+    150% 148%,
+    138% 136%,
+    145% 150%,
+    138% 142%,
+    160% 150%,
+    150% 150%;
 
   background-position:
-    0% 0%,
-    100% 0%,
-    0% 100%,
-    100% 100%,
-    50% 50%;
+    4% 4%,
+    92% 5%,
+    4% 94%,
+    94% 88%,
+    50% 52%,
+    50% 5%;
 
-  opacity: 0.95;
+  opacity: 0.94;
 
-  /*
-   * The actual motion.
-   */
-  animation: gd-led-light-drift 24s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+  transform: translate3d(0, 0, 0) scale(1.04);
 
   will-change: transform, background-position;
 
   backface-visibility: hidden;
 
-  transform: translate3d(0, 0, 0) scale(1.05);
+  animation: gd-led-field-flow 31s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 
-  /*
-   * Prevent the animation from affecting layout.
-   */
   contain: paint;
 }
 
 /* ============================================================
-   SECONDARY LIGHT FIELD
+   SECOND ATMOSPHERIC FIELD
    ============================================================
 
-   A second slower layer creates parallax-like movement.
+   This layer is intentionally slower.
 
-   This is what makes the background feel organic rather than
-   like one giant gradient sliding left and right.
+   Its job is not to create another visible blob.
+
+   Its job is to alter the relationships between the brighter
+   fields so the background never settles into one static
+   composition.
    ============================================================ */
 
-.orange-bg::before {
-  /* Keep primary field above base */
-  z-index: 1;
+.orange-bg {
+  animation: gd-led-base-flow 47s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+}
+
+@keyframes gd-led-base-flow {
+  0% {
+    background-position:
+      0% 0%,
+      100% 100%,
+      0% 0%;
+  }
+
+  25% {
+    background-position:
+      4% 2%,
+      96% 98%,
+      1% 2%;
+  }
+
+  50% {
+    background-position:
+      8% 5%,
+      92% 94%,
+      2% 4%;
+  }
+
+  75% {
+    background-position:
+      4% 8%,
+      96% 88%,
+      1% 5%;
+  }
+
+  100% {
+    background-position:
+      0% 5%,
+      100% 92%,
+      0% 3%;
+  }
 }
 
 /* ============================================================
-   LED GRID
+   PRIMARY FIELD MOTION
+   ============================================================ */
+
+@keyframes gd-led-field-flow {
+  0% {
+    transform: translate3d(-6%, -4%, 0) scale(1.04);
+
+    background-position:
+      2% 4%,
+      94% 7%,
+      3% 95%,
+      95% 88%,
+      50% 50%,
+      50% 5%;
+  }
+
+  14% {
+    transform: translate3d(-2%, -7%, 0) scale(1.055);
+
+    background-position:
+      10% 13%,
+      84% 3%,
+      9% 88%,
+      89% 80%,
+      45% 56%,
+      53% 7%;
+  }
+
+  28% {
+    transform: translate3d(4%, -4%, 0) scale(1.07);
+
+    background-position:
+      20% 20%,
+      74% 12%,
+      17% 79%,
+      81% 72%,
+      57% 47%,
+      47% 10%;
+  }
+
+  42% {
+    transform: translate3d(7%, 1%, 0) scale(1.085);
+
+    background-position:
+      32% 30%,
+      61% 22%,
+      27% 70%,
+      72% 61%,
+      48% 39%,
+      43% 14%;
+  }
+
+  56% {
+    transform: translate3d(5%, 6%, 0) scale(1.075);
+
+    background-position:
+      45% 39%,
+      48% 35%,
+      39% 58%,
+      63% 51%,
+      60% 55%,
+      40% 18%;
+  }
+
+  70% {
+    transform: translate3d(-1%, 8%, 0) scale(1.06);
+
+    background-position:
+      58% 49%,
+      35% 49%,
+      52% 46%,
+      51% 42%,
+      45% 62%,
+      48% 23%;
+  }
+
+  84% {
+    transform: translate3d(-7%, 4%, 0) scale(1.05);
+
+    background-position:
+      70% 59%,
+      24% 62%,
+      66% 34%,
+      41% 31%,
+      54% 44%,
+      57% 27%;
+  }
+
+  100% {
+    transform: translate3d(-5%, -3%, 0) scale(1.045);
+
+    background-position:
+      83% 69%,
+      14% 74%,
+      79% 22%,
+      29% 21%,
+      42% 51%,
+      63% 32%;
+  }
+}
+
+/* ============================================================
+   ATMOSPHERIC BREATHING
+   ============================================================ */
+
+@keyframes gd-led-opacity-breathe {
+  0%,
+  100% {
+    opacity: 0.88;
+  }
+
+  50% {
+    opacity: 0.98;
+  }
+}
+
+.orange-bg::before {
+  animation:
+    gd-led-field-flow 31s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate,
+    gd-led-opacity-breathe 13s ease-in-out infinite;
+}
+
+/* ============================================================
+   FIXED LED GRID
    ============================================================
 
-   THIS ELEMENT DOES NOT MOVE.
+   DO NOT animate this layer.
 
-   The grid stays perfectly aligned while the colors beneath
-   it travel.
+   It is deliberately independent from the illumination field.
    ============================================================ */
 
 .orange-bg::after {
@@ -287,8 +468,10 @@
   z-index: 3;
 
   background-image:
+
+    /* vertical seams */
     repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
-    repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
+    /* horizontal seams */ repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
 
   background-size:
     var(--cell) var(--cell),
@@ -296,115 +479,51 @@
 
   background-repeat: repeat, repeat;
 
-  opacity: 0.84;
+  opacity: 0.86;
 
-  /*
-   * Absolutely no animation on the grid.
-   */
   transform: translateZ(0);
 
-  will-change: auto;
-
   backface-visibility: hidden;
+
+  /*
+   * Critical:
+   * The grid itself never moves.
+   */
+  animation: none;
+
+  will-change: auto;
 }
 
 /* ============================================================
-   MOVING LIGHT ANIMATION
-   ============================================================ */
-
-@keyframes gd-led-light-drift {
-  0% {
-    transform: translate3d(-7%, -5%, 0) scale(1.06);
-
-    background-position:
-      0% 0%,
-      100% 0%,
-      0% 100%,
-      100% 100%,
-      50% 50%;
-  }
-
-  20% {
-    transform: translate3d(-2%, -7%, 0) scale(1.08);
-
-    background-position:
-      16% 8%,
-      84% 14%,
-      8% 92%,
-      92% 84%,
-      44% 54%;
-  }
-
-  40% {
-    transform: translate3d(6%, -2%, 0) scale(1.1);
-
-    background-position:
-      31% 18%,
-      69% 25%,
-      18% 81%,
-      80% 69%,
-      56% 43%;
-  }
-
-  60% {
-    transform: translate3d(8%, 6%, 0) scale(1.12);
-
-    background-position:
-      48% 30%,
-      54% 39%,
-      31% 69%,
-      67% 54%,
-      47% 61%;
-  }
-
-  80% {
-    transform: translate3d(-1%, 8%, 0) scale(1.09);
-
-    background-position:
-      66% 43%,
-      38% 55%,
-      47% 53%,
-      51% 42%,
-      59% 47%;
-  }
-
-  100% {
-    transform: translate3d(-8%, -2%, 0) scale(1.07);
-
-    background-position:
-      84% 57%,
-      18% 72%,
-      64% 36%,
-      35% 28%,
-      41% 55%;
-  }
-}
-
-/* ============================================================
-   VERY SLOW COLOR BREATHING
+   SUBTLE TILE DEPTH
    ============================================================
 
-   The illumination subtly changes intensity.
+   This is a very low-contrast repeating structure that breaks
+   up otherwise perfectly smooth gradient regions.
 
-   This prevents a particular tile from looking permanently
-   assigned to one color.
+   It is intentionally almost invisible.
+
+   Its purpose is to make the illumination feel less like paint
+   and more like thousands of individual light cells.
    ============================================================ */
 
-@keyframes gd-led-breathe {
-  0%,
-  100% {
-    opacity: 0.9;
-  }
+.orange-bg::after {
+  background-image:
+    repeating-linear-gradient(to right, hsl(8 45% 2% / 0.82) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(to bottom, hsl(8 45% 2% / 0.82) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(135deg, transparent 0 8px, hsl(25 70% 30% / 0.018) 8px 9px, transparent 9px 20px);
 
-  50% {
-    opacity: 1;
-  }
-}
+  background-size:
+    var(--cell) var(--cell),
+    var(--cell) var(--cell),
+    97px 97px;
 
-.orange-bg::before {
-  animation:
-    gd-led-light-drift 24s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate,
-    gd-led-breathe 9s ease-in-out infinite;
+  background-position:
+    0 0,
+    0 0,
+    0 0;
+
+  background-repeat: repeat, repeat, repeat;
 }
 
 /* ============================================================
@@ -419,13 +538,13 @@
   }
 
   .orange-bg::before {
-    animation-duration: 30s, 10s;
+    animation-duration: 38s, 15s;
 
     opacity: 0.9;
   }
 
   .orange-bg::after {
-    opacity: 0.8;
+    opacity: 0.81;
   }
 }
 
@@ -441,22 +560,18 @@
   }
 
   .orange-bg::before {
-    animation-duration: 34s, 11s;
+    animation-duration: 42s, 16s;
 
-    opacity: 0.82;
+    opacity: 0.84;
 
     /*
-     * Keep the animation alive on mobile.
-     * The previous version effectively reduced the compositor
-     * optimization and made the wallpaper feel static.
+     * Keep the field animated on mobile.
      */
     will-change: transform, background-position;
-
-    contain: paint;
   }
 
   .orange-bg::after {
-    opacity: 0.7;
+    opacity: 0.72;
   }
 
   .orange-bg {
@@ -470,10 +585,13 @@
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
+  .orange-bg,
   .orange-bg::before {
     animation: none;
+  }
 
-    transform: translate3d(0, 0, 0) scale(1.08);
+  .orange-bg::before {
+    transform: translate3d(0, 0, 0) scale(1.05);
 
     opacity: 0.9;
   }
@@ -824,6 +942,7 @@ body,
 :root[data-theme="minimal"] body,
 :root[data-theme="minimal"] .site-page {
   background-color: hsl(var(--background));
+
   color: hsl(var(--foreground));
 }
 
@@ -843,6 +962,7 @@ body,
 :root[data-theme="minimal"] .site-page [class*="text-gray"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="text-white"] {
   color: hsl(var(--foreground)) !important;
+
   text-shadow: none !important;
 }
 
@@ -875,6 +995,7 @@ body,
 :root[data-theme="minimal"] .site-page [class*="backdrop-blur"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="backdrop-blur"] {
   -webkit-backdrop-filter: none !important;
+
   backdrop-filter: none !important;
 }
 
