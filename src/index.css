@@ -96,23 +96,21 @@
 /* ============================================================
    PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
-   Fixed LED geometry + animated procedural light field.
-
-   The canvas is responsible for movement.
-   The CSS grid is responsible only for the fixed separators.
-
-   There is intentionally NO cursor/pointer animation here.
+   Fixed LED geometry + animated canvas light field.
+   No cursor interaction. The LEDs themselves visibly evolve.
    ============================================================ */
 
 .orange-bg {
   --tile: 19px;
   --gap: 1px;
   --cell: 20px;
+  --led-base: #120806;
+  --led-line: hsl(15 45% 4% / 0.9);
 
-  --led-base: hsl(20 60% 7%);
-  --led-line: hsl(17 52% 4%);
+  position: fixed;
+  inset: 0;
+  z-index: 0;
 
-  position: relative;
   width: 100%;
   height: 100%;
   min-height: 100dvh;
@@ -122,20 +120,9 @@
   isolation: isolate;
 
   background:
-    radial-gradient(ellipse 82% 68% at 7% 5%, hsl(39 82% 29% / 0.64) 0%, hsl(31 76% 17% / 0.44) 34%, transparent 76%),
-    radial-gradient(
-      ellipse 74% 78% at 37% 48%,
-      hsl(17 82% 20% / 0.44) 0%,
-      hsl(11 68% 11% / 0.32) 50%,
-      transparent 100%
-    ),
-    radial-gradient(
-      ellipse 64% 82% at 100% 48%,
-      hsl(10 64% 13% / 0.52) 0%,
-      hsl(8 50% 7% / 0.84) 58%,
-      hsl(8 48% 6%) 100%
-    ),
-    linear-gradient(135deg, hsl(29 66% 18%) 0%, hsl(19 70% 13%) 30%, hsl(12 65% 9%) 62%, hsl(8 52% 6%) 100%);
+    radial-gradient(ellipse 85% 75% at 7% 4%, hsl(35 78% 19%) 0%, hsl(25 66% 12%) 40%, transparent 76%),
+    radial-gradient(ellipse 78% 82% at 46% 48%, hsl(17 60% 11%) 0%, hsl(9 52% 7%) 62%, transparent 100%),
+    linear-gradient(135deg, hsl(25 62% 13%) 0%, hsl(13 54% 8%) 50%, hsl(8 48% 5%) 100%);
 
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -144,59 +131,37 @@
 .site-background.orange-bg {
   position: fixed;
   inset: 0;
-
   z-index: 0;
-
   width: 100%;
   height: 100%;
   min-height: 100%;
-
   transition: none;
-
-  transform: translateZ(0);
-  backface-visibility: hidden;
 }
-
-/* ------------------------------------------------------------
-   CANVAS LIGHT FIELD
-   ------------------------------------------------------------
-   AnimatedLedBackground.tsx owns the moving illumination.
-   This layer must not have its own transform animation.
-   ------------------------------------------------------------ */
 
 .orange-bg .led-wallpaper-canvas {
   position: absolute;
   inset: 0;
 
   display: block;
-
   width: 100%;
   height: 100%;
 
   pointer-events: none;
   user-select: none;
 
-  z-index: 1;
+  z-index: 0;
 
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
-/* ------------------------------------------------------------
-   FIXED LED GRID
-   ------------------------------------------------------------
-   19px illuminated tile + 1px separator = 20px cell.
-   The grid itself never moves.
-   ------------------------------------------------------------ */
-
+/* The grid is structural and NEVER moves. */
 .orange-bg::after {
   content: "";
-
   position: absolute;
   inset: 0;
-
+  z-index: 1;
   pointer-events: none;
-  z-index: 2;
 
   background-image:
     repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
@@ -207,8 +172,7 @@
     var(--cell) var(--cell);
 
   background-repeat: repeat;
-
-  opacity: 0.82;
+  opacity: 0.84;
 
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -217,28 +181,22 @@
 @media (max-width: 900px) {
   .orange-bg {
     --tile: 17px;
-    --gap: 1px;
     --cell: 18px;
   }
 
   .orange-bg::after {
-    opacity: 0.77;
+    opacity: 0.78;
   }
 }
 
 @media (max-width: 768px) {
   .orange-bg {
     --tile: 16px;
-    --gap: 1px;
     --cell: 17px;
   }
 
   .orange-bg::after {
     opacity: 0.7;
-  }
-
-  .orange-bg {
-    backface-visibility: visible;
   }
 }
 
