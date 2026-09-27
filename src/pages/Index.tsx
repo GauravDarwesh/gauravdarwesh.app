@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
-import LEDBackground from "@/components/LEDBackground";
+import LEDBackground from "@/LEDBackground";
 
 const ANIM_MS = 3000;
 
