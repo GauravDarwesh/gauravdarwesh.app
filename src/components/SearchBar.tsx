@@ -3484,26 +3484,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 />
                 {isLoading && (
                   <div className="gdx-thinking-indicator" aria-live="polite" aria-label="Thinking">
-                    <span className="gdx-thinking-field" aria-hidden="true">
-                      <span className="gdx-thinking-field-glow" />
-                      <span className="gdx-thinking-scan-line" />
-                      <span className="gdx-thinking-word">
-                        {"Thinking".split("").map((letter, index) => (
-                          <span
-                            key={`${letter}-${index}`}
-                            className="gdx-thinking-letter"
-                            style={{ "--thinking-index": index } as CSSProperties}
-                          >
-                            {letter}
-                          </span>
-                        ))}
+                    <span className="gdx-thinking-focus" aria-hidden="true">
+                      <span className="gdx-thinking-focus-line gdx-thinking-focus-line-left" />
+                      <span className="gdx-thinking-word-wrap">
+                        <span className="gdx-thinking-word-shadow">Thinking</span>
+                        <span className="gdx-thinking-word">Thinking</span>
+                        <span className="gdx-thinking-word-sheen" />
                       </span>
-                      <span className="gdx-thinking-cursor" />
-                      <span className="gdx-thinking-trail">
-                        <span />
-                        <span />
+                      <span className="gdx-thinking-focus-line gdx-thinking-focus-line-right" />
+                      <span className="gdx-thinking-baseline">
                         <span />
                       </span>
+                      <span className="gdx-thinking-aura" />
                     </span>
                   </div>
                 )}
@@ -3768,9 +3760,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
         /* -------------------------------------------------------
            Thinking state
-           Kinetic search wordmark: subtle letter choreography + a
-           restrained scan beam + micro cursor pulse.
-           This is intentionally isolated from SearchBar layout motion.
+           Optical-focus treatment: the word itself stays composed and
+           editorial. Motion comes from focus, light, and the search
+           field's precision rails rather than bouncing characters.
            ------------------------------------------------------- */
         .gdx-thinking-indicator {
           position: absolute;
@@ -3784,244 +3776,302 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           overflow: visible;
         }
 
-        .gdx-thinking-field {
+        .gdx-thinking-focus {
           position: relative;
           display: inline-flex;
           align-items: center;
-          min-height: 24px;
-          padding: 2px 3px 3px;
-          line-height: 1.35;
+          min-height: 44px;
+          padding: 1px 0 2px;
           overflow: visible;
           isolation: isolate;
         }
 
-        .gdx-thinking-field-glow {
-          position: absolute;
-          inset: 2px -8px 2px -8px;
-          border-radius: 999px;
-          background: radial-gradient(ellipse at center, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.045) 42%, transparent 72%);
-          opacity: 0.25;
-          transform: scaleX(0.82);
-          animation: thinkingFieldGlow 3.6s cubic-bezier(0.4,0,0.2,1) infinite;
-          z-index: -1;
-          will-change: transform, opacity;
-        }
-
-        .gdx-thinking-scan-line {
-          position: absolute;
-          top: 3px;
-          bottom: 3px;
-          left: -4px;
-          width: 1.5px;
-          border-radius: 999px;
-          background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.45) 22%, rgba(255,255,255,0.98) 50%, rgba(255,255,255,0.45) 78%, transparent 100%);
-          box-shadow: 0 0 7px rgba(255,255,255,0.26), 0 0 14px rgba(255,255,255,0.08);
-          opacity: 0;
-          animation: thinkingScan 3.6s cubic-bezier(0.45,0,0.55,1) infinite;
-          will-change: transform, opacity;
-        }
-
-        .gdx-thinking-word {
+        .gdx-thinking-word-wrap {
+          position: relative;
           display: inline-flex;
-          align-items: baseline;
-          padding: 1px 0 2px;
-          line-height: 1.35;
+          align-items: center;
+          min-height: 28px;
+          padding: 2px 3px 5px;
+          line-height: 1.5;
+          overflow: visible;
+          border-radius: 5px;
+        }
+
+        .gdx-thinking-word,
+        .gdx-thinking-word-shadow {
+          display: block;
           font-size: 1rem;
           font-weight: 400;
           letter-spacing: -0.012em;
+          line-height: 1.5;
           white-space: nowrap;
-          color: rgba(255,255,255,0.72);
           text-rendering: geometricPrecision;
         }
 
-        .gdx-thinking-letter {
-          display: inline-block;
+        .gdx-thinking-word {
           position: relative;
-          transform: translate3d(0, 0, 0);
-          opacity: 0.52;
-          text-shadow: 0 0 0 rgba(255,255,255,0);
-          animation: thinkingLetterWave 2.55s cubic-bezier(0.37,0,0.63,1) infinite;
-          animation-delay: calc(var(--thinking-index) * 95ms);
-          will-change: transform, opacity, text-shadow;
+          z-index: 2;
+          color: rgba(255,255,255,0.72);
+          animation: thinkingOpticalFocus 4.8s cubic-bezier(0.37,0,0.63,1) infinite;
+          will-change: opacity, filter, letter-spacing;
         }
 
-        .gdx-thinking-cursor {
-          display: inline-block;
-          width: 1.5px;
-          height: 13px;
-          margin-left: 6px;
-          margin-bottom: -1px;
-          flex: 0 0 1.5px;
-          border-radius: 999px;
-          background: rgba(255,255,255,0.68);
-          box-shadow: 0 0 7px rgba(255,255,255,0.16);
-          opacity: 0.44;
+        .gdx-thinking-word-shadow {
+          position: absolute;
+          inset: 2px 3px 5px 3px;
+          z-index: 1;
+          color: rgba(255,255,255,0.18);
+          filter: blur(5px);
+          opacity: 0;
+          transform: scaleX(1.008);
+          animation: thinkingFocusBloom 4.8s cubic-bezier(0.37,0,0.63,1) infinite;
+          pointer-events: none;
+          will-change: opacity, filter, transform;
+        }
+
+        .gdx-thinking-word-sheen {
+          position: absolute;
+          inset: 1px -12px 3px -18px;
+          z-index: 3;
+          width: 26px;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.17), transparent);
+          filter: blur(2px);
+          opacity: 0;
+          transform: translate3d(-12px,0,0) skewX(-10deg);
+          animation: thinkingFocusSheen 4.8s cubic-bezier(0.45,0,0.55,1) infinite;
+          will-change: transform, opacity;
+          pointer-events: none;
+        }
+
+        .gdx-thinking-focus-line {
+          position: relative;
+          width: 17px;
+          height: 1px;
+          flex: 0 0 17px;
+          opacity: 0.24;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.24));
           transform-origin: center;
-          animation: thinkingCursor 1.45s cubic-bezier(0.4,0,0.2,1) infinite;
+          animation: thinkingRailBreathe 4.8s cubic-bezier(0.37,0,0.63,1) infinite;
           will-change: transform, opacity;
         }
 
-        .gdx-thinking-trail {
-          display: inline-flex;
-          align-items: center;
-          gap: 3px;
-          height: 14px;
-          margin-left: 7px;
-          padding-top: 1px;
+        .gdx-thinking-focus-line-left {
+          margin-right: 5px;
         }
 
-        .gdx-thinking-trail span {
+        .gdx-thinking-focus-line-right {
+          margin-left: 5px;
+          transform: scaleX(-1);
+          animation-delay: 90ms;
+        }
+
+        .gdx-thinking-baseline {
+          position: absolute;
+          left: 22px;
+          right: 22px;
+          bottom: 2px;
+          height: 1px;
+          overflow: hidden;
+          opacity: 0.22;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.07);
+        }
+
+        .gdx-thinking-baseline span {
           display: block;
-          width: 3px;
-          height: 3px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.58);
-          opacity: 0.16;
-          transform: translateY(0) scale(0.7);
-          animation: thinkingTrail 1.55s cubic-bezier(0.4,0,0.2,1) infinite;
+          width: 34%;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.72), transparent);
+          transform: translate3d(-130%,0,0);
+          animation: thinkingBaselineSweep 4.8s cubic-bezier(0.45,0,0.55,1) infinite;
+          will-change: transform;
+        }
+
+        .gdx-thinking-aura {
+          position: absolute;
+          left: 10px;
+          right: 10px;
+          top: 7px;
+          bottom: 8px;
+          z-index: -1;
+          border-radius: 999px;
+          background: radial-gradient(ellipse at center, rgba(255,255,255,0.085) 0%, rgba(255,255,255,0.025) 44%, transparent 74%);
+          filter: blur(7px);
+          opacity: 0.12;
+          transform: scaleX(0.72);
+          animation: thinkingAura 4.8s cubic-bezier(0.37,0,0.63,1) infinite;
           will-change: transform, opacity;
         }
 
-        .gdx-thinking-trail span:nth-child(2) {
-          animation-delay: 120ms;
-        }
-
-        .gdx-thinking-trail span:nth-child(3) {
-          animation-delay: 240ms;
-        }
-
-        @keyframes thinkingLetterWave {
-          0%, 16%, 100% {
-            opacity: 0.48;
-            transform: translate3d(0, 0, 0) scale(1);
-            text-shadow: 0 0 0 rgba(255,255,255,0);
+        @keyframes thinkingOpticalFocus {
+          0%, 14%, 100% {
+            opacity: 0.46;
+            filter: blur(1.15px);
+            letter-spacing: -0.018em;
           }
-          34% {
-            opacity: 0.96;
-            transform: translate3d(0, -1.5px, 0) scale(1.015);
-            text-shadow: 0 0 8px rgba(255,255,255,0.16);
+          31% {
+            opacity: 0.82;
+            filter: blur(0);
+            letter-spacing: -0.012em;
           }
-          48% {
-            opacity: 0.74;
-            transform: translate3d(0, 0.25px, 0) scale(1.002);
-            text-shadow: 0 0 3px rgba(255,255,255,0.08);
+          44% {
+            opacity: 0.70;
+            filter: blur(0.15px);
+            letter-spacing: -0.012em;
+          }
+          60% {
+            opacity: 0.50;
+            filter: blur(0.9px);
+            letter-spacing: -0.016em;
           }
         }
 
-        @keyframes thinkingScan {
-          0%, 18% {
+        @keyframes thinkingFocusBloom {
+          0%, 15%, 100% {
             opacity: 0;
-            transform: translate3d(0,0,0);
+            filter: blur(5px);
+            transform: scaleX(1.008);
           }
-          25% {
+          30% {
+            opacity: 0.44;
+            filter: blur(4px);
+            transform: scaleX(1.012);
+          }
+          45% {
+            opacity: 0.17;
+            filter: blur(6px);
+            transform: scaleX(1.004);
+          }
+          62% {
+            opacity: 0;
+          }
+        }
+
+        @keyframes thinkingFocusSheen {
+          0%, 20% {
+            opacity: 0;
+            transform: translate3d(-18px,0,0) skewX(-10deg);
+          }
+          28% {
+            opacity: 0.04;
+          }
+          42% {
             opacity: 0.72;
           }
-          34% {
-            opacity: 0.92;
+          57% {
+            opacity: 0.05;
+            transform: translate3d(106px,0,0) skewX(-10deg);
           }
-          54% {
-            opacity: 0.48;
-          }
-          70%, 100% {
+          68%, 100% {
             opacity: 0;
-            transform: translate3d(112px,0,0);
+            transform: translate3d(122px,0,0) skewX(-10deg);
           }
         }
 
-        @keyframes thinkingFieldGlow {
-          0%, 18%, 100% {
-            opacity: 0.18;
-            transform: scaleX(0.82);
+        @keyframes thinkingRailBreathe {
+          0%, 100% {
+            opacity: 0.14;
+            transform: scaleX(0.56);
           }
           36% {
-            opacity: 0.48;
+            opacity: 0.42;
             transform: scaleX(1);
           }
           52% {
-            opacity: 0.28;
-            transform: scaleX(0.94);
+            opacity: 0.26;
+            transform: scaleX(0.84);
           }
         }
 
-        @keyframes thinkingCursor {
-          0%, 100% {
-            opacity: 0.18;
-            transform: scaleY(0.82);
+        @keyframes thinkingBaselineSweep {
+          0%, 18% {
+            transform: translate3d(-130%,0,0);
           }
-          42% {
-            opacity: 0.9;
-            transform: scaleY(1);
+          48% {
+            transform: translate3d(250%,0,0);
           }
-          58% {
-            opacity: 0.46;
-            transform: scaleY(0.9);
+          64%, 100% {
+            transform: translate3d(250%,0,0);
           }
         }
 
-        @keyframes thinkingTrail {
+        @keyframes thinkingAura {
           0%, 100% {
+            opacity: 0.08;
+            transform: scaleX(0.72);
+          }
+          36% {
+            opacity: 0.20;
+            transform: scaleX(1);
+          }
+          52% {
             opacity: 0.12;
-            transform: translateY(0) scale(0.68);
+            transform: scaleX(0.9);
           }
-          42% {
-            opacity: 0.88;
-            transform: translateY(-1px) scale(1);
-          }
-          68% {
-            opacity: 0.3;
-            transform: translateY(0) scale(0.82);
-          }
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-field-glow {
-          background: radial-gradient(ellipse at center, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.03) 42%, transparent 72%);
-        }
-
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-scan-line {
-          background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.32) 22%, rgba(0,0,0,0.75) 50%, rgba(0,0,0,0.32) 78%, transparent 100%);
-          box-shadow: 0 0 7px rgba(0,0,0,0.12), 0 0 14px rgba(0,0,0,0.04);
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-word {
           color: rgba(0,0,0,0.64);
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-letter {
-          text-shadow: 0 0 0 rgba(0,0,0,0);
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-word-shadow {
+          color: rgba(0,0,0,0.13);
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-cursor {
-          background: rgba(0,0,0,0.62);
-          box-shadow: 0 0 7px rgba(0,0,0,0.08);
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-word-sheen {
+          background: linear-gradient(90deg, transparent, rgba(0,0,0,0.16), transparent);
         }
 
-        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-trail span {
-          background: rgba(0,0,0,0.48);
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-focus-line {
+          background: linear-gradient(90deg, transparent, rgba(0,0,0,0.17));
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-baseline {
+          background: rgba(0,0,0,0.055);
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-baseline span {
+          background: linear-gradient(90deg, transparent, rgba(0,0,0,0.52), transparent);
+        }
+
+        :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-aura {
+          background: radial-gradient(ellipse at center, rgba(0,0,0,0.065) 0%, rgba(0,0,0,0.018) 44%, transparent 74%);
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .gdx-thinking-letter,
-          .gdx-thinking-scan-line,
-          .gdx-thinking-field-glow,
-          .gdx-thinking-cursor,
-          .gdx-thinking-trail span {
+          .gdx-thinking-word,
+          .gdx-thinking-word-shadow,
+          .gdx-thinking-word-sheen,
+          .gdx-thinking-focus-line,
+          .gdx-thinking-baseline span,
+          .gdx-thinking-aura {
             animation: none !important;
           }
 
-          .gdx-thinking-letter {
-            opacity: 0.7;
+          .gdx-thinking-word {
+            opacity: 0.68;
+            filter: none;
           }
 
-          .gdx-thinking-field-glow {
-            opacity: 0.22;
+          .gdx-thinking-word-shadow {
+            opacity: 0.12;
+            filter: blur(5px);
           }
 
-          .gdx-thinking-cursor {
-            opacity: 0.48;
+          .gdx-thinking-word-sheen,
+          .gdx-thinking-baseline span {
+            opacity: 0;
           }
 
-          .gdx-thinking-trail span {
-            opacity: 0.28;
+          .gdx-thinking-focus-line {
+            opacity: 0.2;
+            transform: scaleX(0.72) !important;
+          }
+
+          .gdx-thinking-aura {
+            opacity: 0.1;
+            transform: scaleX(0.84);
           }
         }
 
