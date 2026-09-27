@@ -201,10 +201,16 @@
   content: "";
 
   position: absolute;
-  inset: -24%;
+  inset: -28%;
 
   pointer-events: none;
 
+  /*
+   * The palette stays exactly in the same warm family.
+   * What changes is the position + scale of several overlapping
+   * light sources, so the wallpaper feels alive rather than
+   * looking like a gradient that simply slides left/right.
+   */
   background:
     radial-gradient(
       ellipse 30% 25% at 12% 12%,
@@ -216,20 +222,45 @@
     radial-gradient(ellipse 34% 27% at 20% 70%, hsl(37 79% 55% / 0.72) 0%, hsl(26 82% 43% / 0.5) 38%, transparent 77%),
     radial-gradient(ellipse 38% 33% at 51% 35%, hsl(13 91% 49% / 0.64) 0%, hsl(8 82% 34% / 0.46) 40%, transparent 78%),
     radial-gradient(ellipse 34% 34% at 75% 78%, hsl(11 87% 42% / 0.56) 0%, hsl(9 73% 24% / 0.36) 42%, transparent 79%),
-    radial-gradient(ellipse 38% 44% at 92% 17%, hsl(10 79% 30% / 0.48) 0%, transparent 76%);
+    radial-gradient(ellipse 38% 44% at 92% 17%, hsl(10 79% 30% / 0.48) 0%, transparent 76%),
+    radial-gradient(ellipse 52% 30% at 56% 92%, hsl(24 77% 35% / 0.2) 0%, transparent 74%);
 
   background-repeat: no-repeat;
-  background-size: 125% 125%;
 
-  opacity: 0.95;
+  /*
+   * Overscan gives the light field room to travel without exposing
+   * the edge of the pseudo-element.
+   */
+  background-size:
+    128% 128%,
+    136% 136%,
+    130% 130%,
+    132% 132%,
+    126% 126%,
+    145% 145%;
+
+  background-position:
+    2% 2%,
+    18% 74%,
+    52% 34%,
+    76% 80%,
+    94% 18%,
+    54% 96%;
+
+  opacity: 0.94;
 
   transform-origin: 50% 50%;
 
-  transform: translate3d(-3%, -1%, 0) scale(1.08);
+  /*
+   * Two kinds of movement happen together:
+   * 1. a very slow macro drift/zoom
+   * 2. independent movement of the individual light pockets
+   */
+  transform: translate3d(-2.5%, -1.5%, 0) scale(1.08);
 
-  animation: gd-led-drift 42s cubic-bezier(0.37, 0.02, 0.2, 1) infinite alternate;
+  animation: gd-led-ambient 48s cubic-bezier(0.37, 0.02, 0.2, 1) infinite alternate;
 
-  will-change: transform;
+  will-change: transform, background-position, opacity;
 
   backface-visibility: hidden;
 
@@ -260,7 +291,7 @@
 
   background-repeat: repeat;
 
-  opacity: 0.88;
+  opacity: 0.86;
 
   transform: translateZ(0);
 
@@ -268,32 +299,90 @@
 }
 
 /* ------------------------------------------------------------
-   SLOW LIGHT MOVEMENT
+   AMBIENT LIGHT MOVEMENT
+
+   The motion is deliberately slow and non-linear. Each radial
+   light source gets its own background-position, creating subtle
+   relative motion between the yellow/orange pools of light.
    ------------------------------------------------------------ */
 
-@keyframes gd-led-drift {
+@keyframes gd-led-ambient {
   0% {
-    transform: translate3d(-3.5%, -1.5%, 0) scale(1.07);
+    opacity: 0.9;
+    transform: translate3d(-3.8%, -1.8%, 0) scale(1.065);
+
+    background-position:
+      0% 0%,
+      12% 78%,
+      50% 30%,
+      82% 76%,
+      96% 14%,
+      48% 100%;
   }
 
-  20% {
-    transform: translate3d(-1.5%, 0%, 0) scale(1.08);
+  18% {
+    opacity: 0.94;
+    transform: translate3d(-1.8%, -0.3%, 0) scale(1.08);
+
+    background-position:
+      8% 4%,
+      22% 68%,
+      42% 39%,
+      74% 84%,
+      88% 22%,
+      60% 92%;
   }
 
-  40% {
-    transform: translate3d(2%, -0.75%, 0) scale(1.095);
+  36% {
+    opacity: 0.97;
+    transform: translate3d(1.4%, 0.8%, 0) scale(1.095);
+
+    background-position:
+      16% 10%,
+      28% 56%,
+      58% 44%,
+      68% 74%,
+      82% 28%,
+      52% 84%;
   }
 
-  60% {
-    transform: translate3d(3%, 1%, 0) scale(1.1);
+  54% {
+    opacity: 0.93;
+    transform: translate3d(3.2%, 1.4%, 0) scale(1.105);
+
+    background-position:
+      22% 2%,
+      35% 64%,
+      64% 32%,
+      80% 64%,
+      94% 16%,
+      42% 92%;
   }
 
-  80% {
-    transform: translate3d(0%, 0.5%, 0) scale(1.085);
+  72% {
+    opacity: 0.96;
+    transform: translate3d(0.8%, 0.5%, 0) scale(1.09);
+
+    background-position:
+      12% 8%,
+      18% 72%,
+      48% 48%,
+      72% 82%,
+      86% 24%,
+      58% 98%;
   }
 
   100% {
-    transform: translate3d(-2%, -0.5%, 0) scale(1.075);
+    opacity: 0.91;
+    transform: translate3d(-2.6%, -0.8%, 0) scale(1.075);
+
+    background-position:
+      2% 0%,
+      30% 60%,
+      56% 36%,
+      76% 72%,
+      92% 18%,
+      50% 88%;
   }
 }
 
@@ -309,7 +398,7 @@
   }
 
   .orange-bg::before {
-    animation-duration: 48s;
+    animation-duration: 54s;
     opacity: 0.88;
   }
 
@@ -330,10 +419,10 @@
   }
 
   .orange-bg::before {
-    animation-duration: 54s;
+    animation-duration: 62s;
     opacity: 0.8;
 
-    will-change: auto;
+    will-change: transform, background-position, opacity;
     contain: none;
   }
 
@@ -355,7 +444,16 @@
   .orange-bg::before {
     animation: none;
 
+    opacity: 0.94;
     transform: translate3d(0, 0, 0) scale(1.08);
+
+    background-position:
+      2% 2%,
+      18% 74%,
+      52% 34%,
+      76% 80%,
+      94% 18%,
+      54% 96%;
   }
 }
 
