@@ -96,8 +96,8 @@
 /* ============================================================
    PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
-   Fixed LED geometry + animated canvas light field.
-   No cursor interaction. The LEDs themselves visibly evolve.
+   Fixed checker geometry + animated canvas light field.
+   No cursor interaction.
    ============================================================ */
 
 .orange-bg {
@@ -105,7 +105,7 @@
   --gap: 1px;
   --cell: 20px;
   --led-base: #140705;
-  --led-line: hsl(15 45% 4% / 0.9);
+  --led-line: rgba(57, 20, 9, 0.68);
 
   position: fixed;
   inset: 0;
@@ -129,9 +129,11 @@
   position: fixed;
   inset: 0;
   z-index: 0;
+
   width: 100%;
   height: 100%;
   min-height: 100%;
+
   transition: none;
 }
 
@@ -152,7 +154,11 @@
   backface-visibility: hidden;
 }
 
-/* The grid is structural and NEVER moves. */
+/*
+ * Structural seams only.
+ * They are deliberately faint so the motion comes from the LEDs,
+ * not from an animated CSS overlay.
+ */
 .orange-bg::after {
   content: "";
   position: absolute;
@@ -161,15 +167,15 @@
   pointer-events: none;
 
   background-image:
-    repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
-    repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
+    repeating-linear-gradient(to right, transparent 0 var(--tile), var(--led-line) var(--tile) var(--cell)),
+    repeating-linear-gradient(to bottom, transparent 0 var(--tile), var(--led-line) var(--tile) var(--cell));
 
   background-size:
     var(--cell) var(--cell),
     var(--cell) var(--cell);
 
   background-repeat: repeat;
-  opacity: 0.84;
+  opacity: 0.3;
 
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -182,7 +188,7 @@
   }
 
   .orange-bg::after {
-    opacity: 0.78;
+    opacity: 0.27;
   }
 }
 
@@ -193,7 +199,7 @@
   }
 
   .orange-bg::after {
-    opacity: 0.7;
+    opacity: 0.24;
   }
 }
 
