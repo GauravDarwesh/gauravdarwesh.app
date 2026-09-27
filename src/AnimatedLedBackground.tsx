@@ -1,17 +1,14 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Living LED wallpaper.
+ * Animated LED wallpaper.
  *
- * Inspired by procedural LED-wall techniques, but implemented independently
- * for this site. The cursor is deliberately NOT used anywhere in the system.
- *
- * Visual model:
- *   1. A fixed 20px-ish LED grid.
- *   2. Large procedural color masses drifting slowly underneath it.
- *   3. Medium/fine noise evolving at different rates.
- *   4. Per-cell breathing so the wall feels alive instead of like one image
- *      translating from left to right.
+ * Important:
+ * - No mouse / pointer listeners.
+ * - The grid itself never moves.
+ * - The illumination moves continuously underneath the fixed grid.
+ * - The motion uses several independent fields so it does not look like
+ *   one giant CSS gradient sliding around.
  */
 const AnimatedLedBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -25,12 +22,11 @@ const AnimatedLedBackground = () => {
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    let animationFrame = 0;
-    let lastTime = performance.now();
+    let raf = 0;
+    let last = performance.now();
     let elapsed = 0;
-    let accumulator = 0;
-    let active = true;
-    let minimalTheme = document.documentElement.dataset.theme === "minimal";
+    let running = true;
+    let isMinimal = document.documentElement.dataset.theme === "minimal";
 
     const state = {
       width: 1,
@@ -42,23 +38,27 @@ const AnimatedLedBackground = () => {
       rows: 0,
     };
 
-    /* Warm GD palette: deep ember → orange → amber → lemon. */
+    // Deep ember -> orange -> amber -> yellow.
     const palette = [
-      [250, 48, 8],
-      [255, 67, 12],
-      [255, 90, 14],
-      [255, 116, 14],
-      [255, 143, 15],
-      [255, 169, 20],
-      [255, 195, 34],
-      [255, 216, 62],
-      [255, 229, 106],
-      [255, 164, 42],
+      [230, 42, 8],
+      [248, 58, 9],
+      [255, 78, 10],
+      [255, 102, 11],
+      [255, 128, 12],
+      [255, 155, 16],
+      [255, 181, 23],
+      [255, 205, 40],
+      [255, 221, 78],
+      [255, 231, 119],
     ] as const;
 
-    const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+    const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-    const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+    const smoothstep = (t: number) => {
+      const x = clamp01(t);
+      return x * x * (3 - 2 * x);
+    };
 
     const smootherstep = (t: number) => {
       const x = clamp01(t);
@@ -66,9 +66,8 @@ const AnimatedLedBackground = () => {
     };
 
     const hash = (x: number, y: number, seed: number) => {
-      const value = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453123;
-
-      return value - Math.floor(value);
+      const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453123;
+      return n - Math.floor(n);
     };
 
     const valueNoise = (x: number, y: number, seed: number) => {
@@ -82,27 +81,27 @@ const AnimatedLedBackground = () => {
       const c = hash(x0, y0 + 1, seed);
       const d = hash(x0 + 1, y0 + 1, seed);
 
-      return mix(mix(a, b, tx), mix(c, d, tx), ty);
+      return lerp(lerp(a, b, tx), lerp(c, d, tx), ty);
     };
 
     const fbm = (x: number, y: number, seed: number, octaves = 4) => {
       let value = 0;
       let amplitude = 0.5;
       let frequency = 1;
-      let totalAmplitude = 0;
+      let total = 0;
 
       for (let i = 0; i < octaves; i += 1) {
-        value += valueNoise(x * frequency, y * frequency, seed + i * 19.17) * amplitude;
+        value += valueNoise(x * frequency, y * frequency, seed + i * 17.37) * amplitude;
 
-        totalAmplitude += amplitude;
+        total += amplitude;
         amplitude *= 0.5;
         frequency *= 2;
       }
 
-      return totalAmplitude > 0 ? value / totalAmplitude : 0;
+      return total ? value / total : 0;
     };
 
-    const chooseGeometry = () => {
+    const resize = () => {
       if (window.innerWidth <= 768) {
         state.tile = 16;
       } else if (window.innerWidth <= 900) {
@@ -112,20 +111,13 @@ const AnimatedLedBackground = () => {
       }
 
       state.cell = state.tile + 1;
-    };
-
-    const resize = () => {
-      chooseGeometry();
 
       const rect = canvas.getBoundingClientRect();
-
       state.width = Math.max(1, Math.ceil(rect.width));
       state.height = Math.max(1, Math.ceil(rect.height));
-
       state.cols = Math.ceil(state.width / state.cell) + 2;
       state.rows = Math.ceil(state.height / state.cell) + 2;
 
-      /* Cap DPR so Retina screens do not multiply the wallpaper cost. */
       state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
       canvas.width = Math.ceil(state.width * state.dpr);
@@ -134,36 +126,37 @@ const AnimatedLedBackground = () => {
       ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
 
       ctx.imageSmoothingEnabled = false;
-
-      ctx.fillStyle = "#120806";
-      ctx.fillRect(0, 0, state.width, state.height);
     };
 
     const draw = () => {
-      if (minimalTheme) return;
+      if (isMinimal) return;
 
       const { width, height, cols, rows, cell, tile } = state;
-
-      const reduced = reducedMotionQuery.matches;
-      const motion = reduced ? 0.18 : 1;
-      const t = elapsed * motion;
+      const slow = reducedMotionQuery.matches ? 0.18 : 1;
+      const t = elapsed * slow;
 
       ctx.fillStyle = "#120806";
       ctx.fillRect(0, 0, width, height);
 
-      /*
-       * These are intentionally close to the movement scale used by the
-       * reference behavior: the pattern evolves continuously rather than
-       * completing an obvious CSS-style loop.
-       */
-      const broadX = t * 0.043;
-      const broadY = t * 0.021;
+      // These are deliberately visible movement speeds. The reference-style
+      // effect comes from moving the sampled field, not animating one layer.
+      const largeX = t * 0.115;
+      const largeY = t * 0.052;
+      const midX = -t * 0.072;
+      const midY = t * 0.038;
+      const fineX = t * 0.17;
+      const fineY = -t * 0.095;
 
-      const colorX = t * 0.031;
-      const colorY = t * 0.014;
+      // Slow drifting "hot spots" make movement impossible to miss while
+      // remaining smooth and organic.
+      const blob1x = cols * 0.22 + Math.sin(t * 0.16) * cols * 0.16;
+      const blob1y = rows * 0.28 + Math.cos(t * 0.13) * rows * 0.18;
 
-      const fineX = t * 0.071;
-      const fineY = -t * 0.033;
+      const blob2x = cols * 0.7 + Math.cos(t * 0.12 + 1.4) * cols * 0.2;
+      const blob2y = rows * 0.7 + Math.sin(t * 0.15 + 0.8) * rows * 0.17;
+
+      const blob3x = cols * 0.5 + Math.sin(t * 0.09 + 3.2) * cols * 0.28;
+      const blob3y = rows * 0.18 + Math.cos(t * 0.11 + 2.1) * rows * 0.16;
 
       for (let row = 0; row < rows; row += 1) {
         const y = row * cell;
@@ -173,107 +166,96 @@ const AnimatedLedBackground = () => {
           const x = col * cell;
           if (x > width + cell) continue;
 
-          /* Large flowing atmospheric field. */
-          const broad = fbm(col * 0.078 + broadX, row * 0.071 + broadY, 7.3, 4);
+          // Large-scale field.
+          const large = fbm(col * 0.058 + largeX, row * 0.052 + largeY, 9.7, 4);
 
-          /* Separate color field moving at a different angle/speed. */
-          const color = fbm(col * 0.105 + colorX, row * 0.095 + colorY, 43.7, 4);
+          // Independent medium field moving diagonally the other way.
+          const medium = fbm(col * 0.108 + midX, row * 0.091 + midY, 31.2, 4);
 
-          /* Fine variation prevents the wall from behaving as one blob. */
-          const fine = fbm(col * 0.225 + fineX, row * 0.185 + fineY, 91.1, 3);
+          // Fine structure gives the LEDs individual character.
+          const fine = fbm(col * 0.235 + fineX, row * 0.195 + fineY, 71.8, 3);
 
-          /* Slow traveling wave across the individual LEDs. */
-          const wave = 0.5 + 0.5 * Math.sin(t * 0.42 + col * 0.105 + row * 0.037);
+          // A travelling wave sweeps through the wall continuously.
+          const travellingWave = 0.5 + 0.5 * Math.sin(t * 0.62 + col * 0.13 + row * 0.047);
 
-          /* Per-cell breathing, intentionally subtle but visible. */
-          const localBreath = 0.5 + 0.5 * Math.sin(t * 0.28 + col * 0.63 + row * 0.47 + broad * 4.3);
+          // Low-frequency local breathing, offset per cell.
+          const breathing = 0.5 + 0.5 * Math.sin(t * 0.31 + col * 0.51 - row * 0.43 + large * 5.0);
 
-          /*
-           * Brightness is deliberately more dynamic than the previous
-           * version. The LEDs should visibly live, not merely change by
-           * one or two RGB values.
-           */
-          let brightness = 0.24 + broad * 0.42 + color * 0.18 + fine * 0.08;
+          // Moving luminous pockets.
+          const d1x = (col - blob1x) / (cols * 0.23);
+          const d1y = (row - blob1y) / (rows * 0.3);
+          const d2x = (col - blob2x) / (cols * 0.28);
+          const d2y = (row - blob2y) / (rows * 0.25);
+          const d3x = (col - blob3x) / (cols * 0.25);
+          const d3y = (row - blob3y) / (rows * 0.22);
 
-          brightness += (wave - 0.5) * 0.12;
+          const blob1 = Math.exp(-(d1x * d1x + d1y * d1y) * 1.65);
+          const blob2 = Math.exp(-(d2x * d2x + d2y * d2y) * 1.55);
+          const blob3 = Math.exp(-(d3x * d3x + d3y * d3y) * 1.75);
 
-          brightness += (localBreath - 0.5) * 0.16;
+          const hotSpots = blob1 * 0.26 + blob2 * 0.22 + blob3 * 0.18;
 
-          brightness = clamp01(brightness);
+          // Brightness: enough range to visibly change, but without flashing.
+          let brightness =
+            0.18 +
+            large * 0.4 +
+            medium * 0.18 +
+            fine * 0.08 +
+            hotSpots +
+            (travellingWave - 0.5) * 0.16 +
+            (breathing - 0.5) * 0.14;
 
-          /*
-           * Bias the color field toward orange/amber while allowing small
-           * pockets to reach yellow. This keeps the existing aesthetic.
-           */
-          let palettePosition = color * 0.72 + broad * 0.28;
+          brightness = smoothstep(clamp01(brightness));
 
-          palettePosition = clamp01(palettePosition * 1.18 - 0.04);
+          // Color evolves independently from brightness.
+          let colorField = large * 0.57 + medium * 0.24 + fine * 0.07 + hotSpots * 0.75;
 
-          const scaledPalette = palettePosition * (palette.length - 1);
+          colorField += 0.045 * Math.sin(t * 0.1 + large * 7.0 + col * 0.035);
 
-          const paletteIndex = Math.floor(scaledPalette);
+          colorField = clamp01(colorField);
 
-          const nextPaletteIndex = Math.min(palette.length - 1, paletteIndex + 1);
+          const palettePosition = colorField * (palette.length - 1);
 
-          const paletteMix = smootherstep(scaledPalette - paletteIndex);
+          const p0 = Math.floor(palettePosition);
+          const p1 = Math.min(palette.length - 1, p0 + 1);
+          const pt = smootherstep(palettePosition - p0);
 
-          let red = mix(palette[paletteIndex][0], palette[nextPaletteIndex][0], paletteMix);
+          let r = lerp(palette[p0][0], palette[p1][0], pt);
+          let g = lerp(palette[p0][1], palette[p1][1], pt);
+          let b = lerp(palette[p0][2], palette[p1][2], pt);
 
-          let green = mix(palette[paletteIndex][1], palette[nextPaletteIndex][1], paletteMix);
+          const light = 0.3 + brightness * 0.8;
 
-          let blue = mix(palette[paletteIndex][2], palette[nextPaletteIndex][2], paletteMix);
+          r *= light;
+          g *= 0.92 * light;
+          b *= 0.84 * light;
 
-          /* Nonlinear response = brighter centers without harsh flicker. */
-          const glow = Math.pow(brightness, 0.76);
+          // Slight per-cell modulation; never a flicker.
+          const cellBreath = 0.965 + 0.05 * Math.sin(t * 0.43 + col * 0.71 + row * 0.37);
 
-          red *= 0.36 + glow * 0.76;
-          green *= 0.3 + glow * 0.78;
-          blue *= 0.26 + glow * 0.8;
+          r *= cellBreath;
+          g *= cellBreath;
+          b *= cellBreath;
 
-          /* Local LED imperfection: tiny phase offsets, no randomness/flicker. */
-          const micro = 0.985 + 0.035 * Math.sin(t * 0.52 + col * 0.81 - row * 0.37);
+          ctx.fillStyle = `rgb(${Math.round(Math.max(0, Math.min(255, r)))} ${Math.round(
+            Math.max(0, Math.min(255, g)),
+          )} ${Math.round(Math.max(0, Math.min(255, b)))})`;
 
-          red *= micro;
-          green *= micro;
-          blue *= micro;
-
-          const r = Math.round(Math.max(0, Math.min(255, red)));
-          const g = Math.round(Math.max(0, Math.min(255, green)));
-          const b = Math.round(Math.max(0, Math.min(255, blue)));
-
-          ctx.fillStyle = `rgb(${r} ${g} ${b})`;
           ctx.fillRect(x, y, tile, tile);
         }
       }
     };
 
     const tick = (now: number) => {
-      if (!active) return;
+      if (!running) return;
 
-      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      const dt = Math.min((now - last) / 1000, 0.05);
 
-      lastTime = now;
+      last = now;
       elapsed += dt;
-      accumulator += dt;
 
-      /* 45fps is enough for a very slow light field and saves CPU/GPU. */
-      if (accumulator >= 1 / 45) {
-        accumulator = 0;
-        draw();
-      }
-
-      animationFrame = requestAnimationFrame(tick);
-    };
-
-    const handleVisibility = () => {
-      active = !document.hidden;
-
-      cancelAnimationFrame(animationFrame);
-
-      if (active) {
-        lastTime = performance.now();
-        animationFrame = requestAnimationFrame(tick);
-      }
+      draw();
+      raf = requestAnimationFrame(tick);
     };
 
     const handleResize = () => {
@@ -281,32 +263,48 @@ const AnimatedLedBackground = () => {
       draw();
     };
 
-    const themeObserver = new MutationObserver(() => {
-      minimalTheme = document.documentElement.dataset.theme === "minimal";
+    const handleVisibility = () => {
+      if (document.hidden) {
+        running = false;
+        cancelAnimationFrame(raf);
+        return;
+      }
 
-      if (!minimalTheme) draw();
+      running = true;
+      last = performance.now();
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(tick);
+    };
+
+    const observer = new MutationObserver(() => {
+      isMinimal = document.documentElement.dataset.theme === "minimal";
+
+      if (!isMinimal) draw();
     });
 
-    themeObserver.observe(document.documentElement, {
+    observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["data-theme"],
     });
 
     resize();
     draw();
+    raf = requestAnimationFrame(tick);
 
-    animationFrame = requestAnimationFrame(tick);
+    window.addEventListener("resize", handleResize, {
+      passive: true,
+    });
 
-    window.addEventListener("resize", handleResize, { passive: true });
-
-    window.addEventListener("orientationchange", handleResize, { passive: true });
+    window.addEventListener("orientationchange", handleResize, {
+      passive: true,
+    });
 
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      active = false;
-      cancelAnimationFrame(animationFrame);
-      themeObserver.disconnect();
+      running = false;
+      cancelAnimationFrame(raf);
+      observer.disconnect();
 
       window.removeEventListener("resize", handleResize);
 
