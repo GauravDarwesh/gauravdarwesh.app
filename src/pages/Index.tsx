@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
+import LEDBackground from "@/components/LEDBackground";
 
 const ANIM_MS = 3000;
 
@@ -37,7 +38,6 @@ const Index = () => {
 
         <link rel="canonical" href="https://gauravdarwesh.app/" />
 
-        {/* Blur Reveal Animation */}
         <style>
           {`
             @keyframes blurReveal {
@@ -78,7 +78,6 @@ const Index = () => {
           `}
         </style>
 
-        {/* Favicons */}
         <link
           rel="icon"
           type="image/png"
@@ -92,9 +91,7 @@ const Index = () => {
           href="https://zdrcjhohalgzhlbufwcl.supabase.co/storage/v1/object/public/bcg/favicon-96x96.png"
         />
 
-        {/* Open Graph */}
         <meta property="og:type" content="website" />
-
         <meta property="og:title" content="Gaurav Darwesh — Portfolio" />
 
         <meta
@@ -110,14 +107,18 @@ const Index = () => {
         />
       </Helmet>
 
+      {/*
+        Fixed visual layer only.
+        SearchBar and NavigationToggle remain untouched.
+      */}
+      <LEDBackground />
+
       <h1 className="sr-only">Gaurav Darwesh — Portfolio</h1>
 
-      {/* Navigation Toggle */}
       <div className="relative z-20">
         <NavigationToggle />
       </div>
 
-      {/* Search Bar */}
       <div className="fixed top-6 inset-x-0 flex justify-center z-10">
         <SearchBar />
       </div>
