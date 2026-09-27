@@ -1,4 +1,3 @@
-```tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
@@ -1116,4 +1115,3 @@ const Blog = () => {
 };
 
 export default Blog;
-```
