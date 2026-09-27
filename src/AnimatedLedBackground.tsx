@@ -1,13 +1,11 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Orange LED wallpaper inspired by the motion language of the reference site.
+ * Animated LED wallpaper.
  *
- * - Fixed checkerboard geometry
- * - Light field moves on its own
- * - No mouse / pointer listeners
- * - Multiple orbiting fields create fast circular motion
- * - Orange-forward palette; yellow reserved for highlights
+ * Fixed checkerboard geometry + one continuous global light field.
+ * The field swirls across the entire canvas on its own.
+ * There is intentionally no mouse / pointer interaction.
  */
 const AnimatedLedBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,31 +36,17 @@ const AnimatedLedBackground = () => {
       rows: 0,
     };
 
-    // Deep orange -> orange -> amber -> small amount of yellow.
-    const palette = [
-      [94, 18, 4],
-      [128, 23, 4],
-      [162, 29, 5],
-      [193, 36, 5],
-      [218, 44, 5],
-      [237, 54, 6],
-      [248, 66, 7],
-      [255, 80, 8],
-      [255, 97, 9],
-      [255, 117, 10],
-      [255, 139, 13],
-      [255, 161, 18],
-      [255, 181, 23],
-      [255, 202, 32],
-      [255, 218, 57],
-    ] as const;
-
     const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
     const smooth = (v: number) => {
       const x = clamp01(v);
       return x * x * (3 - 2 * x);
+    };
+
+    const smoother = (v: number) => {
+      const x = clamp01(v);
+      return x * x * x * (x * (x * 6 - 15) + 10);
     };
 
     const hash3 = (x: number, y: number, z: number) => {
@@ -76,9 +60,11 @@ const AnimatedLedBackground = () => {
       const xi = Math.floor(x);
       const yi = Math.floor(y);
       const zi = Math.floor(z);
+
       const fx = x - xi;
       const fy = y - yi;
       const fz = z - zi;
+
       const u = smooth(fx);
       const v = smooth(fy);
       const w = smooth(fz);
@@ -93,7 +79,7 @@ const AnimatedLedBackground = () => {
     };
 
     const fbm = (x: number, y: number, z: number) =>
-      0.63 * noise3(x, y, z) + 0.37 * noise3(x * 2.13 + 9.7, y * 2.13 + 13.1, z * 2.13 + 5.4);
+      0.64 * noise3(x, y, z) + 0.36 * noise3(x * 2.17 + 9.3, y * 2.17 + 12.7, z * 2.17 + 5.1);
 
     const resize = () => {
       state.tile = window.innerWidth <= 768 ? 16 : window.innerWidth <= 900 ? 17 : 19;
@@ -109,77 +95,39 @@ const AnimatedLedBackground = () => {
 
       canvas.width = Math.ceil(state.width * state.dpr);
       canvas.height = Math.ceil(state.height * state.dpr);
+
       ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+
       ctx.imageSmoothingEnabled = false;
-    };
-
-    const colorAt = (field: number, brightness: number) => {
-      // Strongly orange weighted. Yellow only occupies the extreme top end.
-      const position = clamp01(0.015 + field * 0.7) * (palette.length - 1);
-      const p0 = Math.floor(position);
-      const p1 = Math.min(palette.length - 1, p0 + 1);
-      const mix = smooth(position - p0);
-
-      let r = lerp(palette[p0][0], palette[p1][0], mix);
-      let g = lerp(palette[p0][1], palette[p1][1], mix);
-      let b = lerp(palette[p0][2], palette[p1][2], mix);
-
-      const light = 0.16 + Math.pow(brightness, 0.74) * 1.08;
-      r *= light;
-      g *= light * 0.88;
-      b *= light * 0.72;
-
-      return [r, g, b] as const;
     };
 
     const draw = () => {
       if (isMinimal) return;
 
       const { width, height, cols, rows, cell, tile } = state;
-      const motion = reducedMotionQuery.matches ? 0.18 : 1;
+
+      const motion = reducedMotionQuery.matches ? 0.22 : 1;
       const t = time * motion;
 
       ctx.fillStyle = "#140705";
       ctx.fillRect(0, 0, width, height);
 
-      const cx = cols * 0.5;
-      const cy = rows * 0.5;
-      const orbitA = Math.min(cols, rows) * 0.34;
-      const orbitB = Math.min(cols, rows) * 0.26;
+      /*
+       * ONE global coordinate system.
+       *
+       * This is intentionally not four blobs and not four quadrants.
+       * Every tile is evaluated in the same continuous field, so a bright
+       * region can travel from one side of the screen to the other.
+       */
+      const globalCx = width * 0.5;
+      const globalCy = height * 0.5;
+      const maxRadius = Math.hypot(width, height) * 0.58;
 
-      // Four asynchronous orbital centres. Their different radii/speeds
-      // make the field curve and fold instead of simply translating.
-      const a1 = t * 0.92;
-      const a2 = t * -0.73 + 1.8;
-      const a3 = t * 0.56 + 3.2;
-      const a4 = t * -0.41 + 5.1;
-
-      const blobs = [
-        {
-          x: cx + Math.cos(a1) * orbitA,
-          y: cy + Math.sin(a1) * orbitA * 0.76,
-          size: Math.min(cols, rows) * 0.24,
-          strength: 1.0,
-        },
-        {
-          x: cx + Math.cos(a2) * orbitB * 1.15,
-          y: cy + Math.sin(a2) * orbitB,
-          size: Math.min(cols, rows) * 0.29,
-          strength: 0.88,
-        },
-        {
-          x: cx + Math.cos(a3) * orbitA * 0.72,
-          y: cy + Math.sin(a3) * orbitA * 0.72,
-          size: Math.min(cols, rows) * 0.18,
-          strength: 0.75,
-        },
-        {
-          x: cx + Math.cos(a4) * orbitB * 1.65,
-          y: cy + Math.sin(a4) * orbitB * 0.65,
-          size: Math.min(cols, rows) * 0.2,
-          strength: 0.68,
-        },
-      ];
+      /* Circular motion parameters. */
+      const rotation = t * 1.18;
+      const pulse = t * 2.05;
+      const driftX = Math.sin(t * 0.33) * width * 0.055;
+      const driftY = Math.cos(t * 0.27) * height * 0.045;
 
       for (let row = 0; row < rows; row += 1) {
         const y = row * cell;
@@ -187,54 +135,85 @@ const AnimatedLedBackground = () => {
         for (let col = 0; col < cols; col += 1) {
           const x = col * cell;
 
-          // Base organic texture.
-          let brightness = fbm(col * 0.072 + t * 0.075, row * 0.072 - t * 0.035, 21 + t * 0.12);
+          const px = x + tile * 0.5;
+          const py = y + tile * 0.5;
 
-          let colorField = fbm(col * 0.045 - t * 0.028, row * 0.045 + t * 0.022, 73 + t * 0.07);
+          let dx = px - globalCx - driftX;
+          let dy = py - globalCy - driftY;
 
-          // Add orbiting circular light wells.
-          let orbital = 0;
-          let orbitalHue = 0;
+          const rawRadius = Math.hypot(dx, dy);
+          const radius = rawRadius / maxRadius;
+          const baseAngle = Math.atan2(dy, dx);
 
-          for (const blob of blobs) {
-            const dx = col - blob.x;
-            const dy = row - blob.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const q = dist / blob.size;
-            const falloff = Math.exp(-q * q * 2.4) * blob.strength;
+          /*
+           * Vortex mapping:
+           * inner rings rotate more than outer rings, producing a continuous
+           * circular flow instead of a collection of independent spots.
+           */
+          const swirlStrength = 2.15 * (1 - clamp01(radius));
+          const warpedAngle = baseAngle + rotation + swirlStrength * 0.64 + Math.sin(radius * 7.4 - t * 1.45) * 0.18;
 
-            orbital += falloff;
+          /* Convert the warped polar space back into a continuous field. */
+          const warpedX = Math.cos(warpedAngle) * radius * 5.6 + t * 0.045;
+          const warpedY = Math.sin(warpedAngle) * radius * 5.6 - t * 0.032;
 
-            // Swirl term rotates the pattern around each moving centre.
-            const angle = Math.atan2(dy, dx);
-            const ring = 0.5 + 0.5 * Math.sin(angle * 2.2 - dist * 0.56 + t * 2.4);
-            orbital += ring * falloff * 0.28;
-            orbitalHue += ring * falloff * 0.1;
-          }
+          /* Large-scale moving structure. */
+          const large = fbm(warpedX * 0.42 + 8.2, warpedY * 0.42 - 4.7, 32.0 + t * 0.2);
 
-          // Fast circular ripple wrapping the whole field.
-          const dx = col - cx;
-          const dy = row - cy;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const angle = Math.atan2(dy, dx);
-          const circularWave = 0.5 + 0.5 * Math.sin(dist * 0.24 - angle * 1.55 - t * 3.1);
+          /* Mid-scale circular detail. */
+          const mid = fbm(warpedX * 0.86 - t * 0.028, warpedY * 0.86 + t * 0.038, 71.0 + t * 0.33);
 
-          brightness = brightness * 0.46 + orbital * 0.9 + circularWave * 0.19;
+          /* Fine detail moves in the opposite direction. */
+          const fine = fbm(warpedX * 1.55 + t * 0.055, warpedY * 1.38 - t * 0.047, 119.0 + t * 0.52);
 
-          brightness = clamp01((brightness - 0.14) / 0.8);
+          /*
+           * A global rotating band. It wraps around the whole canvas rather
+           * than beginning a new animation in each quarter of the screen.
+           */
+          const band = 0.5 + 0.5 * Math.sin(warpedAngle * 2.4 + radius * 11.0 - pulse);
 
-          brightness = Math.pow(brightness, 0.72);
+          /* Expanding circular wave passing through the entire field. */
+          const ring = 0.5 + 0.5 * Math.sin(radius * 24.0 - t * 3.8 + Math.sin(warpedAngle * 2.0 + t) * 0.7);
 
-          colorField = clamp01(colorField * 0.72 + orbitalHue + circularWave * 0.16);
+          let brightness = large * 0.48 + mid * 0.28 + fine * 0.1 + band * 0.08 + ring * 0.06;
 
-          const [r0, g0, b0] = colorAt(colorField, brightness);
+          /* Keep the whole surface alive; no dead four-corner blocks. */
+          brightness = clamp01((brightness - 0.22) / 0.62);
 
-          // Micro-breathing keeps the LED surface alive without flashing.
-          const breathe = 0.95 + 0.055 * Math.sin(t * 1.25 + col * 0.71 - row * 0.43);
+          brightness = smoother(brightness);
 
-          ctx.fillStyle = `rgb(${Math.round(Math.max(0, Math.min(255, r0 * breathe)))} ${Math.round(
-            Math.max(0, Math.min(255, g0 * breathe)),
-          )} ${Math.round(Math.max(0, Math.min(255, b0 * breathe)))})`;
+          /*
+           * Independent color field. It also uses the same global vortex,
+           * so color transitions stay spatially continuous.
+           */
+          let colorField = fbm(warpedX * 0.38 + t * 0.025, warpedY * 0.38 - t * 0.019, 153.0 + t * 0.24);
+
+          colorField += 0.22 * fbm(warpedX * 0.74 - t * 0.019, warpedY * 0.68 + t * 0.026, 194.0 + t * 0.31);
+
+          colorField = clamp01(colorField * 0.82 + band * 0.12 + brightness * 0.16);
+
+          /*
+           * Orange is the default. The top brightness range deliberately
+           * reaches a real yellow so yellow cannot disappear again.
+           */
+          const orangeR = 255;
+          const orangeG = lerp(55, 138, colorField);
+          const orangeB = lerp(6, 14, colorField);
+
+          const yellowMix = smooth((brightness - 0.55) / 0.22) * 0.92 + smooth((colorField - 0.68) / 0.2) * 0.24;
+
+          const r = orangeR;
+          const g = lerp(orangeG, 232, clamp01(yellowMix));
+          const b = lerp(orangeB, 42, clamp01(yellowMix));
+
+          /* Soft LED breathing, asynchronous but subtle. */
+          const breathe = 0.955 + 0.045 * Math.sin(t * 1.35 + col * 0.71 - row * 0.43);
+
+          const light = 0.16 + Math.pow(brightness, 0.68) * 1.07;
+
+          ctx.fillStyle = `rgb(${Math.round(Math.max(0, Math.min(255, r * light * breathe)))} ${Math.round(
+            Math.max(0, Math.min(255, g * light * breathe)),
+          )} ${Math.round(Math.max(0, Math.min(255, b * light * breathe)))})`;
 
           ctx.fillRect(x, y, tile, tile);
         }
@@ -245,10 +224,11 @@ const AnimatedLedBackground = () => {
       if (!running) return;
 
       const dt = Math.min((now - last) / 1000, 0.05);
+
       last = now;
       time += dt;
-
       draw();
+
       raf = requestAnimationFrame(tick);
     };
 
@@ -272,6 +252,7 @@ const AnimatedLedBackground = () => {
 
     const observer = new MutationObserver(() => {
       isMinimal = document.documentElement.dataset.theme === "minimal";
+
       if (!isMinimal) draw();
     });
 
@@ -284,16 +265,25 @@ const AnimatedLedBackground = () => {
     draw();
     raf = requestAnimationFrame(tick);
 
-    window.addEventListener("resize", handleResize, { passive: true });
-    window.addEventListener("orientationchange", handleResize, { passive: true });
+    window.addEventListener("resize", handleResize, {
+      passive: true,
+    });
+
+    window.addEventListener("orientationchange", handleResize, {
+      passive: true,
+    });
+
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       running = false;
       cancelAnimationFrame(raf);
       observer.disconnect();
+
       window.removeEventListener("resize", handleResize);
+
       window.removeEventListener("orientationchange", handleResize);
+
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);

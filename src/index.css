@@ -96,7 +96,7 @@
 /* ============================================================
    PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
-   Fixed checker geometry + animated canvas light field.
+   Fixed checker geometry + one continuous global light field.
    No cursor interaction.
    ============================================================ */
 
@@ -129,11 +129,9 @@
   position: fixed;
   inset: 0;
   z-index: 0;
-
   width: 100%;
   height: 100%;
   min-height: 100%;
-
   transition: none;
 }
 
@@ -147,7 +145,6 @@
 
   pointer-events: none;
   user-select: none;
-
   z-index: 0;
 
   transform: translateZ(0);
@@ -155,9 +152,8 @@
 }
 
 /*
- * Structural seams only.
- * They are deliberately faint so the motion comes from the LEDs,
- * not from an animated CSS overlay.
+ * Extremely subtle structural seams. The canvas supplies the moving
+ * illumination; this layer only preserves the checkerboard definition.
  */
 .orange-bg::after {
   content: "";
@@ -175,7 +171,7 @@
     var(--cell) var(--cell);
 
   background-repeat: repeat;
-  opacity: 0.2;
+  opacity: 0.16;
 
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -188,7 +184,7 @@
   }
 
   .orange-bg::after {
-    opacity: 0.18;
+    opacity: 0.15;
   }
 }
 
@@ -199,7 +195,7 @@
   }
 
   .orange-bg::after {
-    opacity: 0.24;
+    opacity: 0.14;
   }
 }
 
