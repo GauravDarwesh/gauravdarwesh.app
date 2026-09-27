@@ -11,6 +11,7 @@ interface NavigationToggleProps {
 }
 
 const GDx_EASTER_EGG_KEY = "gdx-theme-easter-egg-discovered";
+const THEME_HINT_DELAY = 15000;
 
 const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false }: NavigationToggleProps) => {
   const navigate = useNavigate();
@@ -31,43 +32,68 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
   // GDx theme easter egg
   // ------------------------------------------------------------
 
-  const [showThemeHint, setShowThemeHint] = useState(() => {
-    if (typeof window === "undefined") return true;
-
-    return window.localStorage.getItem(GDx_EASTER_EGG_KEY) !== "true";
-  });
-
   const isGdxPage = location.pathname === "/";
 
-  const handleGdxClick = () => {
-    /*
-     * When already on GDx, clicking once does nothing.
-     * This keeps the single click instant and allows the native
-     * double-click event to handle the theme easter egg.
-     *
-     * When on another page, clicking GDx navigates immediately.
-     */
-    if (isGdxPage) {
+  const [themeHintReady, setThemeHintReady] = useState(false);
+
+  const [themeAlreadyDiscovered, setThemeAlreadyDiscovered] = useState(() => {
+    if (typeof window === "undefined") return false;
+
+    return window.localStorage.getItem(GDx_EASTER_EGG_KEY) === "true";
+  });
+
+  /*
+   * Wait 15 seconds after entering the GDx page before showing
+   * the two-blink hint.
+   *
+   * The timeout is reset when leaving / and entering it again.
+   */
+  useEffect(() => {
+    setThemeHintReady(false);
+
+    if (!isGdxPage || themeAlreadyDiscovered) {
       return;
     }
 
-    navigate("/");
-  };
+    const timer = window.setTimeout(() => {
+      setThemeHintReady(true);
+    }, THEME_HINT_DELAY);
 
-  const handleGdxDoubleClick = () => {
-    /*
-     * The theme easter egg only works while already on the GDx page.
-     * This prevents double-clicking GDx from another tab from
-     * changing the theme.
-     */
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isGdxPage, themeAlreadyDiscovered]);
+
+  /*
+   * GDx navigation / interaction
+   *
+   * On another page:
+   *   single click -> navigate to GDx
+   *
+   * On GDx:
+   *   single click -> nothing
+   *   double click -> toggle minimalistic theme
+   *
+   * Using click detail here avoids combining onClick and
+   * onDoubleClick, which can make the first press feel strange.
+   */
+  const handleGdxClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (!isGdxPage) {
+      navigate("/");
+      return;
+    }
+
+    // Only react to the second click of a double-click.
+    if (event.detail !== 2) {
       return;
     }
 
     toggleTheme();
 
     window.localStorage.setItem(GDx_EASTER_EGG_KEY, "true");
-    setShowThemeHint(false);
+
+    setThemeAlreadyDiscovered(true);
+    setThemeHintReady(false);
   };
 
   // ------------------------------------------------------------
@@ -144,15 +170,22 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
           const active = isActive(option.path);
           const isGdx = option.name === "GDx";
 
+          /*
+           * The visual hint is completely separate from the
+           * actual double-click interaction.
+           *
+           * It only becomes active after 15 seconds.
+           */
+          const showGdxHint = isGdx && isGdxPage && themeHintReady && !themeAlreadyDiscovered;
+
           return (
             <Button
               key={option.name}
               type="button"
               onClick={isGdx ? handleGdxClick : () => navigate(option.path)}
-              onDoubleClick={isGdx ? handleGdxDoubleClick : undefined}
               variant="ghost"
               size="sm"
-              aria-label={isGdx ? "GDx" : option.name}
+              aria-label={isGdx ? "GDx. Double-click to change theme" : option.name}
               className={`
                 relative
                 w-20 h-9
@@ -168,7 +201,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
 
                 ${active ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" : "text-gray-300 hover:text-white"}
 
-                ${isGdx && showThemeHint ? "gdx-theme-hint" : ""}
+                ${showGdxHint ? "gdx-theme-hint" : ""}
               `}
             >
               {option.name}
