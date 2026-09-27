@@ -8,9 +8,11 @@
 
 @layer base {
   :root {
+    /* Dark minimalist design system */
     --background: 0 0% 6%;
     --foreground: 0 0% 95%;
 
+    /* Blue gradient system */
     --primary-blue: 220 100% 60%;
     --secondary-blue: 240 100% 70%;
     --accent-blue: 200 100% 50%;
@@ -36,6 +38,7 @@
 
     --radius: 0.5rem;
 
+    /* Custom gradients */
     --gradient-blue-1: 220 100% 60%;
     --gradient-blue-2: 240 100% 70%;
     --gradient-blue-3: 200 100% 50%;
@@ -71,7 +74,7 @@
 }
 
 /* ============================================================
-   FADE IN
+   SLOW FADE IN
    ============================================================ */
 
 @keyframes fadeInSlow {
@@ -91,34 +94,17 @@
 }
 
 /* ============================================================
-   LED TILE WALLPAPER
-   ============================================================
+   LED CHECKERBOARD / LIVE WALLPAPER
+   ------------------------------------------------------------
+   Inspired by the grid geometry used by shreygups.com.
 
-   VISUAL MODEL
+   Core geometry:
+   19px illuminated tile
+   1px separator
+   20px total cell
 
-   The wallpaper is built from 3 independent layers:
-
-   1. Dark atmospheric base
-   2. Moving warm illumination field
-   3. Fixed LED grid
-
-   The grid never moves.
-
-   The illumination beneath it is continuously redistributed.
-   This creates the feeling that individual tiles are changing
-   state instead of one giant gradient simply sliding around.
-
-   The palette deliberately stays in the same family:
-
-   deep brown
-   deep red
-   burnt orange
-   orange
-   amber
-   gold
-
-   This prevents sudden "orange background -> yellow blob"
-   transitions and keeps the field visually cohesive.
+   The grid itself never moves.
+   Only the light field underneath it moves.
    ============================================================ */
 
 .orange-bg {
@@ -126,10 +112,8 @@
   --gap: 1px;
   --cell: 20px;
 
-  --led-base: hsl(11 45% 5%);
-  --led-line: hsl(12 42% 2.6%);
-
-  position: relative;
+  --led-base: hsl(20 60% 7%);
+  --led-line: hsl(17 52% 4%);
 
   width: 100%;
   height: 100%;
@@ -138,324 +122,125 @@
   overflow: hidden;
   pointer-events: none;
 
-  isolation: isolate;
+  position: relative;
 
   background:
-    /* --------------------------------------------------------
-       ATMOSPHERIC BASE
-       -------------------------------------------------------- */
-    radial-gradient(ellipse 80% 70% at 8% 15%, hsl(27 55% 14% / 0.78) 0%, hsl(18 48% 9% / 0.6) 32%, transparent 72%),
-    radial-gradient(ellipse 85% 80% at 91% 82%, hsl(9 54% 10% / 0.75) 0%, hsl(8 42% 6% / 0.9) 46%, transparent 80%),
-    linear-gradient(135deg, hsl(12 44% 7%) 0%, hsl(9 42% 5.5%) 48%, hsl(8 38% 4.5%) 100%);
+    radial-gradient(
+      ellipse 72% 58% at 6% 8%,
+      hsl(39 82% 56% / 0.88) 0%,
+      hsl(31 78% 43% / 0.72) 23%,
+      hsl(22 73% 31% / 0.55) 47%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse 66% 62% at 28% 50%,
+      hsl(17 84% 47% / 0.8) 0%,
+      hsl(12 74% 32% / 0.68) 34%,
+      hsl(9 64% 19% / 0.46) 68%,
+      transparent 90%
+    ),
+    radial-gradient(
+      ellipse 68% 66% at 58% 43%,
+      hsl(8 84% 40% / 0.72) 0%,
+      hsl(8 72% 25% / 0.58) 40%,
+      hsl(8 60% 13% / 0.7) 76%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 54% 80% at 100% 46%,
+      hsl(9 69% 22% / 0.86) 0%,
+      hsl(8 58% 11% / 0.93) 58%,
+      hsl(8 48% 7% / 1) 100%
+    ),
+    linear-gradient(
+      132deg,
+      hsl(29 66% 26%) 0%,
+      hsl(19 75% 22%) 25%,
+      hsl(12 74% 17%) 53%,
+      hsl(9 63% 11%) 77%,
+      hsl(8 55% 7%) 100%
+    );
 
   background-repeat: no-repeat;
+  background-size: 100% 100%;
 
+  animation: none;
+  transition: none;
+  filter: none;
+
+  will-change: auto;
+  backface-visibility: hidden;
   transform: translateZ(0);
 
-  backface-visibility: hidden;
-
-  will-change: background-position;
+  isolation: isolate;
 }
 
-/* ============================================================
-   PRIMARY MOVING LIGHT FIELD
-   ============================================================
+/* ------------------------------------------------------------
+   FIXED SITE BACKGROUND POSITIONING
+   ------------------------------------------------------------ */
 
-   This replaces the old "large orange blob" behavior.
+.site-background.orange-bg {
+  position: fixed;
+  inset: 0;
 
-   Several fields overlap each other and move at different rates.
-   Because they aren't travelling together, the resulting color
-   distribution continually changes.
-   ============================================================ */
+  z-index: 0;
+
+  width: 100%;
+  height: 100%;
+
+  min-height: 100%;
+
+  transition: none;
+}
+
+/* ------------------------------------------------------------
+   MOVING LED LIGHT FIELD
+   ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
 
   position: absolute;
-
-  /*
-   * Oversized field.
-   * This gives it enough room to travel without exposing edges.
-   */
-  inset: -55%;
+  inset: -24%;
 
   pointer-events: none;
 
-  z-index: 1;
-
   background:
-
-    /* --------------------------------------------------------
-       FIELD A — warm amber
-       -------------------------------------------------------- */
     radial-gradient(
-      ellipse 25% 22% at 17% 18%,
-      hsl(42 100% 66% / 0.8) 0%,
-      hsl(36 94% 56% / 0.62) 20%,
-      hsl(28 86% 42% / 0.3) 48%,
-      transparent 76%
+      ellipse 30% 25% at 12% 12%,
+      hsl(42 92% 67% / 0.88) 0%,
+      hsl(36 90% 55% / 0.63) 30%,
+      hsl(25 80% 42% / 0.24) 60%,
+      transparent 78%
     ),
-    /* --------------------------------------------------------
-       FIELD B — orange
-       -------------------------------------------------------- */
-    radial-gradient(
-        ellipse 31% 26% at 72% 16%,
-        hsl(25 97% 54% / 0.76) 0%,
-        hsl(18 90% 45% / 0.58) 28%,
-        hsl(12 74% 28% / 0.3) 58%,
-        transparent 82%
-      ),
-    /* --------------------------------------------------------
-       FIELD C — red-orange
-       -------------------------------------------------------- */
-    radial-gradient(
-        ellipse 28% 34% at 28% 79%,
-        hsl(9 94% 47% / 0.7) 0%,
-        hsl(7 82% 35% / 0.5) 34%,
-        hsl(7 63% 21% / 0.26) 61%,
-        transparent 84%
-      ),
-    /* --------------------------------------------------------
-       FIELD D — restrained amber
-       -------------------------------------------------------- */
-    radial-gradient(
-        ellipse 27% 28% at 88% 70%,
-        hsl(32 94% 54% / 0.58) 0%,
-        hsl(22 83% 40% / 0.42) 35%,
-        hsl(13 64% 23% / 0.22) 62%,
-        transparent 82%
-      ),
-    /* --------------------------------------------------------
-       FIELD E — central fire
-       -------------------------------------------------------- */
-    radial-gradient(
-        ellipse 34% 28% at 53% 49%,
-        hsl(15 90% 45% / 0.46) 0%,
-        hsl(10 78% 32% / 0.34) 33%,
-        hsl(9 55% 19% / 0.18) 62%,
-        transparent 86%
-      ),
-    /* --------------------------------------------------------
-       FIELD F — dark counterweight
-       -------------------------------------------------------- */
-    radial-gradient(ellipse 42% 42% at 52% 8%, hsl(8 50% 7% / 0.65) 0%, transparent 72%);
+    radial-gradient(ellipse 34% 27% at 20% 70%, hsl(37 79% 55% / 0.72) 0%, hsl(26 82% 43% / 0.5) 38%, transparent 77%),
+    radial-gradient(ellipse 38% 33% at 51% 35%, hsl(13 91% 49% / 0.64) 0%, hsl(8 82% 34% / 0.46) 40%, transparent 78%),
+    radial-gradient(ellipse 34% 34% at 75% 78%, hsl(11 87% 42% / 0.56) 0%, hsl(9 73% 24% / 0.36) 42%, transparent 79%),
+    radial-gradient(ellipse 38% 44% at 92% 17%, hsl(10 79% 30% / 0.48) 0%, transparent 76%);
 
   background-repeat: no-repeat;
+  background-size: 125% 125%;
 
-  background-size:
-    150% 148%,
-    138% 136%,
-    145% 150%,
-    138% 142%,
-    160% 150%,
-    150% 150%;
+  opacity: 0.95;
 
-  background-position:
-    4% 4%,
-    92% 5%,
-    4% 94%,
-    94% 88%,
-    50% 52%,
-    50% 5%;
+  transform-origin: 50% 50%;
 
-  opacity: 0.94;
+  transform: translate3d(-3%, -1%, 0) scale(1.08);
 
-  transform: translate3d(0, 0, 0) scale(1.04);
+  animation: gd-led-drift 42s cubic-bezier(0.37, 0.02, 0.2, 1) infinite alternate;
 
-  will-change: transform, background-position;
+  will-change: transform;
 
   backface-visibility: hidden;
-
-  animation: gd-led-field-flow 31s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 
   contain: paint;
 }
 
-/* ============================================================
-   SECOND ATMOSPHERIC FIELD
-   ============================================================
+/* ------------------------------------------------------------
+   LED GRID
 
-   This layer is intentionally slower.
-
-   Its job is not to create another visible blob.
-
-   Its job is to alter the relationships between the brighter
-   fields so the background never settles into one static
-   composition.
-   ============================================================ */
-
-.orange-bg {
-  animation: gd-led-base-flow 47s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
-}
-
-@keyframes gd-led-base-flow {
-  0% {
-    background-position:
-      0% 0%,
-      100% 100%,
-      0% 0%;
-  }
-
-  25% {
-    background-position:
-      4% 2%,
-      96% 98%,
-      1% 2%;
-  }
-
-  50% {
-    background-position:
-      8% 5%,
-      92% 94%,
-      2% 4%;
-  }
-
-  75% {
-    background-position:
-      4% 8%,
-      96% 88%,
-      1% 5%;
-  }
-
-  100% {
-    background-position:
-      0% 5%,
-      100% 92%,
-      0% 3%;
-  }
-}
-
-/* ============================================================
-   PRIMARY FIELD MOTION
-   ============================================================ */
-
-@keyframes gd-led-field-flow {
-  0% {
-    transform: translate3d(-6%, -4%, 0) scale(1.04);
-
-    background-position:
-      2% 4%,
-      94% 7%,
-      3% 95%,
-      95% 88%,
-      50% 50%,
-      50% 5%;
-  }
-
-  14% {
-    transform: translate3d(-2%, -7%, 0) scale(1.055);
-
-    background-position:
-      10% 13%,
-      84% 3%,
-      9% 88%,
-      89% 80%,
-      45% 56%,
-      53% 7%;
-  }
-
-  28% {
-    transform: translate3d(4%, -4%, 0) scale(1.07);
-
-    background-position:
-      20% 20%,
-      74% 12%,
-      17% 79%,
-      81% 72%,
-      57% 47%,
-      47% 10%;
-  }
-
-  42% {
-    transform: translate3d(7%, 1%, 0) scale(1.085);
-
-    background-position:
-      32% 30%,
-      61% 22%,
-      27% 70%,
-      72% 61%,
-      48% 39%,
-      43% 14%;
-  }
-
-  56% {
-    transform: translate3d(5%, 6%, 0) scale(1.075);
-
-    background-position:
-      45% 39%,
-      48% 35%,
-      39% 58%,
-      63% 51%,
-      60% 55%,
-      40% 18%;
-  }
-
-  70% {
-    transform: translate3d(-1%, 8%, 0) scale(1.06);
-
-    background-position:
-      58% 49%,
-      35% 49%,
-      52% 46%,
-      51% 42%,
-      45% 62%,
-      48% 23%;
-  }
-
-  84% {
-    transform: translate3d(-7%, 4%, 0) scale(1.05);
-
-    background-position:
-      70% 59%,
-      24% 62%,
-      66% 34%,
-      41% 31%,
-      54% 44%,
-      57% 27%;
-  }
-
-  100% {
-    transform: translate3d(-5%, -3%, 0) scale(1.045);
-
-    background-position:
-      83% 69%,
-      14% 74%,
-      79% 22%,
-      29% 21%,
-      42% 51%,
-      63% 32%;
-  }
-}
-
-/* ============================================================
-   ATMOSPHERIC BREATHING
-   ============================================================ */
-
-@keyframes gd-led-opacity-breathe {
-  0%,
-  100% {
-    opacity: 0.88;
-  }
-
-  50% {
-    opacity: 0.98;
-  }
-}
-
-.orange-bg::before {
-  animation:
-    gd-led-field-flow 31s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate,
-    gd-led-opacity-breathe 13s ease-in-out infinite;
-}
-
-/* ============================================================
-   FIXED LED GRID
-   ============================================================
-
-   DO NOT animate this layer.
-
-   It is deliberately independent from the illumination field.
-   ============================================================ */
+   19px tile + 1px line = 20px cell
+   ------------------------------------------------------------ */
 
 .orange-bg::after {
   content: "";
@@ -465,70 +250,56 @@
 
   pointer-events: none;
 
-  z-index: 3;
-
   background-image:
-
-    /* vertical seams */
     repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
-    /* horizontal seams */ repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
+    repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
 
   background-size:
     var(--cell) var(--cell),
     var(--cell) var(--cell);
 
-  background-repeat: repeat, repeat;
+  background-repeat: repeat;
 
-  opacity: 0.86;
+  opacity: 0.88;
 
   transform: translateZ(0);
 
   backface-visibility: hidden;
-
-  /*
-   * Critical:
-   * The grid itself never moves.
-   */
-  animation: none;
-
-  will-change: auto;
 }
 
-/* ============================================================
-   SUBTLE TILE DEPTH
-   ============================================================
+/* ------------------------------------------------------------
+   SLOW LIGHT MOVEMENT
+   ------------------------------------------------------------ */
 
-   This is a very low-contrast repeating structure that breaks
-   up otherwise perfectly smooth gradient regions.
+@keyframes gd-led-drift {
+  0% {
+    transform: translate3d(-3.5%, -1.5%, 0) scale(1.07);
+  }
 
-   It is intentionally almost invisible.
+  20% {
+    transform: translate3d(-1.5%, 0%, 0) scale(1.08);
+  }
 
-   Its purpose is to make the illumination feel less like paint
-   and more like thousands of individual light cells.
-   ============================================================ */
+  40% {
+    transform: translate3d(2%, -0.75%, 0) scale(1.095);
+  }
 
-.orange-bg::after {
-  background-image:
-    repeating-linear-gradient(to right, hsl(8 45% 2% / 0.82) 0 1px, transparent 1px var(--cell)),
-    repeating-linear-gradient(to bottom, hsl(8 45% 2% / 0.82) 0 1px, transparent 1px var(--cell)),
-    repeating-linear-gradient(135deg, transparent 0 8px, hsl(25 70% 30% / 0.018) 8px 9px, transparent 9px 20px);
+  60% {
+    transform: translate3d(3%, 1%, 0) scale(1.1);
+  }
 
-  background-size:
-    var(--cell) var(--cell),
-    var(--cell) var(--cell),
-    97px 97px;
+  80% {
+    transform: translate3d(0%, 0.5%, 0) scale(1.085);
+  }
 
-  background-position:
-    0 0,
-    0 0,
-    0 0;
-
-  background-repeat: repeat, repeat, repeat;
+  100% {
+    transform: translate3d(-2%, -0.5%, 0) scale(1.075);
+  }
 }
 
-/* ============================================================
+/* ------------------------------------------------------------
    TABLET
-   ============================================================ */
+   ------------------------------------------------------------ */
 
 @media (max-width: 900px) {
   .orange-bg {
@@ -538,19 +309,18 @@
   }
 
   .orange-bg::before {
-    animation-duration: 38s, 15s;
-
-    opacity: 0.9;
+    animation-duration: 48s;
+    opacity: 0.88;
   }
 
   .orange-bg::after {
-    opacity: 0.81;
+    opacity: 0.82;
   }
 }
 
-/* ============================================================
+/* ------------------------------------------------------------
    MOBILE
-   ============================================================ */
+   ------------------------------------------------------------ */
 
 @media (max-width: 768px) {
   .orange-bg {
@@ -560,14 +330,11 @@
   }
 
   .orange-bg::before {
-    animation-duration: 42s, 16s;
+    animation-duration: 54s;
+    opacity: 0.8;
 
-    opacity: 0.84;
-
-    /*
-     * Keep the field animated on mobile.
-     */
-    will-change: transform, background-position;
+    will-change: auto;
+    contain: none;
   }
 
   .orange-bg::after {
@@ -580,20 +347,15 @@
   }
 }
 
-/* ============================================================
+/* ------------------------------------------------------------
    REDUCED MOTION
-   ============================================================ */
+   ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-  .orange-bg,
   .orange-bg::before {
     animation: none;
-  }
 
-  .orange-bg::before {
-    transform: translate3d(0, 0, 0) scale(1.05);
-
-    opacity: 0.9;
+    transform: translate3d(0, 0, 0) scale(1.08);
   }
 }
 
@@ -628,6 +390,9 @@
 
 /* ============================================================
    GRAINY GRADIENT BACKGROUND
+   ------------------------------------------------------------
+   Kept intact for components/pages that explicitly use this
+   class. It is NOT used by the new LED wallpaper.
    ============================================================ */
 
 .bg-grainy-gradient {
@@ -642,9 +407,9 @@
   overflow: hidden;
 }
 
-/* ============================================================
-   GRAIN OVERLAY
-   ============================================================ */
+/* ------------------------------------------------------------
+   Grain overlay
+   ------------------------------------------------------------ */
 
 .bg-grainy-gradient::before {
   content: "";
@@ -665,9 +430,9 @@
   background-size: 200px 200px;
 }
 
-/* ============================================================
-   SUBTLE HORIZONTAL WAVE SHIFT
-   ============================================================ */
+/* ------------------------------------------------------------
+   Subtle horizontal wave shift
+   ------------------------------------------------------------ */
 
 @keyframes wave-shift {
   0% {
@@ -825,9 +590,9 @@ html {
   transform: translateZ(0);
 }
 
-/* ============================================================
-   MARQUEE EDGE FADE
-   ============================================================ */
+/* ------------------------------------------------------------
+   Marquee edge fade
+   ------------------------------------------------------------ */
 
 .marquee-fade-edges {
   -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
@@ -888,9 +653,9 @@ html {
   --theme-transition-duration: 520ms;
 }
 
-/* ============================================================
-   MINIMAL THEME VARIABLES
-   ============================================================ */
+/* ------------------------------------------------------------
+   Minimal theme variables
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] {
   --background: 0 0% 100%;
@@ -916,9 +681,9 @@ html {
   --ring: 0 0% 4%;
 }
 
-/* ============================================================
-   THEME TRANSITION
-   ============================================================ */
+/* ------------------------------------------------------------
+   Theme transition
+   ------------------------------------------------------------ */
 
 body,
 .site-page,
@@ -935,49 +700,47 @@ body,
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ============================================================
-   MINIMAL BACKGROUND
-   ============================================================ */
+/* ------------------------------------------------------------
+   Minimal background
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] body,
 :root[data-theme="minimal"] .site-page {
   background-color: hsl(var(--background));
-
   color: hsl(var(--foreground));
 }
 
-/* ============================================================
-   HIDE LED WALLPAPER IN MINIMAL MODE
-   ============================================================ */
+/* ------------------------------------------------------------
+   Hide the LED wallpaper in minimal mode
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-background {
   opacity: 0;
 }
 
-/* ============================================================
-   MINIMAL TEXT
-   ============================================================ */
+/* ------------------------------------------------------------
+   Minimal text
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="text-white"],
 :root[data-theme="minimal"] .site-page [class*="text-gray"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="text-white"] {
   color: hsl(var(--foreground)) !important;
-
   text-shadow: none !important;
 }
 
-/* ============================================================
-   MINIMAL WHITE SURFACES
-   ============================================================ */
+/* ------------------------------------------------------------
+   Minimal white surfaces
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="bg-white/"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="bg-white/"] {
   background-color: hsl(var(--background)) !important;
 }
 
-/* ============================================================
-   MINIMAL BORDERS
-   ============================================================ */
+/* ------------------------------------------------------------
+   Minimal borders
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="border-white"],
 :root[data-theme="minimal"] .site-page [class*="border-foreground"],
@@ -988,37 +751,36 @@ body,
   background-clip: padding-box;
 }
 
-/* ============================================================
-   REMOVE BLUR IN MINIMAL MODE
-   ============================================================ */
+/* ------------------------------------------------------------
+   Remove blur in minimal mode
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="backdrop-blur"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="backdrop-blur"] {
   -webkit-backdrop-filter: none !important;
-
   backdrop-filter: none !important;
 }
 
-/* ============================================================
-   REMOVE SHADOWS IN MINIMAL MODE
-   ============================================================ */
+/* ------------------------------------------------------------
+   Remove shadows in minimal mode
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="shadow"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="shadow"] {
   box-shadow: none !important;
 }
 
-/* ============================================================
-   BLACK SURFACES
-   ============================================================ */
+/* ------------------------------------------------------------
+   Black surfaces
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="bg-black/"] {
   background-color: hsl(var(--background) / 0.92) !important;
 }
 
-/* ============================================================
-   BUTTONS / LINKS
-   ============================================================ */
+/* ------------------------------------------------------------
+   Buttons / links
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] [data-gdx-search] button,
 :root[data-theme="minimal"] [data-gdx-search] a {
@@ -1040,9 +802,9 @@ body,
   color: hsl(var(--background)) !important;
 }
 
-/* ============================================================
-   ARTICLES / DIALOGS
-   ============================================================ */
+/* ------------------------------------------------------------
+   Articles / dialogs
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page article,
 :root[data-theme="minimal"] .site-page [role="dialog"] {
@@ -1053,9 +815,9 @@ body,
   background-clip: padding-box;
 }
 
-/* ============================================================
-   SUGGESTION BUBBLE
-   ============================================================ */
+/* ------------------------------------------------------------
+   Suggestion bubble
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .gdx-suggestion-bubble {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
@@ -1067,9 +829,9 @@ body,
   box-shadow: none !important;
 }
 
-/* ============================================================
-   TTS BUTTON
-   ============================================================ */
+/* ------------------------------------------------------------
+   TTS button
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
@@ -1091,9 +853,9 @@ body,
   color: currentColor !important;
 }
 
-/* ============================================================
-   WRITING CARDS
-   ============================================================ */
+/* ------------------------------------------------------------
+   Writing cards
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .notion-writing-card:hover,
 :root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy,
@@ -1109,17 +871,17 @@ body,
   border: 1px solid hsl(var(--background)) !important;
 }
 
-/* ============================================================
-   SPOTLIGHT PROGRESS
-   ============================================================ */
+/* ------------------------------------------------------------
+   Spotlight progress
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .spotlight-progress {
   background-color: hsl(var(--foreground)) !important;
 }
 
-/* ============================================================
-   ACCESSIBILITY
-   ============================================================ */
+/* ------------------------------------------------------------
+   Accessibility
+   ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -1145,6 +907,7 @@ body,
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
+  /* First click-like pulse */
   10% {
     transform: scale(1.035);
 
@@ -1161,6 +924,7 @@ body,
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
+  /* Small pause */
   24% {
     transform: scale(1);
 
@@ -1169,6 +933,7 @@ body,
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
+  /* Second click-like pulse */
   34% {
     transform: scale(1.035);
 
@@ -1204,6 +969,7 @@ body,
       0 0 0 0 rgba(0, 0, 0, 0);
   }
 
+  /* First click-like pulse */
   10% {
     transform: scale(1.035);
 
@@ -1220,6 +986,7 @@ body,
       0 0 0 0 rgba(0, 0, 0, 0);
   }
 
+  /* Small pause */
   24% {
     transform: scale(1);
 
@@ -1228,6 +995,7 @@ body,
       0 0 0 0 rgba(0, 0, 0, 0);
   }
 
+  /* Second click-like pulse */
   34% {
     transform: scale(1.035);
 
