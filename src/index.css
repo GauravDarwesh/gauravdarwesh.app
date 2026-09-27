@@ -104,7 +104,7 @@
   --tile: 19px;
   --gap: 1px;
   --cell: 20px;
-  --led-base: #120806;
+  --led-base: #140705;
   --led-line: hsl(15 45% 4% / 0.9);
 
   position: fixed;
@@ -119,10 +119,7 @@
   pointer-events: none;
   isolation: isolate;
 
-  background:
-    radial-gradient(ellipse 85% 75% at 7% 4%, hsl(35 78% 19%) 0%, hsl(25 66% 12%) 40%, transparent 76%),
-    radial-gradient(ellipse 78% 82% at 46% 48%, hsl(17 60% 11%) 0%, hsl(9 52% 7%) 62%, transparent 100%),
-    linear-gradient(135deg, hsl(25 62% 13%) 0%, hsl(13 54% 8%) 50%, hsl(8 48% 5%) 100%);
+  background: var(--led-base);
 
   transform: translateZ(0);
   backface-visibility: hidden;
