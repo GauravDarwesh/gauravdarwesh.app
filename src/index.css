@@ -175,7 +175,7 @@
     var(--cell) var(--cell);
 
   background-repeat: repeat;
-  opacity: 0.3;
+  opacity: 0.2;
 
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -188,7 +188,7 @@
   }
 
   .orange-bg::after {
-    opacity: 0.27;
+    opacity: 0.18;
   }
 }
 
