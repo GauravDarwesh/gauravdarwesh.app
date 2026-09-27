@@ -3869,8 +3869,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           font-size: 1rem;
           line-height: 1;
           font-weight: 400;
-          animation: thinkingTextGlow 2s ease-in-out infinite;
-          will-change: opacity, text-shadow;
+          transform-origin: left center;
+          animation: thinkingTextOrbit 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+          will-change: transform, opacity, filter, text-shadow;
+          white-space: nowrap;
         }
 
         .gdx-g1-orb {
@@ -3953,24 +3955,57 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           }
         }
 
-        @keyframes thinkingTextGlow {
-          0%, 100% {
-            opacity: 0.62;
-            text-shadow:
-              0 0 2px rgba(255,255,255,0.16),
-              0 0 6px rgba(255,255,255,0.08);
-          }
-          50% {
+        @keyframes thinkingTextOrbit {
+          0%, 16% {
             opacity: 0.94;
+            filter: blur(0) brightness(1);
+            transform: translateX(0) scaleX(1) scaleY(1);
             text-shadow:
-              0 0 3px rgba(255,255,255,0.36),
-              0 0 9px rgba(255,255,255,0.16);
+              0 0 3px rgba(255,255,255,0.30),
+              0 0 9px rgba(255,255,255,0.12);
+          }
+
+          30% {
+            opacity: 0.72;
+            filter: blur(0.8px) brightness(1.08);
+            transform: translateX(-4px) scaleX(0.78) scaleY(0.96);
+            text-shadow:
+              0 0 5px rgba(255,255,255,0.34),
+              0 0 12px rgba(255,255,255,0.14);
+          }
+
+          39%, 52% {
+            opacity: 0;
+            filter: blur(3px) brightness(1.18);
+            transform: translateX(-13px) scaleX(0.08) scaleY(0.72);
+            text-shadow: 0 0 0 rgba(255,255,255,0);
+          }
+
+          66% {
+            opacity: 0.18;
+            filter: blur(2.5px) brightness(1.12);
+            transform: translateX(-10px) scaleX(0.24) scaleY(0.78);
+          }
+
+          78% {
+            opacity: 0.62;
+            filter: blur(1px) brightness(1.06);
+            transform: translateX(-4px) scaleX(0.76) scaleY(0.95);
+          }
+
+          90%, 100% {
+            opacity: 0.94;
+            filter: blur(0) brightness(1);
+            transform: translateX(0) scaleX(1) scaleY(1);
+            text-shadow:
+              0 0 3px rgba(255,255,255,0.30),
+              0 0 9px rgba(255,255,255,0.12);
           }
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-thinking-label {
           color: rgba(0,0,0,0.60);
-          animation: thinkingTextGlowMinimal 2s ease-in-out infinite;
+          animation: thinkingTextOrbitMinimal 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
 
         :root[data-theme="minimal"] [data-gdx-search] .gdx-g1-orb {
@@ -3980,18 +4015,51 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             drop-shadow(0 0 5px rgba(0,0,0,0.10));
         }
 
-        @keyframes thinkingTextGlowMinimal {
-          0%, 100% {
-            opacity: 0.48;
-            text-shadow:
-              0 0 2px rgba(0,0,0,0.08),
-              0 0 6px rgba(0,0,0,0.04);
-          }
-          50% {
+        @keyframes thinkingTextOrbitMinimal {
+          0%, 16% {
             opacity: 0.86;
+            filter: blur(0) brightness(1);
+            transform: translateX(0) scaleX(1) scaleY(1);
             text-shadow:
-              0 0 3px rgba(0,0,0,0.18),
-              0 0 9px rgba(0,0,0,0.08);
+              0 0 3px rgba(0,0,0,0.14),
+              0 0 9px rgba(0,0,0,0.06);
+          }
+
+          30% {
+            opacity: 0.66;
+            filter: blur(0.8px) brightness(1.04);
+            transform: translateX(-4px) scaleX(0.78) scaleY(0.96);
+            text-shadow:
+              0 0 5px rgba(0,0,0,0.16),
+              0 0 12px rgba(0,0,0,0.07);
+          }
+
+          39%, 52% {
+            opacity: 0;
+            filter: blur(3px) brightness(1.08);
+            transform: translateX(-13px) scaleX(0.08) scaleY(0.72);
+            text-shadow: 0 0 0 rgba(0,0,0,0);
+          }
+
+          66% {
+            opacity: 0.14;
+            filter: blur(2.5px) brightness(1.06);
+            transform: translateX(-10px) scaleX(0.24) scaleY(0.78);
+          }
+
+          78% {
+            opacity: 0.52;
+            filter: blur(1px) brightness(1.03);
+            transform: translateX(-4px) scaleX(0.76) scaleY(0.95);
+          }
+
+          90%, 100% {
+            opacity: 0.86;
+            filter: blur(0) brightness(1);
+            transform: translateX(0) scaleX(1) scaleY(1);
+            text-shadow:
+              0 0 3px rgba(0,0,0,0.14),
+              0 0 9px rgba(0,0,0,0.06);
           }
         }
 
