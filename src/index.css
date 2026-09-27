@@ -96,15 +96,15 @@
 /* ============================================================
    LED CHECKERBOARD / LIVE WALLPAPER
    ------------------------------------------------------------
-   Inspired by the grid geometry used by shreygups.com.
+   Warm orange / yellow LED wall.
 
-   Core geometry:
-   19px illuminated tile
-   1px separator
-   20px total cell
+   The important difference from the previous version:
+   - the 20px LED geometry stays perfectly fixed
+   - the illumination inside the cells moves underneath it
+   - a second slower field creates the "breathing" effect
+   - a soft diagonal sweep occasionally passes through the wall
 
-   The grid itself never moves.
-   Only the light field underneath it moves.
+   Nothing here changes the site's content layout.
    ============================================================ */
 
 .orange-bg {
@@ -115,16 +115,23 @@
   --led-base: hsl(20 60% 7%);
   --led-line: hsl(17 52% 4%);
 
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 100vh;
-
   overflow: hidden;
   pointer-events: none;
+  isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 
-  position: relative;
+  /* ----------------------------------------------------------
+     STATIC PALETTE + MOVING MICRO LED FIELD
+     ---------------------------------------------------------- */
+  background-color: var(--led-base);
 
-  background:
+  background-image:
+    /* Deep warm base */
     radial-gradient(
       ellipse 72% 58% at 6% 8%,
       hsl(39 82% 56% / 0.88) 0%,
@@ -159,20 +166,64 @@
       hsl(12 74% 17%) 53%,
       hsl(9 63% 11%) 77%,
       hsl(8 55% 7%) 100%
-    );
+    ),
+    /*
+     * MICRO LED CORE.
+     * One gradient is repeated exactly on the LED pitch, so every
+     * tile has its own small light center. The background-position
+     * is animated, which makes the light slide inside the fixed grid.
+     */
+    radial-gradient(
+        ellipse 9px 8px at 50% 50%,
+        hsl(44 100% 72% / 0.38) 0%,
+        hsl(39 100% 61% / 0.2) 38%,
+        hsl(28 100% 50% / 0.06) 64%,
+        transparent 80%
+      ),
+    /* A second field is deliberately larger and out of phase. */
+    radial-gradient(
+        ellipse 15px 13px at 46% 54%,
+        hsl(23 100% 57% / 0.17) 0%,
+        hsl(13 100% 45% / 0.08) 46%,
+        transparent 76%
+      ),
+    /* Soft traveling sweep. */
+    repeating-linear-gradient(
+        116deg,
+        transparent 0 120px,
+        hsl(42 100% 67% / 0) 150px,
+        hsl(42 100% 67% / 0.08) 190px,
+        hsl(28 100% 54% / 0.13) 230px,
+        hsl(20 100% 48% / 0.04) 270px,
+        transparent 320px 520px
+      );
 
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat, repeat;
 
-  animation: none;
-  transition: none;
-  filter: none;
+  background-size:
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    var(--cell) var(--cell),
+    60px 60px,
+    620px 620px;
 
-  will-change: auto;
-  backface-visibility: hidden;
-  transform: translateZ(0);
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
 
-  isolation: isolate;
+  /* Only the moving optical layers animate. */
+  animation: gd-led-atmosphere 20s cubic-bezier(0.37, 0.02, 0.2, 1) infinite;
+
+  will-change: background-position, background-size, filter;
 }
 
 /* ------------------------------------------------------------
@@ -182,207 +233,195 @@
 .site-background.orange-bg {
   position: fixed;
   inset: 0;
-
   z-index: 0;
-
   width: 100%;
   height: 100%;
-
   min-height: 100%;
-
   transition: none;
 }
 
 /* ------------------------------------------------------------
-   MOVING LED LIGHT FIELD
+   LARGE BREATHING LIGHT FIELD
    ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
-
   position: absolute;
-  inset: -28%;
-
+  inset: -18%;
   pointer-events: none;
+  z-index: 0;
 
-  /*
-   * The palette stays exactly in the same warm family.
-   * What changes is the position + scale of several overlapping
-   * light sources, so the wallpaper feels alive rather than
-   * looking like a gradient that simply slides left/right.
-   */
   background:
     radial-gradient(
-      ellipse 30% 25% at 12% 12%,
-      hsl(42 92% 67% / 0.88) 0%,
-      hsl(36 90% 55% / 0.63) 30%,
-      hsl(25 80% 42% / 0.24) 60%,
+      ellipse 24% 24% at 13% 13%,
+      hsl(45 100% 72% / 0.34) 0%,
+      hsl(38 100% 58% / 0.19) 36%,
       transparent 78%
     ),
-    radial-gradient(ellipse 34% 27% at 20% 70%, hsl(37 79% 55% / 0.72) 0%, hsl(26 82% 43% / 0.5) 38%, transparent 77%),
-    radial-gradient(ellipse 38% 33% at 51% 35%, hsl(13 91% 49% / 0.64) 0%, hsl(8 82% 34% / 0.46) 40%, transparent 78%),
-    radial-gradient(ellipse 34% 34% at 75% 78%, hsl(11 87% 42% / 0.56) 0%, hsl(9 73% 24% / 0.36) 42%, transparent 79%),
-    radial-gradient(ellipse 38% 44% at 92% 17%, hsl(10 79% 30% / 0.48) 0%, transparent 76%),
-    radial-gradient(ellipse 52% 30% at 56% 92%, hsl(24 77% 35% / 0.2) 0%, transparent 74%);
+    radial-gradient(
+      ellipse 28% 29% at 28% 70%,
+      hsl(34 100% 56% / 0.22) 0%,
+      hsl(23 100% 48% / 0.12) 40%,
+      transparent 76%
+    ),
+    radial-gradient(ellipse 32% 30% at 53% 37%, hsl(17 100% 54% / 0.2) 0%, hsl(10 100% 42% / 0.1) 42%, transparent 78%),
+    radial-gradient(
+      ellipse 27% 31% at 79% 75%,
+      hsl(17 100% 49% / 0.15) 0%,
+      hsl(10 100% 35% / 0.08) 44%,
+      transparent 79%
+    ),
+    radial-gradient(ellipse 30% 36% at 92% 16%, hsl(18 100% 45% / 0.12) 0%, transparent 76%);
 
   background-repeat: no-repeat;
-
-  /*
-   * Overscan gives the light field room to travel without exposing
-   * the edge of the pseudo-element.
-   */
-  background-size:
-    128% 128%,
-    136% 136%,
-    130% 130%,
-    132% 132%,
-    126% 126%,
-    145% 145%;
-
-  background-position:
-    2% 2%,
-    18% 74%,
-    52% 34%,
-    76% 80%,
-    94% 18%,
-    54% 96%;
-
-  opacity: 0.94;
-
+  background-size: 130% 130%;
+  opacity: 0.9;
+  transform: translate3d(-2%, -1.5%, 0) scale(1.06);
   transform-origin: 50% 50%;
 
-  /*
-   * Two kinds of movement happen together:
-   * 1. a very slow macro drift/zoom
-   * 2. independent movement of the individual light pockets
-   */
-  transform: translate3d(-2.5%, -1.5%, 0) scale(1.08);
+  /* This is deliberately much more visible than the previous 48s drift. */
+  animation: gd-led-breathe 20s ease-in-out infinite;
 
-  animation: gd-led-ambient 48s cubic-bezier(0.37, 0.02, 0.2, 1) infinite alternate;
-
-  will-change: transform, background-position, opacity;
-
+  will-change: transform, opacity;
   backface-visibility: hidden;
-
   contain: paint;
 }
 
 /* ------------------------------------------------------------
-   LED GRID
-
-   19px tile + 1px line = 20px cell
+   FIXED LED GRID
+   ------------------------------------------------------------
+   The grid NEVER moves. The light inside the cells does.
    ------------------------------------------------------------ */
 
 .orange-bg::after {
   content: "";
-
   position: absolute;
   inset: 0;
-
+  z-index: 2;
   pointer-events: none;
 
   background-image:
     repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
     repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
 
-  background-size:
-    var(--cell) var(--cell),
-    var(--cell) var(--cell);
-
+  background-size: var(--cell) var(--cell);
   background-repeat: repeat;
-
   opacity: 0.86;
 
   transform: translateZ(0);
-
   backface-visibility: hidden;
 }
 
 /* ------------------------------------------------------------
-   AMBIENT LIGHT MOVEMENT
-
-   The motion is deliberately slow and non-linear. Each radial
-   light source gets its own background-position, creating subtle
-   relative motion between the yellow/orange pools of light.
+   MOVEMENT
    ------------------------------------------------------------ */
 
-@keyframes gd-led-ambient {
+@keyframes gd-led-atmosphere {
   0% {
-    opacity: 0.9;
-    transform: translate3d(-3.8%, -1.8%, 0) scale(1.065);
-
     background-position:
-      0% 0%,
-      12% 78%,
-      50% 30%,
-      82% 76%,
-      96% 14%,
-      48% 100%;
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      -5px -3px,
+      -18px 8px,
+      -90px -40px;
   }
 
-  18% {
-    opacity: 0.94;
-    transform: translate3d(-1.8%, -0.3%, 0) scale(1.08);
-
+  16% {
     background-position:
-      8% 4%,
-      22% 68%,
-      42% 39%,
-      74% 84%,
-      88% 22%,
-      60% 92%;
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      1px 1px,
+      -30px 18px,
+      -20px 50px;
   }
 
-  36% {
-    opacity: 0.97;
-    transform: translate3d(1.4%, 0.8%, 0) scale(1.095);
-
+  32% {
     background-position:
-      16% 10%,
-      28% 56%,
-      58% 44%,
-      68% 74%,
-      82% 28%,
-      52% 84%;
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      5px 4px,
+      -42px 34px,
+      65px 125px;
   }
 
-  54% {
-    opacity: 0.93;
-    transform: translate3d(3.2%, 1.4%, 0) scale(1.105);
-
+  48% {
     background-position:
-      22% 2%,
-      35% 64%,
-      64% 32%,
-      80% 64%,
-      94% 16%,
-      42% 92%;
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      9px 1px,
+      -22px 58px,
+      145px 40px;
   }
 
-  72% {
-    opacity: 0.96;
-    transform: translate3d(0.8%, 0.5%, 0) scale(1.09);
-
+  64% {
     background-position:
-      12% 8%,
-      18% 72%,
-      48% 48%,
-      72% 82%,
-      86% 24%,
-      58% 98%;
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      12px -3px,
+      18px 25px,
+      55px -85px;
+  }
+
+  80% {
+    background-position:
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      7px -1px,
+      6px 9px,
+      -8px -10px;
   }
 
   100% {
-    opacity: 0.91;
-    transform: translate3d(-2.6%, -0.8%, 0) scale(1.075);
-
     background-position:
-      2% 0%,
-      30% 60%,
-      56% 36%,
-      76% 72%,
-      92% 18%,
-      50% 88%;
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      -5px -3px,
+      -18px 8px,
+      -90px -40px;
+  }
+}
+
+@keyframes gd-led-breathe {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: translate3d(-3%, -1.5%, 0) scale(1.045);
+  }
+
+  22% {
+    opacity: 0.93;
+    transform: translate3d(-0.8%, 0.8%, 0) scale(1.08);
+  }
+
+  48% {
+    opacity: 0.98;
+    transform: translate3d(2.2%, 1.5%, 0) scale(1.105);
+  }
+
+  72% {
+    opacity: 0.88;
+    transform: translate3d(0.5%, -0.4%, 0) scale(1.075);
   }
 }
 
@@ -395,11 +434,21 @@
     --tile: 17px;
     --gap: 1px;
     --cell: 18px;
+    animation-duration: 23s;
+    background-size:
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      var(--cell) var(--cell),
+      54px 54px,
+      560px 560px;
   }
 
   .orange-bg::before {
-    animation-duration: 54s;
-    opacity: 0.88;
+    animation-duration: 23s;
+    opacity: 0.86;
   }
 
   .orange-bg::after {
@@ -416,23 +465,25 @@
     --tile: 16px;
     --gap: 1px;
     --cell: 17px;
+    animation-duration: 26s;
+    background-size:
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      var(--cell) var(--cell),
+      51px 51px,
+      520px 520px;
   }
 
   .orange-bg::before {
-    animation-duration: 62s;
-    opacity: 0.8;
-
-    will-change: transform, background-position, opacity;
-    contain: none;
+    animation-duration: 26s;
+    opacity: 0.78;
   }
 
   .orange-bg::after {
-    opacity: 0.72;
-  }
-
-  .orange-bg {
-    transform: none;
-    backface-visibility: visible;
+    opacity: 0.74;
   }
 }
 
@@ -441,19 +492,26 @@
    ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
+  .orange-bg,
   .orange-bg::before {
     animation: none;
+  }
 
-    opacity: 0.94;
-    transform: translate3d(0, 0, 0) scale(1.08);
-
+  .orange-bg {
     background-position:
-      2% 2%,
-      18% 74%,
-      52% 34%,
-      76% 80%,
-      94% 18%,
-      54% 96%;
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0;
+  }
+
+  .orange-bg::before {
+    transform: translate3d(0, 0, 0) scale(1.05);
+    opacity: 0.84;
   }
 }
 
