@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ============================================================
+   DESIGN SYSTEM
+   ============================================================ */
 
 @layer base {
   :root {
@@ -55,11 +55,15 @@ All colors MUST be HSL.
   }
 }
 
-/* Custom Animation for Spinning Asterisk */
+/* ============================================================
+   SPINNING ASTERISK
+   ============================================================ */
+
 @keyframes spin-slow {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -68,6 +72,10 @@ All colors MUST be HSL.
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
 }
+
+/* ============================================================
+   SLOW FADE IN
+   ============================================================ */
 
 @keyframes fadeInSlow {
   0% {
@@ -86,58 +94,274 @@ All colors MUST be HSL.
 }
 
 /* ============================================================
-   LED CHECKERBOARD WALLPAPER
+   LED CHECKERBOARD / LIVE WALLPAPER
    ------------------------------------------------------------
-   The animated LED field is rendered by LEDBackground.tsx.
-   CSS only handles fixed positioning and compositing.
+   Inspired by the grid geometry used by shreygups.com.
+
+   Core geometry:
+   19px illuminated tile
+   1px separator
+   20px total cell
+
+   The grid itself never moves.
+   Only the light field underneath it moves.
    ============================================================ */
 
-.site-background.led-background {
+.orange-bg {
+  --tile: 19px;
+  --gap: 1px;
+  --cell: 20px;
+
+  --led-base: hsl(20 60% 7%);
+  --led-line: hsl(17 52% 4%);
+
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+
+  overflow: hidden;
+  pointer-events: none;
+
+  position: relative;
+
+  background:
+    radial-gradient(
+      ellipse 72% 58% at 6% 8%,
+      hsl(39 82% 56% / 0.88) 0%,
+      hsl(31 78% 43% / 0.72) 23%,
+      hsl(22 73% 31% / 0.55) 47%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse 66% 62% at 28% 50%,
+      hsl(17 84% 47% / 0.8) 0%,
+      hsl(12 74% 32% / 0.68) 34%,
+      hsl(9 64% 19% / 0.46) 68%,
+      transparent 90%
+    ),
+    radial-gradient(
+      ellipse 68% 66% at 58% 43%,
+      hsl(8 84% 40% / 0.72) 0%,
+      hsl(8 72% 25% / 0.58) 40%,
+      hsl(8 60% 13% / 0.7) 76%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 54% 80% at 100% 46%,
+      hsl(9 69% 22% / 0.86) 0%,
+      hsl(8 58% 11% / 0.93) 58%,
+      hsl(8 48% 7% / 1) 100%
+    ),
+    linear-gradient(
+      132deg,
+      hsl(29 66% 26%) 0%,
+      hsl(19 75% 22%) 25%,
+      hsl(12 74% 17%) 53%,
+      hsl(9 63% 11%) 77%,
+      hsl(8 55% 7%) 100%
+    );
+
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+
+  animation: none;
+  transition: none;
+  filter: none;
+
+  will-change: auto;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+
+  isolation: isolate;
+}
+
+/* ------------------------------------------------------------
+   FIXED SITE BACKGROUND POSITIONING
+   ------------------------------------------------------------ */
+
+.site-background.orange-bg {
   position: fixed;
   inset: 0;
 
   z-index: 0;
 
-  display: block;
-
   width: 100%;
   height: 100%;
-  min-width: 100%;
+
   min-height: 100%;
 
-  margin: 0;
-  padding: 0;
+  transition: none;
+}
+
+/* ------------------------------------------------------------
+   MOVING LED LIGHT FIELD
+   ------------------------------------------------------------ */
+
+.orange-bg::before {
+  content: "";
+
+  position: absolute;
+  inset: -24%;
 
   pointer-events: none;
-  border: 0;
-  outline: 0;
 
-  background: #140c08;
-  opacity: 1;
+  background:
+    radial-gradient(
+      ellipse 30% 25% at 12% 12%,
+      hsl(42 92% 67% / 0.88) 0%,
+      hsl(36 90% 55% / 0.63) 30%,
+      hsl(25 80% 42% / 0.24) 60%,
+      transparent 78%
+    ),
+    radial-gradient(ellipse 34% 27% at 20% 70%, hsl(37 79% 55% / 0.72) 0%, hsl(26 82% 43% / 0.5) 38%, transparent 77%),
+    radial-gradient(ellipse 38% 33% at 51% 35%, hsl(13 91% 49% / 0.64) 0%, hsl(8 82% 34% / 0.46) 40%, transparent 78%),
+    radial-gradient(ellipse 34% 34% at 75% 78%, hsl(11 87% 42% / 0.56) 0%, hsl(9 73% 24% / 0.36) 42%, transparent 79%),
+    radial-gradient(ellipse 38% 44% at 92% 17%, hsl(10 79% 30% / 0.48) 0%, transparent 76%);
 
-  transition: opacity var(--theme-transition-duration, 520ms) cubic-bezier(0.22, 1, 0.36, 1);
+  background-repeat: no-repeat;
+  background-size: 125% 125%;
+
+  opacity: 0.95;
+
+  transform-origin: 50% 50%;
+
+  transform: translate3d(-3%, -1%, 0) scale(1.08);
+
+  animation: gd-led-drift 42s cubic-bezier(0.37, 0.02, 0.2, 1) infinite alternate;
+
+  will-change: transform;
+
+  backface-visibility: hidden;
+
+  contain: paint;
+}
+
+/* ------------------------------------------------------------
+   LED GRID
+
+   19px tile + 1px line = 20px cell
+   ------------------------------------------------------------ */
+
+.orange-bg::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  pointer-events: none;
+
+  background-image:
+    repeating-linear-gradient(to right, var(--led-line) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(to bottom, var(--led-line) 0 1px, transparent 1px var(--cell));
+
+  background-size:
+    var(--cell) var(--cell),
+    var(--cell) var(--cell);
+
+  background-repeat: repeat;
+
+  opacity: 0.88;
 
   transform: translateZ(0);
+
   backface-visibility: hidden;
 }
 
-.site-page {
-  position: relative;
-  z-index: 1;
+/* ------------------------------------------------------------
+   SLOW LIGHT MOVEMENT
+   ------------------------------------------------------------ */
+
+@keyframes gd-led-drift {
+  0% {
+    transform: translate3d(-3.5%, -1.5%, 0) scale(1.07);
+  }
+
+  20% {
+    transform: translate3d(-1.5%, 0%, 0) scale(1.08);
+  }
+
+  40% {
+    transform: translate3d(2%, -0.75%, 0) scale(1.095);
+  }
+
+  60% {
+    transform: translate3d(3%, 1%, 0) scale(1.1);
+  }
+
+  80% {
+    transform: translate3d(0%, 0.5%, 0) scale(1.085);
+  }
+
+  100% {
+    transform: translate3d(-2%, -0.5%, 0) scale(1.075);
+  }
 }
 
+/* ------------------------------------------------------------
+   TABLET
+   ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+  .orange-bg {
+    --tile: 17px;
+    --gap: 1px;
+    --cell: 18px;
+  }
+
+  .orange-bg::before {
+    animation-duration: 48s;
+    opacity: 0.88;
+  }
+
+  .orange-bg::after {
+    opacity: 0.82;
+  }
+}
+
+/* ------------------------------------------------------------
+   MOBILE
+   ------------------------------------------------------------ */
+
 @media (max-width: 768px) {
-  .site-background.led-background {
+  .orange-bg {
+    --tile: 16px;
+    --gap: 1px;
+    --cell: 17px;
+  }
+
+  .orange-bg::before {
+    animation-duration: 54s;
+    opacity: 0.8;
+
+    will-change: auto;
+    contain: none;
+  }
+
+  .orange-bg::after {
+    opacity: 0.72;
+  }
+
+  .orange-bg {
     transform: none;
     backface-visibility: visible;
   }
 }
 
+/* ------------------------------------------------------------
+   REDUCED MOTION
+   ------------------------------------------------------------ */
+
 @media (prefers-reduced-motion: reduce) {
-  .site-background.led-background {
-    transition-duration: 0ms;
+  .orange-bg::before {
+    animation: none;
+
+    transform: translate3d(0, 0, 0) scale(1.08);
   }
 }
+
+/* ============================================================
+   SCROLLBAR UTILITIES
+   ============================================================ */
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
@@ -147,6 +371,10 @@ All colors MUST be HSL.
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ============================================================
+   FADE / SLIDE
+   ============================================================ */
 
 @keyframes fadeSlideIn {
   from {
@@ -160,7 +388,13 @@ All colors MUST be HSL.
   }
 }
 
-/* Grainy Gradient Background */
+/* ============================================================
+   GRAINY GRADIENT BACKGROUND
+   ------------------------------------------------------------
+   Kept intact for components/pages that explicitly use this
+   class. It is NOT used by the new LED wallpaper.
+   ============================================================ */
+
 .bg-grainy-gradient {
   background: linear-gradient(
     135deg,
@@ -173,23 +407,33 @@ All colors MUST be HSL.
   overflow: hidden;
 }
 
-/* Grain overlay (using base64 noise texture instead of inline SVG for safety) */
+/* ------------------------------------------------------------
+   Grain overlay
+   ------------------------------------------------------------ */
+
 .bg-grainy-gradient::before {
   content: "";
+
   position: absolute;
   inset: 0;
 
   background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
 
   mix-blend-mode: overlay;
+
   opacity: 0.15;
+
   pointer-events: none;
 
   animation: wave-shift 20s linear infinite;
+
   background-size: 200px 200px;
 }
 
-/* Subtle wavy horizontal shift */
+/* ------------------------------------------------------------
+   Subtle horizontal wave shift
+   ------------------------------------------------------------ */
+
 @keyframes wave-shift {
   0% {
     background-position: 0 0;
@@ -206,6 +450,10 @@ All colors MUST be HSL.
   }
 }
 
+/* ============================================================
+   ROOT / BODY
+   ============================================================ */
+
 html,
 body,
 #root {
@@ -213,12 +461,16 @@ body,
 }
 
 body {
-  background-color: #140c08;
+  background-color: hsl(8 55% 7%);
 }
 
 html {
   scrollbar-gutter: stable;
 }
+
+/* ============================================================
+   SLOW FADE IN
+   ============================================================ */
 
 @keyframes slowFadeIn {
   0% {
@@ -232,24 +484,14 @@ html {
   }
 }
 
-@keyframes marquee-scroll {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(100vw);
-  }
-}
-
-/* consolidated .animate-marquee definition lives below */
-
-/* Tailwind-safe helper class name */
 .animate-slowFadeIn {
   animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Keyframes for waves */
+/* ============================================================
+   WAVE ANIMATIONS
+   ============================================================ */
+
 @keyframes wave1 {
   0% {
     background-position: 0% 50%;
@@ -283,7 +525,9 @@ html {
   inset: 0;
 
   background-size: 400% 400%;
+
   mix-blend-mode: screen;
+
   opacity: 0.6;
 
   animation-iteration-count: infinite;
@@ -300,8 +544,13 @@ html {
   background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
 
   animation: wave2 25s ease-in-out infinite;
+
   opacity: 0.5;
 }
+
+/* ============================================================
+   TYPEWRITER
+   ============================================================ */
 
 .typewriter-fade-out {
   opacity: 0;
@@ -312,6 +561,10 @@ html {
   opacity: 1;
   transition: opacity 0.5s ease;
 }
+
+/* ============================================================
+   MARQUEE
+   ============================================================ */
 
 @keyframes marquee {
   0% {
@@ -325,23 +578,32 @@ html {
 
 .animate-marquee {
   display: flex;
+
   width: max-content;
 
   animation: marquee 22s linear infinite;
 
   will-change: transform;
+
   backface-visibility: hidden;
+
   transform: translateZ(0);
 }
 
-/* optional edge fade to mask any seams */
+/* ------------------------------------------------------------
+   Marquee edge fade
+   ------------------------------------------------------------ */
+
 .marquee-fade-edges {
   -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
-/* Category spotlight animations — soft blur in/out */
+/* ============================================================
+   CATEGORY SPOTLIGHT
+   ============================================================ */
+
 @keyframes spotlight-in {
   from {
     opacity: 0;
@@ -383,14 +645,17 @@ html {
   }
 }
 
-/* Sitewide monochrome mode */
+/* ============================================================
+   SITEWIDE MONOCHROME MODE
+   ============================================================ */
+
 :root {
   --theme-transition-duration: 520ms;
 }
 
-/* The theme transition intentionally only animates inexpensive paint
-   properties. Expensive effects such as shadows, filters and backdrop
-   blur are switched rather than animated. */
+/* ------------------------------------------------------------
+   Minimal theme variables
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] {
   --background: 0 0% 100%;
@@ -416,6 +681,10 @@ html {
   --ring: 0 0% 4%;
 }
 
+/* ------------------------------------------------------------
+   Theme transition
+   ------------------------------------------------------------ */
+
 body,
 .site-page,
 .site-page [class*="bg-white/"],
@@ -431,15 +700,27 @@ body,
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ------------------------------------------------------------
+   Minimal background
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] body,
 :root[data-theme="minimal"] .site-page {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
 
+/* ------------------------------------------------------------
+   Hide the LED wallpaper in minimal mode
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] .site-background {
   opacity: 0;
 }
+
+/* ------------------------------------------------------------
+   Minimal text
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="text-white"],
 :root[data-theme="minimal"] .site-page [class*="text-gray"],
@@ -448,18 +729,31 @@ body,
   text-shadow: none !important;
 }
 
+/* ------------------------------------------------------------
+   Minimal white surfaces
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] .site-page [class*="bg-white/"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="bg-white/"] {
   background-color: hsl(var(--background)) !important;
 }
+
+/* ------------------------------------------------------------
+   Minimal borders
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="border-white"],
 :root[data-theme="minimal"] .site-page [class*="border-foreground"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="border-white"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="border-foreground"] {
   border-color: hsl(var(--foreground) / 0.78) !important;
+
   background-clip: padding-box;
 }
+
+/* ------------------------------------------------------------
+   Remove blur in minimal mode
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page [class*="backdrop-blur"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="backdrop-blur"] {
@@ -467,20 +761,35 @@ body,
   backdrop-filter: none !important;
 }
 
+/* ------------------------------------------------------------
+   Remove shadows in minimal mode
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] .site-page [class*="shadow"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="shadow"] {
   box-shadow: none !important;
 }
 
+/* ------------------------------------------------------------
+   Black surfaces
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] .site-page [class*="bg-black/"] {
   background-color: hsl(var(--background) / 0.92) !important;
 }
 
+/* ------------------------------------------------------------
+   Buttons / links
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] [data-gdx-search] button,
 :root[data-theme="minimal"] [data-gdx-search] a {
   background-color: hsl(var(--background)) !important;
+
   border-color: hsl(var(--foreground)) !important;
+
   color: hsl(var(--foreground)) !important;
+
   box-shadow: none !important;
 }
 
@@ -489,38 +798,64 @@ body,
 :root[data-theme="minimal"] .site-page button:hover,
 :root[data-theme="minimal"] .site-page article:hover {
   background-color: hsl(var(--foreground)) !important;
+
   color: hsl(var(--background)) !important;
 }
+
+/* ------------------------------------------------------------
+   Articles / dialogs
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .site-page article,
 :root[data-theme="minimal"] .site-page [role="dialog"] {
   background-color: hsl(var(--background)) !important;
+
   border-color: hsl(var(--foreground) / 0.78) !important;
+
   background-clip: padding-box;
 }
 
+/* ------------------------------------------------------------
+   Suggestion bubble
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] .gdx-suggestion-bubble {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
+
   background-color: hsl(var(--background)) !important;
+
   color: hsl(var(--foreground)) !important;
+
   box-shadow: none !important;
 }
 
+/* ------------------------------------------------------------
+   TTS button
+   ------------------------------------------------------------ */
+
 :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
+
   border-radius: 999px;
+
   background-color: hsl(var(--background)) !important;
+
   color: hsl(var(--foreground)) !important;
 }
 
 :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
   background-color: hsl(var(--foreground)) !important;
+
   color: hsl(var(--background)) !important;
 }
 
 :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
   color: currentColor !important;
 }
+
+/* ------------------------------------------------------------
+   Writing cards
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .notion-writing-card:hover,
 :root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy,
@@ -530,24 +865,33 @@ body,
 
 :root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-tag {
   background-color: hsl(var(--background)) !important;
+
   color: hsl(var(--foreground)) !important;
+
   border: 1px solid hsl(var(--background)) !important;
 }
+
+/* ------------------------------------------------------------
+   Spotlight progress
+   ------------------------------------------------------------ */
 
 :root[data-theme="minimal"] .spotlight-progress {
   background-color: hsl(var(--foreground)) !important;
 }
 
-/* Theme transition accessibility */
+/* ------------------------------------------------------------
+   Accessibility
+   ------------------------------------------------------------ */
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --theme-transition-duration: 0ms;
   }
 }
 
-/* ------------------------------------------------------------
-   GDx theme easter egg
-   ------------------------------------------------------------ */
+/* ============================================================
+   GDx THEME EASTER EGG
+   ============================================================ */
 
 .gdx-theme-hint {
   animation: gdxThemePulse 2.4s ease-in-out infinite;
@@ -580,7 +924,7 @@ body,
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
-  /* Small pause between clicks */
+  /* Small pause */
   24% {
     transform: scale(1);
 
@@ -607,7 +951,10 @@ body,
   }
 }
 
-/* Monochrome mode */
+/* ============================================================
+   MONOCHROME GDx EASTER EGG
+   ============================================================ */
+
 :root[data-theme="minimal"] .gdx-theme-hint {
   animation-name: gdxThemePulseMinimal;
 }
@@ -639,7 +986,7 @@ body,
       0 0 0 0 rgba(0, 0, 0, 0);
   }
 
-  /* Small pause between clicks */
+  /* Small pause */
   24% {
     transform: scale(1);
 

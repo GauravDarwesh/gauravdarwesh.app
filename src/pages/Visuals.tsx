@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import NavigationToggle from "@/components/NavigationToggle";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import LEDBackground from "@/LEDBackground";
 
 /* Change this to adjust speed for images */
 const SLIDE_INTERVAL = 2000; // 2000 ms = 2 seconds
