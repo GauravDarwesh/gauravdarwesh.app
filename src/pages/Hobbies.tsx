@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { GitHubCalendar } from "react-github-calendar";
+import { ActivityCalendar, type Activity } from "react-activity-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
@@ -177,6 +177,8 @@ const CategorySpotlight = () => {
 
 const GitHubActivity = () => {
   const [isMinimal, setIsMinimal] = useState(false);
+  const [contributions, setContributions] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -197,9 +199,59 @@ const GitHubActivity = () => {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadContributions = async () => {
+      setLoading(true);
+
+      try {
+        const cacheBuster = Date.now();
+        const response = await fetch(
+          `https://github-contributions-api.jogruber.de/v4/GauravDarwesh?y=${currentYear}&_=${cacheBuster}`,
+          {
+            signal: controller.signal,
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`GitHub contribution request failed: ${response.status}`);
+        }
+
+        const data = (await response.json()) as {
+          contributions?: Activity[];
+        };
+
+        if (!Array.isArray(data.contributions)) {
+          throw new Error("GitHub contribution data was not returned in the expected format.");
+        }
+
+        setContributions(data.contributions);
+      } catch (error) {
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("GitHub contribution loading failed:", error);
+          setContributions([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadContributions();
+
+    return () => controller.abort();
+  }, [currentYear]);
+
   const calendarTheme = isMinimal
     ? {
-        light: ["rgba(0,0,0,0.035)", "rgba(0,0,0,0.16)", "rgba(0,0,0,0.34)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.90)"],
+        light: ["rgba(0,0,0,0.045)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.36)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.90)"],
         dark: [
           "rgba(255,255,255,0.045)",
           "rgba(255,184,77,0.20)",
@@ -220,46 +272,47 @@ const GitHubActivity = () => {
 
   return (
     <section className="pt-2">
-      {/* Section heading */}
       <div className="mb-5">
         <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
 
         <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
       </div>
 
-      {/* Glass contribution surface */}
       <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
-        {/* Very subtle ambient glow */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.055] blur-3xl"
         />
 
-        {/* Calendar */}
         <div className="relative px-4 py-5 sm:px-6 sm:py-6 overflow-hidden">
           <div className="overflow-x-auto no-scrollbar github-calendar-scroll">
             <div className="min-w-[720px]">
-              <GitHubCalendar
-                key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
-                username="GauravDarwesh"
-                year={currentYear}
-                colorScheme={isMinimal ? "light" : "dark"}
-                blockSize={11}
-                blockMargin={4}
-                blockRadius={2}
-                fontSize={12}
-                showWeekdayLabels
-                showMonthLabels
-                showColorLegend
-                showTotalCount
-                theme={calendarTheme}
-              />
+              {loading ? (
+                <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
+              ) : (
+                <ActivityCalendar
+                  key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
+                  data={contributions}
+                  colorScheme={isMinimal ? "light" : "dark"}
+                  blockSize={11}
+                  blockMargin={4}
+                  blockRadius={2}
+                  fontSize={12}
+                  showWeekdayLabels
+                  showMonthLabels
+                  showColorLegend
+                  showTotalCount
+                  labels={{
+                    totalCount: `{{count}} contributions in ${currentYear}`,
+                  }}
+                  theme={calendarTheme}
+                />
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* GitHub link */}
       <a
         href="https://github.com/GauravDarwesh"
         target="_blank"
@@ -681,9 +734,17 @@ const Portfolio = () => {
           height: 0;
         }
 
-        /* Minimal / monochrome mode:
-           GitHub must use a light grayscale scale because the global
-           monochrome theme changes the page background to white. */
+        /* The parent site switches every <article> to black on hover in
+           minimal mode. The GitHub calendar itself is an <article>, so it
+           needs a dedicated override or the whole heatmap goes black. */
+        :root[data-theme="minimal"] .site-page .github-calendar-shell article,
+        :root[data-theme="minimal"] .site-page .github-calendar-shell article:hover {
+          background-color: transparent !important;
+          color: hsl(var(--foreground)) !important;
+          border-color: transparent !important;
+          box-shadow: none !important;
+        }
+
         :root[data-theme="minimal"] .github-calendar-shell {
           background: rgba(255,255,255,0.92) !important;
           border-color: rgba(0,0,0,0.12) !important;
@@ -691,14 +752,16 @@ const Portfolio = () => {
           -webkit-backdrop-filter: none;
         }
 
-        :root[data-theme="minimal"] .github-calendar-shell
-          .react-activity-calendar__scroll-container {
+        :root[data-theme="minimal"] .github-calendar-shell .react-activity-calendar__scroll-container {
           color: rgba(0,0,0,0.72) !important;
         }
 
-        :root[data-theme="minimal"] .github-calendar-shell
-          [class*="scroll-container"] {
+        :root[data-theme="minimal"] .github-calendar-shell footer {
           color: rgba(0,0,0,0.72) !important;
+        }
+
+        :root[data-theme="minimal"] .github-calendar-shell svg text {
+          fill: currentColor !important;
         }
       `}</style>
     </div>
