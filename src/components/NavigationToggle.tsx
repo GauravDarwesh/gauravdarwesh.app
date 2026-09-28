@@ -222,7 +222,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
         className={`
           fixed bottom-6 right-6
-          ${isModalOpen ? "z-[70]" : "z-50"}
+          ${isModalOpen ? "z-[70]" : "z-55"}
 
           flex items-center justify-center
           w-12 h-12
