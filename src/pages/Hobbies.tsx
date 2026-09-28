@@ -186,59 +186,58 @@ const GitHubActivity = () => {
         <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
       </div>
 
-      {/* Opaque glass contribution surface */}
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.075] backdrop-blur-[3px]">
+      {/* Opaque contribution surface */}
+      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.20] bg-white/[0.115] backdrop-blur-[4px]">
         {/* Subtle ambient glow */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl"
+          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.035] blur-3xl"
         />
 
-        {/* Six-month calendar */}
-        <div className="relative px-4 py-6 sm:px-6 md:px-8">
-          <div className="w-full flex justify-center">
-            <GitHubCalendar
-              username="GauravDarwesh"
+        {/* Calendar */}
+        <div className="relative w-full px-3 py-6 sm:px-4 md:px-5">
+          <GitHubCalendar
+            username="GauravDarwesh"
 
-              /* Show only the latest 6 months */
-              transformData={(data) => {
-                const cutoff = new Date();
-                cutoff.setMonth(cutoff.getMonth() - 6);
+            /* ------------------------------------------------------------ */
+            /* Only show the latest 6 months                                */
+            /* ------------------------------------------------------------ */
+            transformData={(data) => {
+              const cutoff = new Date();
+              cutoff.setMonth(cutoff.getMonth() - 6);
 
-                return data.filter((day) => new Date(day.date) >= cutoff);
-              }}
+              return data.filter((day) => new Date(day.date) >= cutoff);
+            }}
 
-              colorScheme="dark"
+            colorScheme="dark"
 
-              /*
-               * Enlarged cells so the six months use
-               * the available width more naturally.
-               */
-              blockSize={15}
-              blockMargin={4}
-              blockRadius={3}
+            /* ------------------------------------------------------------ */
+            /* Larger cells + tighter gaps so the grid fills the container */
+            /* ------------------------------------------------------------ */
+            blockSize={22}
+            blockMargin={3}
+            blockRadius={3}
 
-              fontSize={12}
-              showWeekdayLabels
-              showMonthLabels
-              showColorLegend
-              showTotalCount
+            fontSize={12}
 
-              /*
-               * Warm palette designed to blend with
-               * the orange/yellow animated background.
-               */
-              theme={{
-                dark: [
-                  "rgba(255,255,255,0.12)",
-                  "rgba(255,184,77,0.32)",
-                  "rgba(255,161,54,0.52)",
-                  "rgba(255,137,38,0.74)",
-                  "rgba(255,255,255,0.95)",
-                ],
-              }}
-            />
-          </div>
+            showWeekdayLabels
+            showMonthLabels
+            showColorLegend
+            showTotalCount
+
+            /* ------------------------------------------------------------ */
+            /* Warm palette matching your orange/yellow background         */
+            /* ------------------------------------------------------------ */
+            theme={{
+              dark: [
+                "rgba(255,255,255,0.16)",
+                "rgba(255,190,90,0.42)",
+                "rgba(255,165,65,0.62)",
+                "rgba(255,135,38,0.82)",
+                "rgba(255,255,255,0.96)",
+              ],
+            }}
+          />
         </div>
       </div>
 
