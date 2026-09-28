@@ -67,7 +67,7 @@ const DURATIONS: Record<Category, number> = {
 
 // Uniform squircle chip
 const chipClass =
-  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors duration-300 ease-out px-4 py-2 text-sm";
+  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-out px-4 py-2 text-sm";
 
 const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
   const items = CATEGORY_DATA[category];
@@ -80,7 +80,7 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
     <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
       {items.map((item, i) => (
         <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass}`}>
-          <span className="adaptive-text">{item}</span>
+          {item}
         </div>
       ))}
     </div>
@@ -142,7 +142,7 @@ const CategorySpotlight = () => {
                   : "text-white/40 hover:text-white/70"
               }`}
             >
-              <span className="adaptive-text">{cat}</span>
+              {cat}
 
               {active === cat && (
                 <span className="absolute left-0 right-0 -bottom-0.5 z-30 h-[2px] rounded-full bg-white/30 overflow-hidden">
@@ -158,7 +158,7 @@ const CategorySpotlight = () => {
               )}
             </button>
 
-            {i < CATEGORIES.length - 1 && <span className="adaptive-text select-none">/</span>}
+            {i < CATEGORIES.length - 1 && <span className="text-white/30 select-none">/</span>}
           </span>
         ))}
       </h2>
@@ -284,9 +284,9 @@ const GitHubActivity = () => {
   return (
     <section className="pt-2">
       <div className="mb-5">
-        <h2 className="adaptive-text text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
 
-        <p className="adaptive-text text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
+        <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
       </div>
 
       <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
@@ -361,38 +361,38 @@ const Portfolio = () => {
             <div className="animate-marquee flex items-center">
               {/* Group A */}
               <div className="flex items-center shrink-0">
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
 
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
 
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
 
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
               </div>
 
               {/* Group B */}
               <div className="flex items-center shrink-0" aria-hidden="true">
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
 
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
 
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
 
-                <span className="adaptive-text text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
+                <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
               </div>
@@ -406,46 +406,21 @@ const Portfolio = () => {
 
         <div>
           <div className="flex flex-wrap gap-4 text-white mt-2">
-            <a
-              className="adaptive-text"
-              href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com"
-            >
-              mail/
-            </a>
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
 
-            <a
-              className="adaptive-text"
-              href="https://linkedin.com/in/gauravdarwesh"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://linkedin.com/in/gauravdarwesh" target="_blank" rel="noopener noreferrer">
               in/
             </a>
 
-            <a
-              className="adaptive-text"
-              href="https://twitter.com/gaurav11darwesh"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://twitter.com/gaurav11darwesh" target="_blank" rel="noopener noreferrer">
               twitter/
             </a>
 
-            <a
-              className="adaptive-text"
-              href="https://instagram.com/allaboutgaurav"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://instagram.com/allaboutgaurav" target="_blank" rel="noopener noreferrer">
               instagram/
             </a>
 
-            <a
-              className="adaptive-text"
-              href="https://github.com/GauravDarwesh"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://github.com/GauravDarwesh" target="_blank" rel="noopener noreferrer">
               github/
             </a>
           </div>
@@ -455,7 +430,7 @@ const Portfolio = () => {
         {/* About                                                            */}
         {/* ================================================================ */}
 
-        <p className="adaptive-text text-base sm:text-lg leading-relaxed mt-4">
+        <p className="text-base sm:text-lg leading-relaxed mt-4">
           Results-oriented professional with a strong foundation in regulatory tech and customer success operations.
           Skilled in transforming complex requirements into scalable solutions and streamlining end-to-end processes
           through Applied AI and workflow automation. Experienced in equipping teams with AI-powered insights and tools
@@ -468,30 +443,30 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <section>
-          <h2 className="adaptive-text text-xl sm:text-2xl font-semibold mb-3">Education</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
           {/* University of Mumbai */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
-              <h3 className="adaptive-text font-semibold">University of Mumbai</h3>
+              <h3 className="font-semibold">University of Mumbai</h3>
             </div>
 
-            <p className="adaptive-text text-sm">
+            <p className="text-sm">
               B.E. Computer Science & Engineering (Artificial Intelligence and Machine Learning) — 8.6 CGPA
             </p>
 
-            <p className="adaptive-text text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
+            <p className="text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
           </div>
 
           {/* University of Cambridge */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
-              <h3 className="adaptive-text font-semibold">University of Cambridge</h3>
+              <h3 className="font-semibold">University of Cambridge</h3>
             </div>
 
-            <p className="adaptive-text text-sm">Undergraduate Certificate in Strategic Business and Management</p>
+            <p className="text-sm">Undergraduate Certificate in Strategic Business and Management</p>
 
-            <p className="adaptive-text text-sm text-white/60 mt-1">Oct 2023 – July 2024</p>
+            <p className="text-sm text-white/60 mt-1">Oct 2023 – July 2024</p>
           </div>
         </section>
 
@@ -500,34 +475,34 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <section>
-          <h2 className="adaptive-text text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
           {/* ============================================================ */}
           {/* NASDAQ — Product Manager Analyst                              */}
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="adaptive-text font-semibold">NASDAQ, Mumbai, India</h3>
+            <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
-            <p className="adaptive-text italic mb-3">Product Manager Analyst · July 2025 – Present</p>
+            <p className="italic mb-3">Product Manager Analyst · July 2025 – Present</p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
-              <li className="adaptive-text">
+              <li>
                 Monitor and analyze regulatory updates across EMEA, NAM, and LATAM regions, interpreting complex
                 regulations into actionable product and business requirements for AxiomSL&apos;s reporting solutions.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Manage end-to-end regulatory change processes, including creating JIRA tickets, coordinating
                 cross-functional teams like BA, sales and pre-sales teams with client-specific needs, ensuring data
                 accuracy and integrity in internal systems, and contributing to product enhancements.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Built Power BI dashboards using Power Query translating raw data (Jira, SNOW) into leadership insights.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Designed a comprehensive Regulatory Monitoring communication pipeline (AxiomSL Regulatory Newsletter -
                 Global, Email, Teams Channel) via Power Automate and internal AI platform. The system captures marked
                 Jira tickets, utilizes AI to structure the data, and enforces human-in-the-loop approvals before
@@ -535,14 +510,14 @@ const Portfolio = () => {
                 days to 30 minutes (98% faster).
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Drive automation initiatives to streamline regulatory monitoring, including the development of ReM AI
                 (Regulatory Monitoring AI). This LLM-powered tool assists the RMT Team with document summarization,
                 comparison, and understanding historical trends via a connected Jira MCP, and can automatically create
                 Jira issues and Confluence pages.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Architecting a unified data repository (Reg-Inventory) by integrating multi-channel data streams from
                 Jira, ServiceNow (SNOW), and product inventory to centralize documentation for all regulatory reports.
               </li>
@@ -554,24 +529,24 @@ const Portfolio = () => {
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="adaptive-text font-semibold">NASDAQ, Mumbai, India</h3>
+            <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
-            <p className="adaptive-text italic mb-3">Client Success Operations Analysis Intern · Jan 2025 – Jun 2025</p>
+            <p className="italic mb-3">Client Success Operations Analysis Intern · Jan 2025 – Jun 2025</p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
-              <li className="adaptive-text">
+              <li>
                 Led strategic initiatives, including the Whitespace Project to identify upsell and cross-sell
                 opportunities, and an organization-wide Net Promoter Score campaign across multiple Nasdaq product lines
                 (Calypso, AxiomSL, NTS) leveraging Qualtrics, Planhat, Power BI, and Salesforce.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Supported Nasdaq Trade Surveillance (Phase-1) by vetting subscriptions through JIRA and automating
                 AI-powered vetting workflows using an internal GenAI Platform. This increased efficiency and reduced
                 manual work for easy-to-process documents.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Collaborated with global teams to streamline customer success operations, analyze client trends,
                 optimize retention strategies, and enhance stakeholder engagement.
               </li>
@@ -583,23 +558,23 @@ const Portfolio = () => {
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="adaptive-text font-semibold">Jio Platforms Limited, Mumbai, India</h3>
+            <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
 
-            <p className="adaptive-text italic mb-3">Data Science Intern · Dec 2023 – Jan 2024</p>
+            <p className="italic mb-3">Data Science Intern · Dec 2023 – Jan 2024</p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
-              <li className="adaptive-text">
+              <li>
                 Designed and implemented an AI-driven indoor wireless coverage optimization system, integrating ray
                 tracing simulations (Pylayers) and computer vision (OpenCV) to enhance network planning and signal
                 accuracy.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Developed visibility and interaction maps, automated wall detection, and distance measurements to
                 optimize the placement of network access points for improved 5G coverage.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Delivered a proof-of-concept demonstrating the real-world applicability of ray tracing for 5G network
                 challenges, providing actionable insights and collaborating with teams to support Jio&apos;s network
                 improvement strategies.
@@ -612,58 +587,54 @@ const Portfolio = () => {
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="adaptive-text font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
+            <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
 
-            <p className="adaptive-text italic mb-3">Marketing Intern</p>
+            <p className="italic mb-3">Marketing Intern</p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
-              <li className="adaptive-text">
+              <li>
                 Curated engaging content ideas for Instagram handles of food companies, including @oddiyana._, @pots56_,
                 @pakkhtun_, @blissobowl, and @birinjz.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Executed data-driven campaigns using Instagram and Google Ads to boost brand visibility and engagement.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Led a comprehensive campaign titled &quot;Feast from the east&quot; for a month, targeting food
                 enthusiasts in Mumbai.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Utilized Instagram and Google Ads to segment audiences based on culinary interests and online behavior.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Developed a content calendar featuring daily recipes, cooking tips, and user-generated content to
                 maintain engagement.
               </li>
 
-              <li className="adaptive-text">
-                Implemented A/B testing for ad creatives and landing pages to optimize performance.
-              </li>
+              <li>Implemented A/B testing for ad creatives and landing pages to optimize performance.</li>
 
-              <li className="adaptive-text">Increased followers by 25% across all Instagram handles.</li>
+              <li>Increased followers by 25% across all Instagram handles.</li>
 
-              <li className="adaptive-text">
-                Achieved a 40% boost in engagement rates through targeted ads and interactive content.
-              </li>
+              <li>Achieved a 40% boost in engagement rates through targeted ads and interactive content.</li>
 
-              <li className="adaptive-text">
+              <li>
                 Enhanced website traffic by 35% and improved conversion rates by 20% through optimized online marketing
                 strategies.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Assisted in organizing the &quot;Feast from the East&quot; event at Royal Orchid Central Grazia, Mumbai.
               </li>
 
-              <li className="adaptive-text">
+              <li>
                 Coordinated logistics, managed vendor relations, and promoted the event through social media channels.
               </li>
 
-              <li className="adaptive-text">Ensured a successful event turnout and positive attendee feedback.</li>
+              <li>Ensured a successful event turnout and positive attendee feedback.</li>
             </ul>
           </div>
         </section>
@@ -673,15 +644,15 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <section>
-          <h2 className="adaptive-text text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
 
           <div className="space-y-6">
             <div>
-              <p className="adaptive-text">
+              <p>
                 <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq
               </p>
 
-              <p className="adaptive-text text-sm text-white mt-1">
+              <p className="text-sm text-white mt-1">
                 Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s motivation, curiosity, and
                 strong engagement, describing him as a standout contributor who brought fresh energy and shows great
                 potential for the future.
@@ -689,11 +660,11 @@ const Portfolio = () => {
             </div>
 
             <div>
-              <p className="adaptive-text">
+              <p>
                 <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge
               </p>
 
-              <p className="adaptive-text text-sm text-white mt-1">
+              <p className="text-sm text-white mt-1">
                 Doug taught Gaurav in the Finance & Accounting unit at Cambridge. He highlighted his ability to grasp
                 complex finance topics, apply them to practical challenges, and deliver insightful analysis. Doug also
                 commended Gaurav’s strong time and project management skills, confident he will add substantial value in
@@ -702,11 +673,11 @@ const Portfolio = () => {
             </div>
 
             <div>
-              <p className="adaptive-text">
+              <p>
                 <strong>Sourav Raj</strong> — Data Scientist, Jio
               </p>
 
-              <p className="adaptive-text text-sm text-white mt-1">
+              <p className="text-sm text-white mt-1">
                 Sourav mentored Gaurav during an internship at Jio. He emphasized his flexibility, rapid learning, and
                 proactive approach to problem-solving. Gaurav consistently delivered high-quality work on time, and
                 Sourav noted he would be a valuable asset in any future position.
@@ -733,11 +704,6 @@ const Portfolio = () => {
       {/* ================================================================ */}
 
       <style>{`
-        .adaptive-text {
-          color: #ffffff !important;
-          mix-blend-mode: difference;
-        }
-
         .no-scrollbar::-webkit-scrollbar {
           display: none;
         }
