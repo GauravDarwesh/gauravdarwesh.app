@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { ActivityCalendar, type Activity } from "react-activity-calendar";
+import { GitHubCalendar } from "react-github-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
@@ -207,6 +207,7 @@ const GitHubActivity = () => {
 
       try {
         const cacheBuster = Date.now();
+
         const response = await fetch(
           `https://github-contributions-api.jogruber.de/v4/GauravDarwesh?y=${currentYear}&_=${cacheBuster}`,
           {
@@ -249,6 +250,11 @@ const GitHubActivity = () => {
     return () => controller.abort();
   }, [currentYear]);
 
+  /*
+   * Purple/plum is deliberate here:
+   * it remains strongly visible against the orange/yellow LED wallpaper
+   * without introducing a disconnected "third theme".
+   */
   const calendarTheme = isMinimal
     ? {
         light: ["rgba(0,0,0,0.045)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.36)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.90)"],
@@ -262,11 +268,11 @@ const GitHubActivity = () => {
       }
     : {
         dark: [
-          "rgba(255,255,255,0.045)",
-          "rgba(255,184,77,0.20)",
-          "rgba(255,161,54,0.38)",
-          "rgba(255,137,38,0.62)",
-          "rgba(255,255,255,0.90)",
+          "rgba(48,23,68,0.88)",
+          "rgba(93,50,124,0.92)",
+          "rgba(132,78,169,0.94)",
+          "rgba(181,116,214,0.96)",
+          "rgba(238,207,255,0.98)",
         ],
       };
 
@@ -285,31 +291,27 @@ const GitHubActivity = () => {
         />
 
         <div className="relative px-4 py-5 sm:px-6 sm:py-6 overflow-hidden">
-          <div className="overflow-x-auto no-scrollbar github-calendar-scroll">
-            <div className="min-w-[720px]">
-              {loading ? (
-                <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
-              ) : (
-                <ActivityCalendar
-                  key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
-                  data={contributions}
-                  colorScheme={isMinimal ? "light" : "dark"}
-                  blockSize={11}
-                  blockMargin={4}
-                  blockRadius={2}
-                  fontSize={12}
-                  showWeekdayLabels
-                  showMonthLabels
-                  showColorLegend
-                  showTotalCount
-                  labels={{
-                    totalCount: `{{count}} contributions in ${currentYear}`,
-                  }}
-                  theme={calendarTheme}
-                />
-              )}
-            </div>
-          </div>
+          {loading ? (
+            <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
+          ) : (
+            <ActivityCalendar
+              key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
+              data={contributions}
+              colorScheme={isMinimal ? "light" : "dark"}
+              blockSize={11}
+              blockMargin={4}
+              blockRadius={2}
+              fontSize={12}
+              showWeekdayLabels
+              showMonthLabels
+              showColorLegend
+              showTotalCount
+              labels={{
+                totalCount: `{{count}} contributions in ${currentYear}`,
+              }}
+              theme={calendarTheme}
+            />
+          )}
         </div>
       </div>
 
@@ -710,33 +712,42 @@ const Portfolio = () => {
           scrollbar-width: none;
         }
 
-        .github-calendar-scroll {
+        /* One horizontal scroll owner only:
+           ActivityCalendar's internal viewport handles the calendar's
+           overflow. Removing the outer nested scroller fixes sticky
+           trackpad/wheel scrolling between October and December. */
+        .github-calendar-shell {
+          overscroll-behavior: contain;
+        }
+
+        .github-calendar-shell
+          .react-activity-calendar__scroll-container,
+        .github-calendar-shell
+          [class*="scroll-container"] {
           scrollbar-width: none;
           -ms-overflow-style: none;
           -webkit-overflow-scrolling: touch;
-          overscroll-behavior-x: contain;
+          scroll-behavior: auto;
+          overscroll-behavior-inline: contain;
         }
 
-        .github-calendar-scroll::-webkit-scrollbar {
+        .github-calendar-shell
+          .react-activity-calendar__scroll-container::-webkit-scrollbar,
+        .github-calendar-shell
+          [class*="scroll-container"]::-webkit-scrollbar {
           display: none;
           width: 0;
           height: 0;
         }
 
-        .github-calendar-scroll .react-activity-calendar__scroll-container {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
+        /* Keep the normal palette readable over the moving orange/yellow
+           wallpaper without making the GitHub panel look detached. */
+        .github-calendar-shell .react-activity-calendar__scroll-container {
+          color: rgba(255,255,255,0.82);
         }
 
-        .github-calendar-scroll .react-activity-calendar__scroll-container::-webkit-scrollbar {
-          display: none;
-          width: 0;
-          height: 0;
-        }
-
-        /* The parent site switches every <article> to black on hover in
-           minimal mode. The GitHub calendar itself is an <article>, so it
-           needs a dedicated override or the whole heatmap goes black. */
+        /* Minimal mode: avoid the sitewide article:hover inversion.
+           ActivityCalendar renders its root as an <article>. */
         :root[data-theme="minimal"] .site-page .github-calendar-shell article,
         :root[data-theme="minimal"] .site-page .github-calendar-shell article:hover {
           background-color: transparent !important;
@@ -752,10 +763,8 @@ const Portfolio = () => {
           -webkit-backdrop-filter: none;
         }
 
-        :root[data-theme="minimal"] .github-calendar-shell .react-activity-calendar__scroll-container {
-          color: rgba(0,0,0,0.72) !important;
-        }
-
+        :root[data-theme="minimal"] .github-calendar-shell
+          .react-activity-calendar__scroll-container,
         :root[data-theme="minimal"] .github-calendar-shell footer {
           color: rgba(0,0,0,0.72) !important;
         }
