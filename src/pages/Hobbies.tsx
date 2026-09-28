@@ -178,60 +178,60 @@ const CategorySpotlight = () => {
 const GitHubActivity = () => {
   return (
     <section className="pt-2">
-      {/* Section heading */}
+      {/* Keep the heading in the original classic content position */}
       <div className="mb-5">
         <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
 
         <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
       </div>
 
-      {/* Glass contribution surface */}
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
-        {/* Very subtle ambient glow */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.055] blur-3xl"
-        />
+      {/* Contribution calendar gets its own full-width visual area */}
+      <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden">
+        <div className="mx-auto w-full max-w-[1500px] px-4 sm:px-6 lg:px-10">
+          <div className="github-calendar-surface relative overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-24 left-1/2 h-44 w-[42rem] -translate-x-1/2 rounded-full bg-white/[0.055] blur-3xl"
+            />
 
-        {/* Calendar */}
-        <div className="relative px-4 py-5 sm:px-6 sm:py-6 overflow-hidden">
-          <div className="overflow-x-auto no-scrollbar github-calendar-scroll">
-            <div className="min-w-[720px]">
-              <GitHubCalendar
-                username="GauravDarwesh"
-                colorScheme="dark"
-                blockSize={11}
-                blockMargin={4}
-                blockRadius={2}
-                fontSize={12}
-                showWeekdayLabels
-                showMonthLabels
-                showColorLegend
-                showTotalCount
-                theme={{
-                  dark: [
-                    "rgba(255,255,255,0.045)",
-                    "rgba(255,184,77,0.20)",
-                    "rgba(255,161,54,0.38)",
-                    "rgba(255,137,38,0.62)",
-                    "rgba(255,255,255,0.90)",
-                  ],
-                }}
-              />
+            <div className="relative w-full min-w-0 px-4 py-6 sm:px-7 sm:py-7 lg:px-10 lg:py-8">
+              <div className="github-calendar-viewport w-full min-w-0 overflow-x-auto">
+                <GitHubCalendar
+                  username="GauravDarwesh"
+                  year="last"
+                  colorScheme="dark"
+                  blockSize={12}
+                  blockMargin={3}
+                  blockRadius={2}
+                  fontSize={12}
+                  showWeekdayLabels
+                  showMonthLabels
+                  showColorLegend
+                  showTotalCount
+                  theme={{
+                    dark: [
+                      "rgba(255,255,255,0.060)",
+                      "rgba(255,184,77,0.24)",
+                      "rgba(255,161,54,0.44)",
+                      "rgba(255,137,38,0.68)",
+                      "rgba(255,255,255,0.92)",
+                    ],
+                  }}
+                />
+              </div>
             </div>
           </div>
+
+          <a
+            href="https://github.com/GauravDarwesh"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center mt-4 text-sm text-white/45 hover:text-white transition-colors duration-300"
+          >
+            github.com/GauravDarwesh →
+          </a>
         </div>
       </div>
-
-      {/* GitHub link */}
-      <a
-        href="https://github.com/GauravDarwesh"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center mt-4 text-sm text-white/45 hover:text-white transition-colors duration-300"
-      >
-        github.com/GauravDarwesh →
-      </a>
     </section>
   );
 };
@@ -621,23 +621,36 @@ const Portfolio = () => {
           scrollbar-width: none;
         }
 
-        .github-calendar-scroll {
+        /* GitHub calendar scrollbar is hidden everywhere */
+        .github-calendar-viewport {
           scrollbar-width: none;
           -ms-overflow-style: none;
         }
 
-        .github-calendar-scroll::-webkit-scrollbar {
+        .github-calendar-viewport::-webkit-scrollbar {
           display: none;
           width: 0;
           height: 0;
         }
 
-        /* ---------------------------------------------------------------- */
-        /* GitHub calendar blending                                         */
-        /* ---------------------------------------------------------------- */
+        .github-calendar-viewport .react-activity-calendar__scroll-container {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
 
-        .github-calendar-blend {
-          color: rgba(255, 255, 255, 0.7);
+        .github-calendar-viewport .react-activity-calendar__scroll-container::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+
+        /* Let the calendar use the width of its own full-size viewport */
+        .github-calendar-viewport > * {
+          min-width: max-content;
+        }
+
+        .github-calendar-surface {
+          isolation: isolate;
         }
       `}</style>
     </div>
