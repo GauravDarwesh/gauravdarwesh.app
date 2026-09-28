@@ -96,39 +96,54 @@
 /* ============================================================
    PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
-   Shrey-style fixed LED geometry + continuously evolving canvas field.
-   No pointer interaction. The 1px gaps are the checkerboard itself.
+   Fixed LED geometry + continuously evolving, dark complementary
+   colour fields. The palette is intentionally restrained: no
+   rainbow spectrum, no neon flashes, and no high-lightness colours.
    ============================================================ */
 
 /* ------------------------------------------------------------
-   Dynamic complementary palette system
+   Dark complementary palette
 
-   The LED geometry stays exactly the same. A soft hue field sits
-   above the canvas and continuously cycles through curated
-   complementary pairs:
+   The wallpaper rotates slowly through a handful of curated dark
+   pairs rather than traversing the full colour wheel. Each pair is
+   deliberately low-lightness and slightly desaturated so the result
+   feels atmospheric and premium.
 
-   30deg  = orange ↔ blue
-   190deg = cyan ↔ red
-   270deg = violet ↔ yellow
-   145deg = green ↔ magenta
-   340deg = coral/red ↔ teal/cyan
-   220deg = blue ↔ orange
-
-   Because the second colour is always +180deg, the relationship
-   remains complementary throughout the transition.
+   01  Burnt amber   ↔   Midnight blue
+   02  Deep rust     ↔   Dark teal
+   03  Forest olive  ↔   Muted plum
+   04  Copper brown  ↔   Slate blue
    ------------------------------------------------------------ */
 
-@property --palette-hue {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 30;
+@property --led-color-a {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #6a3b18;
+}
+
+@property --led-color-b {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #182b45;
+}
+
+@property --led-glow-a {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8a4d1d;
+}
+
+@property --led-glow-b {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #213a5a;
 }
 
 .orange-bg {
   --tile: 19px;
   --gap: 1px;
   --cell: 20px;
-  --led-base: #140c08;
+  --led-base: #0d0a09;
 
   position: fixed;
   inset: 0;
@@ -169,144 +184,147 @@
 }
 
 /* ------------------------------------------------------------
-   Complementary colour field
+   Soft colour atmosphere
 
-   Uses CSS custom-property animation so the canvas itself does
-   not need to be rewritten. The two active colour groups are
-   always exactly opposite on the colour wheel.
+   The LED canvas remains underneath. These two layers create a
+   restrained moving glow without replacing the checkerboard
+   geometry or introducing another grid.
    ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -12%;
+  inset: -15%;
   z-index: 1;
   pointer-events: none;
   background:
     radial-gradient(
-      circle at 18% 24%,
-      hsl(var(--palette-hue) 96% 58% / 0.82) 0%,
-      hsl(var(--palette-hue) 96% 58% / 0.38) 24%,
-      transparent 52%
+      ellipse 62% 58% at 18% 22%,
+      color-mix(in srgb, var(--led-glow-a) 72%, transparent),
+      transparent 70%
     ),
-    radial-gradient(
-      circle at 82% 76%,
-      hsl(calc(var(--palette-hue) + 180) 92% 58% / 0.76) 0%,
-      hsl(calc(var(--palette-hue) + 180) 92% 58% / 0.32) 24%,
-      transparent 52%
-    );
-  mix-blend-mode: color;
-  opacity: 0.64;
-  filter: blur(34px) saturate(1.08);
-  transform: translate3d(0, 0, 0) scale(1.04);
+    radial-gradient(ellipse 64% 60% at 82% 78%, color-mix(in srgb, var(--led-glow-b) 70%, transparent), transparent 72%);
+  mix-blend-mode: screen;
+  opacity: 0.52;
+  filter: blur(42px) saturate(0.82);
+  transform: translate3d(-2%, -1%, 0) scale(1.05);
   transform-origin: center;
   will-change: transform, opacity;
-  animation:
-    led-palette-cycle 38s cubic-bezier(0.45, 0, 0.55, 1) infinite,
-    led-palette-drift 22s ease-in-out infinite alternate;
+  animation: led-atmosphere-drift 24s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
 }
 
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -18%;
+  inset: -20%;
   z-index: 2;
   pointer-events: none;
   background:
-    linear-gradient(118deg, transparent 6%, hsl(var(--palette-hue) 95% 56% / 0.13) 34%, transparent 55%),
-    linear-gradient(300deg, transparent 28%, hsl(calc(var(--palette-hue) + 180) 90% 58% / 0.11) 58%, transparent 84%);
-  mix-blend-mode: screen;
-  opacity: 0.56;
-  filter: blur(22px);
-  transform: translate3d(0, 0, 0) scale(1.06);
+    linear-gradient(
+      116deg,
+      transparent 14%,
+      color-mix(in srgb, var(--led-color-a) 26%, transparent) 42%,
+      transparent 63%
+    ),
+    linear-gradient(
+      298deg,
+      transparent 28%,
+      color-mix(in srgb, var(--led-color-b) 24%, transparent) 54%,
+      transparent 78%
+    );
+  mix-blend-mode: soft-light;
+  opacity: 0.48;
+  filter: blur(30px);
+  transform: translate3d(-4%, 2%, 0) scale(1.07) rotate(-1deg);
   will-change: transform, opacity;
   animation:
-    led-palette-sheen 26s cubic-bezier(0.37, 0, 0.63, 1) infinite,
-    led-palette-opacity 18s ease-in-out infinite alternate;
+    led-sheen-drift 30s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate,
+    led-sheen-opacity 18s ease-in-out infinite alternate;
 }
 
 @keyframes led-palette-cycle {
   0%,
-  8% {
-    --palette-hue: 30;
+  31% {
+    --led-color-a: #6a3918;
+    --led-color-b: #18283f;
+    --led-glow-a: #80491d;
+    --led-glow-b: #213954;
   }
 
-  20%,
-  28% {
-    --palette-hue: 190;
+  36%,
+  64% {
+    --led-color-a: #5e2823;
+    --led-color-b: #173b38;
+    --led-glow-a: #76372e;
+    --led-glow-b: #20504b;
   }
 
-  40%,
-  48% {
-    --palette-hue: 270;
-  }
-
-  60%,
-  68% {
-    --palette-hue: 145;
-  }
-
-  80%,
-  88% {
-    --palette-hue: 340;
-  }
-
-  96% {
-    --palette-hue: 220;
+  69%,
+  94% {
+    --led-color-a: #3e4522;
+    --led-color-b: #37243b;
+    --led-glow-a: #56602a;
+    --led-glow-b: #4a3150;
   }
 
   100% {
-    --palette-hue: 390;
+    --led-color-a: #6a3918;
+    --led-color-b: #18283f;
+    --led-glow-a: #80491d;
+    --led-glow-b: #213954;
   }
 }
 
-@keyframes led-palette-drift {
+@keyframes led-atmosphere-drift {
   0% {
-    transform: translate3d(-2%, -1%, 0) scale(1.04);
+    transform: translate3d(-3%, -2%, 0) scale(1.04);
   }
 
   50% {
-    transform: translate3d(2%, 1.5%, 0) scale(1.075);
+    transform: translate3d(2%, 1%, 0) scale(1.075);
   }
 
   100% {
-    transform: translate3d(-1%, 2%, 0) scale(1.045);
+    transform: translate3d(-1%, 3%, 0) scale(1.045);
   }
 }
 
-@keyframes led-palette-sheen {
+@keyframes led-sheen-drift {
   0% {
-    transform: translate3d(-7%, -4%, 0) scale(1.06) rotate(-2deg);
+    transform: translate3d(-8%, -4%, 0) scale(1.06) rotate(-2deg);
   }
 
   50% {
-    transform: translate3d(4%, 3%, 0) scale(1.1) rotate(2deg);
+    transform: translate3d(4%, 2%, 0) scale(1.095) rotate(1deg);
   }
 
   100% {
-    transform: translate3d(-3%, 6%, 0) scale(1.055) rotate(-1deg);
+    transform: translate3d(-2%, 6%, 0) scale(1.055) rotate(-1deg);
   }
 }
 
-@keyframes led-palette-opacity {
+@keyframes led-sheen-opacity {
   0% {
-    opacity: 0.36;
+    opacity: 0.28;
   }
 
   50% {
-    opacity: 0.62;
+    opacity: 0.48;
   }
 
   100% {
-    opacity: 0.46;
+    opacity: 0.34;
   }
+}
+
+.orange-bg {
+  animation: led-palette-cycle 72s ease-in-out infinite;
 }
 
 /*
- * IMPORTANT: there is deliberately no ::after grid overlay here.
- * Shrey's effect gets the checkerboard from tile < cell geometry:
- * each 19px LED is separated by a 1px background gap.
- * Putting another static grid over the canvas made the movement look frozen.
+ * IMPORTANT: there is deliberately no static grid overlay here.
+ * The checkerboard is still produced by the existing tile/cell
+ * geometry: each LED tile is separated by the 1px gap.
  */
 
 @media (max-width: 900px) {
@@ -328,6 +346,7 @@
     opacity: 0.96;
   }
 
+  .orange-bg,
   .orange-bg::before,
   .orange-bg::after {
     animation: none;
@@ -510,17 +529,17 @@ html {
 }
 
 .wave1 {
-  background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
+  background: linear-gradient(120deg, #3b2010, #70401a, #24364f, #3b2010);
 
-  animation: wave1 20s ease-in-out infinite;
+  animation: wave1 24s ease-in-out infinite;
 }
 
 .wave2 {
-  background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
+  background: linear-gradient(60deg, #070707, #4a2620, #1d4744, #070707);
 
-  animation: wave2 25s ease-in-out infinite;
+  animation: wave2 30s ease-in-out infinite;
 
-  opacity: 0.5;
+  opacity: 0.34;
 }
 
 /* ============================================================
