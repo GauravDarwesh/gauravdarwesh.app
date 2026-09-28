@@ -37,56 +37,25 @@ const AnimatedLedBackground = () => {
       colorEvolve: 0.05,
       hueCycle: 0.012,
       threshold: 0.02,
-
-      // Brighter overall rendering while keeping the colors saturated.
-      gamma: 0.72,
-      floor: 0.58,
+      gamma: 0.95,
+      floor: 0.55,
     };
 
-    /*
-     * BRIGHT SUNSET / CORAL PALETTE
-     *
-     * Stronger colors are introduced without moving into yellow.
-     *
-     * Dark:
-     *   deep wine / plum / burgundy
-     *
-     * Mid:
-     *   brick / rust / terracotta / copper
-     *
-     * Bright:
-     *   coral / salmon / warm rose / vivid orange-red
-     *
-     * No yellow tones.
-     * No pale white/yellow highlights.
-     */
+    // Orange-heavy version of Shrey's hot/amber palette.
+    // Yellow is intentionally retained in the high end.
     const palette = [
-      "#160c14",
-      "#21101a",
-      "#2d121d",
-      "#3b1621",
-      "#4a1a24",
-      "#591f27",
-      "#68252a",
-      "#782b2d",
-      "#883130",
-      "#983733",
-      "#a83e36",
-      "#b9463a",
-      "#c84e3f",
-      "#d45745",
-      "#df604c",
-      "#e76853",
-      "#ee7059",
-      "#f2765c",
-      "#e96857",
-      "#dc594b",
-      "#c84a40",
-      "#ad3b36",
-      "#91302f",
-      "#742529",
-      "#581b23",
-      "#3c141f",
+      "#ff2d00",
+      "#ff5400",
+      "#ff6b1a",
+      "#ff8510",
+      "#ff9f1c",
+      "#ffad24",
+      "#ffbd32",
+      "#ffd047",
+      "#ffd60a",
+      "#ffe566",
+      "#ff8a3d",
+      "#ff4d1a",
     ];
 
     let tile = 19;
@@ -108,10 +77,8 @@ const AnimatedLedBackground = () => {
 
     const hash3 = (x: number, y: number, z: number) => {
       let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(z, 1440662683)) | 0;
-
       n = Math.imul(n ^ (n >>> 13), 1274126177);
       n ^= n >>> 16;
-
       return (n >>> 0) / 4294967296;
     };
 
@@ -119,23 +86,17 @@ const AnimatedLedBackground = () => {
       const xi = Math.floor(x);
       const yi = Math.floor(y);
       const zi = Math.floor(z);
-
       const fx = x - xi;
       const fy = y - yi;
       const fz = z - zi;
-
       const u = smooth(fx);
       const v = smooth(fy);
       const w = smooth(fz);
-
       const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
       const x00 = mix(hash3(xi, yi, zi), hash3(xi + 1, yi, zi), u);
-
       const x10 = mix(hash3(xi, yi + 1, zi), hash3(xi + 1, yi + 1, zi), u);
-
       const x01 = mix(hash3(xi, yi, zi + 1), hash3(xi + 1, yi, zi + 1), u);
-
       const x11 = mix(hash3(xi, yi + 1, zi + 1), hash3(xi + 1, yi + 1, zi + 1), u);
 
       return mix(mix(x00, x10, v), mix(x01, x11, v), w);
@@ -155,17 +116,13 @@ const AnimatedLedBackground = () => {
 
     const fillLUT = () => {
       const n = stops.length;
-
       for (let k = 0; k < 512; k++) {
         const s = (k / 512) * n;
         const i0 = Math.floor(s);
-
         let f = s - i0;
         f = f * f * (3 - 2 * f);
-
         const a = stops[i0 % n];
         const b = stops[(i0 + 1) % n];
-
         for (let c = 0; c < 3; c++) {
           lut[k * 3 + c] = Math.sqrt(a[c] * a[c] * (1 - f) + b[c] * b[c] * f);
         }
@@ -183,7 +140,6 @@ const AnimatedLedBackground = () => {
       cell = tile + gap;
 
       const rect = canvas.getBoundingClientRect();
-
       width = Math.max(1, Math.ceil(rect.width));
       height = Math.max(1, Math.ceil(rect.height));
 
@@ -192,7 +148,6 @@ const AnimatedLedBackground = () => {
       rows = Math.ceil(height / cell) + 2;
 
       dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-
       canvas.width = Math.ceil(width * dpr);
       canvas.height = Math.ceil(height * dpr);
 
@@ -200,9 +155,7 @@ const AnimatedLedBackground = () => {
       ctx.imageSmoothingEnabled = false;
 
       document.documentElement.style.setProperty("--tile", `${tile}px`);
-
       document.documentElement.style.setProperty("--gap", `${gap}px`);
-
       document.documentElement.style.setProperty("--cell", `${cell}px`);
     };
 
@@ -221,8 +174,7 @@ const AnimatedLedBackground = () => {
       const wtW = realT * CFG.speed * motion;
       const wtC = realT * CFG.speed * motion;
 
-      // Brighter neutral foundation.
-      ctx.fillStyle = "#120a10";
+      ctx.fillStyle = "#140c08";
       ctx.fillRect(0, 0, width, height);
 
       for (let row = 0; row < rows; row += 1) {
@@ -264,19 +216,17 @@ const AnimatedLedBackground = () => {
           colorField -= Math.floor(colorField);
 
           const hueIndex = Math.min(511, Math.max(0, (colorField * 512) | 0));
-
           const bIndex = Math.min(63, Math.max(0, (brightness * 64) | 0));
 
           const m = (bIndex + 0.5) / 64;
           const o = hueIndex * 3;
 
-          // Keep the bright areas saturated rather than washing them out.
+          // Preserve the luminous floor but add a little room for dark tiles.
           const rr = lut[o] * m;
           const gg = lut[o + 1] * m;
           const bb = lut[o + 2] * m;
 
           ctx.fillStyle = `rgb(${rr | 0} ${gg | 0} ${bb | 0})`;
-
           ctx.fillRect(px, py, tile, tile);
         }
       }
@@ -309,7 +259,6 @@ const AnimatedLedBackground = () => {
 
       running = true;
       last = performance.now();
-
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(tick);
     };
@@ -327,17 +276,14 @@ const AnimatedLedBackground = () => {
 
     resize();
     draw();
-
     raf = requestAnimationFrame(tick);
 
     window.addEventListener("resize", handleResize, {
       passive: true,
     });
-
     window.addEventListener("orientationchange", handleResize, {
       passive: true,
     });
-
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
@@ -346,9 +292,7 @@ const AnimatedLedBackground = () => {
       observer.disconnect();
 
       window.removeEventListener("resize", handleResize);
-
       window.removeEventListener("orientationchange", handleResize);
-
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
