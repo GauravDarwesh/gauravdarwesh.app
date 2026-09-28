@@ -13,7 +13,6 @@ export interface ChatResponse {
   visuals?: VisualItem[];
   suggestions?: string[];
   voice_response?: string;
-  music_action?: "none" | "ask" | "play" | "stop" | string;
   [key: string]: any;
 }
 
@@ -23,87 +22,10 @@ export interface StreamChatHandlers {
   onVisuals?: (visuals: VisualItem[]) => void;
 }
 
-/* =========================================================
-   BACKGROUND MUSIC EXECUTOR
-   ---------------------------------------------------------
-   IMPORTANT:
-   - This code does NOT decide when music should play.
-   - The Edge Function is the only source of music_action.
-   - api.ts only executes the action returned by the AI.
-   ========================================================= */
-
-const BACKGROUND_MUSIC_SRC = "/music/the-velvet-hour.mp3";
-
-let backgroundMusic: HTMLAudioElement | null = null;
-
-function getBackgroundMusic(): HTMLAudioElement | null {
-  if (typeof window === "undefined") return null;
-
-  if (!backgroundMusic) {
-    const audio = new Audio(BACKGROUND_MUSIC_SRC);
-
-    audio.loop = true;
-    audio.preload = "auto";
-    audio.volume = 0.18;
-
-    const audioWithInline = audio as HTMLAudioElement & {
-      playsInline?: boolean;
-    };
-
-    audioWithInline.playsInline = true;
-
-    backgroundMusic = audio;
-  }
-
-  return backgroundMusic;
-}
-
-async function executeMusicAction(action: unknown): Promise<void> {
-  const normalized = String(action ?? "")
-    .trim()
-    .toLowerCase();
-
-  if (normalized === "play") {
-    const audio = getBackgroundMusic();
-    if (!audio) return;
-
-    try {
-      await audio.play();
-    } catch (error) {
-      /*
-       * Browser autoplay policy may reject playback.
-       * The action still remains entirely controlled by the Edge Function.
-       */
-      console.warn("GDx background music could not start:", error);
-    }
-
-    return;
-  }
-
-  if (normalized === "stop" || normalized === "pause") {
-    const audio = getBackgroundMusic();
-    if (!audio) return;
-
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch (error) {
-      console.warn("GDx background music could not stop:", error);
-    }
-
-    return;
-  }
-
-  /*
-   * "none" and "ask" intentionally do nothing.
-   * There is no popup, no music UI, and no local music decision.
-   */
-}
-
 function normalizeVisuals(visuals: any): VisualItem[] {
   if (!visuals) return [];
-
   const items: VisualItem[] = [];
+
   const add = (url: unknown, title?: unknown) => {
     const value = String(url ?? "").trim();
     if (!/^https?:\/\//i.test(value)) return;
@@ -115,8 +37,11 @@ function normalizeVisuals(visuals: any): VisualItem[] {
 
   if (Array.isArray(visuals)) {
     for (const item of visuals) {
-      if (typeof item === "string") add(item, "Gaurav's Travels");
-      else if (item && typeof item === "object") add(item.url, item.title);
+      if (typeof item === "string") {
+        add(item, "Gaurav's Travels");
+      } else if (item && typeof item === "object") {
+        add(item.url, item.title);
+      }
     }
   }
 
@@ -127,18 +52,23 @@ function normalizeVisuals(visuals: any): VisualItem[] {
         ...(Array.isArray(collection?.imageUrls) ? collection.imageUrls : []),
         ...(Array.isArray(collection?.items) ? collection.items : []),
       ];
-
       for (const image of images) {
-        if (typeof image === "string") add(image, title);
-        else if (image && typeof image === "object") add(image.url, image.title || title);
+        if (typeof image === "string") {
+          add(image, title);
+        } else if (image && typeof image === "object") {
+          add(image.url, image.title || title);
+        }
       }
     }
   }
 
   if (Array.isArray(visuals?.image_urls)) {
     for (const image of visuals.image_urls) {
-      if (typeof image === "string") add(image, "Gaurav's Travels");
-      else if (image && typeof image === "object") add(image.url, image.title || "Gaurav's Travels");
+      if (typeof image === "string") {
+        add(image, "Gaurav's Travels");
+      } else if (image && typeof image === "object") {
+        add(image.url, image.title || "Gaurav's Travels");
+      }
     }
   }
 
@@ -156,13 +86,18 @@ function getEndpoint(): string {
     .trim()
     .replace(/\/$/, "");
 
-  if (!url) throw new Error("VITE_SUPABASE_URL is missing.");
+  if (!url) {
+    throw new Error("VITE_SUPABASE_URL is missing.");
+  }
+
   return `${url}/functions/v1/bright-action`;
 }
 
 async function readError(response: Response): Promise<string> {
   const text = await response.text().catch(() => "");
-  if (!text) return `GDx request failed (${response.status}).`;
+  if (!text) {
+    return `GDx request failed (${response.status}).`;
+  }
 
   try {
     const json = JSON.parse(text);
@@ -224,7 +159,6 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-
   let buffer = "";
   let accumulated = "";
   let visuals: VisualItem[] = [];
@@ -238,8 +172,6 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     handlers.onToken?.(delta, accumulated);
 
     // Let the browser paint before processing another queued provider event.
-    // This does not delay or fake the stream; it prevents React from batching
-    // a burst of real chunks into a single final render.
     await yieldToBrowser();
   };
 
@@ -258,8 +190,7 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     try {
       payload = JSON.parse(data);
     } catch {
-      // Provider payloads are normally JSON SSE frames. Ignore anything
-      // incomplete rather than terminating a healthy stream.
+      // Ignore incomplete JSON chunks rather than terminating a healthy stream
       return;
     }
 
@@ -295,18 +226,16 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
         visuals = normalizeVisuals(payload.visuals);
         if (visuals.length) handlers.onVisuals?.(visuals);
       }
-
       return;
     }
 
     let delta = "";
-
     if (payload?.type === "delta" || payload?.type === "token") {
       delta =
         typeof payload?.delta === "string" ? payload.delta : typeof payload?.text === "string" ? payload.text : "";
     }
 
-    // Also support raw OpenAI-compatible provider events.
+    // OpenAI-compatible provider event fallback
     if (!delta && typeof payload?.choices?.[0]?.delta?.content === "string") {
       delta = payload.choices[0].delta.content;
     }
@@ -314,12 +243,9 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     await emit(delta);
   };
 
-  // We need sequential async event processing so each emitted token gets a
-  // chance to paint before the next queued event is handled.
   const processBuffer = async (flush = false) => {
     while (true) {
       const match = /\r?\n\r?\n/.exec(buffer);
-
       if (!match || match.index < 0) break;
 
       const event = buffer.slice(0, match.index);
@@ -363,12 +289,6 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     throw new Error(sawAnyToken ? "GDx stream ended without a complete response." : "GDx returned an empty response.");
   }
 
-  /*
-   * Execute the exact command returned by the Edge Function.
-   * SearchBar does not need to know about music.
-   */
-  await executeMusicAction(finalPayload?.music_action);
-
   return {
     ...(finalPayload && typeof finalPayload === "object" ? finalPayload : {}),
     success: finalPayload?.success !== false,
@@ -392,12 +312,6 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
   if (error) {
     throw new Error(error.message || "Edge function error");
   }
-
-  /*
-   * Execute the exact command returned by the Edge Function.
-   * SearchBar does not interpret the user's text.
-   */
-  await executeMusicAction(data?.music_action);
 
   return {
     ...(data && typeof data === "object" ? data : {}),
