@@ -14,7 +14,8 @@ const AnimatedLedBackground = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
+    // 1. Allow alpha transparency in the canvas context
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -165,17 +166,14 @@ const AnimatedLedBackground = () => {
       const motion = reducedMotionQuery.matches ? 0.18 : 1;
 
       /*
-       * This is the important part copied in spirit from Shrey's renderer:
        * wtW and wtC advance continuously and feed the third dimension of
        * the same noise field, while X/Y also drift at different rates.
-       * That gives the field its flowing, looping movement without moving
-       * the actual checkerboard.
        */
       const wtW = realT * CFG.speed * motion;
       const wtC = realT * CFG.speed * motion;
 
-      ctx.fillStyle = "#140c08";
-      ctx.fillRect(0, 0, width, height);
+      // 2. Clear canvas instead of painting a solid background
+      ctx.clearRect(0, 0, width, height);
 
       for (let row = 0; row < rows; row += 1) {
         const py = row * cell;
@@ -191,9 +189,7 @@ const AnimatedLedBackground = () => {
           );
 
           brightness = (brightness - CFG.threshold) / (1 - CFG.threshold);
-
           brightness = brightness < 0 ? 0 : Math.pow(brightness, CFG.gamma);
-
           brightness = CFG.floor + (1 - CFG.floor) * clamp01(brightness);
 
           // --- Independent color field ---
@@ -204,15 +200,13 @@ const AnimatedLedBackground = () => {
           );
 
           colorField += wtC * CFG.hueCycle;
-
           colorField -= Math.floor(colorField);
 
           /*
            * Extra slowly moving phase keeps the color distribution evolving
-           * while remaining globally continuous. This is intentionally tiny.
+           * while remaining globally continuous.
            */
           colorField += Math.sin(wtC * 0.18 + col * 0.017 + row * 0.009 + hueSpin) * 0.025;
-
           colorField -= Math.floor(colorField);
 
           const hueIndex = Math.min(511, Math.max(0, (colorField * 512) | 0));
@@ -221,7 +215,6 @@ const AnimatedLedBackground = () => {
           const m = (bIndex + 0.5) / 64;
           const o = hueIndex * 3;
 
-          // Preserve the luminous floor but add a little room for dark tiles.
           const rr = lut[o] * m;
           const gg = lut[o + 1] * m;
           const bb = lut[o + 2] * m;
@@ -278,12 +271,8 @@ const AnimatedLedBackground = () => {
     draw();
     raf = requestAnimationFrame(tick);
 
-    window.addEventListener("resize", handleResize, {
-      passive: true,
-    });
-    window.addEventListener("orientationchange", handleResize, {
-      passive: true,
-    });
+    window.addEventListener("resize", handleResize, { passive: true });
+    window.addEventListener("orientationchange", handleResize, { passive: true });
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
