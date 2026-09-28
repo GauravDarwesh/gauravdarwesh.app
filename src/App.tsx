@@ -30,6 +30,7 @@ const App = () => (
           <Sonner />
 
           <SiteBackground />
+          <MusicWelcome />
 
           <BrowserRouter>
             <Routes>
