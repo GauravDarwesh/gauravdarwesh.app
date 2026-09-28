@@ -9,39 +9,39 @@
 @layer base {
   :root {
     /* Dark minimalist design system */
-    --background: 0 0% 6%;
+    --background: 12 25% 6%;
     --foreground: 0 0% 95%;
 
-    /* Blue gradient system */
-    --primary-blue: 220 100% 60%;
-    --secondary-blue: 240 100% 70%;
-    --accent-blue: 200 100% 50%;
+    /* Warm orange gradient system */
+    --primary-blue: 18 100% 56%;
+    --secondary-blue: 28 100% 62%;
+    --accent-blue: 8 100% 52%;
 
-    --card: 0 0% 8%;
+    --card: 12 22% 8%;
     --card-foreground: 0 0% 95%;
 
-    --primary: 220 100% 60%;
+    --primary: 18 100% 56%;
     --primary-foreground: 0 0% 95%;
 
-    --secondary: 0 0% 12%;
+    --secondary: 12 18% 12%;
     --secondary-foreground: 0 0% 95%;
 
-    --muted: 0 0% 10%;
+    --muted: 12 15% 10%;
     --muted-foreground: 0 0% 65%;
 
-    --accent: 220 100% 60%;
+    --accent: 18 100% 56%;
     --accent-foreground: 0 0% 95%;
 
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 220 100% 60%;
+    --border: 12 12% 15%;
+    --input: 12 12% 15%;
+    --ring: 18 100% 56%;
 
     --radius: 0.5rem;
 
     /* Custom gradients */
-    --gradient-blue-1: 220 100% 60%;
-    --gradient-blue-2: 240 100% 70%;
-    --gradient-blue-3: 200 100% 50%;
+    --gradient-blue-1: 18 100% 56%;
+    --gradient-blue-2: 28 100% 62%;
+    --gradient-blue-3: 8 100% 52%;
   }
 }
 
@@ -347,13 +347,13 @@ html {
 }
 
 .wave1 {
-  background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
+  background: linear-gradient(120deg, #d95f02, #ff8c00, #c43b00, #d95f02);
 
   animation: wave1 20s ease-in-out infinite;
 }
 
 .wave2 {
-  background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
+  background: linear-gradient(60deg, #140c08, #e7653f, #ff8c00, #140c08);
 
   animation: wave2 25s ease-in-out infinite;
 
