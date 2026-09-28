@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { GitHubCalendar } from "react-github-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
@@ -100,7 +101,6 @@ const CategorySpotlight = () => {
   const advance = useCallback(() => {
     setActive((prev) => {
       const idx = CATEGORIES.indexOf(prev);
-
       return CATEGORIES[(idx + 1) % CATEGORIES.length];
     });
 
@@ -171,18 +171,88 @@ const CategorySpotlight = () => {
   );
 };
 
+/* ======================================================================== */
+/* GitHub Activity                                                          */
+/* ======================================================================== */
+
+const GitHubActivity = () => {
+  return (
+    <section className="pt-2">
+      {/* Section heading */}
+      <div className="mb-5">
+        <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
+
+        <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
+      </div>
+
+      {/* Glass contribution surface */}
+      <div className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-[2px]">
+        {/* Very subtle ambient glow */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.035] blur-3xl"
+        />
+
+        {/* Calendar */}
+        <div className="relative px-4 py-5 sm:px-6 sm:py-6">
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="min-w-[720px]">
+              <GitHubCalendar
+                username="GauravDarwesh"
+                colorScheme="dark"
+                blockSize={11}
+                blockMargin={4}
+                blockRadius={2}
+                fontSize={12}
+                showWeekdayLabels
+                showMonthLabels
+                showColorLegend
+                showTotalCount
+                theme={{
+                  dark: [
+                    "rgba(255,255,255,0.045)",
+                    "rgba(255,184,77,0.20)",
+                    "rgba(255,161,54,0.38)",
+                    "rgba(255,137,38,0.62)",
+                    "rgba(255,255,255,0.90)",
+                  ],
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* GitHub link */}
+      <a
+        href="https://github.com/GauravDarwesh"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center mt-4 text-sm text-white/45 hover:text-white transition-colors duration-300"
+      >
+        github.com/GauravDarwesh →
+      </a>
+    </section>
+  );
+};
+
 const Portfolio = () => {
   return (
     <div className="site-page min-h-screen w-full flex flex-col items-center relative overflow-hidden">
       <Helmet>
         <title>Experience &amp; Skills — Gaurav Darwesh</title>
+
         <meta
           name="description"
           content="Gaurav Darwesh's classic resume view: experience, skills, platforms, certifications and extracurriculars."
         />
+
         <link rel="canonical" href="https://gauravdarwesh.app/hobbies" />
+
         <meta property="og:title" content="Experience &amp; Skills — Gaurav Darwesh" />
+
         <meta property="og:description" content="Experience, skills, platforms and certifications of Gaurav Darwesh." />
+
         <meta property="og:url" content="https://gauravdarwesh.app/hobbies" />
       </Helmet>
 
@@ -275,6 +345,10 @@ const Portfolio = () => {
           to drive engagement, retention, and growth. Recognized for cross-functional collaboration and a holistic,
           data-driven approach to solving business challenges.
         </p>
+
+        {/* ================================================================ */}
+        {/* Education                                                        */}
+        {/* ================================================================ */}
 
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
@@ -473,24 +547,31 @@ const Portfolio = () => {
           </div>
         </section>
 
-        {/* Recommendations */}
+        {/* ================================================================ */}
+        {/* Recommendations                                                   */}
+        {/* ================================================================ */}
+
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
+
           <div className="space-y-6">
             <div>
               <p>
                 <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq
               </p>
+
               <p className="text-sm text-white mt-1">
                 Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s motivation, curiosity, and
                 strong engagement, describing him as a standout contributor who brought fresh energy and shows great
                 potential for the future.
               </p>
             </div>
+
             <div>
               <p>
                 <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge
               </p>
+
               <p className="text-sm text-white mt-1">
                 Doug taught Gaurav in the Finance & Accounting unit at Cambridge. He highlighted his ability to grasp
                 complex finance topics, apply them to practical challenges, and deliver insightful analysis. Doug also
@@ -498,10 +579,12 @@ const Portfolio = () => {
                 any role.
               </p>
             </div>
+
             <div>
               <p>
                 <strong>Sourav Raj</strong> — Data Scientist, Jio
               </p>
+
               <p className="text-sm text-white mt-1">
                 Sourav mentored Gaurav during an internship at Jio. He emphasized his flexibility, rapid learning, and
                 proactive approach to problem-solving. Gaurav consistently delivered high-quality work on time, and
@@ -516,6 +599,12 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <CategorySpotlight />
+
+        {/* ================================================================ */}
+        {/* GitHub Activity                                                   */}
+        {/* ================================================================ */}
+
+        <GitHubActivity />
       </div>
 
       {/* ================================================================ */}
@@ -530,6 +619,14 @@ const Portfolio = () => {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        /* ---------------------------------------------------------------- */
+        /* GitHub calendar blending                                         */
+        /* ---------------------------------------------------------------- */
+
+        .github-calendar-blend {
+          color: rgba(255, 255, 255, 0.7);
         }
       `}</style>
     </div>
