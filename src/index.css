@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 /* ============================================================
-DESIGN SYSTEM
-============================================================ */
+   DESIGN SYSTEM
+   ============================================================ */
 
 @layer base {
   :root {
@@ -56,8 +56,8 @@ DESIGN SYSTEM
 }
 
 /* ============================================================
-SPINNING ASTERISK
-============================================================ */
+   SPINNING ASTERISK
+   ============================================================ */
 
 @keyframes spin-slow {
   from {
@@ -74,8 +74,8 @@ SPINNING ASTERISK
 }
 
 /* ============================================================
-SLOW FADE IN
-============================================================ */
+   SLOW FADE IN
+   ============================================================ */
 
 @keyframes fadeInSlow {
   0% {
@@ -94,12 +94,11 @@ SLOW FADE IN
 }
 
 /* ============================================================
-PROCEDURAL LED WALLPAPER
-------------------------
-
-Shrey-style fixed LED geometry + continuously evolving canvas field.
-No pointer interaction. The 1px gaps are the checkerboard itself.
-============================================================ */
+   PROCEDURAL LED WALLPAPER
+   ------------------------------------------------------------
+   Shrey-style fixed LED geometry + continuously evolving canvas field.
+   No pointer interaction. The 1px gaps are the checkerboard itself.
+   ============================================================ */
 
 .orange-bg {
   --tile: 19px;
@@ -146,12 +145,11 @@ No pointer interaction. The 1px gaps are the checkerboard itself.
 }
 
 /*
-
-* IMPORTANT: there is deliberately no ::after grid overlay here.
-* Shrey's effect gets the checkerboard from tile < cell geometry:
-* each 19px LED is separated by a 1px background gap.
-* Putting another static grid over the canvas made the movement look frozen.
-  */
+ * IMPORTANT: there is deliberately no ::after grid overlay here.
+ * Shrey's effect gets the checkerboard from tile < cell geometry:
+ * each 19px LED is separated by a 1px background gap.
+ * Putting another static grid over the canvas made the movement look frozen.
+ */
 
 @media (max-width: 900px) {
   .orange-bg {
@@ -174,8 +172,8 @@ No pointer interaction. The 1px gaps are the checkerboard itself.
 }
 
 /* ============================================================
-SCROLLBAR UTILITIES
-============================================================ */
+   SCROLLBAR UTILITIES
+   ============================================================ */
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
@@ -187,8 +185,8 @@ SCROLLBAR UTILITIES
 }
 
 /* ============================================================
-FADE / SLIDE
-============================================================ */
+   FADE / SLIDE
+   ============================================================ */
 
 @keyframes fadeSlideIn {
   from {
@@ -203,12 +201,11 @@ FADE / SLIDE
 }
 
 /* ============================================================
-GRAINY GRADIENT BACKGROUND
---------------------------
-
-Kept intact for components/pages that explicitly use this
-class. It is NOT used by the new LED wallpaper.
-============================================================ */
+   GRAINY GRADIENT BACKGROUND
+   ------------------------------------------------------------
+   Kept intact for components/pages that explicitly use this
+   class. It is NOT used by the new LED wallpaper.
+   ============================================================ */
 
 .bg-grainy-gradient {
   background: linear-gradient(
@@ -223,8 +220,8 @@ class. It is NOT used by the new LED wallpaper.
 }
 
 /* ------------------------------------------------------------
-Grain overlay
------------------------------------------------------------- */
+   Grain overlay
+   ------------------------------------------------------------ */
 
 .bg-grainy-gradient::before {
   content: "";
@@ -246,8 +243,8 @@ Grain overlay
 }
 
 /* ------------------------------------------------------------
-Subtle horizontal wave shift
------------------------------------------------------------- */
+   Subtle horizontal wave shift
+   ------------------------------------------------------------ */
 
 @keyframes wave-shift {
   0% {
@@ -266,8 +263,8 @@ Subtle horizontal wave shift
 }
 
 /* ============================================================
-ROOT / BODY
-============================================================ */
+   ROOT / BODY
+   ============================================================ */
 
 html,
 body,
@@ -284,8 +281,8 @@ html {
 }
 
 /* ============================================================
-SLOW FADE IN
-============================================================ */
+   SLOW FADE IN
+   ============================================================ */
 
 @keyframes slowFadeIn {
   0% {
@@ -304,8 +301,8 @@ SLOW FADE IN
 }
 
 /* ============================================================
-WAVE ANIMATIONS
-============================================================ */
+   WAVE ANIMATIONS
+   ============================================================ */
 
 @keyframes wave1 {
   0% {
@@ -364,8 +361,8 @@ WAVE ANIMATIONS
 }
 
 /* ============================================================
-TYPEWRITER
-============================================================ */
+   TYPEWRITER
+   ============================================================ */
 
 .typewriter-fade-out {
   opacity: 0;
@@ -378,8 +375,8 @@ TYPEWRITER
 }
 
 /* ============================================================
-MARQUEE
-============================================================ */
+   MARQUEE
+   ============================================================ */
 
 @keyframes marquee {
   0% {
@@ -406,8 +403,8 @@ MARQUEE
 }
 
 /* ------------------------------------------------------------
-Marquee edge fade
------------------------------------------------------------- */
+   Marquee edge fade
+   ------------------------------------------------------------ */
 
 .marquee-fade-edges {
   -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
@@ -416,8 +413,8 @@ Marquee edge fade
 }
 
 /* ============================================================
-CATEGORY SPOTLIGHT
-============================================================ */
+   CATEGORY SPOTLIGHT
+   ============================================================ */
 
 @keyframes spotlight-in {
   from {
@@ -461,18 +458,18 @@ CATEGORY SPOTLIGHT
 }
 
 /* ============================================================
-SITEWIDE MONOCHROME MODE
-============================================================ */
+   SITEWIDE MONOCHROME MODE
+   ============================================================ */
 
 :root {
   --theme-transition-duration: 520ms;
 }
 
 /* ------------------------------------------------------------
-Minimal theme variables
------------------------------------------------------------- */
+   Minimal theme variables
+   ------------------------------------------------------------ */
 
-:root {
+:root[data-theme="minimal"] {
   --background: 0 0% 100%;
   --foreground: 0 0% 4%;
 
@@ -497,8 +494,8 @@ Minimal theme variables
 }
 
 /* ------------------------------------------------------------
-Theme transition
------------------------------------------------------------- */
+   Theme transition
+   ------------------------------------------------------------ */
 
 body,
 .site-page,
@@ -516,89 +513,89 @@ body,
 }
 
 /* ------------------------------------------------------------
-Minimal background
------------------------------------------------------------- */
+   Minimal background
+   ------------------------------------------------------------ */
 
-:root body,
-:root .site-page {
+:root[data-theme="minimal"] body,
+:root[data-theme="minimal"] .site-page {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
 
 /* ------------------------------------------------------------
-Hide the LED wallpaper in minimal mode
------------------------------------------------------------- */
+   Hide the LED wallpaper in minimal mode
+   ------------------------------------------------------------ */
 
-:root .site-background {
+:root[data-theme="minimal"] .site-background {
   opacity: 0;
 }
 
 /* ------------------------------------------------------------
-Minimal text
------------------------------------------------------------- */
+   Minimal text
+   ------------------------------------------------------------ */
 
-:root .site-page [class*="text-white"],
-:root .site-page [class*="text-gray"],
-:root [data-gdx-search] [class*="text-white"] {
+:root[data-theme="minimal"] .site-page [class*="text-white"],
+:root[data-theme="minimal"] .site-page [class*="text-gray"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="text-white"] {
   color: hsl(var(--foreground)) !important;
   text-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
-Minimal white surfaces
------------------------------------------------------------- */
+   Minimal white surfaces
+   ------------------------------------------------------------ */
 
-:root .site-page [class*="bg-white/"],
-:root [data-gdx-search] [class*="bg-white/"] {
+:root[data-theme="minimal"] .site-page [class*="bg-white/"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="bg-white/"] {
   background-color: hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
-Minimal borders
------------------------------------------------------------- */
+   Minimal borders
+   ------------------------------------------------------------ */
 
-:root .site-page [class*="border-white"],
-:root .site-page [class*="border-foreground"],
-:root [data-gdx-search] [class*="border-white"],
-:root [data-gdx-search] [class*="border-foreground"] {
+:root[data-theme="minimal"] .site-page [class*="border-white"],
+:root[data-theme="minimal"] .site-page [class*="border-foreground"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="border-white"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="border-foreground"] {
   border-color: hsl(var(--foreground) / 0.78) !important;
 
   background-clip: padding-box;
 }
 
 /* ------------------------------------------------------------
-Remove blur in minimal mode
------------------------------------------------------------- */
+   Remove blur in minimal mode
+   ------------------------------------------------------------ */
 
-:root .site-page [class*="backdrop-blur"],
-:root [data-gdx-search] [class*="backdrop-blur"] {
+:root[data-theme="minimal"] .site-page [class*="backdrop-blur"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="backdrop-blur"] {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
 
 /* ------------------------------------------------------------
-Remove shadows in minimal mode
------------------------------------------------------------- */
+   Remove shadows in minimal mode
+   ------------------------------------------------------------ */
 
-:root .site-page [class*="shadow"],
-:root [data-gdx-search] [class*="shadow"] {
+:root[data-theme="minimal"] .site-page [class*="shadow"],
+:root[data-theme="minimal"] [data-gdx-search] [class*="shadow"] {
   box-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
-Black surfaces
------------------------------------------------------------- */
+   Black surfaces
+   ------------------------------------------------------------ */
 
-:root .site-page [class*="bg-black/"] {
+:root[data-theme="minimal"] .site-page [class*="bg-black/"] {
   background-color: hsl(var(--background) / 0.92) !important;
 }
 
 /* ------------------------------------------------------------
-Buttons / links
------------------------------------------------------------- */
+   Buttons / links
+   ------------------------------------------------------------ */
 
-:root [data-gdx-search] button,
-:root [data-gdx-search] a {
+:root[data-theme="minimal"] [data-gdx-search] button,
+:root[data-theme="minimal"] [data-gdx-search] a {
   background-color: hsl(var(--background)) !important;
 
   border-color: hsl(var(--foreground)) !important;
@@ -608,21 +605,21 @@ Buttons / links
   box-shadow: none !important;
 }
 
-:root [data-gdx-search] button:hover,
-:root [data-gdx-search] a:hover,
-:root .site-page button:hover,
-:root .site-page article:hover {
+:root[data-theme="minimal"] [data-gdx-search] button:hover,
+:root[data-theme="minimal"] [data-gdx-search] a:hover,
+:root[data-theme="minimal"] .site-page button:hover,
+:root[data-theme="minimal"] .site-page article:hover {
   background-color: hsl(var(--foreground)) !important;
 
   color: hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
-Articles / dialogs
------------------------------------------------------------- */
+   Articles / dialogs
+   ------------------------------------------------------------ */
 
-:root .site-page article,
-:root .site-page [role="dialog"] {
+:root[data-theme="minimal"] .site-page article,
+:root[data-theme="minimal"] .site-page [role="dialog"] {
   background-color: hsl(var(--background)) !important;
 
   border-color: hsl(var(--foreground) / 0.78) !important;
@@ -631,10 +628,10 @@ Articles / dialogs
 }
 
 /* ------------------------------------------------------------
-Suggestion bubble
------------------------------------------------------------- */
+   Suggestion bubble
+   ------------------------------------------------------------ */
 
-:root .gdx-suggestion-bubble {
+:root[data-theme="minimal"] .gdx-suggestion-bubble {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
 
   background-color: hsl(var(--background)) !important;
@@ -645,10 +642,10 @@ Suggestion bubble
 }
 
 /* ------------------------------------------------------------
-TTS button
------------------------------------------------------------- */
+   TTS button
+   ------------------------------------------------------------ */
 
-:root [data-gdx-search] .gdx-tts-button {
+:root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
 
   border-radius: 999px;
@@ -658,27 +655,27 @@ TTS button
   color: hsl(var(--foreground)) !important;
 }
 
-:root [data-gdx-search] .gdx-tts-button:hover {
+:root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
   background-color: hsl(var(--foreground)) !important;
 
   color: hsl(var(--background)) !important;
 }
 
-:root [data-gdx-search] .gdx-tts-button svg {
+:root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
   color: currentColor !important;
 }
 
 /* ------------------------------------------------------------
-Writing cards
------------------------------------------------------------- */
+   Writing cards
+   ------------------------------------------------------------ */
 
-:root .notion-writing-card:hover,
-:root .notion-writing-card:hover .notion-writing-copy,
-:root .notion-writing-card:hover .notion-writing-copy * {
+:root[data-theme="minimal"] .notion-writing-card:hover,
+:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy,
+:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy * {
   color: hsl(var(--background)) !important;
 }
 
-:root .notion-writing-card:hover .notion-writing-tag {
+:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-tag {
   background-color: hsl(var(--background)) !important;
 
   color: hsl(var(--foreground)) !important;
@@ -687,16 +684,16 @@ Writing cards
 }
 
 /* ------------------------------------------------------------
-Spotlight progress
------------------------------------------------------------- */
+   Spotlight progress
+   ------------------------------------------------------------ */
 
-:root .spotlight-progress {
+:root[data-theme="minimal"] .spotlight-progress {
   background-color: hsl(var(--foreground)) !important;
 }
 
 /* ------------------------------------------------------------
-Accessibility
------------------------------------------------------------- */
+   Accessibility
+   ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -705,8 +702,8 @@ Accessibility
 }
 
 /* ============================================================
-GDx THEME EASTER EGG
-============================================================ */
+   GDx THEME EASTER EGG
+   ============================================================ */
 
 .gdx-theme-hint {
   animation: gdxThemePulse 2.4s ease-in-out infinite;
@@ -767,10 +764,10 @@ GDx THEME EASTER EGG
 }
 
 /* ============================================================
-MONOCHROME GDx EASTER EGG
-============================================================ */
+   MONOCHROME GDx EASTER EGG
+   ============================================================ */
 
-:root .gdx-theme-hint {
+:root[data-theme="minimal"] .gdx-theme-hint {
   animation-name: gdxThemePulseMinimal;
 }
 
