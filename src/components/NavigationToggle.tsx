@@ -201,7 +201,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
 
                 ${
                   active
-                    ? "bg-white/10 border-1 border-white/80 text-white backdrop-blur-sm"
+                    ? "bg-white/10 border-2 border-white/80 text-white backdrop-blur-sm"
                     : "text-gray-200 hover:text-white"
                 }
 
