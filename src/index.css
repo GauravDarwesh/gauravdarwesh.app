@@ -96,11 +96,12 @@
 /* ============================================================
    PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
-   Dark blue + dark red only.
+   Deep blue + deep red only.
 
-   The LED geometry and motion are preserved. The wallpaper uses
-   a tightly controlled navy / crimson palette with no orange,
-   yellow, green, cyan, purple, or rainbow colour cycling.
+   The existing canvas element is intentionally kept in the DOM so
+   the React/JS implementation does not need to change, but its
+   original colour output is completely hidden. The visible wall is
+   rendered here so the old orange/yellow palette cannot bleed through.
    ============================================================ */
 
 .orange-bg {
@@ -108,18 +109,14 @@
   --gap: 1px;
   --cell: 20px;
 
-  /* Deep navy is the permanent base / LED gap colour. */
-  --led-base: #050a16;
-
-  /* Dark blue family */
-  --blue-deep: #07152b;
-  --blue-mid: #0a2140;
-  --blue-soft: #12345a;
-
-  /* Dark red family */
-  --red-deep: #21070d;
-  --red-mid: #3a0b15;
-  --red-soft: #57121f;
+  /* Only near-black, deep blue and deep red are used here. */
+  --led-base: #04070d;
+  --navy-1: #06101f;
+  --navy-2: #081a32;
+  --navy-3: #0b2443;
+  --crimson-1: #18060a;
+  --crimson-2: #2a080f;
+  --crimson-3: #3d0c16;
 
   position: fixed;
   inset: 0;
@@ -145,6 +142,11 @@
   transition: none;
 }
 
+/*
+ * Keep the original canvas mounted for compatibility, but make its
+ * pixels invisible. This is the important fix for the yellow/orange
+ * colours that were still showing through the previous version.
+ */
 .orange-bg .led-wallpaper-canvas {
   position: absolute;
   inset: 0;
@@ -157,101 +159,123 @@
   transform: translateZ(0);
   backface-visibility: hidden;
   image-rendering: pixelated;
-
-  /* Keep any underlying canvas motion, but suppress bright colour. */
-  filter: saturate(0.72) brightness(0.72) contrast(1.05);
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
-/*
- * No static grid overlay. The checkerboard still comes from the
- * existing tile/cell geometry: each LED tile is separated by the
- * 1px gap.
- */
-
 /* ------------------------------------------------------------
-   Blue/red atmospheric glow
-
-   Two broad, slow-moving fields create depth while remaining
-   strictly inside the navy + crimson palette.
+   Moving colour field
    ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -20%;
+  inset: -28%;
   z-index: 1;
   pointer-events: none;
 
   background:
     radial-gradient(
-      ellipse 62% 58% at 15% 20%,
-      rgba(10, 33, 64, 0.72) 0%,
-      rgba(10, 33, 64, 0.34) 38%,
-      rgba(10, 33, 64, 0) 72%
+      ellipse 34% 38% at 21% 32%,
+      rgba(11, 36, 67, 0.92) 0%,
+      rgba(8, 26, 50, 0.8) 30%,
+      rgba(6, 16, 31, 0.4) 58%,
+      transparent 76%
     ),
     radial-gradient(
-      ellipse 58% 54% at 85% 78%,
-      rgba(58, 11, 21, 0.66) 0%,
-      rgba(58, 11, 21, 0.3) 38%,
-      rgba(58, 11, 21, 0) 74%
-    );
+      ellipse 31% 35% at 79% 67%,
+      rgba(61, 12, 22, 0.86) 0%,
+      rgba(42, 8, 15, 0.74) 32%,
+      rgba(24, 6, 10, 0.38) 60%,
+      transparent 78%
+    ),
+    linear-gradient(120deg, #06101f 0%, #04070d 48%, #18060a 100%);
 
-  mix-blend-mode: screen;
-  opacity: 0.56;
-  filter: blur(42px);
-  transform: translate3d(-2%, -2%, 0) scale(1.04);
-  will-change: transform;
-  animation: led-blue-red-drift 30s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  filter: blur(26px) saturate(0.9);
+  transform: translate3d(-5%, -3%, 0) scale(1.08);
+  will-change: transform, background-position;
+  animation: led-blue-red-field 26s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
 }
+
+/* ------------------------------------------------------------
+   LED/checkerboard geometry + darker secondary movement
+   ------------------------------------------------------------ */
 
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -16%;
+  inset: 0;
   z-index: 2;
   pointer-events: none;
 
-  background:
-    radial-gradient(ellipse 46% 40% at 30% 66%, rgba(7, 21, 43, 0.48) 0%, rgba(7, 21, 43, 0) 76%),
-    radial-gradient(ellipse 46% 40% at 70% 34%, rgba(33, 7, 13, 0.44) 0%, rgba(33, 7, 13, 0) 78%);
+  /*
+   * The first two layers create the 1px LED gaps. The colour beneath
+   * each 19px tile comes only from the blue/red field above.
+   */
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent var(--tile),
+      rgba(2, 4, 8, 0.96) var(--tile),
+      rgba(2, 4, 8, 0.96) var(--cell)
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent var(--tile),
+      rgba(2, 4, 8, 0.96) var(--tile),
+      rgba(2, 4, 8, 0.96) var(--cell)
+    ),
+    radial-gradient(ellipse 40% 45% at 30% 60%, rgba(8, 26, 50, 0.28) 0%, transparent 70%),
+    radial-gradient(ellipse 38% 42% at 70% 36%, rgba(42, 8, 15, 0.24) 0%, transparent 72%);
 
-  mix-blend-mode: soft-light;
-  opacity: 0.72;
-  filter: blur(30px);
-  transform: translate3d(0, 0, 0) scale(1.05);
-  will-change: transform;
-  animation: led-blue-red-sheen 38s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+  background-size:
+    var(--cell) var(--cell),
+    var(--cell) var(--cell),
+    100% 100%,
+    100% 100%;
+
+  mix-blend-mode: normal;
+  opacity: 0.92;
+  transform: translate3d(0, 0, 0);
+  will-change: transform, background-position;
+  animation: led-blue-red-grid 34s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
 }
 
-/* ------------------------------------------------------------
-   Very subtle blue/red pulse
-   ------------------------------------------------------------ */
-
-@keyframes led-blue-red-drift {
+@keyframes led-blue-red-field {
   0% {
-    transform: translate3d(-4%, -2%, 0) scale(1.03);
+    transform: translate3d(-5%, -3%, 0) scale(1.08);
   }
 
-  50% {
-    transform: translate3d(2%, 2%, 0) scale(1.075);
+  22% {
+    transform: translate3d(1%, -7%, 0) scale(1.11);
+  }
+
+  48% {
+    transform: translate3d(7%, 1%, 0) scale(1.06);
+  }
+
+  74% {
+    transform: translate3d(-1%, 7%, 0) scale(1.12);
   }
 
   100% {
-    transform: translate3d(-1%, 4%, 0) scale(1.045);
+    transform: translate3d(-7%, 2%, 0) scale(1.08);
   }
 }
 
-@keyframes led-blue-red-sheen {
+@keyframes led-blue-red-grid {
   0% {
-    transform: translate3d(-5%, -3%, 0) scale(1.04);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 
   50% {
-    transform: translate3d(3%, 1%, 0) scale(1.075);
+    transform: translate3d(0.35%, -0.25%, 0) scale(1.002);
   }
 
   100% {
-    transform: translate3d(-2%, 4%, 0) scale(1.055);
+    transform: translate3d(-0.25%, 0.35%, 0) scale(1.001);
   }
 }
 
@@ -270,11 +294,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orange-bg .led-wallpaper-canvas {
-    opacity: 0.96;
-  }
-
-  .orange-bg,
   .orange-bg::before,
   .orange-bg::after {
     animation: none;
