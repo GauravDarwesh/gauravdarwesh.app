@@ -1,11 +1,9 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Shrey-inspired procedural LED wallpaper.
- *
- * The LED geometry is stationary. Every frame recalculates each LED from
- * two independent evolving FBM fields: one for luminance and one for color.
- * There is intentionally NO cursor / pointer interaction.
+ * Procedural continuous warm wallpaper with heavy grain overlay.
+ * The checkerboard gap has been removed so tiles are seamless,
+ * driven by evolving dual FBM fields for luminance and color.
  */
 const AnimatedLedBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -14,7 +12,6 @@ const AnimatedLedBackground = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // 1. Allow alpha transparency in the canvas context
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
@@ -42,8 +39,6 @@ const AnimatedLedBackground = () => {
       floor: 0.55,
     };
 
-    // Orange-heavy version of Shrey's hot/amber palette.
-    // Yellow is intentionally retained in the high end.
     const palette = [
       "#ff2d00",
       "#ff5400",
@@ -59,8 +54,6 @@ const AnimatedLedBackground = () => {
       "#ff4d1a",
     ];
 
-    let tile = 19;
-    let gap = 1;
     let cell = 20;
     let cols = 0;
     let rows = 0;
@@ -112,7 +105,6 @@ const AnimatedLedBackground = () => {
       parseInt(hex.slice(5, 7), 16),
     ]);
 
-    // Same idea as Shrey's LUT: 512 hue samples x 64 luminance steps.
     const lut = new Uint8ClampedArray(512 * 3);
 
     const fillLUT = () => {
@@ -133,18 +125,15 @@ const AnimatedLedBackground = () => {
     fillLUT();
 
     const resize = () => {
-      if (window.innerWidth <= 768) tile = 16;
-      else if (window.innerWidth <= 900) tile = 17;
-      else tile = 19;
-
-      gap = 1;
-      cell = tile + gap;
+      if (window.innerWidth <= 768) cell = 16;
+      else if (window.innerWidth <= 900) cell = 18;
+      else cell = 20;
 
       const rect = canvas.getBoundingClientRect();
       width = Math.max(1, Math.ceil(rect.width));
       height = Math.max(1, Math.ceil(rect.height));
 
-      // Extra cells avoid exposed edges during fractional viewport sizes.
+      // Extra cells avoid exposed edges during fractional viewport sizes
       cols = Math.ceil(width / cell) + 2;
       rows = Math.ceil(height / cell) + 2;
 
@@ -155,8 +144,6 @@ const AnimatedLedBackground = () => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.imageSmoothingEnabled = false;
 
-      document.documentElement.style.setProperty("--tile", `${tile}px`);
-      document.documentElement.style.setProperty("--gap", `${gap}px`);
       document.documentElement.style.setProperty("--cell", `${cell}px`);
     };
 
@@ -165,14 +152,9 @@ const AnimatedLedBackground = () => {
 
       const motion = reducedMotionQuery.matches ? 0.18 : 1;
 
-      /*
-       * wtW and wtC advance continuously and feed the third dimension of
-       * the same noise field, while X/Y also drift at different rates.
-       */
       const wtW = realT * CFG.speed * motion;
       const wtC = realT * CFG.speed * motion;
 
-      // 2. Clear canvas instead of painting a solid background
       ctx.clearRect(0, 0, width, height);
 
       for (let row = 0; row < rows; row += 1) {
@@ -181,7 +163,6 @@ const AnimatedLedBackground = () => {
         for (let col = 0; col < cols; col += 1) {
           const px = col * cell;
 
-          // --- Shrey-style evolving luminance field ---
           let brightness = fbm(
             col * CFG.waveScale + wtW * CFG.waveDriftX,
             row * CFG.waveScale + wtW * CFG.waveDriftY,
@@ -192,7 +173,6 @@ const AnimatedLedBackground = () => {
           brightness = brightness < 0 ? 0 : Math.pow(brightness, CFG.gamma);
           brightness = CFG.floor + (1 - CFG.floor) * clamp01(brightness);
 
-          // --- Independent color field ---
           let colorField = fbm(
             col * CFG.colorScale + wtC * CFG.colorDrift,
             row * CFG.colorScale + wtC * CFG.colorDriftY,
@@ -202,10 +182,6 @@ const AnimatedLedBackground = () => {
           colorField += wtC * CFG.hueCycle;
           colorField -= Math.floor(colorField);
 
-          /*
-           * Extra slowly moving phase keeps the color distribution evolving
-           * while remaining globally continuous.
-           */
           colorField += Math.sin(wtC * 0.18 + col * 0.017 + row * 0.009 + hueSpin) * 0.025;
           colorField -= Math.floor(colorField);
 
@@ -220,7 +196,8 @@ const AnimatedLedBackground = () => {
           const bb = lut[o + 2] * m;
 
           ctx.fillStyle = `rgb(${rr | 0} ${gg | 0} ${bb | 0})`;
-          ctx.fillRect(px, py, tile, tile);
+          // Draw flush with +0.5 to avoid subpixel seam artifacts
+          ctx.fillRect(px, py, cell + 0.5, cell + 0.5);
         }
       }
     };
