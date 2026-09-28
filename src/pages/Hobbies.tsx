@@ -176,6 +176,48 @@ const CategorySpotlight = () => {
 /* ======================================================================== */
 
 const GitHubActivity = () => {
+  const [isMinimal, setIsMinimal] = useState(false);
+  const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    const root = document.documentElement;
+
+    const syncTheme = () => {
+      setIsMinimal(root.dataset.theme === "minimal");
+    };
+
+    syncTheme();
+
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const calendarTheme = isMinimal
+    ? {
+        light: ["rgba(0,0,0,0.035)", "rgba(0,0,0,0.16)", "rgba(0,0,0,0.34)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.90)"],
+        dark: [
+          "rgba(255,255,255,0.045)",
+          "rgba(255,184,77,0.20)",
+          "rgba(255,161,54,0.38)",
+          "rgba(255,137,38,0.62)",
+          "rgba(255,255,255,0.90)",
+        ],
+      }
+    : {
+        dark: [
+          "rgba(255,255,255,0.045)",
+          "rgba(255,184,77,0.20)",
+          "rgba(255,161,54,0.38)",
+          "rgba(255,137,38,0.62)",
+          "rgba(255,255,255,0.90)",
+        ],
+      };
+
   return (
     <section className="pt-2">
       {/* Section heading */}
@@ -186,7 +228,7 @@ const GitHubActivity = () => {
       </div>
 
       {/* Glass contribution surface */}
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
+      <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
         {/* Very subtle ambient glow */}
         <div
           aria-hidden="true"
@@ -198,8 +240,10 @@ const GitHubActivity = () => {
           <div className="overflow-x-auto no-scrollbar github-calendar-scroll">
             <div className="min-w-[720px]">
               <GitHubCalendar
+                key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
                 username="GauravDarwesh"
-                colorScheme="dark"
+                year={currentYear}
+                colorScheme={isMinimal ? "light" : "dark"}
                 blockSize={11}
                 blockMargin={4}
                 blockRadius={2}
@@ -208,15 +252,7 @@ const GitHubActivity = () => {
                 showMonthLabels
                 showColorLegend
                 showTotalCount
-                theme={{
-                  dark: [
-                    "rgba(255,255,255,0.045)",
-                    "rgba(255,184,77,0.20)",
-                    "rgba(255,161,54,0.38)",
-                    "rgba(255,137,38,0.62)",
-                    "rgba(255,255,255,0.90)",
-                  ],
-                }}
+                theme={calendarTheme}
               />
             </div>
           </div>
@@ -624,19 +660,14 @@ const Portfolio = () => {
         .github-calendar-scroll {
           scrollbar-width: none;
           -ms-overflow-style: none;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior-x: contain;
         }
 
         .github-calendar-scroll::-webkit-scrollbar {
           display: none;
           width: 0;
           height: 0;
-        }
-
-        /* Keep horizontal interaction available without ever showing
-           a horizontal scrollbar. Touch scrolling remains native/smooth. */
-        .github-calendar-scroll {
-          -webkit-overflow-scrolling: touch;
-          overscroll-behavior-x: contain;
         }
 
         .github-calendar-scroll .react-activity-calendar__scroll-container {
@@ -650,12 +681,24 @@ const Portfolio = () => {
           height: 0;
         }
 
-        /* ---------------------------------------------------------------- */
-        /* GitHub calendar blending                                         */
-        /* ---------------------------------------------------------------- */
+        /* Minimal / monochrome mode:
+           GitHub must use a light grayscale scale because the global
+           monochrome theme changes the page background to white. */
+        :root[data-theme="minimal"] .github-calendar-shell {
+          background: rgba(255,255,255,0.92) !important;
+          border-color: rgba(0,0,0,0.12) !important;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
 
-        .github-calendar-blend {
-          color: rgba(255, 255, 255, 0.7);
+        :root[data-theme="minimal"] .github-calendar-shell
+          .react-activity-calendar__scroll-container {
+          color: rgba(0,0,0,0.72) !important;
+        }
+
+        :root[data-theme="minimal"] .github-calendar-shell
+          [class*="scroll-container"] {
+          color: rgba(0,0,0,0.72) !important;
         }
       `}</style>
     </div>
