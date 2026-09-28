@@ -320,15 +320,6 @@ const GitHubActivity = () => {
           )}
         </div>
       </div>
-
-      <a
-        href="https://github.com/GauravDarwesh"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center mt-4 text-sm text-white/45 hover:text-white transition-colors duration-300"
-      >
-        github.com/GauravDarwesh →
-      </a>
     </section>
   );
 };
@@ -427,6 +418,10 @@ const Portfolio = () => {
 
             <a href="https://instagram.com/allaboutgaurav" target="_blank" rel="noopener noreferrer">
               instagram/
+            </a>
+
+            <a href="https://github.com/GauravDarwesh" target="_blank" rel="noopener noreferrer">
+              github/
             </a>
           </div>
         </div>
