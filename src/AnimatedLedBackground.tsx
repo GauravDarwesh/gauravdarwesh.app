@@ -38,55 +38,55 @@ const AnimatedLedBackground = () => {
       hueCycle: 0.012,
       threshold: 0.02,
 
-      // Brighter and more energetic than the previous version,
-      // while still keeping enough depth for white content.
-      gamma: 0.88,
-      floor: 0.48,
+      // Brighter overall rendering while keeping the colors saturated.
+      gamma: 0.72,
+      floor: 0.58,
     };
 
     /*
-     * Rich warm palette:
+     * BRIGHT SUNSET / CORAL PALETTE
      *
-     * Deep base:
-     *   charcoal / plum / burgundy
+     * Stronger colors are introduced without moving into yellow.
      *
-     * Mid tones:
-     *   terracotta / copper / brick
+     * Dark:
+     *   deep wine / plum / burgundy
      *
-     * Brighter accents:
-     *   coral / rose / salmon
+     * Mid:
+     *   brick / rust / terracotta / copper
      *
-     * Deliberately NO:
-     *   yellow
-     *   neon yellow
-     *   lime
-     *   bright amber
+     * Bright:
+     *   coral / salmon / warm rose / vivid orange-red
+     *
+     * No yellow tones.
+     * No pale white/yellow highlights.
      */
     const palette = [
-      "#0b0910",
-      "#120c14",
-      "#190f18",
-      "#21111c",
-      "#29131f",
-      "#321621",
-      "#3c1924",
-      "#47202a",
-      "#54252c",
-      "#632c31",
-      "#733438",
-      "#84403f",
-      "#944b45",
-      "#a8564c",
-      "#b96153",
-      "#c96b5b",
-      "#d47765",
-      "#da806f",
-      "#c8695e",
-      "#af504c",
-      "#8f3d40",
-      "#713034",
-      "#57242d",
-      "#3c1824",
+      "#160c14",
+      "#21101a",
+      "#2d121d",
+      "#3b1621",
+      "#4a1a24",
+      "#591f27",
+      "#68252a",
+      "#782b2d",
+      "#883130",
+      "#983733",
+      "#a83e36",
+      "#b9463a",
+      "#c84e3f",
+      "#d45745",
+      "#df604c",
+      "#e76853",
+      "#ee7059",
+      "#f2765c",
+      "#e96857",
+      "#dc594b",
+      "#c84a40",
+      "#ad3b36",
+      "#91302f",
+      "#742529",
+      "#581b23",
+      "#3c141f",
     ];
 
     let tile = 19;
@@ -221,8 +221,8 @@ const AnimatedLedBackground = () => {
       const wtW = realT * CFG.speed * motion;
       const wtC = realT * CFG.speed * motion;
 
-      // Dark neutral foundation so white UI remains readable.
-      ctx.fillStyle = "#08070c";
+      // Brighter neutral foundation.
+      ctx.fillStyle = "#120a10";
       ctx.fillRect(0, 0, width, height);
 
       for (let row = 0; row < rows; row += 1) {
@@ -270,7 +270,7 @@ const AnimatedLedBackground = () => {
           const m = (bIndex + 0.5) / 64;
           const o = hueIndex * 3;
 
-          // Preserve the luminous floor while allowing brighter accents.
+          // Keep the bright areas saturated rather than washing them out.
           const rr = lut[o] * m;
           const gg = lut[o + 1] * m;
           const bb = lut[o + 2] * m;
