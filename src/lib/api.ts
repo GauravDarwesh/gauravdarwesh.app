@@ -13,6 +13,7 @@ export interface ChatResponse {
   visuals?: VisualItem[];
   suggestions?: string[];
   voice_response?: string;
+  music_action?: "none" | "ask" | "play" | "stop" | string;
   [key: string]: any;
 }
 
@@ -20,6 +21,83 @@ export interface StreamChatHandlers {
   onStart?: () => void;
   onToken?: (chunk: string, accumulated: string) => void;
   onVisuals?: (visuals: VisualItem[]) => void;
+}
+
+/* =========================================================
+   BACKGROUND MUSIC EXECUTOR
+   ---------------------------------------------------------
+   IMPORTANT:
+   - This code does NOT decide when music should play.
+   - The Edge Function is the only source of music_action.
+   - api.ts only executes the action returned by the AI.
+   ========================================================= */
+
+const BACKGROUND_MUSIC_SRC = "/music/the-velvet-hour.mp3";
+
+let backgroundMusic: HTMLAudioElement | null = null;
+
+function getBackgroundMusic(): HTMLAudioElement | null {
+  if (typeof window === "undefined") return null;
+
+  if (!backgroundMusic) {
+    const audio = new Audio(BACKGROUND_MUSIC_SRC);
+
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = 0.18;
+
+    const audioWithInline = audio as HTMLAudioElement & {
+      playsInline?: boolean;
+    };
+
+    audioWithInline.playsInline = true;
+
+    backgroundMusic = audio;
+  }
+
+  return backgroundMusic;
+}
+
+async function executeMusicAction(action: unknown): Promise<void> {
+  const normalized = String(action ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (normalized === "play") {
+    const audio = getBackgroundMusic();
+    if (!audio) return;
+
+    try {
+      await audio.play();
+    } catch (error) {
+      /*
+       * Browser autoplay policy may reject playback.
+       * The action still remains entirely controlled by the Edge Function.
+       */
+      console.warn("GDx background music could not start:", error);
+    }
+
+    return;
+  }
+
+  if (normalized === "stop" || normalized === "pause") {
+    const audio = getBackgroundMusic();
+    if (!audio) return;
+
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (error) {
+      console.warn("GDx background music could not stop:", error);
+    }
+
+    return;
+  }
+
+  /*
+   * "none" and "ask" intentionally do nothing.
+   * There is no popup, no music UI, and no local music decision.
+   */
 }
 
 function normalizeVisuals(visuals: any): VisualItem[] {
@@ -285,6 +363,12 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     throw new Error(sawAnyToken ? "GDx stream ended without a complete response." : "GDx returned an empty response.");
   }
 
+  /*
+   * Execute the exact command returned by the Edge Function.
+   * SearchBar does not need to know about music.
+   */
+  await executeMusicAction(finalPayload?.music_action);
+
   return {
     ...(finalPayload && typeof finalPayload === "object" ? finalPayload : {}),
     success: finalPayload?.success !== false,
@@ -308,6 +392,12 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
   if (error) {
     throw new Error(error.message || "Edge function error");
   }
+
+  /*
+   * Execute the exact command returned by the Edge Function.
+   * SearchBar does not interpret the user's text.
+   */
+  await executeMusicAction(data?.music_action);
 
   return {
     ...(data && typeof data === "object" ? data : {}),
