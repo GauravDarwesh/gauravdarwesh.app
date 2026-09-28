@@ -104,7 +104,6 @@
   --tile: 19px;
   --gap: 1px;
   --cell: 20px;
-  --led-base: #140c08;
 
   position: fixed;
   inset: 0;
@@ -115,7 +114,7 @@
   overflow: hidden;
   pointer-events: none;
   isolation: isolate;
-  background: var(--led-base);
+  background: transparent;
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -147,8 +146,7 @@
 /*
  * IMPORTANT: there is deliberately no ::after grid overlay here.
  * Shrey's effect gets the checkerboard from tile < cell geometry:
- * each 19px LED is separated by a 1px background gap.
- * Putting another static grid over the canvas made the movement look frozen.
+ * each 19px LED is separated by a 1px transparent background gap.
  */
 
 @media (max-width: 900px) {
@@ -202,9 +200,6 @@
 
 /* ============================================================
    GRAINY GRADIENT BACKGROUND
-   ------------------------------------------------------------
-   Kept intact for components/pages that explicitly use this
-   class. It is NOT used by the new LED wallpaper.
    ============================================================ */
 
 .bg-grainy-gradient {
@@ -214,7 +209,6 @@
     hsl(var(--gradient-blue-2)),
     hsl(var(--gradient-blue-3))
   );
-
   position: relative;
   overflow: hidden;
 }
@@ -225,20 +219,13 @@
 
 .bg-grainy-gradient::before {
   content: "";
-
   position: absolute;
   inset: 0;
-
   background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
-
   mix-blend-mode: overlay;
-
   opacity: 0.15;
-
   pointer-events: none;
-
   animation: wave-shift 20s linear infinite;
-
   background-size: 200px 200px;
 }
 
@@ -335,28 +322,21 @@ html {
 .wave {
   position: absolute;
   inset: 0;
-
   background-size: 400% 400%;
-
   mix-blend-mode: screen;
-
   opacity: 0.6;
-
   animation-iteration-count: infinite;
   animation-timing-function: ease-in-out;
 }
 
 .wave1 {
   background: linear-gradient(120deg, #d95f02, #ff8c00, #c43b00, #d95f02);
-
   animation: wave1 20s ease-in-out infinite;
 }
 
 .wave2 {
   background: linear-gradient(60deg, #140c08, #e7653f, #ff8c00, #140c08);
-
   animation: wave2 25s ease-in-out infinite;
-
   opacity: 0.5;
 }
 
@@ -390,15 +370,10 @@ html {
 
 .animate-marquee {
   display: flex;
-
   width: max-content;
-
   animation: marquee 22s linear infinite;
-
   will-change: transform;
-
   backface-visibility: hidden;
-
   transform: translateZ(0);
 }
 
@@ -408,7 +383,6 @@ html {
 
 .marquee-fade-edges {
   -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
-
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
@@ -506,9 +480,7 @@ body,
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
   transition-property: color, background-color, border-color, opacity;
-
   transition-duration: var(--theme-transition-duration);
-
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -559,7 +531,6 @@ body,
 :root[data-theme="minimal"] [data-gdx-search] [class*="border-white"],
 :root[data-theme="minimal"] [data-gdx-search] [class*="border-foreground"] {
   border-color: hsl(var(--foreground) / 0.78) !important;
-
   background-clip: padding-box;
 }
 
@@ -597,11 +568,8 @@ body,
 :root[data-theme="minimal"] [data-gdx-search] button,
 :root[data-theme="minimal"] [data-gdx-search] a {
   background-color: hsl(var(--background)) !important;
-
   border-color: hsl(var(--foreground)) !important;
-
   color: hsl(var(--foreground)) !important;
-
   box-shadow: none !important;
 }
 
@@ -610,7 +578,6 @@ body,
 :root[data-theme="minimal"] .site-page button:hover,
 :root[data-theme="minimal"] .site-page article:hover {
   background-color: hsl(var(--foreground)) !important;
-
   color: hsl(var(--background)) !important;
 }
 
@@ -621,9 +588,7 @@ body,
 :root[data-theme="minimal"] .site-page article,
 :root[data-theme="minimal"] .site-page [role="dialog"] {
   background-color: hsl(var(--background)) !important;
-
   border-color: hsl(var(--foreground) / 0.78) !important;
-
   background-clip: padding-box;
 }
 
@@ -633,11 +598,8 @@ body,
 
 :root[data-theme="minimal"] .gdx-suggestion-bubble {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
-
   background-color: hsl(var(--background)) !important;
-
   color: hsl(var(--foreground)) !important;
-
   box-shadow: none !important;
 }
 
@@ -647,17 +609,13 @@ body,
 
 :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
   border: 1px solid hsl(var(--foreground) / 0.78) !important;
-
   border-radius: 999px;
-
   background-color: hsl(var(--background)) !important;
-
   color: hsl(var(--foreground)) !important;
 }
 
 :root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
   background-color: hsl(var(--foreground)) !important;
-
   color: hsl(var(--background)) !important;
 }
 
@@ -677,9 +635,7 @@ body,
 
 :root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-tag {
   background-color: hsl(var(--background)) !important;
-
   color: hsl(var(--foreground)) !important;
-
   border: 1px solid hsl(var(--background)) !important;
 }
 
@@ -713,16 +669,13 @@ body,
   0%,
   100% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(255, 255, 255, 0),
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
-  /* First click-like pulse */
   10% {
     transform: scale(1.035);
-
     box-shadow:
       0 0 0 3px rgba(255, 255, 255, 0.1),
       0 0 20px rgba(255, 255, 255, 0.22);
@@ -730,25 +683,20 @@ body,
 
   18% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(255, 255, 255, 0),
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
-  /* Small pause */
   24% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(255, 255, 255, 0),
       0 0 0 0 rgba(255, 255, 255, 0);
   }
 
-  /* Second click-like pulse */
   34% {
     transform: scale(1.035);
-
     box-shadow:
       0 0 0 3px rgba(255, 255, 255, 0.1),
       0 0 20px rgba(255, 255, 255, 0.22);
@@ -756,7 +704,6 @@ body,
 
   42% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(255, 255, 255, 0),
       0 0 0 0 rgba(255, 255, 255, 0);
@@ -775,16 +722,13 @@ body,
   0%,
   100% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(0, 0, 0, 0),
       0 0 0 0 rgba(0, 0, 0, 0);
   }
 
-  /* First click-like pulse */
   10% {
     transform: scale(1.035);
-
     box-shadow:
       0 0 0 3px rgba(0, 0, 0, 0.1),
       0 0 20px rgba(0, 0, 0, 0.16);
@@ -792,25 +736,20 @@ body,
 
   18% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(0, 0, 0, 0),
       0 0 0 0 rgba(0, 0, 0, 0);
   }
 
-  /* Small pause */
   24% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(0, 0, 0, 0),
       0 0 0 0 rgba(0, 0, 0, 0);
   }
 
-  /* Second click-like pulse */
   34% {
     transform: scale(1.035);
-
     box-shadow:
       0 0 0 3px rgba(0, 0, 0, 0.1),
       0 0 20px rgba(0, 0, 0, 0.16);
@@ -818,7 +757,6 @@ body,
 
   42% {
     transform: scale(1);
-
     box-shadow:
       0 0 0 0 rgba(0, 0, 0, 0),
       0 0 0 0 rgba(0, 0, 0, 0);
