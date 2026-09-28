@@ -207,6 +207,7 @@ const GitHubActivity = () => {
 
       try {
         const cacheBuster = Date.now();
+
         const response = await fetch(
           `https://github-contributions-api.jogruber.de/v4/GauravDarwesh?y=${currentYear}&_=${cacheBuster}`,
           {
@@ -249,24 +250,34 @@ const GitHubActivity = () => {
     return () => controller.abort();
   }, [currentYear]);
 
+  /*
+   * Only the contribution colors are changed here.
+   * The data source, calendar library, sizing, labels and counts remain intact.
+   *
+   * Classic:
+   * transparent/plum -> violet -> lavender
+   *
+   * Minimal:
+   * white/gray -> black
+   */
   const calendarTheme = isMinimal
     ? {
-        light: ["rgba(0,0,0,0.045)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.36)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.90)"],
+        light: ["rgba(0,0,0,0.045)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.38)", "rgba(0,0,0,0.62)", "rgba(0,0,0,0.92)"],
         dark: [
           "rgba(255,255,255,0.045)",
-          "rgba(255,184,77,0.20)",
-          "rgba(255,161,54,0.38)",
-          "rgba(255,137,38,0.62)",
-          "rgba(255,255,255,0.90)",
+          "rgba(198,139,255,0.22)",
+          "rgba(171,107,255,0.40)",
+          "rgba(145,76,255,0.66)",
+          "rgba(236,215,255,0.96)",
         ],
       }
     : {
         dark: [
           "rgba(255,255,255,0.045)",
-          "rgba(255,184,77,0.20)",
-          "rgba(255,161,54,0.38)",
-          "rgba(255,137,38,0.62)",
-          "rgba(255,255,255,0.90)",
+          "rgba(198,139,255,0.22)",
+          "rgba(171,107,255,0.40)",
+          "rgba(145,76,255,0.66)",
+          "rgba(236,215,255,0.96)",
         ],
       };
 
@@ -285,31 +296,28 @@ const GitHubActivity = () => {
         />
 
         <div className="relative px-4 py-5 sm:px-6 sm:py-6 overflow-hidden">
-          <div className="overflow-x-auto no-scrollbar github-calendar-scroll">
-            <div className="min-w-[720px]">
-              {loading ? (
-                <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
-              ) : (
-                <ActivityCalendar
-                  key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
-                  data={contributions}
-                  colorScheme={isMinimal ? "light" : "dark"}
-                  blockSize={11}
-                  blockMargin={4}
-                  blockRadius={2}
-                  fontSize={12}
-                  showWeekdayLabels
-                  showMonthLabels
-                  showColorLegend
-                  showTotalCount
-                  labels={{
-                    totalCount: `{{count}} contributions in ${currentYear}`,
-                  }}
-                  theme={calendarTheme}
-                />
-              )}
-            </div>
-          </div>
+          {loading ? (
+            <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
+          ) : (
+            <ActivityCalendar
+              key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
+              className="github-activity-calendar"
+              data={contributions}
+              colorScheme={isMinimal ? "light" : "dark"}
+              blockSize={11}
+              blockMargin={4}
+              blockRadius={2}
+              fontSize={12}
+              showWeekdayLabels
+              showMonthLabels
+              showColorLegend
+              showTotalCount
+              labels={{
+                totalCount: `{{count}} contributions in ${currentYear}`,
+              }}
+              theme={calendarTheme}
+            />
+          )}
         </div>
       </div>
 
@@ -710,35 +718,56 @@ const Portfolio = () => {
           scrollbar-width: none;
         }
 
-        .github-calendar-scroll {
+        /*
+         * GitHub Activity
+         *
+         * ActivityCalendar already creates its own horizontal scroll
+         * container on narrow screens. The old implementation added another
+         * horizontal scroll owner around it, which caused the "sticky"
+         * scrolling near the end of the year.
+         *
+         * Keep ONE horizontal scroll owner: the library's own container.
+         * The scrollbar stays completely hidden while touch/trackpad scrolling
+         * remains enabled.
+         */
+        .github-activity-calendar {
+          width: max-content;
+          max-width: 100%;
+          margin: 0;
+        }
+
+        .github-activity-calendar .react-activity-calendar__scroll-container {
+          max-width: 100%;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
           scrollbar-width: none;
           -ms-overflow-style: none;
           -webkit-overflow-scrolling: touch;
           overscroll-behavior-x: contain;
+          scroll-behavior: smooth;
         }
 
-        .github-calendar-scroll::-webkit-scrollbar {
+        .github-activity-calendar
+          .react-activity-calendar__scroll-container::-webkit-scrollbar {
           display: none;
           width: 0;
           height: 0;
         }
 
-        .github-calendar-scroll .react-activity-calendar__scroll-container {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-
-        .github-calendar-scroll .react-activity-calendar__scroll-container::-webkit-scrollbar {
-          display: none;
-          width: 0;
-          height: 0;
-        }
-
-        /* The parent site switches every <article> to black on hover in
-           minimal mode. The GitHub calendar itself is an <article>, so it
-           needs a dedicated override or the whole heatmap goes black. */
-        :root[data-theme="minimal"] .site-page .github-calendar-shell article,
-        :root[data-theme="minimal"] .site-page .github-calendar-shell article:hover {
+        /*
+         * The parent site switches every <article> to black on hover in
+         * minimal mode. The GitHub calendar library uses an <article> root,
+         * so keep that element transparent and let our shell provide the
+         * visible surface instead.
+         */
+        :root[data-theme="minimal"]
+          .site-page
+          .github-calendar-shell
+          article,
+        :root[data-theme="minimal"]
+          .site-page
+          .github-calendar-shell
+          article:hover {
           background-color: transparent !important;
           color: hsl(var(--foreground)) !important;
           border-color: transparent !important;
@@ -746,18 +775,20 @@ const Portfolio = () => {
         }
 
         :root[data-theme="minimal"] .github-calendar-shell {
-          background: rgba(255,255,255,0.92) !important;
-          border-color: rgba(0,0,0,0.12) !important;
+          background: rgba(255, 255, 255, 0.92) !important;
+          border-color: rgba(0, 0, 0, 0.12) !important;
           backdrop-filter: none;
           -webkit-backdrop-filter: none;
         }
 
-        :root[data-theme="minimal"] .github-calendar-shell .react-activity-calendar__scroll-container {
-          color: rgba(0,0,0,0.72) !important;
+        :root[data-theme="minimal"]
+          .github-calendar-shell
+          .react-activity-calendar__scroll-container {
+          color: rgba(0, 0, 0, 0.72) !important;
         }
 
         :root[data-theme="minimal"] .github-calendar-shell footer {
-          color: rgba(0,0,0,0.72) !important;
+          color: rgba(0, 0, 0, 0.72) !important;
         }
 
         :root[data-theme="minimal"] .github-calendar-shell svg text {
