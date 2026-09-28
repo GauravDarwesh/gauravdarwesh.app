@@ -199,16 +199,12 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
 
                 border border-transparent
 
-                ${
-                  active
-                    ? "bg-white/10 border-[1.5px] border-white/80 text-white backdrop-blur-sm"
-                    : "text-white/90 hover:text-white"
-                }
+                ${active ? "bg-white/10 border-[1.5px] border-white/80 backdrop-blur-sm" : ""}
 
                 ${showGdxHint ? "gdx-theme-hint" : ""}
               `}
             >
-              <span className="relative -top-px">{option.name}</span>
+              <span className="relative -top-px text-white mix-blend-difference">{option.name}</span>
             </Button>
           );
         })}
@@ -222,7 +218,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
         className={`
           fixed bottom-6 right-6
-          ${isModalOpen ? "z-[70]" : "z-55"}
+          ${isModalOpen ? "z-[70]" : "z-50"}
 
           flex items-center justify-center
           w-12 h-12
