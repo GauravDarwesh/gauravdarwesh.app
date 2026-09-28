@@ -199,12 +199,16 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
 
                 border border-transparent
 
-                ${active ? "bg-white/10 border-[1.5px] border-white/80 backdrop-blur-sm" : ""}
+                ${
+                  active
+                    ? "bg-white/10 border-[1.5px] border-white/80 text-white backdrop-blur-sm"
+                    : "text-white/90 hover:text-white"
+                }
 
                 ${showGdxHint ? "gdx-theme-hint" : ""}
               `}
             >
-              <span className="relative -top-px text-white mix-blend-difference">{option.name}</span>
+              <span className="relative -top-px">{option.name}</span>
             </Button>
           );
         })}
