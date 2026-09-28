@@ -178,29 +178,25 @@ const CategorySpotlight = () => {
 
 const GitHubActivity = () => {
   /*
-   * Track the current month so the calendar can remount when
-   * a new month begins.
+   * GitHub's own profile page defaults to the rolling "last year" view.
+   * Using year="last" is important here:
    *
-   * Example:
+   *   - It matches the classic GitHub contribution graph.
+   *   - It avoids confusing "calendar year" totals with the rolling
+   *     12-month total shown on a GitHub profile.
+   *   - The react-github-calendar package supports "last" directly.
    *
-   * 2026-09 -> 2026-10
-   *
-   * This forces GitHubCalendar to fetch the latest data again.
+   * GitHub's public graph currently exposes the public contribution total
+   * available to an anonymous visitor. Private activity is only included
+   * when it is configured to appear on the user's GitHub profile.
    */
-  const getMonthKey = () => {
-    const now = new Date();
-
-    return `${now.getFullYear()}-${now.getMonth() + 1}`;
-  };
-
-  const [calendarMonthKey, setCalendarMonthKey] = useState(getMonthKey);
 
   const calendarContainerRef = useRef<HTMLDivElement | null>(null);
-
   const [calendarWidth, setCalendarWidth] = useState(0);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
   /* ---------------------------------------------------------------------- */
-  /* Measure the available width                                            */
+  /* Measure the actual breakout width                                      */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
@@ -214,153 +210,136 @@ const GitHubActivity = () => {
 
     updateWidth();
 
-    const observer = new ResizeObserver(() => {
-      updateWidth();
-    });
-
+    const observer = new ResizeObserver(updateWidth);
     observer.observe(element);
 
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* Detect new month                                                       */
+  /* Refresh without needing to edit the page when GitHub data changes      */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    const checkMonth = () => {
-      const currentMonth = getMonthKey();
+    const refresh = () => setCalendarRefreshKey((key) => key + 1);
 
-      setCalendarMonthKey((previousMonth) => {
-        if (previousMonth === currentMonth) {
-          return previousMonth;
-        }
+    const interval = window.setInterval(refresh, 30 * 60 * 1000);
 
-        return currentMonth;
-      });
-    };
-
-    /*
-     * Check once every minute.
-     *
-     * This means the page does not need to be manually
-     * edited when October, November, etc. starts.
-     */
-    const interval = window.setInterval(checkMonth, 60 * 1000);
-
-    document.addEventListener("visibilitychange", checkMonth);
+    document.addEventListener("visibilitychange", refresh);
 
     return () => {
       window.clearInterval(interval);
-
-      document.removeEventListener("visibilitychange", checkMonth);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* Responsive calendar sizing                                             */
+  /* Responsive GitHub-style cell sizing                                    */
   /* ---------------------------------------------------------------------- */
 
   /*
-   * GitHub's yearly calendar contains roughly 53 weeks.
+   * The previous implementation calculated the cells against a 53-week
+   * calendar and capped them at 11px inside the normal page column.
    *
-   * Instead of letting the calendar become wider than the portfolio,
-   * the contribution cells are dynamically sized against the actual
-   * available width.
+   * That made the graph feel like a compressed dashboard rather than
+   * GitHub's contribution table.
    *
-   * Desktop:
-   *   ~10–11px cells
+   * The section now "breaks out" wider than the normal 3xl content column,
+   * then calculates a generous cell size that still fits the complete graph.
    *
-   * Tablet:
-   *   ~7–9px cells
+   * Desktop  -> up to ~13px cells
+   * Tablet   -> ~9–11px cells
+   * Mobile   -> ~5–7px cells
    *
-   * Mobile:
-   *   ~3–6px cells
-   *
-   * The full year therefore remains visible without a scrollbar.
+   * There is deliberately no horizontal scrolling.
    */
-
-  const blockMargin = calendarWidth > 500 ? 2 : 1.5;
 
   const estimatedWeeks = 53;
 
+  const blockMargin = calendarWidth >= 800 ? 3 : calendarWidth >= 560 ? 2.2 : 1.15;
+
+  const horizontalReserve = calendarWidth >= 800 ? 48 : calendarWidth >= 560 ? 32 : 20;
+
   const calculatedBlockSize =
-    calendarWidth > 0 ? Math.floor((calendarWidth - estimatedWeeks * blockMargin - 4) / estimatedWeeks) : 10;
+    calendarWidth > 0
+      ? Math.floor((calendarWidth - horizontalReserve - estimatedWeeks * blockMargin) / estimatedWeeks)
+      : 10;
 
-  const blockSize = Math.max(3, Math.min(11, calculatedBlockSize));
-
-  /*
-   * Always display the actual current year.
-   *
-   * This is intentionally NOT filtered to the last 5/6 months.
-   *
-   * That allows the contribution total to match GitHub's
-   * current-year figure, e.g. 518 contributions in 2026.
-   */
-  const currentYear = new Date().getFullYear();
+  const blockSize = Math.max(5, Math.min(13, calculatedBlockSize));
 
   return (
     <section className="pt-2">
-      {/* Section heading */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Heading                                                            */}
+      {/* ------------------------------------------------------------------ */}
+
       <div className="mb-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
-        </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
+            <p className="text-sm text-white/45 mt-1">A contribution snapshot from the last 12 months.</p>
+          </div>
 
-        <p className="text-sm text-white/45 mt-1">A look at GitHub activity throughout {currentYear}.</p>
-      </div>
-
-      {/* ================================================================== */}
-      {/* GitHub Calendar                                                     */}
-      {/* ================================================================== */}
-
-      <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.20] bg-white/[0.13] backdrop-blur-[4px]">
-        {/* Subtle highlight */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-20 left-1/2 h-32 w-72 -translate-x-1/2 rounded-full bg-white/[0.035] blur-3xl"
-        />
-
-        {/* Calendar container */}
-        <div ref={calendarContainerRef} className="relative w-full overflow-hidden px-3 py-5 sm:px-4 sm:py-6">
-          <GitHubCalendar
-            key={calendarMonthKey}
-            className="portfolio-github-calendar"
-            username="GauravDarwesh"
-            year={currentYear}
-            colorScheme="dark"
-            blockSize={blockSize}
-            blockMargin={blockMargin}
-            blockRadius={2}
-            fontSize={12}
-            showWeekdayLabels={false}
-            showMonthLabels
-            showColorLegend
-            showTotalCount
-            theme={{
-              dark: [
-                "rgba(255,255,255,0.12)",
-                "rgba(255,184,77,0.34)",
-                "rgba(255,161,54,0.54)",
-                "rgba(255,137,38,0.76)",
-                "rgba(255,255,255,0.94)",
-              ],
-            }}
-          />
+          <a
+            href="https://github.com/GauravDarwesh"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-white/45 hover:text-white transition-colors duration-300"
+          >
+            github.com/GauravDarwesh →
+          </a>
         </div>
       </div>
 
-      {/* GitHub link */}
-      <a
-        href="https://github.com/GauravDarwesh"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center mt-4 text-sm text-white/45 hover:text-white transition-colors duration-300"
+      {/* ------------------------------------------------------------------ */}
+      {/* Calendar                                                            */}
+      {/* ------------------------------------------------------------------ */}
+
+      <div
+        ref={calendarContainerRef}
+        className="github-calendar-breakout relative left-1/2 -translate-x-1/2 w-[min(920px,calc(100vw-32px))] max-w-none"
       >
-        github.com/GauravDarwesh →
-      </a>
+        <div className="github-calendar-shell relative overflow-hidden rounded-[28px] border border-white/[0.18] bg-white/[0.115] backdrop-blur-[6px]">
+          {/* Soft glass highlight */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-28 left-1/2 h-44 w-[28rem] -translate-x-1/2 rounded-full bg-white/[0.045] blur-3xl"
+          />
+
+          {/* Inner spacing keeps the graph airy without introducing overflow */}
+          <div className="relative w-full px-3 py-5 sm:px-5 sm:py-6 md:px-6">
+            <div className="github-calendar-inner mx-auto w-full">
+              <GitHubCalendar
+                key={calendarRefreshKey}
+                className="portfolio-github-calendar"
+                username="GauravDarwesh"
+                year="last"
+                colorScheme="dark"
+                blockSize={blockSize}
+                blockMargin={blockMargin}
+                blockRadius={2}
+                fontSize={calendarWidth >= 560 ? 12 : 10}
+                showWeekdayLabels
+                showMonthLabels
+                showColorLegend
+                showTotalCount
+                labels={{
+                  totalCount: "{{count}} contributions in the last year",
+                }}
+                theme={{
+                  dark: [
+                    "rgba(255,255,255,0.105)",
+                    "rgba(255,184,77,0.34)",
+                    "rgba(255,161,54,0.54)",
+                    "rgba(255,137,38,0.78)",
+                    "rgba(255,255,255,0.94)",
+                  ],
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   );
 };
@@ -750,64 +729,92 @@ const Portfolio = () => {
           scrollbar-width: none;
         }
 
-        /* ================================================================ */
-        /* GitHub Calendar                                                   */
-        /* ================================================================ */
-
-        .github-calendar-shell {
-          overflow-x: hidden !important;
-          overflow-y: hidden !important;
-        }
+        /* ================================================================== */
+        /* GitHub Calendar                                                    */
+        /* ================================================================== */
 
         /*
-         * The underlying react-activity-calendar component uses
-         * overflow-x: auto internally.
-         *
-         * Override that so the scrollbar NEVER becomes visible.
+         * The calendar intentionally lives in a wider breakout column than
+         * the normal resume content. This gives the contribution graph the
+         * breathing room of GitHub's native layout without changing the
+         * width of the rest of the classic page.
          */
+
+        .github-calendar-breakout {
+          contain: layout paint;
+        }
+
+        .github-calendar-shell {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
+          overscroll-behavior-x: none;
+        }
+
+        .github-calendar-inner,
         .portfolio-github-calendar {
-          display: block !important;
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+        }
+
+        /*
+         * react-activity-calendar places its SVG inside a scroll container.
+         * The graph is sized in React before render so the full year fits;
+         * these rules are the final guard against a scrollbar appearing.
+         */
+
+        .portfolio-github-calendar {
+          display: block !important;
           overflow: hidden !important;
         }
 
-        .portfolio-github-calendar
-          .react-activity-calendar__scroll-container {
+        .portfolio-github-calendar .react-activity-calendar__scroll-container,
+        .portfolio-github-calendar [class*="scroll-container"] {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           overflow-x: hidden !important;
           overflow-y: hidden !important;
+          overscroll-behavior-x: none !important;
         }
 
-        /*
-         * Prevent the yearly SVG from creating horizontal overflow.
-         */
         .portfolio-github-calendar
           .react-activity-calendar__scroll-container
-          svg {
-          display: block !important;
-          max-width: 100% !important;
-        }
-
-        /*
-         * Generic fallback in case the internal class name changes.
-         */
-        .portfolio-github-calendar
-          [class*="scroll-container"] {
-          overflow-x: hidden !important;
-          overflow-y: hidden !important;
-          max-width: 100% !important;
-          width: 100% !important;
-        }
-
+          svg,
         .portfolio-github-calendar
           [class*="scroll-container"]
           svg {
           display: block !important;
+          width: 100% !important;
           max-width: 100% !important;
+          min-width: 0 !important;
+          height: auto !important;
+        }
+
+        /*
+         * Keep GitHub's default interactive cells crisp while preserving the
+         * softer, glass-heavy aesthetic of the classic page.
+         */
+
+        .portfolio-github-calendar svg rect {
+          shape-rendering: geometricPrecision;
+        }
+
+        /*
+         * Never let the breakout calendar create a page-level horizontal
+         * scrollbar, including on very small screens.
+         */
+
+        @media (max-width: 560px) {
+          .github-calendar-breakout {
+            width: min(920px, calc(100vw - 24px));
+          }
+
+          .github-calendar-shell {
+            border-radius: 24px;
+          }
         }
       `}</style>
     </div>
