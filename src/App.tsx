@@ -8,6 +8,7 @@ import AnimatedLedBackground from "@/AnimatedLedBackground";
 import { SiteMusicProvider } from "@/components/SiteMusicProvider";
 import MusicControl from "@/components/MusicControl";
 import { SiteThemeProvider } from "@/components/SiteThemeProvider";
+import MusicControl from "@/components/MusicControl";
 
 import Index from "./pages/Index";
 import Hobbies from "./pages/Hobbies";
