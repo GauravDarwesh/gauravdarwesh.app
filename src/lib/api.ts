@@ -24,8 +24,8 @@ export interface StreamChatHandlers {
 
 function normalizeVisuals(visuals: any): VisualItem[] {
   if (!visuals) return [];
-  const items: VisualItem[] = [];
 
+  const items: VisualItem[] = [];
   const add = (url: unknown, title?: unknown) => {
     const value = String(url ?? "").trim();
     if (!/^https?:\/\//i.test(value)) return;
@@ -37,11 +37,8 @@ function normalizeVisuals(visuals: any): VisualItem[] {
 
   if (Array.isArray(visuals)) {
     for (const item of visuals) {
-      if (typeof item === "string") {
-        add(item, "Gaurav's Travels");
-      } else if (item && typeof item === "object") {
-        add(item.url, item.title);
-      }
+      if (typeof item === "string") add(item, "Gaurav's Travels");
+      else if (item && typeof item === "object") add(item.url, item.title);
     }
   }
 
@@ -52,23 +49,18 @@ function normalizeVisuals(visuals: any): VisualItem[] {
         ...(Array.isArray(collection?.imageUrls) ? collection.imageUrls : []),
         ...(Array.isArray(collection?.items) ? collection.items : []),
       ];
+
       for (const image of images) {
-        if (typeof image === "string") {
-          add(image, title);
-        } else if (image && typeof image === "object") {
-          add(image.url, image.title || title);
-        }
+        if (typeof image === "string") add(image, title);
+        else if (image && typeof image === "object") add(image.url, image.title || title);
       }
     }
   }
 
   if (Array.isArray(visuals?.image_urls)) {
     for (const image of visuals.image_urls) {
-      if (typeof image === "string") {
-        add(image, "Gaurav's Travels");
-      } else if (image && typeof image === "object") {
-        add(image.url, image.title || "Gaurav's Travels");
-      }
+      if (typeof image === "string") add(image, "Gaurav's Travels");
+      else if (image && typeof image === "object") add(image.url, image.title || "Gaurav's Travels");
     }
   }
 
@@ -86,18 +78,13 @@ function getEndpoint(): string {
     .trim()
     .replace(/\/$/, "");
 
-  if (!url) {
-    throw new Error("VITE_SUPABASE_URL is missing.");
-  }
-
+  if (!url) throw new Error("VITE_SUPABASE_URL is missing.");
   return `${url}/functions/v1/bright-action`;
 }
 
 async function readError(response: Response): Promise<string> {
   const text = await response.text().catch(() => "");
-  if (!text) {
-    return `GDx request failed (${response.status}).`;
-  }
+  if (!text) return `GDx request failed (${response.status}).`;
 
   try {
     const json = JSON.parse(text);
@@ -159,6 +146,7 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
   let buffer = "";
   let accumulated = "";
   let visuals: VisualItem[] = [];
@@ -172,6 +160,8 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     handlers.onToken?.(delta, accumulated);
 
     // Let the browser paint before processing another queued provider event.
+    // This does not delay or fake the stream; it prevents React from batching
+    // a burst of real chunks into a single final render.
     await yieldToBrowser();
   };
 
@@ -190,7 +180,8 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     try {
       payload = JSON.parse(data);
     } catch {
-      // Ignore incomplete JSON chunks rather than terminating a healthy stream
+      // Provider payloads are normally JSON SSE frames. Ignore anything
+      // incomplete rather than terminating a healthy stream.
       return;
     }
 
@@ -226,16 +217,18 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
         visuals = normalizeVisuals(payload.visuals);
         if (visuals.length) handlers.onVisuals?.(visuals);
       }
+
       return;
     }
 
     let delta = "";
+
     if (payload?.type === "delta" || payload?.type === "token") {
       delta =
         typeof payload?.delta === "string" ? payload.delta : typeof payload?.text === "string" ? payload.text : "";
     }
 
-    // OpenAI-compatible provider event fallback
+    // Also support raw OpenAI-compatible provider events.
     if (!delta && typeof payload?.choices?.[0]?.delta?.content === "string") {
       delta = payload.choices[0].delta.content;
     }
@@ -243,9 +236,12 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
     await emit(delta);
   };
 
+  // We need sequential async event processing so each emitted token gets a
+  // chance to paint before the next queued event is handled.
   const processBuffer = async (flush = false) => {
     while (true) {
       const match = /\r?\n\r?\n/.exec(buffer);
+
       if (!match || match.index < 0) break;
 
       const event = buffer.slice(0, match.index);
