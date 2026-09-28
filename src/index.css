@@ -7,56 +7,52 @@ DESIGN SYSTEM
 ============================================================ */
 
 @layer base {
-:root {
-/* Dark minimalist design system */
---background: 0 0% 6%;
---foreground: 0 0% 95%;
+  :root {
+    /* Dark minimalist design system */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 95%;
 
-```
-/* Blue gradient system */
---primary-blue: 220 100% 60%;
---secondary-blue: 240 100% 70%;
---accent-blue: 200 100% 50%;
+    /* Blue gradient system */
+    --primary-blue: 220 100% 60%;
+    --secondary-blue: 240 100% 70%;
+    --accent-blue: 200 100% 50%;
 
---card: 0 0% 8%;
---card-foreground: 0 0% 95%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
 
---primary: 220 100% 60%;
---primary-foreground: 0 0% 95%;
+    --primary: 220 100% 60%;
+    --primary-foreground: 0 0% 95%;
 
---secondary: 0 0% 12%;
---secondary-foreground: 0 0% 95%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 95%;
 
---muted: 0 0% 10%;
---muted-foreground: 0 0% 65%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 65%;
 
---accent: 220 100% 60%;
---accent-foreground: 0 0% 95%;
+    --accent: 220 100% 60%;
+    --accent-foreground: 0 0% 95%;
 
---border: 0 0% 15%;
---input: 0 0% 15%;
---ring: 220 100% 60%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 220 100% 60%;
 
---radius: 0.5rem;
+    --radius: 0.5rem;
 
-/* Custom gradients */
---gradient-blue-1: 220 100% 60%;
---gradient-blue-2: 240 100% 70%;
---gradient-blue-3: 200 100% 50%;
-```
-
-}
+    /* Custom gradients */
+    --gradient-blue-1: 220 100% 60%;
+    --gradient-blue-2: 240 100% 70%;
+    --gradient-blue-3: 200 100% 50%;
+  }
 }
 
 @layer base {
-
-* {
-  @apply border-border;
+  * {
+    @apply border-border;
   }
 
-body {
-@apply bg-background text-foreground;
-}
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
 /* ============================================================
@@ -64,17 +60,17 @@ SPINNING ASTERISK
 ============================================================ */
 
 @keyframes spin-slow {
-from {
-transform: rotate(0deg);
-}
+  from {
+    transform: rotate(0deg);
+  }
 
-to {
-transform: rotate(360deg);
-}
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin-slow {
-animation: spin-slow 3s linear infinite;
+  animation: spin-slow 3s linear infinite;
 }
 
 /* ============================================================
@@ -82,19 +78,19 @@ SLOW FADE IN
 ============================================================ */
 
 @keyframes fadeInSlow {
-0% {
-opacity: 0;
-transform: scale(1.05);
-}
+  0% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
 
-100% {
-opacity: 1;
-transform: scale(1);
-}
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .animate-fadeInSlow {
-animation: fadeInSlow 3s ease-in-out forwards;
+  animation: fadeInSlow 3s ease-in-out forwards;
 }
 
 /* ============================================================
@@ -106,47 +102,47 @@ No pointer interaction. The 1px gaps are the checkerboard itself.
 ============================================================ */
 
 .orange-bg {
---tile: 19px;
---gap: 1px;
---cell: 20px;
---led-base: #140c08;
+  --tile: 19px;
+  --gap: 1px;
+  --cell: 20px;
+  --led-base: #140c08;
 
-position: fixed;
-inset: 0;
-z-index: 0;
-width: 100%;
-height: 100%;
-min-height: 100dvh;
-overflow: hidden;
-pointer-events: none;
-isolation: isolate;
-background: var(--led-base);
-transform: translateZ(0);
-backface-visibility: hidden;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  background: var(--led-base);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .site-background.orange-bg {
-position: fixed;
-inset: 0;
-z-index: 0;
-width: 100%;
-height: 100%;
-min-height: 100%;
-transition: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  transition: none;
 }
 
 .orange-bg .led-wallpaper-canvas {
-position: absolute;
-inset: 0;
-display: block;
-width: 100%;
-height: 100%;
-pointer-events: none;
-user-select: none;
-z-index: 0;
-transform: translateZ(0);
-backface-visibility: hidden;
-image-rendering: pixelated;
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  image-rendering: pixelated;
 }
 
 /*
@@ -158,23 +154,23 @@ image-rendering: pixelated;
   */
 
 @media (max-width: 900px) {
-.orange-bg {
---tile: 17px;
---cell: 18px;
-}
+  .orange-bg {
+    --tile: 17px;
+    --cell: 18px;
+  }
 }
 
 @media (max-width: 768px) {
-.orange-bg {
---tile: 16px;
---cell: 17px;
-}
+  .orange-bg {
+    --tile: 16px;
+    --cell: 17px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-.orange-bg .led-wallpaper-canvas {
-opacity: 0.96;
-}
+  .orange-bg .led-wallpaper-canvas {
+    opacity: 0.96;
+  }
 }
 
 /* ============================================================
@@ -182,12 +178,12 @@ SCROLLBAR UTILITIES
 ============================================================ */
 
 .scrollbar-hide::-webkit-scrollbar {
-display: none;
+  display: none;
 }
 
 .scrollbar-hide {
--ms-overflow-style: none;
-scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* ============================================================
@@ -195,15 +191,15 @@ FADE / SLIDE
 ============================================================ */
 
 @keyframes fadeSlideIn {
-from {
-opacity: 0;
-transform: translateY(6px);
-}
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 
-to {
-opacity: 1;
-transform: translateY(0);
-}
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================================================
@@ -215,15 +211,15 @@ class. It is NOT used by the new LED wallpaper.
 ============================================================ */
 
 .bg-grainy-gradient {
-background: linear-gradient(
-135deg,
-hsl(var(--gradient-blue-1)),
-hsl(var(--gradient-blue-2)),
-hsl(var(--gradient-blue-3))
-);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--gradient-blue-1)),
+    hsl(var(--gradient-blue-2)),
+    hsl(var(--gradient-blue-3))
+  );
 
-position: relative;
-overflow: hidden;
+  position: relative;
+  overflow: hidden;
 }
 
 /* ------------------------------------------------------------
@@ -231,22 +227,22 @@ Grain overlay
 ------------------------------------------------------------ */
 
 .bg-grainy-gradient::before {
-content: "";
+  content: "";
 
-position: absolute;
-inset: 0;
+  position: absolute;
+  inset: 0;
 
-background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
 
-mix-blend-mode: overlay;
+  mix-blend-mode: overlay;
 
-opacity: 0.15;
+  opacity: 0.15;
 
-pointer-events: none;
+  pointer-events: none;
 
-animation: wave-shift 20s linear infinite;
+  animation: wave-shift 20s linear infinite;
 
-background-size: 200px 200px;
+  background-size: 200px 200px;
 }
 
 /* ------------------------------------------------------------
@@ -254,19 +250,19 @@ Subtle horizontal wave shift
 ------------------------------------------------------------ */
 
 @keyframes wave-shift {
-0% {
-background-position: 0 0;
-}
+  0% {
+    background-position: 0 0;
+  }
 
-100% {
-background-position: 1000px 0;
-}
+  100% {
+    background-position: 1000px 0;
+  }
 }
 
 @media (max-width: 768px) {
-.bg-grainy-gradient::before {
-animation: none;
-}
+  .bg-grainy-gradient::before {
+    animation: none;
+  }
 }
 
 /* ============================================================
@@ -276,15 +272,15 @@ ROOT / BODY
 html,
 body,
 #root {
-min-height: 100%;
+  min-height: 100%;
 }
 
 body {
-background-color: hsl(8 55% 7%);
+  background-color: hsl(8 55% 7%);
 }
 
 html {
-scrollbar-gutter: stable;
+  scrollbar-gutter: stable;
 }
 
 /* ============================================================
@@ -292,19 +288,19 @@ SLOW FADE IN
 ============================================================ */
 
 @keyframes slowFadeIn {
-0% {
-opacity: 0;
-transform: translate3d(0, 8px, 0);
-}
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
 
-100% {
-opacity: 1;
-transform: translate3d(0, 0, 0);
-}
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .animate-slowFadeIn {
-animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* ============================================================
@@ -312,59 +308,59 @@ WAVE ANIMATIONS
 ============================================================ */
 
 @keyframes wave1 {
-0% {
-background-position: 0% 50%;
-}
+  0% {
+    background-position: 0% 50%;
+  }
 
-50% {
-background-position: 50% 50%;
-}
+  50% {
+    background-position: 50% 50%;
+  }
 
-100% {
-background-position: 0% 50%;
-}
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @keyframes wave2 {
-0% {
-background-position: 100% 50%;
-}
+  0% {
+    background-position: 100% 50%;
+  }
 
-50% {
-background-position: 0% 50%;
-}
+  50% {
+    background-position: 0% 50%;
+  }
 
-100% {
-background-position: 100% 50%;
-}
+  100% {
+    background-position: 100% 50%;
+  }
 }
 
 .wave {
-position: absolute;
-inset: 0;
+  position: absolute;
+  inset: 0;
 
-background-size: 400% 400%;
+  background-size: 400% 400%;
 
-mix-blend-mode: screen;
+  mix-blend-mode: screen;
 
-opacity: 0.6;
+  opacity: 0.6;
 
-animation-iteration-count: infinite;
-animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
 }
 
 .wave1 {
-background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
+  background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
 
-animation: wave1 20s ease-in-out infinite;
+  animation: wave1 20s ease-in-out infinite;
 }
 
 .wave2 {
-background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
+  background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
 
-animation: wave2 25s ease-in-out infinite;
+  animation: wave2 25s ease-in-out infinite;
 
-opacity: 0.5;
+  opacity: 0.5;
 }
 
 /* ============================================================
@@ -372,13 +368,13 @@ TYPEWRITER
 ============================================================ */
 
 .typewriter-fade-out {
-opacity: 0;
-transition: opacity 0.5s ease;
+  opacity: 0;
+  transition: opacity 0.5s ease;
 }
 
 .typewriter-fade-in {
-opacity: 1;
-transition: opacity 0.5s ease;
+  opacity: 1;
+  transition: opacity 0.5s ease;
 }
 
 /* ============================================================
@@ -386,27 +382,27 @@ MARQUEE
 ============================================================ */
 
 @keyframes marquee {
-0% {
-transform: translate3d(0, 0, 0);
-}
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
 
-100% {
-transform: translate3d(-50%, 0, 0);
-}
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
 }
 
 .animate-marquee {
-display: flex;
+  display: flex;
 
-width: max-content;
+  width: max-content;
 
-animation: marquee 22s linear infinite;
+  animation: marquee 22s linear infinite;
 
-will-change: transform;
+  will-change: transform;
 
-backface-visibility: hidden;
+  backface-visibility: hidden;
 
-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 /* ------------------------------------------------------------
@@ -414,9 +410,9 @@ Marquee edge fade
 ------------------------------------------------------------ */
 
 .marquee-fade-edges {
--webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 
-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
 /* ============================================================
@@ -424,44 +420,44 @@ CATEGORY SPOTLIGHT
 ============================================================ */
 
 @keyframes spotlight-in {
-from {
-opacity: 0;
-filter: blur(10px);
-transform: translateY(8px) scale(0.97);
-}
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(8px) scale(0.97);
+  }
 
-to {
-opacity: 1;
-filter: blur(0);
-transform: translateY(0) scale(1);
-}
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
 }
 
 .spotlight-item {
-animation: spotlight-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: spotlight-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes spotlight-progress {
-from {
-width: 0%;
-}
+  from {
+    width: 0%;
+  }
 
-to {
-width: 100%;
-}
+  to {
+    width: 100%;
+  }
 }
 
 .spotlight-progress {
-animation-name: spotlight-progress;
-animation-timing-function: linear;
-animation-fill-mode: forwards;
+  animation-name: spotlight-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-.spotlight-item,
-.spotlight-progress {
-animation: none;
-}
+  .spotlight-item,
+  .spotlight-progress {
+    animation: none;
+  }
 }
 
 /* ============================================================
@@ -469,7 +465,7 @@ SITEWIDE MONOCHROME MODE
 ============================================================ */
 
 :root {
---theme-transition-duration: 520ms;
+  --theme-transition-duration: 520ms;
 }
 
 /* ------------------------------------------------------------
@@ -477,27 +473,27 @@ Minimal theme variables
 ------------------------------------------------------------ */
 
 :root {
---background: 0 0% 100%;
---foreground: 0 0% 4%;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
 
---card: 0 0% 100%;
---card-foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
 
---primary: 0 0% 4%;
---primary-foreground: 0 0% 100%;
+  --primary: 0 0% 4%;
+  --primary-foreground: 0 0% 100%;
 
---secondary: 0 0% 96%;
---secondary-foreground: 0 0% 4%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 4%;
 
---muted: 0 0% 96%;
---muted-foreground: 0 0% 36%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 36%;
 
---accent: 0 0% 4%;
---accent-foreground: 0 0% 100%;
+  --accent: 0 0% 4%;
+  --accent-foreground: 0 0% 100%;
 
---border: 0 0% 8%;
---input: 0 0% 8%;
---ring: 0 0% 4%;
+  --border: 0 0% 8%;
+  --input: 0 0% 8%;
+  --ring: 0 0% 4%;
 }
 
 /* ------------------------------------------------------------
@@ -512,11 +508,11 @@ body,
 [data-gdx-search] [class*="bg-white/"],
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
-transition-property: color, background-color, border-color, opacity;
+  transition-property: color, background-color, border-color, opacity;
 
-transition-duration: var(--theme-transition-duration);
+  transition-duration: var(--theme-transition-duration);
 
-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ------------------------------------------------------------
@@ -525,8 +521,8 @@ Minimal background
 
 :root body,
 :root .site-page {
-background-color: hsl(var(--background));
-color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 /* ------------------------------------------------------------
@@ -534,7 +530,7 @@ Hide the LED wallpaper in minimal mode
 ------------------------------------------------------------ */
 
 :root .site-background {
-opacity: 0;
+  opacity: 0;
 }
 
 /* ------------------------------------------------------------
@@ -544,8 +540,8 @@ Minimal text
 :root .site-page [class*="text-white"],
 :root .site-page [class*="text-gray"],
 :root [data-gdx-search] [class*="text-white"] {
-color: hsl(var(--foreground)) !important;
-text-shadow: none !important;
+  color: hsl(var(--foreground)) !important;
+  text-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
@@ -554,7 +550,7 @@ Minimal white surfaces
 
 :root .site-page [class*="bg-white/"],
 :root [data-gdx-search] [class*="bg-white/"] {
-background-color: hsl(var(--background)) !important;
+  background-color: hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
@@ -565,9 +561,9 @@ Minimal borders
 :root .site-page [class*="border-foreground"],
 :root [data-gdx-search] [class*="border-white"],
 :root [data-gdx-search] [class*="border-foreground"] {
-border-color: hsl(var(--foreground) / 0.78) !important;
+  border-color: hsl(var(--foreground) / 0.78) !important;
 
-background-clip: padding-box;
+  background-clip: padding-box;
 }
 
 /* ------------------------------------------------------------
@@ -576,8 +572,8 @@ Remove blur in minimal mode
 
 :root .site-page [class*="backdrop-blur"],
 :root [data-gdx-search] [class*="backdrop-blur"] {
--webkit-backdrop-filter: none !important;
-backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 /* ------------------------------------------------------------
@@ -586,7 +582,7 @@ Remove shadows in minimal mode
 
 :root .site-page [class*="shadow"],
 :root [data-gdx-search] [class*="shadow"] {
-box-shadow: none !important;
+  box-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
@@ -594,7 +590,7 @@ Black surfaces
 ------------------------------------------------------------ */
 
 :root .site-page [class*="bg-black/"] {
-background-color: hsl(var(--background) / 0.92) !important;
+  background-color: hsl(var(--background) / 0.92) !important;
 }
 
 /* ------------------------------------------------------------
@@ -603,22 +599,22 @@ Buttons / links
 
 :root [data-gdx-search] button,
 :root [data-gdx-search] a {
-background-color: hsl(var(--background)) !important;
+  background-color: hsl(var(--background)) !important;
 
-border-color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--foreground)) !important;
 
-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--foreground)) !important;
 
-box-shadow: none !important;
+  box-shadow: none !important;
 }
 
 :root [data-gdx-search] button:hover,
 :root [data-gdx-search] a:hover,
 :root .site-page button:hover,
 :root .site-page article:hover {
-background-color: hsl(var(--foreground)) !important;
+  background-color: hsl(var(--foreground)) !important;
 
-color: hsl(var(--background)) !important;
+  color: hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
@@ -627,11 +623,11 @@ Articles / dialogs
 
 :root .site-page article,
 :root .site-page [role="dialog"] {
-background-color: hsl(var(--background)) !important;
+  background-color: hsl(var(--background)) !important;
 
-border-color: hsl(var(--foreground) / 0.78) !important;
+  border-color: hsl(var(--foreground) / 0.78) !important;
 
-background-clip: padding-box;
+  background-clip: padding-box;
 }
 
 /* ------------------------------------------------------------
@@ -639,13 +635,13 @@ Suggestion bubble
 ------------------------------------------------------------ */
 
 :root .gdx-suggestion-bubble {
-border: 1px solid hsl(var(--foreground) / 0.78) !important;
+  border: 1px solid hsl(var(--foreground) / 0.78) !important;
 
-background-color: hsl(var(--background)) !important;
+  background-color: hsl(var(--background)) !important;
 
-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--foreground)) !important;
 
-box-shadow: none !important;
+  box-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
@@ -653,23 +649,23 @@ TTS button
 ------------------------------------------------------------ */
 
 :root [data-gdx-search] .gdx-tts-button {
-border: 1px solid hsl(var(--foreground) / 0.78) !important;
+  border: 1px solid hsl(var(--foreground) / 0.78) !important;
 
-border-radius: 999px;
+  border-radius: 999px;
 
-background-color: hsl(var(--background)) !important;
+  background-color: hsl(var(--background)) !important;
 
-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 :root [data-gdx-search] .gdx-tts-button:hover {
-background-color: hsl(var(--foreground)) !important;
+  background-color: hsl(var(--foreground)) !important;
 
-color: hsl(var(--background)) !important;
+  color: hsl(var(--background)) !important;
 }
 
 :root [data-gdx-search] .gdx-tts-button svg {
-color: currentColor !important;
+  color: currentColor !important;
 }
 
 /* ------------------------------------------------------------
@@ -679,15 +675,15 @@ Writing cards
 :root .notion-writing-card:hover,
 :root .notion-writing-card:hover .notion-writing-copy,
 :root .notion-writing-card:hover .notion-writing-copy * {
-color: hsl(var(--background)) !important;
+  color: hsl(var(--background)) !important;
 }
 
 :root .notion-writing-card:hover .notion-writing-tag {
-background-color: hsl(var(--background)) !important;
+  background-color: hsl(var(--background)) !important;
 
-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--foreground)) !important;
 
-border: 1px solid hsl(var(--background)) !important;
+  border: 1px solid hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
@@ -695,7 +691,7 @@ Spotlight progress
 ------------------------------------------------------------ */
 
 :root .spotlight-progress {
-background-color: hsl(var(--foreground)) !important;
+  background-color: hsl(var(--foreground)) !important;
 }
 
 /* ------------------------------------------------------------
@@ -703,9 +699,9 @@ Accessibility
 ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-:root {
---theme-transition-duration: 0ms;
-}
+  :root {
+    --theme-transition-duration: 0ms;
+  }
 }
 
 /* ============================================================
@@ -713,79 +709,61 @@ GDx THEME EASTER EGG
 ============================================================ */
 
 .gdx-theme-hint {
-animation: gdxThemePulse 2.4s ease-in-out infinite;
+  animation: gdxThemePulse 2.4s ease-in-out infinite;
 }
 
 @keyframes gdxThemePulse {
-0%,
-100% {
-transform: scale(1);
+  0%,
+  100% {
+    transform: scale(1);
 
-```
-box-shadow:
-  0 0 0 0 rgba(255, 255, 255, 0),
-  0 0 0 0 rgba(255, 255, 255, 0);
-```
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
+  }
 
-}
+  /* First click-like pulse */
+  10% {
+    transform: scale(1.035);
 
-/* First click-like pulse */
-10% {
-transform: scale(1.035);
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.1),
+      0 0 20px rgba(255, 255, 255, 0.22);
+  }
 
-```
-box-shadow:
-  0 0 0 3px rgba(255, 255, 255, 0.1),
-  0 0 20px rgba(255, 255, 255, 0.22);
-```
+  18% {
+    transform: scale(1);
 
-}
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
+  }
 
-18% {
-transform: scale(1);
+  /* Small pause */
+  24% {
+    transform: scale(1);
 
-```
-box-shadow:
-  0 0 0 0 rgba(255, 255, 255, 0),
-  0 0 0 0 rgba(255, 255, 255, 0);
-```
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
+  }
 
-}
+  /* Second click-like pulse */
+  34% {
+    transform: scale(1.035);
 
-/* Small pause */
-24% {
-transform: scale(1);
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.1),
+      0 0 20px rgba(255, 255, 255, 0.22);
+  }
 
-```
-box-shadow:
-  0 0 0 0 rgba(255, 255, 255, 0),
-  0 0 0 0 rgba(255, 255, 255, 0);
-```
+  42% {
+    transform: scale(1);
 
-}
-
-/* Second click-like pulse */
-34% {
-transform: scale(1.035);
-
-```
-box-shadow:
-  0 0 0 3px rgba(255, 255, 255, 0.1),
-  0 0 20px rgba(255, 255, 255, 0.22);
-```
-
-}
-
-42% {
-transform: scale(1);
-
-```
-box-shadow:
-  0 0 0 0 rgba(255, 255, 255, 0),
-  0 0 0 0 rgba(255, 255, 255, 0);
-```
-
-}
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 0 0 0 rgba(255, 255, 255, 0);
+  }
 }
 
 /* ============================================================
@@ -793,83 +771,65 @@ MONOCHROME GDx EASTER EGG
 ============================================================ */
 
 :root .gdx-theme-hint {
-animation-name: gdxThemePulseMinimal;
+  animation-name: gdxThemePulseMinimal;
 }
 
 @keyframes gdxThemePulseMinimal {
-0%,
-100% {
-transform: scale(1);
+  0%,
+  100% {
+    transform: scale(1);
 
-```
-box-shadow:
-  0 0 0 0 rgba(0, 0, 0, 0),
-  0 0 0 0 rgba(0, 0, 0, 0);
-```
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
 
-}
+  /* First click-like pulse */
+  10% {
+    transform: scale(1.035);
 
-/* First click-like pulse */
-10% {
-transform: scale(1.035);
+    box-shadow:
+      0 0 0 3px rgba(0, 0, 0, 0.1),
+      0 0 20px rgba(0, 0, 0, 0.16);
+  }
 
-```
-box-shadow:
-  0 0 0 3px rgba(0, 0, 0, 0.1),
-  0 0 20px rgba(0, 0, 0, 0.16);
-```
+  18% {
+    transform: scale(1);
 
-}
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
 
-18% {
-transform: scale(1);
+  /* Small pause */
+  24% {
+    transform: scale(1);
 
-```
-box-shadow:
-  0 0 0 0 rgba(0, 0, 0, 0),
-  0 0 0 0 rgba(0, 0, 0, 0);
-```
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
 
-}
+  /* Second click-like pulse */
+  34% {
+    transform: scale(1.035);
 
-/* Small pause */
-24% {
-transform: scale(1);
+    box-shadow:
+      0 0 0 3px rgba(0, 0, 0, 0.1),
+      0 0 20px rgba(0, 0, 0, 0.16);
+  }
 
-```
-box-shadow:
-  0 0 0 0 rgba(0, 0, 0, 0),
-  0 0 0 0 rgba(0, 0, 0, 0);
-```
+  42% {
+    transform: scale(1);
 
-}
-
-/* Second click-like pulse */
-34% {
-transform: scale(1.035);
-
-```
-box-shadow:
-  0 0 0 3px rgba(0, 0, 0, 0.1),
-  0 0 20px rgba(0, 0, 0, 0.16);
-```
-
-}
-
-42% {
-transform: scale(1);
-
-```
-box-shadow:
-  0 0 0 0 rgba(0, 0, 0, 0),
-  0 0 0 0 rgba(0, 0, 0, 0);
-```
-
-}
+    box-shadow:
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-.gdx-theme-hint {
-animation: none;
-}
+  .gdx-theme-hint {
+    animation: none;
+  }
 }
