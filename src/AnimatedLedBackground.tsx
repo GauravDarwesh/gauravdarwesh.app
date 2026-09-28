@@ -37,25 +37,41 @@ const AnimatedLedBackground = () => {
       colorEvolve: 0.05,
       hueCycle: 0.012,
       threshold: 0.02,
-      gamma: 0.95,
-      floor: 0.55,
+
+      // Slightly deeper luminance curve so the background remains
+      // atmospheric rather than becoming overly bright behind white text.
+      gamma: 1.05,
+      floor: 0.38,
     };
 
-    // Dark orange / burnt orange palette only.
-    // No yellow tones are used anywhere in the LED color range.
+    /*
+     * Midnight Plum / Charcoal / Muted Copper palette.
+     *
+     * The palette intentionally avoids:
+     * - bright yellow
+     * - neon orange
+     * - saturated fire-red
+     *
+     * Most of the range lives in dark charcoal, aubergine and wine tones,
+     * with restrained copper highlights for visual energy.
+     */
     const palette = [
-      "#6f1d05",
-      "#7f2407",
-      "#8f2b09",
-      "#9f320b",
-      "#ad3a0d",
-      "#ba4210",
-      "#c94b13",
-      "#d25416",
-      "#da5c19",
-      "#cf4e11",
-      "#b83d0d",
-      "#962e08",
+      "#0b0a10",
+      "#110d16",
+      "#17101a",
+      "#1e121d",
+      "#26141f",
+      "#301722",
+      "#3b1b26",
+      "#472029",
+      "#54252d",
+      "#632c31",
+      "#733535",
+      "#844039",
+      "#945043",
+      "#704044",
+      "#4d2935",
+      "#321a27",
     ];
 
     let tile = 19;
@@ -190,7 +206,8 @@ const AnimatedLedBackground = () => {
       const wtW = realT * CFG.speed * motion;
       const wtC = realT * CFG.speed * motion;
 
-      ctx.fillStyle = "#140c08";
+      // Deep neutral backdrop instead of warm black.
+      ctx.fillStyle = "#08080d";
       ctx.fillRect(0, 0, width, height);
 
       for (let row = 0; row < rows; row += 1) {
@@ -238,12 +255,13 @@ const AnimatedLedBackground = () => {
           const m = (bIndex + 0.5) / 64;
           const o = hueIndex * 3;
 
-          // Preserve the luminous floor but add a little room for dark tiles.
+          // Preserve the luminous floor but keep the overall scene dark.
           const rr = lut[o] * m;
           const gg = lut[o + 1] * m;
           const bb = lut[o + 2] * m;
 
           ctx.fillStyle = `rgb(${rr | 0} ${gg | 0} ${bb | 0})`;
+
           ctx.fillRect(px, py, tile, tile);
         }
       }
