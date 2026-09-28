@@ -101,6 +101,7 @@ const CategorySpotlight = () => {
   const advance = useCallback(() => {
     setActive((prev) => {
       const idx = CATEGORIES.indexOf(prev);
+
       return CATEGORIES[(idx + 1) % CATEGORIES.length];
     });
 
@@ -185,12 +186,12 @@ const GitHubActivity = () => {
         <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
       </div>
 
-      {/* Glass contribution surface */}
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-[2px]">
-        {/* Very subtle ambient glow */}
+      {/* More opaque glass contribution surface */}
+      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.075] backdrop-blur-[3px]">
+        {/* Subtle ambient glow */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.035] blur-3xl"
+          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl"
         />
 
         {/* Calendar */}
@@ -199,6 +200,12 @@ const GitHubActivity = () => {
             <div className="min-w-[720px]">
               <GitHubCalendar
                 username="GauravDarwesh"
+                transformData={(data) => {
+                  const cutoff = new Date();
+                  cutoff.setMonth(cutoff.getMonth() - 6);
+
+                  return data.filter((day) => new Date(day.date) >= cutoff);
+                }}
                 colorScheme="dark"
                 blockSize={11}
                 blockMargin={4}
@@ -210,11 +217,11 @@ const GitHubActivity = () => {
                 showTotalCount
                 theme={{
                   dark: [
-                    "rgba(255,255,255,0.045)",
-                    "rgba(255,184,77,0.20)",
-                    "rgba(255,161,54,0.38)",
-                    "rgba(255,137,38,0.62)",
-                    "rgba(255,255,255,0.90)",
+                    "rgba(255,255,255,0.10)",
+                    "rgba(255,184,77,0.30)",
+                    "rgba(255,161,54,0.50)",
+                    "rgba(255,137,38,0.72)",
+                    "rgba(255,255,255,0.94)",
                   ],
                 }}
               />
@@ -619,14 +626,6 @@ const Portfolio = () => {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
-        }
-
-        /* ---------------------------------------------------------------- */
-        /* GitHub calendar blending                                         */
-        /* ---------------------------------------------------------------- */
-
-        .github-calendar-blend {
-          color: rgba(255, 255, 255, 0.7);
         }
       `}</style>
     </div>
