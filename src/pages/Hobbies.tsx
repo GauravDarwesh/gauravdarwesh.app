@@ -177,17 +177,58 @@ const CategorySpotlight = () => {
 /* ======================================================================== */
 
 const GitHubActivity = () => {
+  const calendarContainerRef = useRef<HTMLDivElement | null>(null);
+  const [calendarWidth, setCalendarWidth] = useState(0);
+
+  useEffect(() => {
+    const element = calendarContainerRef.current;
+
+    if (!element) return;
+
+    const updateWidth = () => {
+      setCalendarWidth(element.clientWidth);
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  /*
+   * Six months is approximately 26–27 weeks.
+   *
+   * The calendar width is calculated so the entire six-month
+   * contribution grid fits inside the available portfolio width.
+   *
+   * Desktop:
+   *   Large, dense contribution cells.
+   *
+   * Tablet/mobile:
+   *   Cells automatically shrink instead of creating scrolling.
+   */
+  const blockSize = calendarWidth > 0 ? Math.max(8, Math.min(22, Math.floor((calendarWidth - 45 - 27 * 3) / 27))) : 18;
+
   return (
     <section className="pt-2">
       {/* Section heading */}
       <div className="mb-5">
         <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
 
-        <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
+        <p className="text-sm text-white/45 mt-1">
+          A look at the last 6 months of building, experimenting, and shipping.
+        </p>
       </div>
 
-      {/* Opaque contribution surface */}
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.20] bg-white/[0.115] backdrop-blur-[4px]">
+      {/* Opaque glass contribution surface */}
+      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.22] bg-white/[0.13] backdrop-blur-[4px]">
         {/* Subtle ambient glow */}
         <div
           aria-hidden="true"
@@ -195,49 +236,52 @@ const GitHubActivity = () => {
         />
 
         {/* Calendar */}
-        <div className="relative w-full px-3 py-6 sm:px-4 md:px-5">
-          <GitHubCalendar
-            username="GauravDarwesh"
+        <div ref={calendarContainerRef} className="relative w-full overflow-x-hidden px-3 py-6 sm:px-4 md:px-5">
+          <div className="w-full flex items-center justify-center">
+            <GitHubCalendar
+              username="GauravDarwesh"
 
-            /* ------------------------------------------------------------ */
-            /* Only show the latest 6 months                                */
-            /* ------------------------------------------------------------ */
-            transformData={(data) => {
-              const cutoff = new Date();
-              cutoff.setMonth(cutoff.getMonth() - 6);
+              /* ---------------------------------------------------------- */
+              /* Only show the latest 6 months                             */
+              /* ---------------------------------------------------------- */
+              transformData={(data) => {
+                const cutoff = new Date();
 
-              return data.filter((day) => new Date(day.date) >= cutoff);
-            }}
+                cutoff.setMonth(cutoff.getMonth() - 6);
 
-            colorScheme="dark"
+                return data.filter((day) => new Date(day.date) >= cutoff);
+              }}
 
-            /* ------------------------------------------------------------ */
-            /* Larger cells + tighter gaps so the grid fills the container */
-            /* ------------------------------------------------------------ */
-            blockSize={22}
-            blockMargin={3}
-            blockRadius={3}
+              colorScheme="dark"
 
-            fontSize={12}
+              /* ---------------------------------------------------------- */
+              /* Responsive sizing                                         */
+              /* ---------------------------------------------------------- */
+              blockSize={blockSize}
+              blockMargin={3}
+              blockRadius={3}
 
-            showWeekdayLabels
-            showMonthLabels
-            showColorLegend
-            showTotalCount
+              fontSize={12}
 
-            /* ------------------------------------------------------------ */
-            /* Warm palette matching your orange/yellow background         */
-            /* ------------------------------------------------------------ */
-            theme={{
-              dark: [
-                "rgba(255,255,255,0.16)",
-                "rgba(255,190,90,0.42)",
-                "rgba(255,165,65,0.62)",
-                "rgba(255,135,38,0.82)",
-                "rgba(255,255,255,0.96)",
-              ],
-            }}
-          />
+              showWeekdayLabels
+              showMonthLabels
+              showColorLegend
+              showTotalCount
+
+              /* ---------------------------------------------------------- */
+              /* Warm opaque palette                                        */
+              /* ---------------------------------------------------------- */
+              theme={{
+                dark: [
+                  "rgba(255,255,255,0.18)",
+                  "rgba(255,190,90,0.46)",
+                  "rgba(255,165,65,0.64)",
+                  "rgba(255,135,38,0.84)",
+                  "rgba(255,255,255,0.97)",
+                ],
+              }}
+            />
+          </div>
         </div>
       </div>
 
