@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 type SiteMusicContextType = {
   isPlaying: boolean;
@@ -19,22 +12,20 @@ type SiteMusicContextType = {
 const SiteMusicContext = createContext<SiteMusicContextType | null>(null);
 
 const MUSIC_SRC = "/music/the-velvet-hour.mp3";
-const MUSIC_PREFERENCE_KEY = "gdx_site_music_preference";
+const DEFAULT_VOLUME = 0.18;
 
-export const SiteMusicProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const SiteMusicProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolumeState] = useState(0.18);
+  const [volume, setVolumeState] = useState(DEFAULT_VOLUME);
 
   useEffect(() => {
     const audio = new Audio(MUSIC_SRC);
 
     audio.loop = true;
     audio.preload = "auto";
-    audio.volume = 0.18;
+    audio.volume = DEFAULT_VOLUME;
 
     audioRef.current = audio;
 
@@ -45,23 +36,6 @@ export const SiteMusicProvider: React.FC<{ children: React.ReactNode }> = ({
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("ended", handleEnded);
-
-    /*
-     * If the visitor previously enabled music, try to resume it.
-     * Browsers may still block this until another interaction.
-     */
-    const savedPreference = localStorage.getItem(
-      MUSIC_PREFERENCE_KEY,
-    );
-
-    if (savedPreference === "on") {
-      void audio.play().catch(() => {
-        /*
-         * Autoplay blocked.
-         * The next user interaction can call playMusic().
-         */
-      });
-    }
 
     return () => {
       audio.pause();
@@ -83,13 +57,13 @@ export const SiteMusicProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await audio.play();
 
-      localStorage.setItem(MUSIC_PREFERENCE_KEY, "on");
-
       setIsPlaying(true);
 
       return true;
     } catch (error) {
       console.warn("Background music could not start:", error);
+      setIsPlaying(false);
+
       return false;
     }
   }, []);
@@ -100,14 +74,15 @@ export const SiteMusicProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!audio) return;
 
     audio.pause();
-
-    localStorage.setItem(MUSIC_PREFERENCE_KEY, "off");
-
     setIsPlaying(false);
   }, []);
 
   const toggleMusic = useCallback(async () => {
-    if (audioRef.current?.paused) {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    if (audio.paused) {
       await playMusic();
     } else {
       pauseMusic();
@@ -144,9 +119,7 @@ export const useSiteMusic = () => {
   const context = useContext(SiteMusicContext);
 
   if (!context) {
-    throw new Error(
-      "useSiteMusic must be used inside SiteMusicProvider",
-    );
+    throw new Error("useSiteMusic must be used inside SiteMusicProvider");
   }
 
   return context;
