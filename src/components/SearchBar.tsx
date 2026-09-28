@@ -14,6 +14,83 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as strin
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
 const TRANSCRIBE_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-transcribe`;
 
+/* =========================================================
+   SITE BACKGROUND MUSIC
+   - Kept as a module-level singleton so route changes/remounts
+     do not recreate or stop the music.
+   - No visible player or track label is rendered.
+   ========================================================= */
+
+const SITE_MUSIC_SRC = "/music/the-velvet-hour.mp3";
+const SITE_MUSIC_VOLUME = 0.18;
+
+let siteMusicAudio: HTMLAudioElement | null = null;
+
+const getSiteMusicAudio = (): HTMLAudioElement | null => {
+  if (typeof window === "undefined") return null;
+
+  if (!siteMusicAudio) {
+    const audio = new Audio(SITE_MUSIC_SRC);
+    audio.preload = "auto";
+    audio.loop = true;
+    audio.volume = SITE_MUSIC_VOLUME;
+    (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+    siteMusicAudio = audio;
+  }
+
+  return siteMusicAudio;
+};
+
+const playSiteMusic = async (): Promise<boolean> => {
+  const audio = getSiteMusicAudio();
+
+  if (!audio) return false;
+
+  try {
+    audio.loop = true;
+
+    if (audio.paused) {
+      await audio.play();
+    }
+
+    return true;
+  } catch (error) {
+    console.warn("Background music could not start:", error);
+    return false;
+  }
+};
+
+const stopSiteMusic = (): void => {
+  const audio = getSiteMusicAudio();
+
+  if (!audio) return;
+
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+  } catch {
+    /* noop */
+  }
+};
+
+const isPlayMusicCommand = (value: string, promptIsActive = false): boolean => {
+  const normalized = value.trim().toLowerCase();
+
+  return (
+    /\b(play|start|turn on|put on|begin)\b.{0,30}\b(music|song|audio|track)\b/i.test(normalized) ||
+    (promptIsActive && /^(yes|yeah|yep|sure|please do|do it|go ahead|play it|put it on)$/i.test(normalized))
+  );
+};
+
+const isStopMusicCommand = (value: string, promptIsActive = false): boolean => {
+  const normalized = value.trim().toLowerCase();
+
+  return (
+    /\b(stop|pause|turn off|shut off|disable|mute)\b.{0,30}\b(music|song|audio|track|it)\b/i.test(normalized) ||
+    (promptIsActive && /^(no|no thanks|nah|not now|don't|dont)$/i.test(normalized))
+  );
+};
+
 const TTS_QUOTA_BLOCK_KEY = "gdx_tts_quota_blocked_until";
 const TTS_QUOTA_FALLBACK_MS = 24 * 60 * 60 * 1000;
 const TTS_KNOWN_PROVIDER_RESET_AT = 1788566400000;
@@ -723,6 +800,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const voiceLinksRef = useRef<VoiceLink[]>([]);
   const voiceLinksExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const musicPromptActiveRef = useRef(false);
+
   const isVoiceSessionRef = useRef(false);
   const isTranscribingRef = useRef(false);
   const isLoadingRef = useRef(false);
@@ -1026,16 +1105,38 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
      ======================================================= */
 
   useEffect(() => {
-    const FIRST_VISIT_KEY = "gd_ai_first_visit";
-    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
+    const MUSIC_PROMPT_KEY = "gdx_music_prompt_asked";
 
-    if (isFirstVisit && !response && suggestions.length === 0 && !isLoading) {
-      localStorage.setItem(FIRST_VISIT_KEY, "true");
-      const timer = setTimeout(() => {
-        handleSubmit(undefined, "introduce the website to the new user", false);
-      }, 1500);
-      return () => clearTimeout(timer);
+    let hasBeenAsked = false;
+
+    try {
+      hasBeenAsked = localStorage.getItem(MUSIC_PROMPT_KEY) === "true";
+    } catch {
+      /* Storage may be unavailable. */
     }
+
+    if (hasBeenAsked || response || suggestions.length > 0 || isLoading) {
+      return;
+    }
+
+    musicPromptActiveRef.current = true;
+
+    try {
+      localStorage.setItem(MUSIC_PROMPT_KEY, "true");
+    } catch {
+      /* In-memory ref remains active for this mounted SearchBar. */
+    }
+
+    const timer = setTimeout(() => {
+      setResponse("Would you like me to play some music while you explore?");
+      setSuggestions([]);
+      setIsRestoredFromStorage(false);
+    }, 1500);
+
+    return () => {
+      clearTimeout(timer);
+      musicPromptActiveRef.current = false;
+    };
   }, []);
 
   /* =======================================================
@@ -3093,6 +3194,58 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 
     const text = (customQuery ?? query).trim();
     if (!text) return;
+
+    /*
+     * Background music commands are handled locally so they are instant and
+     * reliable, without touching the existing AI/TTS request or any UI
+     * animation.
+     */
+    if (isPlayMusicCommand(text, musicPromptActiveRef.current)) {
+      const started = await playSiteMusic();
+      const acknowledgement = started ? "Sure — I’ll play some music." : "I couldn't start the music in this browser.";
+
+      musicPromptActiveRef.current = false;
+      setHasInteracted(true);
+      dismissSuggestionBubble();
+      setShowExpandedSuggestions(false);
+      setSearchVisuals([]);
+      setQuery("");
+      setResponse(acknowledgement);
+      setSuggestions([]);
+      setIsRestoredFromStorage(false);
+      onSearch?.(acknowledgement);
+
+      if (fromVoice && isVoiceSessionRef.current) {
+        void speakVoiceResponse(acknowledgement);
+      }
+
+      return;
+    }
+
+    if (isStopMusicCommand(text, musicPromptActiveRef.current)) {
+      stopSiteMusic();
+
+      const acknowledgement = "Sure — I’ll stop the music.";
+
+      musicPromptActiveRef.current = false;
+      setHasInteracted(true);
+      dismissSuggestionBubble();
+      setShowExpandedSuggestions(false);
+      setSearchVisuals([]);
+      setQuery("");
+      setResponse(acknowledgement);
+      setSuggestions([]);
+      setIsRestoredFromStorage(false);
+      onSearch?.(acknowledgement);
+
+      if (fromVoice && isVoiceSessionRef.current) {
+        void speakVoiceResponse(acknowledgement);
+      }
+
+      return;
+    }
+
+    musicPromptActiveRef.current = false;
 
     setHasInteracted(true);
     dismissSuggestionBubble();
