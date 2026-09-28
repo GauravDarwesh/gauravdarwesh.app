@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { GitHubCalendar } from "react-github-calendar";
+import { ActivityCalendar, type Activity } from "react-activity-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
 
-const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
+const CATEGORIES = [
+  "Languages",
+  "Skills",
+  "Platforms",
+  "Certifications",
+  "Extracurriculars",
+] as const;
 
 type Category = (typeof CATEGORIES)[number];
 
@@ -69,7 +75,13 @@ const DURATIONS: Record<Category, number> = {
 const chipClass =
   "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-out px-4 py-2 text-sm";
 
-const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
+const SpotlightContent = ({
+  category,
+  animKey,
+}: {
+  category: Category;
+  animKey: number;
+}) => {
   const items = CATEGORY_DATA[category];
 
   const stagger = (i: number) => ({
@@ -79,7 +91,11 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
   return (
     <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
       {items.map((item, i) => (
-        <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass}`}>
+        <div
+          key={item}
+          style={stagger(i)}
+          className={`spotlight-item ${chipClass}`}
+        >
           {item}
         </div>
       ))}
@@ -95,7 +111,9 @@ const CategorySpotlight = () => {
   const reducedMotion = useRef(false);
 
   useEffect(() => {
-    reducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    reducedMotion.current = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
   }, []);
 
   const advance = useCallback(() => {
@@ -158,7 +176,9 @@ const CategorySpotlight = () => {
               )}
             </button>
 
-            {i < CATEGORIES.length - 1 && <span className="text-white/30 select-none">/</span>}
+            {i < CATEGORIES.length - 1 && (
+              <span className="text-white/30 select-none">/</span>
+            )}
           </span>
         ))}
       </h2>
@@ -178,7 +198,10 @@ const CategorySpotlight = () => {
 const GitHubActivity = () => {
   const [isMinimal, setIsMinimal] = useState(false);
   const [contributions, setContributions] = useState<Activity[]>([]);
+  const [totalContributions, setTotalContributions] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -204,39 +227,55 @@ const GitHubActivity = () => {
 
     const loadContributions = async () => {
       setLoading(true);
+      setError(false);
 
       try {
-        const cacheBuster = Date.now();
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+        if (!supabaseUrl || !supabaseAnonKey) {
+          throw new Error("Supabase environment variables are missing.");
+        }
 
         const response = await fetch(
-          `https://github-contributions-api.jogruber.de/v4/GauravDarwesh?y=${currentYear}&_=${cacheBuster}`,
+          `${supabaseUrl.replace(/\\/$/, "")}/functions/v1/github-contributions?year=${currentYear}`,
           {
+            method: "GET",
             signal: controller.signal,
-            cache: "no-store",
             headers: {
+              apikey: supabaseAnonKey,
+              Authorization: `Bearer ${supabaseAnonKey}`,
               "Cache-Control": "no-cache",
-              Pragma: "no-cache",
             },
+            cache: "no-store",
           },
         );
 
         if (!response.ok) {
-          throw new Error(`GitHub contribution request failed: ${response.status}`);
+          throw new Error(`GitHub contributions function failed: ${response.status}`);
         }
 
         const data = (await response.json()) as {
           contributions?: Activity[];
+          totalContributions?: number;
         };
 
         if (!Array.isArray(data.contributions)) {
-          throw new Error("GitHub contribution data was not returned in the expected format.");
+          throw new Error("GitHub contribution data is missing.");
         }
 
         setContributions(data.contributions);
-      } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("GitHub contribution loading failed:", error);
+        setTotalContributions(
+          typeof data.totalContributions === "number"
+            ? data.totalContributions
+            : data.contributions.reduce((sum, day) => sum + day.count, 0),
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          console.error("GitHub contribution loading failed:", err);
           setContributions([]);
+          setTotalContributions(null);
+          setError(true);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -250,20 +289,21 @@ const GitHubActivity = () => {
     return () => controller.abort();
   }, [currentYear]);
 
-  /*
-   * Purple/plum is deliberate here:
-   * it remains strongly visible against the orange/yellow LED wallpaper
-   * without introducing a disconnected "third theme".
-   */
   const calendarTheme = isMinimal
     ? {
-        light: ["rgba(0,0,0,0.045)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.36)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.90)"],
+        light: [
+          "rgba(0,0,0,0.045)",
+          "rgba(0,0,0,0.18)",
+          "rgba(0,0,0,0.36)",
+          "rgba(0,0,0,0.60)",
+          "rgba(0,0,0,0.90)",
+        ],
         dark: [
-          "rgba(255,255,255,0.045)",
-          "rgba(255,184,77,0.20)",
-          "rgba(255,161,54,0.38)",
-          "rgba(255,137,38,0.62)",
-          "rgba(255,255,255,0.90)",
+          "rgba(48,23,68,0.88)",
+          "rgba(93,50,124,0.92)",
+          "rgba(132,78,169,0.94)",
+          "rgba(181,116,214,0.96)",
+          "rgba(238,207,255,0.98)",
         ],
       }
     : {
@@ -279,9 +319,13 @@ const GitHubActivity = () => {
   return (
     <section className="pt-2">
       <div className="mb-5">
-        <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold">
+          GitHub Activity
+        </h2>
 
-        <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
+        <p className="text-sm text-white/45 mt-1">
+          A year of building, experimenting, and shipping.
+        </p>
       </div>
 
       <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
@@ -290,27 +334,36 @@ const GitHubActivity = () => {
           className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.055] blur-3xl"
         />
 
-        <div className="relative px-4 py-5 sm:px-6 sm:py-6 overflow-hidden">
+        <div className="relative px-4 py-5 sm:px-6 sm:py-6">
           {loading ? (
             <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
+          ) : error ? (
+            <div className="flex min-h-[190px] items-center justify-center rounded-2xl border border-white/10 px-6 text-center text-sm text-white/55">
+              GitHub activity is temporarily unavailable.
+            </div>
           ) : (
-            <ActivityCalendar
-              key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
-              data={contributions}
-              colorScheme={isMinimal ? "light" : "dark"}
-              blockSize={11}
-              blockMargin={4}
-              blockRadius={2}
-              fontSize={12}
-              showWeekdayLabels
-              showMonthLabels
-              showColorLegend
-              showTotalCount
-              labels={{
-                totalCount: `{{count}} contributions in ${currentYear}`,
-              }}
-              theme={calendarTheme}
-            />
+            <div className="github-calendar-host">
+              <ActivityCalendar
+                key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
+                data={contributions}
+                colorScheme={isMinimal ? "light" : "dark"}
+                blockSize={11}
+                blockMargin={4}
+                blockRadius={2}
+                fontSize={12}
+                showWeekdayLabels
+                showMonthLabels
+                showColorLegend
+                showTotalCount
+                labels={{
+                  totalCount:
+                    totalContributions === null
+                      ? `{{count}} contributions in ${currentYear}`
+                      : `${totalContributions} contributions in ${currentYear}`,
+                }}
+                theme={calendarTheme}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -338,13 +391,25 @@ const Portfolio = () => {
           content="Gaurav Darwesh's classic resume view: experience, skills, platforms, certifications and extracurriculars."
         />
 
-        <link rel="canonical" href="https://gauravdarwesh.app/hobbies" />
+        <link
+          rel="canonical"
+          href="https://gauravdarwesh.app/hobbies"
+        />
 
-        <meta property="og:title" content="Experience &amp; Skills — Gaurav Darwesh" />
+        <meta
+          property="og:title"
+          content="Experience &amp; Skills — Gaurav Darwesh"
+        />
 
-        <meta property="og:description" content="Experience, skills, platforms and certifications of Gaurav Darwesh." />
+        <meta
+          property="og:description"
+          content="Experience, skills, platforms and certifications of Gaurav Darwesh."
+        />
 
-        <meta property="og:url" content="https://gauravdarwesh.app/hobbies" />
+        <meta
+          property="og:url"
+          content="https://gauravdarwesh.app/hobbies"
+        />
       </Helmet>
 
       {/* Navigation Toggle */}
@@ -357,7 +422,9 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <div className="relative w-full mb-8 overflow-hidden">
-          <h1 className="sr-only">Gaurav Darwesh — Experience &amp; Skills</h1>
+          <h1 className="sr-only">
+            Gaurav Darwesh — Experience &amp; Skills
+          </h1>
 
           {/* Seamless marquee */}
           <div className="overflow-hidden marquee-fade-edges">
@@ -382,7 +449,10 @@ const Portfolio = () => {
               </div>
 
               {/* Group B */}
-              <div className="flex items-center shrink-0" aria-hidden="true">
+              <div
+                className="flex items-center shrink-0"
+                aria-hidden="true"
+              >
                 <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold whitespace-nowrap px-6">
                   Gaurav Darwesh
                 </span>
@@ -409,17 +479,31 @@ const Portfolio = () => {
 
         <div>
           <div className="flex flex-wrap gap-4 text-white mt-2">
-            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">mail/</a>
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=gauravdarwesh155@gmail.com">
+              mail/
+            </a>
 
-            <a href="https://linkedin.com/in/gauravdarwesh" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://linkedin.com/in/gauravdarwesh"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               in/
             </a>
 
-            <a href="https://twitter.com/gaurav11darwesh" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://twitter.com/gaurav11darwesh"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               twitter/
             </a>
 
-            <a href="https://instagram.com/allaboutgaurav" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://instagram.com/allaboutgaurav"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               instagram/
             </a>
           </div>
@@ -430,11 +514,14 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <p className="text-base sm:text-lg leading-relaxed mt-4">
-          Results-oriented professional with a strong foundation in regulatory tech and customer success operations.
-          Skilled in transforming complex requirements into scalable solutions and streamlining end-to-end processes
-          through Applied AI and workflow automation. Experienced in equipping teams with AI-powered insights and tools
-          to drive engagement, retention, and growth. Recognized for cross-functional collaboration and a holistic,
-          data-driven approach to solving business challenges.
+          Results-oriented professional with a strong foundation in regulatory
+          tech and customer success operations. Skilled in transforming
+          complex requirements into scalable solutions and streamlining
+          end-to-end processes through Applied AI and workflow automation.
+          Experienced in equipping teams with AI-powered insights and tools to
+          drive engagement, retention, and growth. Recognized for
+          cross-functional collaboration and a holistic, data-driven approach
+          to solving business challenges.
         </p>
 
         {/* ================================================================ */}
@@ -442,7 +529,9 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <section>
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">
+            Education
+          </h2>
 
           {/* University of Mumbai */}
           <div className="mb-8">
@@ -451,10 +540,13 @@ const Portfolio = () => {
             </div>
 
             <p className="text-sm">
-              B.E. Computer Science & Engineering (Artificial Intelligence and Machine Learning) — 8.6 CGPA
+              B.E. Computer Science & Engineering (Artificial Intelligence and
+              Machine Learning) — 8.6 CGPA
             </p>
 
-            <p className="text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
+            <p className="text-sm text-white/60 mt-1">
+              Dec 2021 – June 2025
+            </p>
           </div>
 
           {/* University of Cambridge */}
@@ -463,9 +555,13 @@ const Portfolio = () => {
               <h3 className="font-semibold">University of Cambridge</h3>
             </div>
 
-            <p className="text-sm">Undergraduate Certificate in Strategic Business and Management</p>
+            <p className="text-sm">
+              Undergraduate Certificate in Strategic Business and Management
+            </p>
 
-            <p className="text-sm text-white/60 mt-1">Oct 2023 – July 2024</p>
+            <p className="text-sm text-white/60 mt-1">
+              Oct 2023 – July 2024
+            </p>
           </div>
         </section>
 
@@ -474,7 +570,9 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <section>
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">
+            Experience
+          </h2>
 
           {/* ============================================================ */}
           {/* NASDAQ — Product Manager Analyst                              */}
@@ -483,42 +581,55 @@ const Portfolio = () => {
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
-            <p className="italic mb-3">Product Manager Analyst · July 2025 – Present</p>
+            <p className="italic mb-3">
+              Product Manager Analyst · July 2025 – Present
+            </p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>
-                Monitor and analyze regulatory updates across EMEA, NAM, and LATAM regions, interpreting complex
-                regulations into actionable product and business requirements for AxiomSL&apos;s reporting solutions.
+                Monitor and analyze regulatory updates across EMEA, NAM, and
+                LATAM regions, interpreting complex regulations into actionable
+                product and business requirements for AxiomSL&apos;s reporting
+                solutions.
               </li>
 
               <li>
-                Manage end-to-end regulatory change processes, including creating JIRA tickets, coordinating
-                cross-functional teams like BA, sales and pre-sales teams with client-specific needs, ensuring data
-                accuracy and integrity in internal systems, and contributing to product enhancements.
+                Manage end-to-end regulatory change processes, including
+                creating JIRA tickets, coordinating cross-functional teams like
+                BA, sales and pre-sales teams with client-specific needs,
+                ensuring data accuracy and integrity in internal systems, and
+                contributing to product enhancements.
               </li>
 
               <li>
-                Built Power BI dashboards using Power Query translating raw data (Jira, SNOW) into leadership insights.
+                Built Power BI dashboards using Power Query translating raw data
+                (Jira, SNOW) into leadership insights.
               </li>
 
               <li>
-                Designed a comprehensive Regulatory Monitoring communication pipeline (AxiomSL Regulatory Newsletter -
-                Global, Email, Teams Channel) via Power Automate and internal AI platform. The system captures marked
-                Jira tickets, utilizes AI to structure the data, and enforces human-in-the-loop approvals before
-                broadcasting to internal teams and clients. This seamless workflow reduced manual reporting time from 3
-                days to 30 minutes (98% faster).
+                Designed a comprehensive Regulatory Monitoring communication
+                pipeline (AxiomSL Regulatory Newsletter - Global, Email, Teams
+                Channel) via Power Automate and internal AI platform. The system
+                captures marked Jira tickets, utilizes AI to structure the data,
+                and enforces human-in-the-loop approvals before broadcasting to
+                internal teams and clients. This seamless workflow reduced
+                manual reporting time from 3 days to 30 minutes (98% faster).
               </li>
 
               <li>
-                Drive automation initiatives to streamline regulatory monitoring, including the development of ReM AI
-                (Regulatory Monitoring AI). This LLM-powered tool assists the RMT Team with document summarization,
-                comparison, and understanding historical trends via a connected Jira MCP, and can automatically create
-                Jira issues and Confluence pages.
+                Drive automation initiatives to streamline regulatory
+                monitoring, including the development of ReM AI (Regulatory
+                Monitoring AI). This LLM-powered tool assists the RMT Team with
+                document summarization, comparison, and understanding
+                historical trends via a connected Jira MCP, and can
+                automatically create Jira issues and Confluence pages.
               </li>
 
               <li>
-                Architecting a unified data repository (Reg-Inventory) by integrating multi-channel data streams from
-                Jira, ServiceNow (SNOW), and product inventory to centralize documentation for all regulatory reports.
+                Architecting a unified data repository (Reg-Inventory) by
+                integrating multi-channel data streams from Jira, ServiceNow
+                (SNOW), and product inventory to centralize documentation for
+                all regulatory reports.
               </li>
             </ul>
           </div>
@@ -530,24 +641,31 @@ const Portfolio = () => {
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
-            <p className="italic mb-3">Client Success Operations Analysis Intern · Jan 2025 – Jun 2025</p>
+            <p className="italic mb-3">
+              Client Success Operations Analysis Intern · Jan 2025 – Jun 2025
+            </p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>
-                Led strategic initiatives, including the Whitespace Project to identify upsell and cross-sell
-                opportunities, and an organization-wide Net Promoter Score campaign across multiple Nasdaq product lines
-                (Calypso, AxiomSL, NTS) leveraging Qualtrics, Planhat, Power BI, and Salesforce.
+                Led strategic initiatives, including the Whitespace Project to
+                identify upsell and cross-sell opportunities, and an
+                organization-wide Net Promoter Score campaign across multiple
+                Nasdaq product lines (Calypso, AxiomSL, NTS) leveraging
+                Qualtrics, Planhat, Power BI, and Salesforce.
               </li>
 
               <li>
-                Supported Nasdaq Trade Surveillance (Phase-1) by vetting subscriptions through JIRA and automating
-                AI-powered vetting workflows using an internal GenAI Platform. This increased efficiency and reduced
-                manual work for easy-to-process documents.
+                Supported Nasdaq Trade Surveillance (Phase-1) by vetting
+                subscriptions through JIRA and automating AI-powered vetting
+                workflows using an internal GenAI Platform. This increased
+                efficiency and reduced manual work for easy-to-process
+                documents.
               </li>
 
               <li>
-                Collaborated with global teams to streamline customer success operations, analyze client trends,
-                optimize retention strategies, and enhance stakeholder engagement.
+                Collaborated with global teams to streamline customer success
+                operations, analyze client trends, optimize retention
+                strategies, and enhance stakeholder engagement.
               </li>
             </ul>
           </div>
@@ -557,26 +675,33 @@ const Portfolio = () => {
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
+            <h3 className="font-semibold">
+              Jio Platforms Limited, Mumbai, India
+            </h3>
 
-            <p className="italic mb-3">Data Science Intern · Dec 2023 – Jan 2024</p>
+            <p className="italic mb-3">
+              Data Science Intern · Dec 2023 – Jan 2024
+            </p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>
-                Designed and implemented an AI-driven indoor wireless coverage optimization system, integrating ray
-                tracing simulations (Pylayers) and computer vision (OpenCV) to enhance network planning and signal
-                accuracy.
+                Designed and implemented an AI-driven indoor wireless coverage
+                optimization system, integrating ray tracing simulations
+                (Pylayers) and computer vision (OpenCV) to enhance network
+                planning and signal accuracy.
               </li>
 
               <li>
-                Developed visibility and interaction maps, automated wall detection, and distance measurements to
-                optimize the placement of network access points for improved 5G coverage.
+                Developed visibility and interaction maps, automated wall
+                detection, and distance measurements to optimize the placement
+                of network access points for improved 5G coverage.
               </li>
 
               <li>
-                Delivered a proof-of-concept demonstrating the real-world applicability of ray tracing for 5G network
-                challenges, providing actionable insights and collaborating with teams to support Jio&apos;s network
-                improvement strategies.
+                Delivered a proof-of-concept demonstrating the real-world
+                applicability of ray tracing for 5G network challenges,
+                providing actionable insights and collaborating with teams to
+                support Jio&apos;s network improvement strategies.
               </li>
             </ul>
           </div>
@@ -586,54 +711,70 @@ const Portfolio = () => {
           {/* ============================================================ */}
 
           <div className="mb-8">
-            <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
+            <h3 className="font-semibold">
+              Fanatisch Digital Marketing Services, Mumbai, India
+            </h3>
 
             <p className="italic mb-3">Marketing Intern</p>
 
             <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base leading-relaxed">
               <li>
-                Curated engaging content ideas for Instagram handles of food companies, including @oddiyana._, @pots56_,
-                @pakkhtun_, @blissobowl, and @birinjz.
+                Curated engaging content ideas for Instagram handles of food
+                companies, including @oddiyana._, @pots56_, @pakkhtun_,
+                @blissobowl, and @birinjz.
               </li>
 
               <li>
-                Executed data-driven campaigns using Instagram and Google Ads to boost brand visibility and engagement.
+                Executed data-driven campaigns using Instagram and Google Ads to
+                boost brand visibility and engagement.
               </li>
 
               <li>
-                Led a comprehensive campaign titled &quot;Feast from the east&quot; for a month, targeting food
-                enthusiasts in Mumbai.
+                Led a comprehensive campaign titled &quot;Feast from the
+                east&quot; for a month, targeting food enthusiasts in Mumbai.
               </li>
 
               <li>
-                Utilized Instagram and Google Ads to segment audiences based on culinary interests and online behavior.
+                Utilized Instagram and Google Ads to segment audiences based on
+                culinary interests and online behavior.
               </li>
 
               <li>
-                Developed a content calendar featuring daily recipes, cooking tips, and user-generated content to
-                maintain engagement.
+                Developed a content calendar featuring daily recipes, cooking
+                tips, and user-generated content to maintain engagement.
               </li>
 
-              <li>Implemented A/B testing for ad creatives and landing pages to optimize performance.</li>
+              <li>
+                Implemented A/B testing for ad creatives and landing pages to
+                optimize performance.
+              </li>
 
               <li>Increased followers by 25% across all Instagram handles.</li>
 
-              <li>Achieved a 40% boost in engagement rates through targeted ads and interactive content.</li>
-
               <li>
-                Enhanced website traffic by 35% and improved conversion rates by 20% through optimized online marketing
-                strategies.
+                Achieved a 40% boost in engagement rates through targeted ads and
+                interactive content.
               </li>
 
               <li>
-                Assisted in organizing the &quot;Feast from the East&quot; event at Royal Orchid Central Grazia, Mumbai.
+                Enhanced website traffic by 35% and improved conversion rates by
+                20% through optimized online marketing strategies.
               </li>
 
               <li>
-                Coordinated logistics, managed vendor relations, and promoted the event through social media channels.
+                Assisted in organizing the &quot;Feast from the East&quot; event
+                at Royal Orchid Central Grazia, Mumbai.
               </li>
 
-              <li>Ensured a successful event turnout and positive attendee feedback.</li>
+              <li>
+                Coordinated logistics, managed vendor relations, and promoted
+                the event through social media channels.
+              </li>
+
+              <li>
+                Ensured a successful event turnout and positive attendee
+                feedback.
+              </li>
             </ul>
           </div>
         </section>
@@ -643,31 +784,38 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <section>
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">
+            Recommendations
+          </h2>
 
           <div className="space-y-6">
             <div>
               <p>
-                <strong>Ibrahim Carime</strong> — Senior Director, Customer Success Operations, Nasdaq
+                <strong>Ibrahim Carime</strong> — Senior Director, Customer
+                Success Operations, Nasdaq
               </p>
 
               <p className="text-sm text-white mt-1">
-                Ibrahim mentored Gaurav during his internship at Nasdaq. He praised Gaurav’s motivation, curiosity, and
-                strong engagement, describing him as a standout contributor who brought fresh energy and shows great
-                potential for the future.
+                Ibrahim mentored Gaurav during his internship at Nasdaq. He
+                praised Gaurav’s motivation, curiosity, and strong engagement,
+                describing him as a standout contributor who brought fresh
+                energy and shows great potential for the future.
               </p>
             </div>
 
             <div>
               <p>
-                <strong>Doug Williamson</strong> — Executive Finance Coach, University of Cambridge
+                <strong>Doug Williamson</strong> — Executive Finance Coach,
+                University of Cambridge
               </p>
 
               <p className="text-sm text-white mt-1">
-                Doug taught Gaurav in the Finance & Accounting unit at Cambridge. He highlighted his ability to grasp
-                complex finance topics, apply them to practical challenges, and deliver insightful analysis. Doug also
-                commended Gaurav’s strong time and project management skills, confident he will add substantial value in
-                any role.
+                Doug taught Gaurav in the Finance & Accounting unit at
+                Cambridge. He highlighted his ability to grasp complex finance
+                topics, apply them to practical challenges, and deliver
+                insightful analysis. Doug also commended Gaurav’s strong time
+                and project management skills, confident he will add
+                substantial value in any role.
               </p>
             </div>
 
@@ -677,9 +825,11 @@ const Portfolio = () => {
               </p>
 
               <p className="text-sm text-white mt-1">
-                Sourav mentored Gaurav during an internship at Jio. He emphasized his flexibility, rapid learning, and
-                proactive approach to problem-solving. Gaurav consistently delivered high-quality work on time, and
-                Sourav noted he would be a valuable asset in any future position.
+                Sourav mentored Gaurav during an internship at Jio. He
+                emphasized his flexibility, rapid learning, and proactive
+                approach to problem-solving. Gaurav consistently delivered
+                high-quality work on time, and Sourav noted he would be a
+                valuable asset in any future position.
               </p>
             </div>
           </div>
@@ -712,18 +862,20 @@ const Portfolio = () => {
           scrollbar-width: none;
         }
 
-        /* One horizontal scroll owner only:
-           ActivityCalendar's internal viewport handles the calendar's
-           overflow. Removing the outer nested scroller fixes sticky
-           trackpad/wheel scrolling between October and December. */
+        /* Only ActivityCalendar's native horizontal viewport scrolls.
+           The old nested overflow wrapper was what made trackpad scrolling
+           feel like it stopped between October and December. */
         .github-calendar-shell {
           overscroll-behavior: contain;
         }
 
-        .github-calendar-shell
-          .react-activity-calendar__scroll-container,
-        .github-calendar-shell
-          [class*="scroll-container"] {
+        .github-calendar-host {
+          min-width: 0;
+          width: 100%;
+        }
+
+        .github-calendar-host .react-activity-calendar__scroll-container,
+        .github-calendar-host [class*="scroll-container"] {
           scrollbar-width: none;
           -ms-overflow-style: none;
           -webkit-overflow-scrolling: touch;
@@ -731,23 +883,15 @@ const Portfolio = () => {
           overscroll-behavior-inline: contain;
         }
 
-        .github-calendar-shell
-          .react-activity-calendar__scroll-container::-webkit-scrollbar,
-        .github-calendar-shell
-          [class*="scroll-container"]::-webkit-scrollbar {
+        .github-calendar-host .react-activity-calendar__scroll-container::-webkit-scrollbar,
+        .github-calendar-host [class*="scroll-container"]::-webkit-scrollbar {
           display: none;
           width: 0;
           height: 0;
         }
 
-        /* Keep the normal palette readable over the moving orange/yellow
-           wallpaper without making the GitHub panel look detached. */
-        .github-calendar-shell .react-activity-calendar__scroll-container {
-          color: rgba(255,255,255,0.82);
-        }
-
-        /* Minimal mode: avoid the sitewide article:hover inversion.
-           ActivityCalendar renders its root as an <article>. */
+        /* Minimal mode: the site's global article:hover rule would
+           otherwise paint ActivityCalendar's internal <article> black. */
         :root[data-theme="minimal"] .site-page .github-calendar-shell article,
         :root[data-theme="minimal"] .site-page .github-calendar-shell article:hover {
           background-color: transparent !important;
