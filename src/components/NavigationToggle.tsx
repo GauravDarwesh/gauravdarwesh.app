@@ -195,11 +195,15 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
                 rounded-full
 
                 bg-transparent
-                hover:bg-transparent
+                hover:bg-white/10
 
-                border border-transparent
+                border border-white/30
 
-                ${active ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" : "text-gray-300 hover:text-white"}
+                ${
+                  active
+                    ? "bg-white/15 border-white/50 text-white backdrop-blur-sm"
+                    : "text-white/85 hover:text-white hover:border-white/45"
+                }
 
                 ${showGdxHint ? "gdx-theme-hint" : ""}
               `}
@@ -226,7 +230,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
           backdrop-blur-md
 
           bg-white/10
-          border border-white/20
+          border border-white/35
 
           text-white
           shadow-lg
@@ -236,6 +240,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
           ease-in-out
 
           hover:bg-white/20
+          hover:border-white/50
 
           ${(enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
         `}
