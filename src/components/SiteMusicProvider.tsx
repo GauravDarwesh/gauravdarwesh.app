@@ -56,14 +56,11 @@ export const SiteMusicProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       await audio.play();
-
       setIsPlaying(true);
-
       return true;
     } catch (error) {
       console.warn("Background music could not start:", error);
       setIsPlaying(false);
-
       return false;
     }
   }, []);
