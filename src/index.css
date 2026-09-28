@@ -3,628 +3,506 @@
 @tailwind utilities;
 
 /* ============================================================
-   DESIGN SYSTEM
-   ============================================================ */
+DESIGN SYSTEM
+============================================================ */
 
 @layer base {
-  :root {
-    /* Dark minimalist design system */
-    --background: 0 0% 6%;
-    --foreground: 0 0% 95%;
+:root {
+/* Dark minimalist design system */
+--background: 0 0% 6%;
+--foreground: 0 0% 95%;
 
-    /* Blue gradient system */
-    --primary-blue: 220 100% 60%;
-    --secondary-blue: 240 100% 70%;
-    --accent-blue: 200 100% 50%;
+```
+/* Blue gradient system */
+--primary-blue: 220 100% 60%;
+--secondary-blue: 240 100% 70%;
+--accent-blue: 200 100% 50%;
 
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 95%;
+--card: 0 0% 8%;
+--card-foreground: 0 0% 95%;
 
-    --primary: 220 100% 60%;
-    --primary-foreground: 0 0% 95%;
+--primary: 220 100% 60%;
+--primary-foreground: 0 0% 95%;
 
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 95%;
+--secondary: 0 0% 12%;
+--secondary-foreground: 0 0% 95%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 65%;
+--muted: 0 0% 10%;
+--muted-foreground: 0 0% 65%;
 
-    --accent: 220 100% 60%;
-    --accent-foreground: 0 0% 95%;
+--accent: 220 100% 60%;
+--accent-foreground: 0 0% 95%;
 
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 220 100% 60%;
+--border: 0 0% 15%;
+--input: 0 0% 15%;
+--ring: 220 100% 60%;
 
-    --radius: 0.5rem;
+--radius: 0.5rem;
 
-    /* Custom gradients */
-    --gradient-blue-1: 220 100% 60%;
-    --gradient-blue-2: 240 100% 70%;
-    --gradient-blue-3: 200 100% 50%;
-  }
+/* Custom gradients */
+--gradient-blue-1: 220 100% 60%;
+--gradient-blue-2: 240 100% 70%;
+--gradient-blue-3: 200 100% 50%;
+```
+
+}
 }
 
 @layer base {
-  * {
-    @apply border-border;
+
+* {
+  @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-  }
+body {
+@apply bg-background text-foreground;
+}
 }
 
 /* ============================================================
-   SPINNING ASTERISK
-   ============================================================ */
+SPINNING ASTERISK
+============================================================ */
 
 @keyframes spin-slow {
-  from {
-    transform: rotate(0deg);
-  }
+from {
+transform: rotate(0deg);
+}
 
-  to {
-    transform: rotate(360deg);
-  }
+to {
+transform: rotate(360deg);
+}
 }
 
 .animate-spin-slow {
-  animation: spin-slow 3s linear infinite;
+animation: spin-slow 3s linear infinite;
 }
 
 /* ============================================================
-   SLOW FADE IN
-   ============================================================ */
+SLOW FADE IN
+============================================================ */
 
 @keyframes fadeInSlow {
-  0% {
-    opacity: 0;
-    transform: scale(1.05);
-  }
+0% {
+opacity: 0;
+transform: scale(1.05);
+}
 
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+100% {
+opacity: 1;
+transform: scale(1);
+}
 }
 
 .animate-fadeInSlow {
-  animation: fadeInSlow 3s ease-in-out forwards;
+animation: fadeInSlow 3s ease-in-out forwards;
 }
 
 /* ============================================================
-   PROCEDURAL LED WALLPAPER
-   ------------------------------------------------------------
-   Deep blue + deep red only.
+PROCEDURAL LED WALLPAPER
+------------------------
 
-   The existing canvas element is intentionally kept in the DOM so
-   the React/JS implementation does not need to change, but its
-   original colour output is completely hidden. The visible wall is
-   rendered here so the old orange/yellow palette cannot bleed through.
-   ============================================================ */
+Shrey-style fixed LED geometry + continuously evolving canvas field.
+No pointer interaction. The 1px gaps are the checkerboard itself.
+============================================================ */
 
 .orange-bg {
-  --tile: 19px;
-  --gap: 1px;
-  --cell: 20px;
+--tile: 19px;
+--gap: 1px;
+--cell: 20px;
+--led-base: #140c08;
 
-  /* Only near-black, deep blue and deep red are used here. */
-  --led-base: #04070d;
-  --navy-1: #06101f;
-  --navy-2: #081a32;
-  --navy-3: #0b2443;
-  --crimson-1: #18060a;
-  --crimson-2: #2a080f;
-  --crimson-3: #3d0c16;
-
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 100dvh;
-  overflow: hidden;
-  pointer-events: none;
-  isolation: isolate;
-  background: var(--led-base);
-  transform: translateZ(0);
-  backface-visibility: hidden;
+position: fixed;
+inset: 0;
+z-index: 0;
+width: 100%;
+height: 100%;
+min-height: 100dvh;
+overflow: hidden;
+pointer-events: none;
+isolation: isolate;
+background: var(--led-base);
+transform: translateZ(0);
+backface-visibility: hidden;
 }
 
 .site-background.orange-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  transition: none;
+position: fixed;
+inset: 0;
+z-index: 0;
+width: 100%;
+height: 100%;
+min-height: 100%;
+transition: none;
+}
+
+.orange-bg .led-wallpaper-canvas {
+position: absolute;
+inset: 0;
+display: block;
+width: 100%;
+height: 100%;
+pointer-events: none;
+user-select: none;
+z-index: 0;
+transform: translateZ(0);
+backface-visibility: hidden;
+image-rendering: pixelated;
 }
 
 /*
- * Keep the original canvas mounted for compatibility, but make its
- * pixels invisible. This is the important fix for the yellow/orange
- * colours that were still showing through the previous version.
- */
-.orange-bg .led-wallpaper-canvas {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  image-rendering: pixelated;
-  visibility: hidden !important;
-  opacity: 0 !important;
-}
 
-/* ------------------------------------------------------------
-   Moving colour field
-   ------------------------------------------------------------ */
-
-.orange-bg::before {
-  content: "";
-  position: absolute;
-  inset: -28%;
-  z-index: 1;
-  pointer-events: none;
-
-  background:
-    radial-gradient(
-      ellipse 34% 38% at 21% 32%,
-      rgba(11, 36, 67, 0.92) 0%,
-      rgba(8, 26, 50, 0.8) 30%,
-      rgba(6, 16, 31, 0.4) 58%,
-      transparent 76%
-    ),
-    radial-gradient(
-      ellipse 31% 35% at 79% 67%,
-      rgba(61, 12, 22, 0.86) 0%,
-      rgba(42, 8, 15, 0.74) 32%,
-      rgba(24, 6, 10, 0.38) 60%,
-      transparent 78%
-    ),
-    linear-gradient(120deg, #06101f 0%, #04070d 48%, #18060a 100%);
-
-  filter: blur(26px) saturate(0.9);
-  transform: translate3d(-5%, -3%, 0) scale(1.08);
-  will-change: transform, background-position;
-  animation: led-blue-red-field 26s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
-}
-
-/* ------------------------------------------------------------
-   LED/checkerboard geometry + darker secondary movement
-   ------------------------------------------------------------ */
-
-.orange-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-
-  /*
-   * The first two layers create the 1px LED gaps. The colour beneath
-   * each 19px tile comes only from the blue/red field above.
-   */
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent var(--tile),
-      rgba(2, 4, 8, 0.96) var(--tile),
-      rgba(2, 4, 8, 0.96) var(--cell)
-    ),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0,
-      transparent var(--tile),
-      rgba(2, 4, 8, 0.96) var(--tile),
-      rgba(2, 4, 8, 0.96) var(--cell)
-    ),
-    radial-gradient(ellipse 40% 45% at 30% 60%, rgba(8, 26, 50, 0.28) 0%, transparent 70%),
-    radial-gradient(ellipse 38% 42% at 70% 36%, rgba(42, 8, 15, 0.24) 0%, transparent 72%);
-
-  background-size:
-    var(--cell) var(--cell),
-    var(--cell) var(--cell),
-    100% 100%,
-    100% 100%;
-
-  mix-blend-mode: normal;
-  opacity: 0.92;
-  transform: translate3d(0, 0, 0);
-  will-change: transform, background-position;
-  animation: led-blue-red-grid 34s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
-}
-
-@keyframes led-blue-red-field {
-  0% {
-    transform: translate3d(-5%, -3%, 0) scale(1.08);
-  }
-
-  22% {
-    transform: translate3d(1%, -7%, 0) scale(1.11);
-  }
-
-  48% {
-    transform: translate3d(7%, 1%, 0) scale(1.06);
-  }
-
-  74% {
-    transform: translate3d(-1%, 7%, 0) scale(1.12);
-  }
-
-  100% {
-    transform: translate3d(-7%, 2%, 0) scale(1.08);
-  }
-}
-
-@keyframes led-blue-red-grid {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  50% {
-    transform: translate3d(0.35%, -0.25%, 0) scale(1.002);
-  }
-
-  100% {
-    transform: translate3d(-0.25%, 0.35%, 0) scale(1.001);
-  }
-}
+* IMPORTANT: there is deliberately no ::after grid overlay here.
+* Shrey's effect gets the checkerboard from tile < cell geometry:
+* each 19px LED is separated by a 1px background gap.
+* Putting another static grid over the canvas made the movement look frozen.
+  */
 
 @media (max-width: 900px) {
-  .orange-bg {
-    --tile: 17px;
-    --cell: 18px;
-  }
+.orange-bg {
+--tile: 17px;
+--cell: 18px;
+}
 }
 
 @media (max-width: 768px) {
-  .orange-bg {
-    --tile: 16px;
-    --cell: 17px;
-  }
+.orange-bg {
+--tile: 16px;
+--cell: 17px;
+}
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orange-bg::before,
-  .orange-bg::after {
-    animation: none;
-  }
+.orange-bg .led-wallpaper-canvas {
+opacity: 0.96;
+}
 }
 
 /* ============================================================
-   SCROLLBAR UTILITIES
-   ============================================================ */
+SCROLLBAR UTILITIES
+============================================================ */
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;
+display: none;
 }
 
 .scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+-ms-overflow-style: none;
+scrollbar-width: none;
 }
 
 /* ============================================================
-   FADE / SLIDE
-   ============================================================ */
+FADE / SLIDE
+============================================================ */
 
 @keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
+from {
+opacity: 0;
+transform: translateY(6px);
+}
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+to {
+opacity: 1;
+transform: translateY(0);
+}
 }
 
 /* ============================================================
-   GRAINY GRADIENT BACKGROUND
-   ------------------------------------------------------------
-   Kept intact for components/pages that explicitly use this
-   class. It is NOT used by the new LED wallpaper.
-   ============================================================ */
+GRAINY GRADIENT BACKGROUND
+--------------------------
+
+Kept intact for components/pages that explicitly use this
+class. It is NOT used by the new LED wallpaper.
+============================================================ */
 
 .bg-grainy-gradient {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--gradient-blue-1)),
-    hsl(var(--gradient-blue-2)),
-    hsl(var(--gradient-blue-3))
-  );
+background: linear-gradient(
+135deg,
+hsl(var(--gradient-blue-1)),
+hsl(var(--gradient-blue-2)),
+hsl(var(--gradient-blue-3))
+);
 
-  position: relative;
-  overflow: hidden;
+position: relative;
+overflow: hidden;
 }
 
 /* ------------------------------------------------------------
-   Grain overlay
-   ------------------------------------------------------------ */
+Grain overlay
+------------------------------------------------------------ */
 
 .bg-grainy-gradient::before {
-  content: "";
+content: "";
 
-  position: absolute;
-  inset: 0;
+position: absolute;
+inset: 0;
 
-  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
+background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=");
 
-  mix-blend-mode: overlay;
+mix-blend-mode: overlay;
 
-  opacity: 0.15;
+opacity: 0.15;
 
-  pointer-events: none;
+pointer-events: none;
 
-  animation: wave-shift 20s linear infinite;
+animation: wave-shift 20s linear infinite;
 
-  background-size: 200px 200px;
+background-size: 200px 200px;
 }
 
 /* ------------------------------------------------------------
-   Subtle horizontal wave shift
-   ------------------------------------------------------------ */
+Subtle horizontal wave shift
+------------------------------------------------------------ */
 
 @keyframes wave-shift {
-  0% {
-    background-position: 0 0;
-  }
+0% {
+background-position: 0 0;
+}
 
-  100% {
-    background-position: 1000px 0;
-  }
+100% {
+background-position: 1000px 0;
+}
 }
 
 @media (max-width: 768px) {
-  .bg-grainy-gradient::before {
-    animation: none;
-  }
+.bg-grainy-gradient::before {
+animation: none;
+}
 }
 
 /* ============================================================
-   ROOT / BODY
-   ============================================================ */
+ROOT / BODY
+============================================================ */
 
 html,
 body,
 #root {
-  min-height: 100%;
+min-height: 100%;
 }
 
 body {
-  background-color: #050a16;
+background-color: hsl(8 55% 7%);
 }
 
 html {
-  scrollbar-gutter: stable;
+scrollbar-gutter: stable;
 }
 
 /* ============================================================
-   SLOW FADE IN
-   ============================================================ */
+SLOW FADE IN
+============================================================ */
 
 @keyframes slowFadeIn {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 8px, 0);
-  }
+0% {
+opacity: 0;
+transform: translate3d(0, 8px, 0);
+}
 
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
+100% {
+opacity: 1;
+transform: translate3d(0, 0, 0);
+}
 }
 
 .animate-slowFadeIn {
-  animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+animation: slowFadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* ============================================================
-   WAVE ANIMATIONS
-   ============================================================ */
+WAVE ANIMATIONS
+============================================================ */
 
 @keyframes wave1 {
-  0% {
-    background-position: 0% 50%;
-  }
+0% {
+background-position: 0% 50%;
+}
 
-  50% {
-    background-position: 50% 50%;
-  }
+50% {
+background-position: 50% 50%;
+}
 
-  100% {
-    background-position: 0% 50%;
-  }
+100% {
+background-position: 0% 50%;
+}
 }
 
 @keyframes wave2 {
-  0% {
-    background-position: 100% 50%;
-  }
+0% {
+background-position: 100% 50%;
+}
 
-  50% {
-    background-position: 0% 50%;
-  }
+50% {
+background-position: 0% 50%;
+}
 
-  100% {
-    background-position: 100% 50%;
-  }
+100% {
+background-position: 100% 50%;
+}
 }
 
 .wave {
-  position: absolute;
-  inset: 0;
+position: absolute;
+inset: 0;
 
-  background-size: 400% 400%;
+background-size: 400% 400%;
 
-  mix-blend-mode: screen;
+mix-blend-mode: screen;
 
-  opacity: 0.6;
+opacity: 0.6;
 
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
+animation-iteration-count: infinite;
+animation-timing-function: ease-in-out;
 }
 
 .wave1 {
-  background: linear-gradient(120deg, #07152b, #0a2140, #3a0b15, #07152b);
+background: linear-gradient(120deg, #ff8c00, #ffa500, #ff4500, #ff8c00);
 
-  animation: wave1 20s ease-in-out infinite;
+animation: wave1 20s ease-in-out infinite;
 }
 
 .wave2 {
-  background: linear-gradient(60deg, #050a16, #21070d, #57121f, #050a16);
+background: linear-gradient(60deg, #000000, #ff7f50, #ff8c00, #000000);
 
-  animation: wave2 25s ease-in-out infinite;
+animation: wave2 25s ease-in-out infinite;
 
-  opacity: 0.5;
+opacity: 0.5;
 }
 
 /* ============================================================
-   TYPEWRITER
-   ============================================================ */
+TYPEWRITER
+============================================================ */
 
 .typewriter-fade-out {
-  opacity: 0;
-  transition: opacity 0.5s ease;
+opacity: 0;
+transition: opacity 0.5s ease;
 }
 
 .typewriter-fade-in {
-  opacity: 1;
-  transition: opacity 0.5s ease;
+opacity: 1;
+transition: opacity 0.5s ease;
 }
 
 /* ============================================================
-   MARQUEE
-   ============================================================ */
+MARQUEE
+============================================================ */
 
 @keyframes marquee {
-  0% {
-    transform: translate3d(0, 0, 0);
-  }
+0% {
+transform: translate3d(0, 0, 0);
+}
 
-  100% {
-    transform: translate3d(-50%, 0, 0);
-  }
+100% {
+transform: translate3d(-50%, 0, 0);
+}
 }
 
 .animate-marquee {
-  display: flex;
+display: flex;
 
-  width: max-content;
+width: max-content;
 
-  animation: marquee 22s linear infinite;
+animation: marquee 22s linear infinite;
 
-  will-change: transform;
+will-change: transform;
 
-  backface-visibility: hidden;
+backface-visibility: hidden;
 
-  transform: translateZ(0);
+transform: translateZ(0);
 }
 
 /* ------------------------------------------------------------
-   Marquee edge fade
-   ------------------------------------------------------------ */
+Marquee edge fade
+------------------------------------------------------------ */
 
 .marquee-fade-edges {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+-webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 
-  mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
 /* ============================================================
-   CATEGORY SPOTLIGHT
-   ============================================================ */
+CATEGORY SPOTLIGHT
+============================================================ */
 
 @keyframes spotlight-in {
-  from {
-    opacity: 0;
-    filter: blur(10px);
-    transform: translateY(8px) scale(0.97);
-  }
+from {
+opacity: 0;
+filter: blur(10px);
+transform: translateY(8px) scale(0.97);
+}
 
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0) scale(1);
-  }
+to {
+opacity: 1;
+filter: blur(0);
+transform: translateY(0) scale(1);
+}
 }
 
 .spotlight-item {
-  animation: spotlight-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+animation: spotlight-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes spotlight-progress {
-  from {
-    width: 0%;
-  }
+from {
+width: 0%;
+}
 
-  to {
-    width: 100%;
-  }
+to {
+width: 100%;
+}
 }
 
 .spotlight-progress {
-  animation-name: spotlight-progress;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
+animation-name: spotlight-progress;
+animation-timing-function: linear;
+animation-fill-mode: forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spotlight-item,
-  .spotlight-progress {
-    animation: none;
-  }
+.spotlight-item,
+.spotlight-progress {
+animation: none;
+}
 }
 
 /* ============================================================
-   SITEWIDE MONOCHROME MODE
-   ============================================================ */
+SITEWIDE MONOCHROME MODE
+============================================================ */
 
 :root {
-  --theme-transition-duration: 520ms;
+--theme-transition-duration: 520ms;
 }
 
 /* ------------------------------------------------------------
-   Minimal theme variables
-   ------------------------------------------------------------ */
+Minimal theme variables
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 4%;
+:root {
+--background: 0 0% 100%;
+--foreground: 0 0% 4%;
 
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 4%;
+--card: 0 0% 100%;
+--card-foreground: 0 0% 4%;
 
-  --primary: 0 0% 4%;
-  --primary-foreground: 0 0% 100%;
+--primary: 0 0% 4%;
+--primary-foreground: 0 0% 100%;
 
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 4%;
+--secondary: 0 0% 96%;
+--secondary-foreground: 0 0% 4%;
 
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 36%;
+--muted: 0 0% 96%;
+--muted-foreground: 0 0% 36%;
 
-  --accent: 0 0% 4%;
-  --accent-foreground: 0 0% 100%;
+--accent: 0 0% 4%;
+--accent-foreground: 0 0% 100%;
 
-  --border: 0 0% 8%;
-  --input: 0 0% 8%;
-  --ring: 0 0% 4%;
+--border: 0 0% 8%;
+--input: 0 0% 8%;
+--ring: 0 0% 4%;
 }
 
 /* ------------------------------------------------------------
-   Theme transition
-   ------------------------------------------------------------ */
+Theme transition
+------------------------------------------------------------ */
 
 body,
 .site-page,
@@ -634,328 +512,364 @@ body,
 [data-gdx-search] [class*="bg-white/"],
 [data-gdx-search] [class*="text-white"],
 [data-gdx-search] [class*="border-white"] {
-  transition-property: color, background-color, border-color, opacity;
+transition-property: color, background-color, border-color, opacity;
 
-  transition-duration: var(--theme-transition-duration);
+transition-duration: var(--theme-transition-duration);
 
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ------------------------------------------------------------
-   Minimal background
-   ------------------------------------------------------------ */
+Minimal background
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] body,
-:root[data-theme="minimal"] .site-page {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+:root body,
+:root .site-page {
+background-color: hsl(var(--background));
+color: hsl(var(--foreground));
 }
 
 /* ------------------------------------------------------------
-   Hide the LED wallpaper in minimal mode
-   ------------------------------------------------------------ */
+Hide the LED wallpaper in minimal mode
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .site-background {
-  opacity: 0;
+:root .site-background {
+opacity: 0;
 }
 
 /* ------------------------------------------------------------
-   Minimal text
-   ------------------------------------------------------------ */
+Minimal text
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .site-page [class*="text-white"],
-:root[data-theme="minimal"] .site-page [class*="text-gray"],
-:root[data-theme="minimal"] [data-gdx-search] [class*="text-white"] {
-  color: hsl(var(--foreground)) !important;
-  text-shadow: none !important;
+:root .site-page [class*="text-white"],
+:root .site-page [class*="text-gray"],
+:root [data-gdx-search] [class*="text-white"] {
+color: hsl(var(--foreground)) !important;
+text-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
-   Minimal white surfaces
-   ------------------------------------------------------------ */
+Minimal white surfaces
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .site-page [class*="bg-white/"],
-:root[data-theme="minimal"] [data-gdx-search] [class*="bg-white/"] {
-  background-color: hsl(var(--background)) !important;
+:root .site-page [class*="bg-white/"],
+:root [data-gdx-search] [class*="bg-white/"] {
+background-color: hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
-   Minimal borders
-   ------------------------------------------------------------ */
+Minimal borders
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .site-page [class*="border-white"],
-:root[data-theme="minimal"] .site-page [class*="border-foreground"],
-:root[data-theme="minimal"] [data-gdx-search] [class*="border-white"],
-:root[data-theme="minimal"] [data-gdx-search] [class*="border-foreground"] {
-  border-color: hsl(var(--foreground) / 0.78) !important;
+:root .site-page [class*="border-white"],
+:root .site-page [class*="border-foreground"],
+:root [data-gdx-search] [class*="border-white"],
+:root [data-gdx-search] [class*="border-foreground"] {
+border-color: hsl(var(--foreground) / 0.78) !important;
 
-  background-clip: padding-box;
+background-clip: padding-box;
 }
 
 /* ------------------------------------------------------------
-   Remove blur in minimal mode
-   ------------------------------------------------------------ */
+Remove blur in minimal mode
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .site-page [class*="backdrop-blur"],
-:root[data-theme="minimal"] [data-gdx-search] [class*="backdrop-blur"] {
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+:root .site-page [class*="backdrop-blur"],
+:root [data-gdx-search] [class*="backdrop-blur"] {
+-webkit-backdrop-filter: none !important;
+backdrop-filter: none !important;
 }
 
 /* ------------------------------------------------------------
-   Remove shadows in minimal mode
-   ------------------------------------------------------------ */
+Remove shadows in minimal mode
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .site-page [class*="shadow"],
-:root[data-theme="minimal"] [data-gdx-search] [class*="shadow"] {
-  box-shadow: none !important;
+:root .site-page [class*="shadow"],
+:root [data-gdx-search] [class*="shadow"] {
+box-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
-   Black surfaces
-   ------------------------------------------------------------ */
+Black surfaces
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .site-page [class*="bg-black/"] {
-  background-color: hsl(var(--background) / 0.92) !important;
+:root .site-page [class*="bg-black/"] {
+background-color: hsl(var(--background) / 0.92) !important;
 }
 
 /* ------------------------------------------------------------
-   Buttons / links
-   ------------------------------------------------------------ */
+Buttons / links
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] [data-gdx-search] button,
-:root[data-theme="minimal"] [data-gdx-search] a {
-  background-color: hsl(var(--background)) !important;
+:root [data-gdx-search] button,
+:root [data-gdx-search] a {
+background-color: hsl(var(--background)) !important;
 
-  border-color: hsl(var(--foreground)) !important;
+border-color: hsl(var(--foreground)) !important;
 
-  color: hsl(var(--foreground)) !important;
+color: hsl(var(--foreground)) !important;
 
-  box-shadow: none !important;
+box-shadow: none !important;
 }
 
-:root[data-theme="minimal"] [data-gdx-search] button:hover,
-:root[data-theme="minimal"] [data-gdx-search] a:hover,
-:root[data-theme="minimal"] .site-page button:hover,
-:root[data-theme="minimal"] .site-page article:hover {
-  background-color: hsl(var(--foreground)) !important;
+:root [data-gdx-search] button:hover,
+:root [data-gdx-search] a:hover,
+:root .site-page button:hover,
+:root .site-page article:hover {
+background-color: hsl(var(--foreground)) !important;
 
-  color: hsl(var(--background)) !important;
-}
-
-/* ------------------------------------------------------------
-   Articles / dialogs
-   ------------------------------------------------------------ */
-
-:root[data-theme="minimal"] .site-page article,
-:root[data-theme="minimal"] .site-page [role="dialog"] {
-  background-color: hsl(var(--background)) !important;
-
-  border-color: hsl(var(--foreground) / 0.78) !important;
-
-  background-clip: padding-box;
+color: hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
-   Suggestion bubble
-   ------------------------------------------------------------ */
+Articles / dialogs
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .gdx-suggestion-bubble {
-  border: 1px solid hsl(var(--foreground) / 0.78) !important;
+:root .site-page article,
+:root .site-page [role="dialog"] {
+background-color: hsl(var(--background)) !important;
 
-  background-color: hsl(var(--background)) !important;
+border-color: hsl(var(--foreground) / 0.78) !important;
 
-  color: hsl(var(--foreground)) !important;
-
-  box-shadow: none !important;
+background-clip: padding-box;
 }
 
 /* ------------------------------------------------------------
-   TTS button
-   ------------------------------------------------------------ */
+Suggestion bubble
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button {
-  border: 1px solid hsl(var(--foreground) / 0.78) !important;
+:root .gdx-suggestion-bubble {
+border: 1px solid hsl(var(--foreground) / 0.78) !important;
 
-  border-radius: 999px;
+background-color: hsl(var(--background)) !important;
 
-  background-color: hsl(var(--background)) !important;
+color: hsl(var(--foreground)) !important;
 
-  color: hsl(var(--foreground)) !important;
-}
-
-:root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button:hover {
-  background-color: hsl(var(--foreground)) !important;
-
-  color: hsl(var(--background)) !important;
-}
-
-:root[data-theme="minimal"] [data-gdx-search] .gdx-tts-button svg {
-  color: currentColor !important;
+box-shadow: none !important;
 }
 
 /* ------------------------------------------------------------
-   Writing cards
-   ------------------------------------------------------------ */
+TTS button
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .notion-writing-card:hover,
-:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy,
-:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-copy * {
-  color: hsl(var(--background)) !important;
+:root [data-gdx-search] .gdx-tts-button {
+border: 1px solid hsl(var(--foreground) / 0.78) !important;
+
+border-radius: 999px;
+
+background-color: hsl(var(--background)) !important;
+
+color: hsl(var(--foreground)) !important;
 }
 
-:root[data-theme="minimal"] .notion-writing-card:hover .notion-writing-tag {
-  background-color: hsl(var(--background)) !important;
+:root [data-gdx-search] .gdx-tts-button:hover {
+background-color: hsl(var(--foreground)) !important;
 
-  color: hsl(var(--foreground)) !important;
+color: hsl(var(--background)) !important;
+}
 
-  border: 1px solid hsl(var(--background)) !important;
+:root [data-gdx-search] .gdx-tts-button svg {
+color: currentColor !important;
 }
 
 /* ------------------------------------------------------------
-   Spotlight progress
-   ------------------------------------------------------------ */
+Writing cards
+------------------------------------------------------------ */
 
-:root[data-theme="minimal"] .spotlight-progress {
-  background-color: hsl(var(--foreground)) !important;
+:root .notion-writing-card:hover,
+:root .notion-writing-card:hover .notion-writing-copy,
+:root .notion-writing-card:hover .notion-writing-copy * {
+color: hsl(var(--background)) !important;
+}
+
+:root .notion-writing-card:hover .notion-writing-tag {
+background-color: hsl(var(--background)) !important;
+
+color: hsl(var(--foreground)) !important;
+
+border: 1px solid hsl(var(--background)) !important;
 }
 
 /* ------------------------------------------------------------
-   Accessibility
-   ------------------------------------------------------------ */
+Spotlight progress
+------------------------------------------------------------ */
+
+:root .spotlight-progress {
+background-color: hsl(var(--foreground)) !important;
+}
+
+/* ------------------------------------------------------------
+Accessibility
+------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-  :root {
-    --theme-transition-duration: 0ms;
-  }
+:root {
+--theme-transition-duration: 0ms;
+}
 }
 
 /* ============================================================
-   GDx THEME EASTER EGG
-   ============================================================ */
+GDx THEME EASTER EGG
+============================================================ */
 
 .gdx-theme-hint {
-  animation: gdxThemePulse 2.4s ease-in-out infinite;
+animation: gdxThemePulse 2.4s ease-in-out infinite;
 }
 
 @keyframes gdxThemePulse {
-  0%,
-  100% {
-    transform: scale(1);
+0%,
+100% {
+transform: scale(1);
 
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
-  }
+```
+box-shadow:
+  0 0 0 0 rgba(255, 255, 255, 0),
+  0 0 0 0 rgba(255, 255, 255, 0);
+```
 
-  /* First click-like pulse */
-  10% {
-    transform: scale(1.035);
+}
 
-    box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.1),
-      0 0 20px rgba(255, 255, 255, 0.22);
-  }
+/* First click-like pulse */
+10% {
+transform: scale(1.035);
 
-  18% {
-    transform: scale(1);
+```
+box-shadow:
+  0 0 0 3px rgba(255, 255, 255, 0.1),
+  0 0 20px rgba(255, 255, 255, 0.22);
+```
 
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
-  }
+}
 
-  /* Small pause */
-  24% {
-    transform: scale(1);
+18% {
+transform: scale(1);
 
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
-  }
+```
+box-shadow:
+  0 0 0 0 rgba(255, 255, 255, 0),
+  0 0 0 0 rgba(255, 255, 255, 0);
+```
 
-  /* Second click-like pulse */
-  34% {
-    transform: scale(1.035);
+}
 
-    box-shadow:
-      0 0 0 3px rgba(255, 255, 255, 0.1),
-      0 0 20px rgba(255, 255, 255, 0.22);
-  }
+/* Small pause */
+24% {
+transform: scale(1);
 
-  42% {
-    transform: scale(1);
+```
+box-shadow:
+  0 0 0 0 rgba(255, 255, 255, 0),
+  0 0 0 0 rgba(255, 255, 255, 0);
+```
 
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0),
-      0 0 0 0 rgba(255, 255, 255, 0);
-  }
+}
+
+/* Second click-like pulse */
+34% {
+transform: scale(1.035);
+
+```
+box-shadow:
+  0 0 0 3px rgba(255, 255, 255, 0.1),
+  0 0 20px rgba(255, 255, 255, 0.22);
+```
+
+}
+
+42% {
+transform: scale(1);
+
+```
+box-shadow:
+  0 0 0 0 rgba(255, 255, 255, 0),
+  0 0 0 0 rgba(255, 255, 255, 0);
+```
+
+}
 }
 
 /* ============================================================
-   MONOCHROME GDx EASTER EGG
-   ============================================================ */
+MONOCHROME GDx EASTER EGG
+============================================================ */
 
-:root[data-theme="minimal"] .gdx-theme-hint {
-  animation-name: gdxThemePulseMinimal;
+:root .gdx-theme-hint {
+animation-name: gdxThemePulseMinimal;
 }
 
 @keyframes gdxThemePulseMinimal {
-  0%,
-  100% {
-    transform: scale(1);
+0%,
+100% {
+transform: scale(1);
 
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
-  }
+```
+box-shadow:
+  0 0 0 0 rgba(0, 0, 0, 0),
+  0 0 0 0 rgba(0, 0, 0, 0);
+```
 
-  /* First click-like pulse */
-  10% {
-    transform: scale(1.035);
+}
 
-    box-shadow:
-      0 0 0 3px rgba(0, 0, 0, 0.1),
-      0 0 20px rgba(0, 0, 0, 0.16);
-  }
+/* First click-like pulse */
+10% {
+transform: scale(1.035);
 
-  18% {
-    transform: scale(1);
+```
+box-shadow:
+  0 0 0 3px rgba(0, 0, 0, 0.1),
+  0 0 20px rgba(0, 0, 0, 0.16);
+```
 
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
-  }
+}
 
-  /* Small pause */
-  24% {
-    transform: scale(1);
+18% {
+transform: scale(1);
 
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
-  }
+```
+box-shadow:
+  0 0 0 0 rgba(0, 0, 0, 0),
+  0 0 0 0 rgba(0, 0, 0, 0);
+```
 
-  /* Second click-like pulse */
-  34% {
-    transform: scale(1.035);
+}
 
-    box-shadow:
-      0 0 0 3px rgba(0, 0, 0, 0.1),
-      0 0 20px rgba(0, 0, 0, 0.16);
-  }
+/* Small pause */
+24% {
+transform: scale(1);
 
-  42% {
-    transform: scale(1);
+```
+box-shadow:
+  0 0 0 0 rgba(0, 0, 0, 0),
+  0 0 0 0 rgba(0, 0, 0, 0);
+```
 
-    box-shadow:
-      0 0 0 0 rgba(0, 0, 0, 0),
-      0 0 0 0 rgba(0, 0, 0, 0);
-  }
+}
+
+/* Second click-like pulse */
+34% {
+transform: scale(1.035);
+
+```
+box-shadow:
+  0 0 0 3px rgba(0, 0, 0, 0.1),
+  0 0 20px rgba(0, 0, 0, 0.16);
+```
+
+}
+
+42% {
+transform: scale(1);
+
+```
+box-shadow:
+  0 0 0 0 rgba(0, 0, 0, 0),
+  0 0 0 0 rgba(0, 0, 0, 0);
+```
+
+}
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gdx-theme-hint {
-    animation: none;
-  }
+.gdx-theme-hint {
+animation: none;
+}
 }
