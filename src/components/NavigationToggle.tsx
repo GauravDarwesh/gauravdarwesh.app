@@ -153,7 +153,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
       <div
         data-site-navigation
         className={`
-          fixed top-6 left-1/2 -translate-x-1/2 z-50
+          fixed top-5 left-1/2 -translate-x-1/2 z-50
           flex gap-2
           transition-all duration-700 ease-out
 
