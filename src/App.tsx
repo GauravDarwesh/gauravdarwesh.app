@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AnimatedLedBackground from "@/AnimatedLedBackground";
 import { SiteMusicProvider } from "@/components/SiteMusicProvider";
-import MusicWelcome from "@/components/MusicWelcome";
 
 import Index from "./pages/Index";
 import Hobbies from "./pages/Hobbies";
@@ -30,7 +29,6 @@ const App = () => (
           <Sonner />
 
           <SiteBackground />
-          <MusicWelcome />
 
           <BrowserRouter>
             <Routes>
