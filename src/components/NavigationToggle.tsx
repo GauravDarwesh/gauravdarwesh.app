@@ -199,7 +199,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
 
                 border border-transparent
 
-                ${active ? "bg-white/10 border-white/80 text-white backdrop-blur-sm" : "text-white/90 hover:text-white"}
+                ${active ? "bg-white/20 border-white/80 text-white backdrop-blur-sm" : "text-white/90 hover:text-white"}
 
                 ${showGdxHint ? "gdx-theme-hint" : ""}
               `}
