@@ -96,54 +96,48 @@
 /* ============================================================
    PROCEDURAL LED WALLPAPER
    ------------------------------------------------------------
-   Fixed LED geometry + continuously evolving, dark complementary
-   colour fields. The palette is intentionally restrained: no
-   rainbow spectrum, no neon flashes, and no high-lightness colours.
+   Fixed LED geometry + continuously evolving dark blue / red
+   atmosphere. The palette intentionally stays within a tight,
+   premium range instead of cycling through the full spectrum.
    ============================================================ */
 
 /* ------------------------------------------------------------
-   Dark complementary palette
+   Dark blue + red palette
 
-   The wallpaper rotates slowly through a handful of curated dark
-   pairs rather than traversing the full colour wheel. Each pair is
-   deliberately low-lightness and slightly desaturated so the result
-   feels atmospheric and premium.
-
-   01  Burnt amber   ↔   Midnight blue
-   02  Deep rust     ↔   Dark teal
-   03  Forest olive  ↔   Muted plum
-   04  Copper brown  ↔   Slate blue
+   The colour field moves slowly between several closely related
+   moods, all built from midnight/navy blues and deep crimson reds.
+   Nothing reaches bright neon or rainbow territory.
    ------------------------------------------------------------ */
 
 @property --led-color-a {
   syntax: "<color>";
   inherits: true;
-  initial-value: #6a3b18;
+  initial-value: #091a31;
 }
 
 @property --led-color-b {
   syntax: "<color>";
   inherits: true;
-  initial-value: #182b45;
+  initial-value: #3a1018;
 }
 
 @property --led-glow-a {
   syntax: "<color>";
   inherits: true;
-  initial-value: #8a4d1d;
+  initial-value: #102b4d;
 }
 
 @property --led-glow-b {
   syntax: "<color>";
   inherits: true;
-  initial-value: #213a5a;
+  initial-value: #641923;
 }
 
 .orange-bg {
   --tile: 19px;
   --gap: 1px;
   --cell: 20px;
-  --led-base: #0d0a09;
+  --led-base: #050913;
 
   position: fixed;
   inset: 0;
@@ -184,104 +178,105 @@
 }
 
 /* ------------------------------------------------------------
-   Soft colour atmosphere
+   Soft dual-tone atmosphere
 
-   The LED canvas remains underneath. These two layers create a
-   restrained moving glow without replacing the checkerboard
-   geometry or introducing another grid.
+   The canvas remains the actual LED/checkerboard layer. These
+   overlays only add depth and a very subtle blue/red glow.
    ------------------------------------------------------------ */
 
 .orange-bg::before {
   content: "";
   position: absolute;
-  inset: -15%;
+  inset: -16%;
   z-index: 1;
   pointer-events: none;
   background:
     radial-gradient(
-      ellipse 62% 58% at 18% 22%,
-      color-mix(in srgb, var(--led-glow-a) 72%, transparent),
-      transparent 70%
+      ellipse 58% 54% at 17% 24%,
+      color-mix(in srgb, var(--led-glow-a) 62%, transparent),
+      transparent 72%
     ),
-    radial-gradient(ellipse 64% 60% at 82% 78%, color-mix(in srgb, var(--led-glow-b) 70%, transparent), transparent 72%);
+    radial-gradient(ellipse 58% 54% at 83% 76%, color-mix(in srgb, var(--led-glow-b) 58%, transparent), transparent 74%);
   mix-blend-mode: screen;
-  opacity: 0.52;
-  filter: blur(42px) saturate(0.82);
-  transform: translate3d(-2%, -1%, 0) scale(1.05);
-  transform-origin: center;
+  opacity: 0.44;
+  filter: blur(48px) saturate(0.82);
+  transform: translate3d(-2%, -1%, 0) scale(1.04);
   will-change: transform, opacity;
-  animation: led-atmosphere-drift 24s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  animation: led-atmosphere-drift 28s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
 }
 
 .orange-bg::after {
   content: "";
   position: absolute;
-  inset: -20%;
+  inset: -18%;
   z-index: 2;
   pointer-events: none;
   background:
-    linear-gradient(
-      116deg,
-      transparent 14%,
-      color-mix(in srgb, var(--led-color-a) 26%, transparent) 42%,
-      transparent 63%
+    radial-gradient(
+      ellipse 42% 38% at 30% 64%,
+      color-mix(in srgb, var(--led-color-a) 26%, transparent),
+      transparent 76%
     ),
-    linear-gradient(
-      298deg,
-      transparent 28%,
-      color-mix(in srgb, var(--led-color-b) 24%, transparent) 54%,
+    radial-gradient(
+      ellipse 42% 38% at 70% 34%,
+      color-mix(in srgb, var(--led-color-b) 24%, transparent),
       transparent 78%
     );
   mix-blend-mode: soft-light;
-  opacity: 0.48;
-  filter: blur(30px);
-  transform: translate3d(-4%, 2%, 0) scale(1.07) rotate(-1deg);
+  opacity: 0.52;
+  filter: blur(34px);
+  transform: translate3d(0, 0, 0) scale(1.06);
   will-change: transform, opacity;
   animation:
-    led-sheen-drift 30s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate,
-    led-sheen-opacity 18s ease-in-out infinite alternate;
+    led-sheen-drift 34s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate,
+    led-sheen-opacity 22s ease-in-out infinite alternate;
 }
+
+/* ------------------------------------------------------------
+   Slow palette movement — blue/red only
+   ------------------------------------------------------------ */
 
 @keyframes led-palette-cycle {
   0%,
-  31% {
-    --led-color-a: #6a3918;
-    --led-color-b: #18283f;
-    --led-glow-a: #80491d;
-    --led-glow-b: #213954;
+  24% {
+    --led-color-a: #08172c;
+    --led-color-b: #351018;
+    --led-glow-a: #102b4b;
+    --led-glow-b: #611a25;
   }
 
-  36%,
-  64% {
-    --led-color-a: #5e2823;
-    --led-color-b: #173b38;
-    --led-glow-a: #76372e;
-    --led-glow-b: #20504b;
+  29%,
+  49% {
+    --led-color-a: #0a1d38;
+    --led-color-b: #42111a;
+    --led-glow-a: #15375d;
+    --led-glow-b: #731d29;
   }
 
-  69%,
-  94% {
-    --led-color-a: #3e4522;
-    --led-color-b: #37243b;
-    --led-glow-a: #56602a;
-    --led-glow-b: #4a3150;
+  54%,
+  74% {
+    --led-color-a: #0b1429;
+    --led-color-b: #2c0b15;
+    --led-glow-a: #142c4c;
+    --led-glow-b: #541521;
   }
 
+  79%,
   100% {
-    --led-color-a: #6a3918;
-    --led-color-b: #18283f;
-    --led-glow-a: #80491d;
-    --led-glow-b: #213954;
+    --led-color-a: #091a31;
+    --led-color-b: #3b1018;
+    --led-glow-a: #112f52;
+    --led-glow-b: #681a26;
   }
 }
 
 @keyframes led-atmosphere-drift {
   0% {
-    transform: translate3d(-3%, -2%, 0) scale(1.04);
+    transform: translate3d(-3%, -2%, 0) scale(1.035);
   }
 
   50% {
-    transform: translate3d(2%, 1%, 0) scale(1.075);
+    transform: translate3d(2.5%, 1.5%, 0) scale(1.07);
   }
 
   100% {
@@ -291,34 +286,34 @@
 
 @keyframes led-sheen-drift {
   0% {
-    transform: translate3d(-8%, -4%, 0) scale(1.06) rotate(-2deg);
+    transform: translate3d(-6%, -3%, 0) scale(1.055) rotate(-1.2deg);
   }
 
   50% {
-    transform: translate3d(4%, 2%, 0) scale(1.095) rotate(1deg);
+    transform: translate3d(3%, 2%, 0) scale(1.085) rotate(0.8deg);
   }
 
   100% {
-    transform: translate3d(-2%, 6%, 0) scale(1.055) rotate(-1deg);
+    transform: translate3d(-2%, 5%, 0) scale(1.06) rotate(-0.6deg);
   }
 }
 
 @keyframes led-sheen-opacity {
   0% {
-    opacity: 0.28;
+    opacity: 0.34;
   }
 
   50% {
-    opacity: 0.48;
+    opacity: 0.5;
   }
 
   100% {
-    opacity: 0.34;
+    opacity: 0.38;
   }
 }
 
 .orange-bg {
-  animation: led-palette-cycle 72s ease-in-out infinite;
+  animation: led-palette-cycle 64s ease-in-out infinite;
 }
 
 /*
