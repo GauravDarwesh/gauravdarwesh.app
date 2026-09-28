@@ -100,6 +100,30 @@
    No pointer interaction. The 1px gaps are the checkerboard itself.
    ============================================================ */
 
+/* ------------------------------------------------------------
+   Dynamic complementary palette system
+
+   The LED geometry stays exactly the same. A soft hue field sits
+   above the canvas and continuously cycles through curated
+   complementary pairs:
+
+   30deg  = orange ↔ blue
+   190deg = cyan ↔ red
+   270deg = violet ↔ yellow
+   145deg = green ↔ magenta
+   340deg = coral/red ↔ teal/cyan
+   220deg = blue ↔ orange
+
+   Because the second colour is always +180deg, the relationship
+   remains complementary throughout the transition.
+   ------------------------------------------------------------ */
+
+@property --palette-hue {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 30;
+}
+
 .orange-bg {
   --tile: 19px;
   --gap: 1px;
@@ -144,6 +168,140 @@
   image-rendering: pixelated;
 }
 
+/* ------------------------------------------------------------
+   Complementary colour field
+
+   Uses CSS custom-property animation so the canvas itself does
+   not need to be rewritten. The two active colour groups are
+   always exactly opposite on the colour wheel.
+   ------------------------------------------------------------ */
+
+.orange-bg::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 18% 24%,
+      hsl(var(--palette-hue) 96% 58% / 0.82) 0%,
+      hsl(var(--palette-hue) 96% 58% / 0.38) 24%,
+      transparent 52%
+    ),
+    radial-gradient(
+      circle at 82% 76%,
+      hsl(calc(var(--palette-hue) + 180) 92% 58% / 0.76) 0%,
+      hsl(calc(var(--palette-hue) + 180) 92% 58% / 0.32) 24%,
+      transparent 52%
+    );
+  mix-blend-mode: color;
+  opacity: 0.64;
+  filter: blur(34px) saturate(1.08);
+  transform: translate3d(0, 0, 0) scale(1.04);
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation:
+    led-palette-cycle 38s cubic-bezier(0.45, 0, 0.55, 1) infinite,
+    led-palette-drift 22s ease-in-out infinite alternate;
+}
+
+.orange-bg::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(118deg, transparent 6%, hsl(var(--palette-hue) 95% 56% / 0.13) 34%, transparent 55%),
+    linear-gradient(300deg, transparent 28%, hsl(calc(var(--palette-hue) + 180) 90% 58% / 0.11) 58%, transparent 84%);
+  mix-blend-mode: screen;
+  opacity: 0.56;
+  filter: blur(22px);
+  transform: translate3d(0, 0, 0) scale(1.06);
+  will-change: transform, opacity;
+  animation:
+    led-palette-sheen 26s cubic-bezier(0.37, 0, 0.63, 1) infinite,
+    led-palette-opacity 18s ease-in-out infinite alternate;
+}
+
+@keyframes led-palette-cycle {
+  0%,
+  8% {
+    --palette-hue: 30;
+  }
+
+  20%,
+  28% {
+    --palette-hue: 190;
+  }
+
+  40%,
+  48% {
+    --palette-hue: 270;
+  }
+
+  60%,
+  68% {
+    --palette-hue: 145;
+  }
+
+  80%,
+  88% {
+    --palette-hue: 340;
+  }
+
+  96% {
+    --palette-hue: 220;
+  }
+
+  100% {
+    --palette-hue: 390;
+  }
+}
+
+@keyframes led-palette-drift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1.04);
+  }
+
+  50% {
+    transform: translate3d(2%, 1.5%, 0) scale(1.075);
+  }
+
+  100% {
+    transform: translate3d(-1%, 2%, 0) scale(1.045);
+  }
+}
+
+@keyframes led-palette-sheen {
+  0% {
+    transform: translate3d(-7%, -4%, 0) scale(1.06) rotate(-2deg);
+  }
+
+  50% {
+    transform: translate3d(4%, 3%, 0) scale(1.1) rotate(2deg);
+  }
+
+  100% {
+    transform: translate3d(-3%, 6%, 0) scale(1.055) rotate(-1deg);
+  }
+}
+
+@keyframes led-palette-opacity {
+  0% {
+    opacity: 0.36;
+  }
+
+  50% {
+    opacity: 0.62;
+  }
+
+  100% {
+    opacity: 0.46;
+  }
+}
+
 /*
  * IMPORTANT: there is deliberately no ::after grid overlay here.
  * Shrey's effect gets the checkerboard from tile < cell geometry:
@@ -168,6 +326,11 @@
 @media (prefers-reduced-motion: reduce) {
   .orange-bg .led-wallpaper-canvas {
     opacity: 0.96;
+  }
+
+  .orange-bg::before,
+  .orange-bg::after {
+    animation: none;
   }
 }
 
