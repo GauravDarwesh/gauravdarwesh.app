@@ -3,8 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import AnimatedLedBackground from "@/AnimatedLedBackground";
 import { SiteMusicProvider } from "@/components/SiteMusicProvider";
+import MusicControl from "@/components/MusicControl";
+import { SiteThemeProvider } from "@/components/SiteThemeProvider";
 
 import Index from "./pages/Index";
 import Hobbies from "./pages/Hobbies";
@@ -13,8 +16,6 @@ import Blog from "./pages/Blog";
 import Visuals from "./pages/Visuals";
 import SessionTest from "./pages/SessionTest";
 import NotFound from "./pages/NotFound";
-
-import { SiteThemeProvider } from "@/components/SiteThemeProvider";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
           <Sonner />
 
           <SiteBackground />
+          <MusicControl />
 
           <BrowserRouter>
             <Routes>
