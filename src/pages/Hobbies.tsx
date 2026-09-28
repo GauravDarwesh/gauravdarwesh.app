@@ -177,45 +177,6 @@ const CategorySpotlight = () => {
 /* ======================================================================== */
 
 const GitHubActivity = () => {
-  const calendarContainerRef = useRef<HTMLDivElement | null>(null);
-  const [calendarWidth, setCalendarWidth] = useState(0);
-
-  useEffect(() => {
-    const element = calendarContainerRef.current;
-
-    if (!element) return;
-
-    const updateWidth = () => {
-      setCalendarWidth(element.clientWidth);
-    };
-
-    updateWidth();
-
-    const observer = new ResizeObserver(() => {
-      updateWidth();
-    });
-
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  /*
-   * Six months is approximately 26–27 weeks.
-   *
-   * The calendar width is calculated so the entire six-month
-   * contribution grid fits inside the available portfolio width.
-   *
-   * Desktop:
-   *   Large, dense contribution cells.
-   *
-   * Tablet/mobile:
-   *   Cells automatically shrink instead of creating scrolling.
-   */
-  const blockSize = calendarWidth > 0 ? Math.max(8, Math.min(22, Math.floor((calendarWidth - 45 - 27 * 3) / 27))) : 18;
-
   return (
     <section className="pt-2">
       {/* Section heading */}
@@ -227,61 +188,60 @@ const GitHubActivity = () => {
         </p>
       </div>
 
-      {/* Opaque glass contribution surface */}
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.22] bg-white/[0.13] backdrop-blur-[4px]">
+      {/* GitHub contribution surface */}
+      <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.22] bg-white/[0.15] backdrop-blur-[5px]">
         {/* Subtle ambient glow */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.035] blur-3xl"
+          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl"
         />
 
         {/* Calendar */}
-        <div ref={calendarContainerRef} className="relative w-full overflow-x-hidden px-3 py-6 sm:px-4 md:px-5">
-          <div className="w-full flex items-center justify-center">
-            <GitHubCalendar
-              username="GauravDarwesh"
+        <div className="relative w-full px-3 py-6 sm:px-4 md:px-5">
+          <GitHubCalendar
+            className="portfolio-github-calendar"
+            username="GauravDarwesh"
 
-              /* ---------------------------------------------------------- */
-              /* Only show the latest 6 months                             */
-              /* ---------------------------------------------------------- */
-              transformData={(data) => {
-                const cutoff = new Date();
+            /* ------------------------------------------------------------ */
+            /* Only show the latest 6 months                                */
+            /* ------------------------------------------------------------ */
+            transformData={(data) => {
+              const cutoff = new Date();
 
-                cutoff.setMonth(cutoff.getMonth() - 6);
+              cutoff.setMonth(cutoff.getMonth() - 6);
 
-                return data.filter((day) => new Date(day.date) >= cutoff);
-              }}
+              return data.filter((day) => new Date(day.date) >= cutoff);
+            }}
 
-              colorScheme="dark"
+            colorScheme="dark"
 
-              /* ---------------------------------------------------------- */
-              /* Responsive sizing                                         */
-              /* ---------------------------------------------------------- */
-              blockSize={blockSize}
-              blockMargin={3}
-              blockRadius={3}
+            /* ------------------------------------------------------------ */
+            /* Larger contribution cells                                   */
+            /* ------------------------------------------------------------ */
+            blockSize={16}
+            blockMargin={3}
+            blockRadius={3}
 
-              fontSize={12}
+            fontSize={12}
 
-              showWeekdayLabels
-              showMonthLabels
-              showColorLegend
-              showTotalCount
+            showWeekdayLabels
+            showMonthLabels
+            showColorLegend
+            showTotalCount
 
-              /* ---------------------------------------------------------- */
-              /* Warm opaque palette                                        */
-              /* ---------------------------------------------------------- */
-              theme={{
-                dark: [
-                  "rgba(255,255,255,0.18)",
-                  "rgba(255,190,90,0.46)",
-                  "rgba(255,165,65,0.64)",
-                  "rgba(255,135,38,0.84)",
-                  "rgba(255,255,255,0.97)",
-                ],
-              }}
-            />
-          </div>
+            /* ------------------------------------------------------------ */
+            /* Warm palette matching your portfolio background             */
+            /* ------------------------------------------------------------ */
+            theme={{
+              dark: [
+                "rgba(255,255,255,0.18)",
+                "rgba(255,190,90,0.46)",
+                "rgba(255,165,65,0.64)",
+                "rgba(255,135,38,0.84)",
+                "rgba(255,255,255,0.97)",
+              ],
+            }}
+          />
         </div>
       </div>
 
@@ -447,10 +407,7 @@ const Portfolio = () => {
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
-          {/* ============================================================ */}
-          {/* NASDAQ — Product Manager Analyst                              */}
-          {/* ============================================================ */}
-
+          {/* NASDAQ — Product Manager Analyst */}
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
@@ -494,10 +451,7 @@ const Portfolio = () => {
             </ul>
           </div>
 
-          {/* ============================================================ */}
-          {/* NASDAQ — Client Success Operations Analysis Intern             */}
-          {/* ============================================================ */}
-
+          {/* NASDAQ — Client Success Operations Analysis Intern */}
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
@@ -523,10 +477,7 @@ const Portfolio = () => {
             </ul>
           </div>
 
-          {/* ============================================================ */}
-          {/* JIO                                                             */}
-          {/* ============================================================ */}
-
+          {/* JIO */}
           <div className="mb-8">
             <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
 
@@ -552,10 +503,7 @@ const Portfolio = () => {
             </ul>
           </div>
 
-          {/* ============================================================ */}
-          {/* FANATISCH DIGITAL MARKETING SERVICES                           */}
-          {/* ============================================================ */}
-
+          {/* FANATISCH DIGITAL MARKETING SERVICES */}
           <div className="mb-8">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
 
@@ -670,7 +618,7 @@ const Portfolio = () => {
       </div>
 
       {/* ================================================================ */}
-      {/* Existing scrollbar styling ONLY                                  */}
+      {/* Existing scrollbar styling + GitHub override                     */}
       {/* ================================================================ */}
 
       <style>{`
@@ -681,6 +629,62 @@ const Portfolio = () => {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        /* ================================================================ */
+        /* GitHub Calendar                                                   */
+        /* ================================================================ */
+
+        .portfolio-github-calendar {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        /*
+         * react-activity-calendar internally adds
+         * overflow-x: auto on this container.
+         *
+         * Override it completely so there is NEVER
+         * a horizontal scrollbar.
+         */
+        .portfolio-github-calendar
+          .react-activity-calendar__scroll-container {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
+        }
+
+        /*
+         * Force the actual SVG calendar to occupy
+         * the entire available width.
+         */
+        .portfolio-github-calendar
+          .react-activity-calendar__scroll-container
+          svg {
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+        }
+
+        /*
+         * Prevent the outer calendar itself from
+         * introducing any horizontal overflow.
+         */
+        .portfolio-github-calendar {
+          overflow-x: hidden !important;
+        }
+
+        /*
+         * Keep the contribution calendar visually
+         * integrated with the portfolio.
+         */
+        .github-calendar-shell {
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
         }
       `}</style>
     </div>
