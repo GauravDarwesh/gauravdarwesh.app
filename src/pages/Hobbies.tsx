@@ -186,7 +186,7 @@ const GitHubActivity = () => {
         <p className="text-sm text-white/45 mt-1">A year of building, experimenting, and shipping.</p>
       </div>
 
-      {/* More opaque glass contribution surface */}
+      {/* Opaque glass contribution surface */}
       <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.075] backdrop-blur-[3px]">
         {/* Subtle ambient glow */}
         <div
@@ -194,38 +194,50 @@ const GitHubActivity = () => {
           className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl"
         />
 
-        {/* Calendar */}
-        <div className="relative px-4 py-5 sm:px-6 sm:py-6">
-          <div className="overflow-x-auto no-scrollbar">
-            <div className="min-w-[720px]">
-              <GitHubCalendar
-                username="GauravDarwesh"
-                transformData={(data) => {
-                  const cutoff = new Date();
-                  cutoff.setMonth(cutoff.getMonth() - 6);
+        {/* Six-month calendar */}
+        <div className="relative px-4 py-6 sm:px-6 md:px-8">
+          <div className="w-full flex justify-center">
+            <GitHubCalendar
+              username="GauravDarwesh"
 
-                  return data.filter((day) => new Date(day.date) >= cutoff);
-                }}
-                colorScheme="dark"
-                blockSize={11}
-                blockMargin={4}
-                blockRadius={2}
-                fontSize={12}
-                showWeekdayLabels
-                showMonthLabels
-                showColorLegend
-                showTotalCount
-                theme={{
-                  dark: [
-                    "rgba(255,255,255,0.10)",
-                    "rgba(255,184,77,0.30)",
-                    "rgba(255,161,54,0.50)",
-                    "rgba(255,137,38,0.72)",
-                    "rgba(255,255,255,0.94)",
-                  ],
-                }}
-              />
-            </div>
+              /* Show only the latest 6 months */
+              transformData={(data) => {
+                const cutoff = new Date();
+                cutoff.setMonth(cutoff.getMonth() - 6);
+
+                return data.filter((day) => new Date(day.date) >= cutoff);
+              }}
+
+              colorScheme="dark"
+
+              /*
+               * Enlarged cells so the six months use
+               * the available width more naturally.
+               */
+              blockSize={15}
+              blockMargin={4}
+              blockRadius={3}
+
+              fontSize={12}
+              showWeekdayLabels
+              showMonthLabels
+              showColorLegend
+              showTotalCount
+
+              /*
+               * Warm palette designed to blend with
+               * the orange/yellow animated background.
+               */
+              theme={{
+                dark: [
+                  "rgba(255,255,255,0.12)",
+                  "rgba(255,184,77,0.32)",
+                  "rgba(255,161,54,0.52)",
+                  "rgba(255,137,38,0.74)",
+                  "rgba(255,255,255,0.95)",
+                ],
+              }}
+            />
           </div>
         </div>
       </div>
