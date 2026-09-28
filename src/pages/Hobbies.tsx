@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { GitHubCalendar } from "react-github-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
@@ -175,162 +176,62 @@ const CategorySpotlight = () => {
 /* GitHub Activity                                                          */
 /* ======================================================================== */
 
-type GitHubContribution = {
-  date: string;
-  count: number;
-  level: number;
-};
-
-type GitHubApiResponse = {
-  contributions?: GitHubContribution[];
-};
-
-type GitHubWeek = {
-  days: GitHubContribution[];
-};
-
-const GITHUB_USERNAME = "GauravDarwesh";
-
 const GitHubActivity = () => {
-  const [contributions, setContributions] = useState<GitHubContribution[]>([]);
-
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState(false);
-
-  const [calendarMonthKey, setCalendarMonthKey] = useState(() => {
-    const now = new Date();
-
-    return `${now.getFullYear()}-${now.getMonth() + 1}`;
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /* Get current month key                                                  */
-  /* ---------------------------------------------------------------------- */
-
-  const getCurrentMonthKey = () => {
+  /*
+   * Track the current month so the calendar can remount when
+   * a new month begins.
+   *
+   * Example:
+   *
+   * 2026-09 -> 2026-10
+   *
+   * This forces GitHubCalendar to fetch the latest data again.
+   */
+  const getMonthKey = () => {
     const now = new Date();
 
     return `${now.getFullYear()}-${now.getMonth() + 1}`;
   };
 
-  /* ---------------------------------------------------------------------- */
-  /* Date helpers                                                           */
-  /* ---------------------------------------------------------------------- */
+  const [calendarMonthKey, setCalendarMonthKey] = useState(getMonthKey);
 
-  const parseDate = (date: string) => {
-    return new Date(`${date}T00:00:00`);
-  };
+  const calendarContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear();
-
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-  };
-
-  const startOfWeek = (date: Date) => {
-    const result = new Date(date);
-
-    result.setHours(0, 0, 0, 0);
-
-    result.setDate(result.getDate() - result.getDay());
-
-    return result;
-  };
-
-  const endOfWeek = (date: Date) => {
-    const result = startOfWeek(date);
-
-    result.setDate(result.getDate() + 6);
-
-    return result;
-  };
+  const [calendarWidth, setCalendarWidth] = useState(0);
 
   /* ---------------------------------------------------------------------- */
-  /* Fetch current GitHub contribution data                                */
+  /* Measure the available width                                            */
   /* ---------------------------------------------------------------------- */
 
-  const loadContributions = useCallback(async (signal?: AbortSignal) => {
-    try {
-      setError(false);
+  useEffect(() => {
+    const element = calendarContainerRef.current;
 
-      const cacheBust = Date.now();
+    if (!element) return;
 
-      const response = await fetch(
-        `https://github-contributions-api.jogruber.de/v4/${GITHUB_USERNAME}?y=last&client=portfolio&_=${cacheBust}`,
-        {
-          method: "GET",
-          cache: "no-store",
-          signal,
-          headers: {
-            Accept: "application/json",
-            "Cache-Control": "no-cache",
-          },
-        },
-      );
+    const updateWidth = () => {
+      setCalendarWidth(element.clientWidth);
+    };
 
-      if (!response.ok) {
-        throw new Error(`GitHub contribution request failed: ${response.status}`);
-      }
+    updateWidth();
 
-      const result = (await response.json()) as GitHubApiResponse;
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
 
-      setContributions(Array.isArray(result.contributions) ? result.contributions : []);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        return;
-      }
+    observer.observe(element);
 
-      console.error("Unable to load GitHub contributions:", err);
-
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* Initial load + periodic refresh                                        */
-  /* ---------------------------------------------------------------------- */
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    loadContributions(controller.signal);
-
-    return () => {
-      controller.abort();
-    };
-  }, [loadContributions]);
-
-  useEffect(() => {
-    /*
-     * Refresh every hour so new GitHub contributions can
-     * appear without requiring the user to reload the page.
-     */
-    const interval = window.setInterval(
-      () => {
-        loadContributions();
-      },
-      60 * 60 * 1000,
-    );
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [loadContributions]);
-
-  /* ---------------------------------------------------------------------- */
-  /* Detect a new calendar month                                            */
+  /* Detect new month                                                       */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
     const checkMonth = () => {
-      const currentMonth = getCurrentMonthKey();
+      const currentMonth = getMonthKey();
 
       setCalendarMonthKey((previousMonth) => {
         if (previousMonth === currentMonth) {
@@ -341,6 +242,12 @@ const GitHubActivity = () => {
       });
     };
 
+    /*
+     * Check once every minute.
+     *
+     * This means the page does not need to be manually
+     * edited when October, November, etc. starts.
+     */
     const interval = window.setInterval(checkMonth, 60 * 1000);
 
     document.addEventListener("visibilitychange", checkMonth);
@@ -353,141 +260,46 @@ const GitHubActivity = () => {
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* Build the rolling 5-month calendar                                     */
+  /* Responsive calendar sizing                                             */
   /* ---------------------------------------------------------------------- */
 
-  const weeks = useMemo<GitHubWeek[]>(() => {
-    const now = new Date();
+  /*
+   * GitHub's yearly calendar contains roughly 53 weeks.
+   *
+   * Instead of letting the calendar become wider than the portfolio,
+   * the contribution cells are dynamically sized against the actual
+   * available width.
+   *
+   * Desktop:
+   *   ~10–11px cells
+   *
+   * Tablet:
+   *   ~7–9px cells
+   *
+   * Mobile:
+   *   ~3–6px cells
+   *
+   * The full year therefore remains visible without a scrollbar.
+   */
 
-    now.setHours(0, 0, 0, 0);
+  const blockMargin = calendarWidth > 500 ? 2 : 1.5;
 
-    const cutoff = new Date(now);
+  const estimatedWeeks = 53;
 
-    cutoff.setMonth(cutoff.getMonth() - 5);
+  const calculatedBlockSize =
+    calendarWidth > 0 ? Math.floor((calendarWidth - estimatedWeeks * blockMargin - 4) / estimatedWeeks) : 10;
 
-    const firstDay = startOfWeek(cutoff);
-    const lastDay = endOfWeek(now);
+  const blockSize = Math.max(3, Math.min(11, calculatedBlockSize));
 
-    const contributionMap = new Map(contributions.map((item) => [item.date, item]));
-
-    const result: GitHubWeek[] = [];
-
-    let cursor = new Date(firstDay);
-
-    while (cursor <= lastDay) {
-      const days: GitHubContribution[] = [];
-
-      for (let i = 0; i < 7; i++) {
-        const dateString = formatDate(cursor);
-
-        const existing = contributionMap.get(dateString);
-
-        if (existing) {
-          days.push(existing);
-        } else {
-          /*
-           * Empty days are explicitly created so every
-           * week always contains exactly seven boxes.
-           */
-          days.push({
-            date: dateString,
-            count: 0,
-            level: 0,
-          });
-        }
-
-        cursor.setDate(cursor.getDate() + 1);
-      }
-
-      result.push({ days });
-    }
-
-    return result;
-  }, [contributions, calendarMonthKey]);
-
-  /* ---------------------------------------------------------------------- */
-  /* Month labels                                                           */
-  /* ---------------------------------------------------------------------- */
-
-  const monthLabels = useMemo(() => {
-    const labels: {
-      index: number;
-      label: string;
-    }[] = [];
-
-    weeks.forEach((week, weekIndex) => {
-      const firstDayOfWeek = parseDate(week.days[0].date);
-
-      const monthName = firstDayOfWeek.toLocaleString("en-US", {
-        month: "short",
-      });
-
-      const previous = labels[labels.length - 1];
-
-      if (!previous || previous.label !== monthName) {
-        labels.push({
-          index: weekIndex,
-          label: monthName,
-        });
-      }
-    });
-
-    return labels;
-  }, [weeks]);
-
-  /* ---------------------------------------------------------------------- */
-  /* Five-month contribution total                                          */
-  /* ---------------------------------------------------------------------- */
-
-  const totalContributions = useMemo(() => {
-    return contributions
-      .filter((item) => {
-        const now = new Date();
-
-        const cutoff = new Date(now);
-
-        cutoff.setMonth(cutoff.getMonth() - 5);
-
-        return parseDate(item.date) >= cutoff && parseDate(item.date) <= now;
-      })
-      .reduce((total, item) => total + item.count, 0);
-  }, [contributions]);
-
-  /* ---------------------------------------------------------------------- */
-  /* Contribution colors                                                    */
-  /* ---------------------------------------------------------------------- */
-
-  const contributionColors = [
-    "rgba(255,255,255,0.17)",
-    "rgba(255,190,90,0.45)",
-    "rgba(255,165,65,0.63)",
-    "rgba(255,135,38,0.82)",
-    "rgba(255,255,255,0.96)",
-  ];
-
-  /* ---------------------------------------------------------------------- */
-  /* Loading state                                                          */
-  /* ---------------------------------------------------------------------- */
-
-  if (loading) {
-    return (
-      <section className="pt-2">
-        <div className="mb-5">
-          <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
-
-          <p className="text-sm text-white/45 mt-1">
-            A look at the last 5 months of building, experimenting, and shipping.
-          </p>
-        </div>
-
-        <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.24] bg-white/[0.18] backdrop-blur-[5px] px-5 py-8">
-          <div className="flex items-center justify-center">
-            <span className="text-sm text-white/40">Loading GitHub activity…</span>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  /*
+   * Always display the actual current year.
+   *
+   * This is intentionally NOT filtered to the last 5/6 months.
+   *
+   * That allows the contribution total to match GitHub's
+   * current-year figure, e.g. 518 contributions in 2026.
+   */
+  const currentYear = new Date().getFullYear();
 
   return (
     <section className="pt-2">
@@ -495,128 +307,59 @@ const GitHubActivity = () => {
       <div className="mb-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
-
-          {!error && <span className="text-xs text-white/40">{totalContributions.toLocaleString()} contributions</span>}
         </div>
 
-        <p className="text-sm text-white/45 mt-1">
-          A look at the last 5 months of building, experimenting, and shipping.
-        </p>
+        <p className="text-sm text-white/45 mt-1">A look at GitHub activity throughout {currentYear}.</p>
       </div>
 
       {/* ================================================================== */}
-      {/* GitHub contribution table                                         */}
+      {/* GitHub Calendar                                                     */}
       {/* ================================================================== */}
 
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.24] bg-white/[0.18] backdrop-blur-[5px]">
-        {/* subtle highlight */}
+      <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.20] bg-white/[0.13] backdrop-blur-[4px]">
+        {/* Subtle highlight */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-16 left-1/2 h-32 w-72 -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl"
+          className="pointer-events-none absolute -top-20 left-1/2 h-32 w-72 -translate-x-1/2 rounded-full bg-white/[0.035] blur-3xl"
         />
 
-        <div className="relative w-full px-4 py-6 sm:px-5 md:px-6">
-          {error ? (
-            <div className="flex items-center justify-center py-8">
-              <span className="text-sm text-white/40">GitHub activity is temporarily unavailable.</span>
-            </div>
-          ) : (
-            <>
-              {/* ---------------------------------------------------------- */}
-              {/* Month labels                                               */}
-              {/* ---------------------------------------------------------- */}
-
-              <div
-                className="w-full grid items-end mb-3"
-                style={{
-                  gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
-                  columnGap: "3px",
-                }}
-              >
-                {weeks.map((_, index) => {
-                  const label = monthLabels.find((item) => item.index === index);
-
-                  return (
-                    <div key={`month-${index}`} className="min-w-0 text-xs text-white/45 whitespace-nowrap">
-                      {label?.label ?? ""}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* ---------------------------------------------------------- */}
-              {/* Contribution grid                                          */}
-              {/* ---------------------------------------------------------- */}
-
-              <div
-                className="w-full grid items-stretch"
-                style={{
-                  gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
-                  columnGap: "3px",
-                }}
-              >
-                {weeks.map((week, weekIndex) => (
-                  <div
-                    key={`week-${weekIndex}`}
-                    className="grid min-w-0"
-                    style={{
-                      gridTemplateRows: "repeat(7, minmax(0, 1fr))",
-                      rowGap: "3px",
-                    }}
-                  >
-                    {week.days.map((day) => {
-                      const level = Math.max(0, Math.min(4, Math.round(day.level)));
-
-                      return (
-                        <div
-                          key={day.date}
-                          title={`${day.count} contribution${day.count === 1 ? "" : "s"} on ${day.date}`}
-                          aria-label={`${day.count} contribution${day.count === 1 ? "" : "s"} on ${day.date}`}
-                          className="w-full aspect-square rounded-[3px] border border-white/[0.045] transition-all duration-200 hover:scale-[1.08] hover:border-white/20 hover:brightness-110"
-                          style={{
-                            backgroundColor: contributionColors[level],
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-
-              {/* ---------------------------------------------------------- */}
-              {/* Footer                                                     */}
-              {/* ---------------------------------------------------------- */}
-
-              <div className="flex flex-wrap items-center justify-between gap-4 mt-5">
-                <span className="text-xs text-white/35">Less</span>
-
-                <div className="flex items-center gap-[4px]">
-                  {contributionColors.map((color, index) => (
-                    <span
-                      key={`legend-${index}`}
-                      className="block w-[12px] h-[12px] rounded-[3px] border border-white/[0.045]"
-                      style={{
-                        backgroundColor: color,
-                      }}
-                    />
-                  ))}
-                </div>
-
-                <span className="text-xs text-white/35">More</span>
-              </div>
-            </>
-          )}
+        {/* Calendar container */}
+        <div ref={calendarContainerRef} className="relative w-full overflow-hidden px-3 py-5 sm:px-4 sm:py-6">
+          <GitHubCalendar
+            key={calendarMonthKey}
+            className="portfolio-github-calendar"
+            username="GauravDarwesh"
+            year={currentYear}
+            colorScheme="dark"
+            blockSize={blockSize}
+            blockMargin={blockMargin}
+            blockRadius={2}
+            fontSize={12}
+            showWeekdayLabels={false}
+            showMonthLabels
+            showColorLegend
+            showTotalCount
+            theme={{
+              dark: [
+                "rgba(255,255,255,0.12)",
+                "rgba(255,184,77,0.34)",
+                "rgba(255,161,54,0.54)",
+                "rgba(255,137,38,0.76)",
+                "rgba(255,255,255,0.94)",
+              ],
+            }}
+          />
         </div>
       </div>
 
       {/* GitHub link */}
       <a
-        href={`https://github.com/${GITHUB_USERNAME}`}
+        href="https://github.com/GauravDarwesh"
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center mt-4 text-sm text-white/45 hover:text-white transition-colors duration-300"
       >
-        github.com/{GITHUB_USERNAME} →
+        github.com/GauravDarwesh →
       </a>
     </section>
   );
@@ -739,6 +482,7 @@ const Portfolio = () => {
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
+          {/* University of Mumbai */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Mumbai</h3>
@@ -751,6 +495,7 @@ const Portfolio = () => {
             <p className="text-sm text-white/60 mt-1">Dec 2021 – June 2025</p>
           </div>
 
+          {/* University of Cambridge */}
           <div className="mb-8">
             <div className="flex justify-between items-start">
               <h3 className="font-semibold">University of Cambridge</h3>
@@ -768,6 +513,10 @@ const Portfolio = () => {
 
         <section>
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
+
+          {/* ============================================================ */}
+          {/* NASDAQ — Product Manager Analyst                              */}
+          {/* ============================================================ */}
 
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
@@ -812,6 +561,10 @@ const Portfolio = () => {
             </ul>
           </div>
 
+          {/* ============================================================ */}
+          {/* NASDAQ — Client Success Operations Analysis Intern             */}
+          {/* ============================================================ */}
+
           <div className="mb-8">
             <h3 className="font-semibold">NASDAQ, Mumbai, India</h3>
 
@@ -837,6 +590,10 @@ const Portfolio = () => {
             </ul>
           </div>
 
+          {/* ============================================================ */}
+          {/* JIO                                                             */}
+          {/* ============================================================ */}
+
           <div className="mb-8">
             <h3 className="font-semibold">Jio Platforms Limited, Mumbai, India</h3>
 
@@ -861,6 +618,10 @@ const Portfolio = () => {
               </li>
             </ul>
           </div>
+
+          {/* ============================================================ */}
+          {/* FANATISCH DIGITAL MARKETING SERVICES                           */}
+          {/* ============================================================ */}
 
           <div className="mb-8">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
@@ -976,7 +737,7 @@ const Portfolio = () => {
       </div>
 
       {/* ================================================================ */}
-      {/* Existing scrollbar styling                                        */}
+      {/* Existing scrollbar styling + GitHub calendar override             */}
       {/* ================================================================ */}
 
       <style>{`
@@ -987,6 +748,66 @@ const Portfolio = () => {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        /* ================================================================ */
+        /* GitHub Calendar                                                   */
+        /* ================================================================ */
+
+        .github-calendar-shell {
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
+        }
+
+        /*
+         * The underlying react-activity-calendar component uses
+         * overflow-x: auto internally.
+         *
+         * Override that so the scrollbar NEVER becomes visible.
+         */
+        .portfolio-github-calendar {
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          overflow: hidden !important;
+        }
+
+        .portfolio-github-calendar
+          .react-activity-calendar__scroll-container {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
+        }
+
+        /*
+         * Prevent the yearly SVG from creating horizontal overflow.
+         */
+        .portfolio-github-calendar
+          .react-activity-calendar__scroll-container
+          svg {
+          display: block !important;
+          max-width: 100% !important;
+        }
+
+        /*
+         * Generic fallback in case the internal class name changes.
+         */
+        .portfolio-github-calendar
+          [class*="scroll-container"] {
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
+          max-width: 100% !important;
+          width: 100% !important;
+        }
+
+        .portfolio-github-calendar
+          [class*="scroll-container"]
+          svg {
+          display: block !important;
+          max-width: 100% !important;
         }
       `}</style>
     </div>
