@@ -21,24 +21,17 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
   // ------------------------------------------------------------
   // Scroll / route behaviour
   // ------------------------------------------------------------
-
   const SHOW_ON_PATHS = ["/hobbies", "/blog", "/visuals"];
-
   const enabledOnThisPath = useMemo(() => SHOW_ON_PATHS.includes(location.pathname), [location.pathname]);
-
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   // ------------------------------------------------------------
   // GDx theme easter egg
   // ------------------------------------------------------------
-
   const isGdxPage = location.pathname === "/";
-
   const [themeHintReady, setThemeHintReady] = useState(false);
-
   const [themeAlreadyDiscovered, setThemeAlreadyDiscovered] = useState(() => {
     if (typeof window === "undefined") return false;
-
     return window.localStorage.getItem(GDx_EASTER_EGG_KEY) === "true";
   });
 
@@ -68,11 +61,11 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
    * GDx navigation / interaction
    *
    * On another page:
-   *   single click -> navigate to GDx
+   * single click -> navigate to GDx
    *
    * On GDx:
-   *   single click -> nothing
-   *   double click -> toggle minimalistic theme
+   * single click -> nothing
+   * double click -> toggle minimalistic theme
    *
    * Using click detail here avoids combining onClick and
    * onDoubleClick, which can make the first press feel strange.
@@ -89,9 +82,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
     }
 
     toggleTheme();
-
     window.localStorage.setItem(GDx_EASTER_EGG_KEY, "true");
-
     setThemeAlreadyDiscovered(true);
     setThemeHintReady(false);
   };
@@ -99,7 +90,6 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
   // ------------------------------------------------------------
   // Scroll-to-top behaviour
   // ------------------------------------------------------------
-
   useEffect(() => {
     const update = () => {
       if (!enabledOnThisPath) {
@@ -108,16 +98,13 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
       }
 
       const doc = document.documentElement;
-
       const hasScrollableContent = doc.scrollHeight - window.innerHeight > 4;
-
       const scrolledPastThreshold = window.scrollY > 30;
 
       setShowScrollTop(hasScrollableContent && scrolledPastThreshold);
     };
 
     update();
-
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
 
@@ -137,7 +124,6 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
   // ------------------------------------------------------------
   // Navigation
   // ------------------------------------------------------------
-
   const options = [
     { name: "GDx", path: "/" },
     { name: "Classic", path: "/hobbies" },
@@ -152,19 +138,11 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
       {/* Navigation */}
       <div
         data-site-navigation
-        className={`
-          fixed top-5 left-1/2 -translate-x-1/2 z-50
-          flex gap-2
-          transition-all duration-700 ease-out
-
-          ${
-            enabledOnThisPath && showScrollTop
-              ? "opacity-0 scale-98 pointer-events-none"
-              : "opacity-100 scale-100 pointer-events-auto"
-          }
-
-          ${isBlurred ? "blur-sm pointer-events-none" : "blur-0"}
-        `}
+        className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 flex gap-2 transition-all duration-700 ease-out ${
+          enabledOnThisPath && showScrollTop
+            ? "opacity-0 scale-98 pointer-events-none"
+            : "opacity-100 scale-100 pointer-events-auto"
+        } ${isBlurred ? "blur-sm pointer-events-none" : "blur-0"}`}
       >
         {options.map((option) => {
           const active = isActive(option.path);
@@ -186,27 +164,9 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
               variant="ghost"
               size="sm"
               aria-label={isGdx ? "GDx. Double-click to change theme" : option.name}
-              className={`
-                relative
-                w-20 h-9
-                text-[12px]
-                text-center
-                tracking-normal
-                rounded-full
-
-                bg-transparent
-                hover:bg-transparent
-
-                border border-transparent
-
-                ${
-                  active
-                    ? "bg-white/10 border-[1.5px] border-white/80 text-white backdrop-blur-sm"
-                    : "text-white/90 hover:text-white"
-                }
-
-                ${showGdxHint ? "gdx-theme-hint" : ""}
-              `}
+              className={`relative w-20 h-9 text-[12px] text-center tracking-normal rounded-full bg-transparent hover:bg-transparent border border-transparent ${
+                active ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" : "text-gray-300 hover:text-white"
+              } ${showGdxHint ? "gdx-theme-hint" : ""}`}
             >
               <span className="relative -top-px">{option.name}</span>
             </Button>
@@ -220,55 +180,22 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
         data-site-floating-control
         onClick={isModalOpen ? onCloseModal : scrollToTop}
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
-        className={`
-          fixed bottom-6 right-6
-          ${isModalOpen ? "z-[70]" : "z-50"}
-
-          flex items-center justify-center
-          w-12 h-12
-          rounded-full
-          backdrop-blur-md
-
-          bg-white/10
-          border border-white/20
-
-          text-white
-          shadow-lg
-
-          transition-opacity
-          duration-700
-          ease-in-out
-
-          hover:bg-white/20
-
-          ${(enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
-        `}
+        className={`fixed bottom-6 right-6 ${
+          isModalOpen ? "z-[70]" : "z-50"
+        } flex items-center justify-center w-12 h-12 rounded-full backdrop-blur-md bg-white/10 border border-white/20 text-white shadow-lg transition-opacity duration-700 ease-in-out hover:bg-white/20 ${
+          (enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
       >
         <div className="relative w-5 h-5">
           <ChevronUp
-            className={`
-              absolute top-0 left-0
-              w-5 h-5
-
-              transition-all
-              duration-500
-              ease-out
-
-              ${isModalOpen ? "opacity-0 scale-75 rotate-45" : "opacity-100 scale-100 rotate-0"}
-            `}
+            className={`absolute top-0 left-0 w-5 h-5 transition-all duration-500 ease-out ${
+              isModalOpen ? "opacity-0 scale-75 rotate-45" : "opacity-100 scale-100 rotate-0"
+            }`}
           />
-
           <X
-            className={`
-              absolute top-0 left-0
-              w-5 h-5
-
-              transition-all
-              duration-500
-              ease-out
-
-              ${isModalOpen ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-75 -rotate-45"}
-            `}
+            className={`absolute top-0 left-0 w-5 h-5 transition-all duration-500 ease-out ${
+              isModalOpen ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-75 -rotate-45"
+            }`}
           />
         </div>
       </button>
