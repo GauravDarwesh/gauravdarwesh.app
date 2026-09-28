@@ -20,44 +20,30 @@ const queryClient = new QueryClient();
 const SiteBackground = () => <AnimatedLedBackground />;
 
 const App = () => (
-  <SiteThemeProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+  <SiteMusicProvider>
+    <SiteThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
 
-        {/* =========================================================
-            PERSISTENT SITE BACKGROUND
+          <SiteBackground />
 
-            IMPORTANT:
-            This is intentionally OUTSIDE BrowserRouter.
-
-            Route changes can therefore replace everything inside
-            BrowserRouter without touching the wallpaper element.
-        ========================================================= */}
-        <SiteBackground />
-
-        {/* =========================================================
-            ROUTER / PAGE CONTENT
-
-            Only the page content changes when navigating.
-            The background remains mounted independently.
-        ========================================================= */}
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/hobbies" element={<Hobbies />} />
-            <Route path="/others" element={<Others />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/visuals" element={<Visuals />} />
-            <Route path="/session-test" element={<SessionTest />} />
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </SiteThemeProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/hobbies" element={<Hobbies />} />
+              <Route path="/others" element={<Others />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/visuals" element={<Visuals />} />
+              <Route path="/session-test" element={<SessionTest />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </SiteThemeProvider>
+  </SiteMusicProvider>
 );
 
 export default App;
