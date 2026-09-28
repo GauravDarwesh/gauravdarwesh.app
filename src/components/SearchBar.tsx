@@ -3466,7 +3466,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                   placeholder={isLoading ? "" : placeholderText}
                   value={query}
                   onChange={handleInputChange}
-                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-white text-base font-normal px-4 h-10 ${
+                  className={`flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-white text-base font-normal px-4 h-10 ${
                     isLoading ? "thinking-placeholder" : ""
                   }`}
                   disabled={isLoading}
