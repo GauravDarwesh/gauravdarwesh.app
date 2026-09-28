@@ -3,12 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
 import AnimatedLedBackground from "@/AnimatedLedBackground";
-import { SiteMusicProvider } from "@/components/SiteMusicProvider";
-import MusicControl from "@/components/MusicControl";
-import { SiteThemeProvider } from "@/components/SiteThemeProvider";
-import MusicControl from "@/components/MusicControl";
 
 import Index from "./pages/Index";
 import Hobbies from "./pages/Hobbies";
@@ -18,36 +13,51 @@ import Visuals from "./pages/Visuals";
 import SessionTest from "./pages/SessionTest";
 import NotFound from "./pages/NotFound";
 
+import { SiteThemeProvider } from "@/components/SiteThemeProvider";
+
 const queryClient = new QueryClient();
 
 const SiteBackground = () => <AnimatedLedBackground />;
 
 const App = () => (
-  <SiteMusicProvider>
-    <SiteThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
+  <SiteThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
 
-          <SiteBackground />
-          <MusicControl />
+        {/* =========================================================
+            PERSISTENT SITE BACKGROUND
 
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/hobbies" element={<Hobbies />} />
-              <Route path="/others" element={<Others />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="/visuals" element={<Visuals />} />
-              <Route path="/session-test" element={<SessionTest />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </SiteThemeProvider>
-  </SiteMusicProvider>
+            IMPORTANT:
+            This is intentionally OUTSIDE BrowserRouter.
+
+            Route changes can therefore replace everything inside
+            BrowserRouter without touching the wallpaper element.
+        ========================================================= */}
+        <SiteBackground />
+
+        {/* =========================================================
+            ROUTER / PAGE CONTENT
+
+            Only the page content changes when navigating.
+            The background remains mounted independently.
+        ========================================================= */}
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/hobbies" element={<Hobbies />} />
+            <Route path="/others" element={<Others />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/visuals" element={<Visuals />} />
+            <Route path="/session-test" element={<SessionTest />} />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </SiteThemeProvider>
 );
 
 export default App;
