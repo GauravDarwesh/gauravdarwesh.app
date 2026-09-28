@@ -177,6 +177,110 @@ const CategorySpotlight = () => {
 /* ======================================================================== */
 
 const GitHubActivity = () => {
+  const calendarContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const [calendarWidth, setCalendarWidth] = useState(0);
+
+  /*
+   * This changes whenever the calendar crosses into a new month.
+   *
+   * Example:
+   * September 2026 -> October 2026
+   *
+   * This forces GitHubCalendar to remount and fetch fresh data.
+   */
+  const getMonthKey = () => {
+    const now = new Date();
+
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const [calendarKey, setCalendarKey] = useState(getMonthKey);
+
+  /* ---------------------------------------------------------------------- */
+  /* Measure available calendar width                                      */
+  /* ---------------------------------------------------------------------- */
+
+  useEffect(() => {
+    const element = calendarContainerRef.current;
+
+    if (!element) return;
+
+    const updateWidth = () => {
+      setCalendarWidth(element.clientWidth);
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* Automatically detect month change                                    */
+  /* ---------------------------------------------------------------------- */
+
+  useEffect(() => {
+    const checkMonth = () => {
+      const currentMonth = getMonthKey();
+
+      setCalendarKey((previousMonth) => {
+        if (previousMonth === currentMonth) {
+          return previousMonth;
+        }
+
+        return currentMonth;
+      });
+    };
+
+    const interval = window.setInterval(checkMonth, 60 * 1000);
+
+    document.addEventListener("visibilitychange", checkMonth);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", checkMonth);
+    };
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* Responsive sizing                                                      */
+  /* ---------------------------------------------------------------------- */
+
+  /*
+   * Six months can span approximately 26–27 weekly columns.
+   *
+   * We deliberately size the cells against the ACTUAL container width
+   * instead of giving the calendar a fixed desktop width.
+   *
+   * This means:
+   *
+   * Desktop  -> large cells
+   * Tablet   -> medium cells
+   * Mobile   -> smaller cells
+   *
+   * And importantly:
+   * NO horizontal scrolling is required.
+   */
+
+  const estimatedWeeks = 27;
+
+  const blockMargin = calendarWidth > 0 && calendarWidth < 500 ? 2 : 3;
+
+  const availableCalendarWidth = Math.max(calendarWidth - 42, 0);
+
+  const calculatedBlockSize =
+    availableCalendarWidth > 0 ? Math.floor(availableCalendarWidth / estimatedWeeks - blockMargin) : 18;
+
+  const blockSize = Math.max(8, Math.min(22, calculatedBlockSize));
+
   return (
     <section className="pt-2">
       {/* Section heading */}
@@ -188,23 +292,28 @@ const GitHubActivity = () => {
         </p>
       </div>
 
-      {/* GitHub contribution surface */}
-      <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.22] bg-white/[0.15] backdrop-blur-[5px]">
-        {/* Subtle ambient glow */}
+      {/* ================================================================== */}
+      {/* GitHub Calendar Surface                                             */}
+      {/* ================================================================== */}
+
+      <div className="github-calendar-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.24] bg-white/[0.18] backdrop-blur-[5px]">
+        {/* Very subtle highlight */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl"
+          className="pointer-events-none absolute -top-20 left-1/2 h-32 w-72 -translate-x-1/2 rounded-full bg-white/[0.045] blur-3xl"
         />
 
-        {/* Calendar */}
-        <div className="relative w-full px-3 py-6 sm:px-4 md:px-5">
+        {/* Calendar content */}
+        <div ref={calendarContainerRef} className="relative w-full overflow-hidden px-3 py-6 sm:px-4 md:px-5">
           <GitHubCalendar
+            key={calendarKey}
             className="portfolio-github-calendar"
             username="GauravDarwesh"
 
-            /* ------------------------------------------------------------ */
-            /* Only show the latest 6 months                                */
-            /* ------------------------------------------------------------ */
+            /* ============================================================ */
+            /* Rolling 6-month window                                       */
+            /* ============================================================ */
+
             transformData={(data) => {
               const cutoff = new Date();
 
@@ -215,11 +324,12 @@ const GitHubActivity = () => {
 
             colorScheme="dark"
 
-            /* ------------------------------------------------------------ */
-            /* Larger contribution cells                                   */
-            /* ------------------------------------------------------------ */
-            blockSize={16}
-            blockMargin={3}
+            /* ============================================================ */
+            /* Responsive contribution cells                                */
+            /* ============================================================ */
+
+            blockSize={blockSize}
+            blockMargin={blockMargin}
             blockRadius={3}
 
             fontSize={12}
@@ -229,16 +339,17 @@ const GitHubActivity = () => {
             showColorLegend
             showTotalCount
 
-            /* ------------------------------------------------------------ */
-            /* Warm palette matching your portfolio background             */
-            /* ------------------------------------------------------------ */
+            /* ============================================================ */
+            /* Opaque warm contribution palette                             */
+            /* ============================================================ */
+
             theme={{
               dark: [
-                "rgba(255,255,255,0.18)",
-                "rgba(255,190,90,0.46)",
-                "rgba(255,165,65,0.64)",
-                "rgba(255,135,38,0.84)",
-                "rgba(255,255,255,0.97)",
+                "rgba(255,255,255,0.22)",
+                "rgba(255,190,90,0.52)",
+                "rgba(255,165,65,0.70)",
+                "rgba(255,135,38,0.88)",
+                "rgba(255,255,255,0.98)",
               ],
             }}
           />
@@ -503,7 +614,7 @@ const Portfolio = () => {
             </ul>
           </div>
 
-          {/* FANATISCH DIGITAL MARKETING SERVICES */}
+          {/* FANATISCH */}
           <div className="mb-8">
             <h3 className="font-semibold">Fanatisch Digital Marketing Services, Mumbai, India</h3>
 
@@ -635,21 +746,28 @@ const Portfolio = () => {
         /* GitHub Calendar                                                   */
         /* ================================================================ */
 
-        .portfolio-github-calendar {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
+        .github-calendar-shell {
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
         }
 
         /*
-         * react-activity-calendar internally adds
-         * overflow-x: auto on this container.
+         * The GitHub calendar library internally creates a
+         * scroll container on some layouts.
          *
-         * Override it completely so there is NEVER
-         * a horizontal scrollbar.
+         * Completely disable that behavior.
          */
+        .portfolio-github-calendar {
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          overflow-x: hidden !important;
+          overflow-y: hidden !important;
+        }
+
         .portfolio-github-calendar
-          .react-activity-calendar__scroll-container {
+          [class*="scroll-container"] {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
@@ -658,11 +776,10 @@ const Portfolio = () => {
         }
 
         /*
-         * Force the actual SVG calendar to occupy
-         * the entire available width.
+         * Stretch the actual calendar to the available width.
          */
         .portfolio-github-calendar
-          .react-activity-calendar__scroll-container
+          [class*="scroll-container"]
           svg {
           display: block !important;
           width: 100% !important;
@@ -670,21 +787,8 @@ const Portfolio = () => {
           height: auto !important;
         }
 
-        /*
-         * Prevent the outer calendar itself from
-         * introducing any horizontal overflow.
-         */
-        .portfolio-github-calendar {
-          overflow-x: hidden !important;
-        }
-
-        /*
-         * Keep the contribution calendar visually
-         * integrated with the portfolio.
-         */
-        .github-calendar-shell {
-          overflow-x: hidden !important;
-          overflow-y: hidden !important;
+        .portfolio-github-calendar svg {
+          max-width: 100% !important;
         }
       `}</style>
     </div>
