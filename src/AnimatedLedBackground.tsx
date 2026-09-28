@@ -38,40 +38,55 @@ const AnimatedLedBackground = () => {
       hueCycle: 0.012,
       threshold: 0.02,
 
-      // Slightly deeper luminance curve so the background remains
-      // atmospheric rather than becoming overly bright behind white text.
-      gamma: 1.05,
-      floor: 0.38,
+      // Brighter and more energetic than the previous version,
+      // while still keeping enough depth for white content.
+      gamma: 0.88,
+      floor: 0.48,
     };
 
     /*
-     * Midnight Plum / Charcoal / Muted Copper palette.
+     * Rich warm palette:
      *
-     * The palette intentionally avoids:
-     * - bright yellow
-     * - neon orange
-     * - saturated fire-red
+     * Deep base:
+     *   charcoal / plum / burgundy
      *
-     * Most of the range lives in dark charcoal, aubergine and wine tones,
-     * with restrained copper highlights for visual energy.
+     * Mid tones:
+     *   terracotta / copper / brick
+     *
+     * Brighter accents:
+     *   coral / rose / salmon
+     *
+     * Deliberately NO:
+     *   yellow
+     *   neon yellow
+     *   lime
+     *   bright amber
      */
     const palette = [
-      "#0b0a10",
-      "#110d16",
-      "#17101a",
-      "#1e121d",
-      "#26141f",
-      "#301722",
-      "#3b1b26",
-      "#472029",
-      "#54252d",
+      "#0b0910",
+      "#120c14",
+      "#190f18",
+      "#21111c",
+      "#29131f",
+      "#321621",
+      "#3c1924",
+      "#47202a",
+      "#54252c",
       "#632c31",
-      "#733535",
-      "#844039",
-      "#945043",
-      "#704044",
-      "#4d2935",
-      "#321a27",
+      "#733438",
+      "#84403f",
+      "#944b45",
+      "#a8564c",
+      "#b96153",
+      "#c96b5b",
+      "#d47765",
+      "#da806f",
+      "#c8695e",
+      "#af504c",
+      "#8f3d40",
+      "#713034",
+      "#57242d",
+      "#3c1824",
     ];
 
     let tile = 19;
@@ -206,8 +221,8 @@ const AnimatedLedBackground = () => {
       const wtW = realT * CFG.speed * motion;
       const wtC = realT * CFG.speed * motion;
 
-      // Deep neutral backdrop instead of warm black.
-      ctx.fillStyle = "#08080d";
+      // Dark neutral foundation so white UI remains readable.
+      ctx.fillStyle = "#08070c";
       ctx.fillRect(0, 0, width, height);
 
       for (let row = 0; row < rows; row += 1) {
@@ -255,7 +270,7 @@ const AnimatedLedBackground = () => {
           const m = (bIndex + 0.5) / 64;
           const o = hueIndex * 3;
 
-          // Preserve the luminous floor but keep the overall scene dark.
+          // Preserve the luminous floor while allowing brighter accents.
           const rr = lut[o] * m;
           const gg = lut[o + 1] * m;
           const bb = lut[o + 2] * m;
