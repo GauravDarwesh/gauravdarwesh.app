@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { GitHubCalendar } from "react-github-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
@@ -175,10 +174,22 @@ const CategorySpotlight = () => {
 /* GitHub Activity                                                          */
 /* ======================================================================== */
 
+type GitHubContribution = {
+  date: string;
+  count: number;
+  level: 0 | 1 | 2 | 3 | 4;
+};
+
+const GITHUB_SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "https://zdrcjhohalgzhlbufwcl.supabase.co";
+
 const GitHubActivity = () => {
   const [isMinimal, setIsMinimal] = useState(false);
-  const [contributions, setContributions] = useState<Activity[]>([]);
+  const [contributions, setContributions] = useState<GitHubContribution[]>([]);
+  const [totalContributions, setTotalContributions] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -204,39 +215,46 @@ const GitHubActivity = () => {
 
     const loadContributions = async () => {
       setLoading(true);
+      setError(false);
 
       try {
-        const cacheBuster = Date.now();
+        const endpoint =
+          `${GITHUB_SUPABASE_URL.replace(/\/$/, "")}` + `/functions/v1/github-contributions?year=${currentYear}`;
 
-        const response = await fetch(
-          `https://github-contributions-api.jogruber.de/v4/GauravDarwesh?y=${currentYear}&_=${cacheBuster}`,
-          {
-            signal: controller.signal,
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
+        const response = await fetch(endpoint, {
+          method: "GET",
+          signal: controller.signal,
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
           },
-        );
+        });
 
         if (!response.ok) {
-          throw new Error(`GitHub contribution request failed: ${response.status}`);
+          throw new Error(`GitHub contribution function returned ${response.status}`);
         }
 
         const data = (await response.json()) as {
-          contributions?: Activity[];
+          contributions?: GitHubContribution[];
+          totalContributions?: number;
         };
 
         if (!Array.isArray(data.contributions)) {
-          throw new Error("GitHub contribution data was not returned in the expected format.");
+          throw new Error("Contribution data is missing.");
         }
 
         setContributions(data.contributions);
-      } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("GitHub contribution loading failed:", error);
+        setTotalContributions(
+          typeof data.totalContributions === "number"
+            ? data.totalContributions
+            : data.contributions.reduce((sum, day) => sum + day.count, 0),
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          console.error("GitHub contribution loading failed:", err);
           setContributions([]);
+          setTotalContributions(null);
+          setError(true);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -250,31 +268,78 @@ const GitHubActivity = () => {
     return () => controller.abort();
   }, [currentYear]);
 
-  /*
-   * Purple/plum is deliberate here:
-   * it remains strongly visible against the orange/yellow LED wallpaper
-   * without introducing a disconnected "third theme".
-   */
-  const calendarTheme = isMinimal
-    ? {
-        light: ["rgba(0,0,0,0.045)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.36)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.90)"],
-        dark: [
-          "rgba(255,255,255,0.045)",
-          "rgba(255,184,77,0.20)",
-          "rgba(255,161,54,0.38)",
-          "rgba(255,137,38,0.62)",
-          "rgba(255,255,255,0.90)",
-        ],
-      }
-    : {
-        dark: [
-          "rgba(48,23,68,0.88)",
-          "rgba(93,50,124,0.92)",
-          "rgba(132,78,169,0.94)",
-          "rgba(181,116,214,0.96)",
-          "rgba(238,207,255,0.98)",
-        ],
-      };
+  const contributionByDate = new Map(contributions.map((day) => [day.date, day]));
+
+  const calendarStart = new Date(Date.UTC(currentYear, 0, 1));
+  calendarStart.setUTCDate(calendarStart.getUTCDate() - calendarStart.getUTCDay());
+
+  const calendarEnd = new Date(Date.UTC(currentYear, 11, 31));
+  calendarEnd.setUTCDate(calendarEnd.getUTCDate() + (6 - calendarEnd.getUTCDay()));
+
+  const weeks: GitHubContribution[][] = [];
+  const cursor = new Date(calendarStart);
+
+  while (cursor <= calendarEnd) {
+    const week: GitHubContribution[] = [];
+
+    for (let day = 0; day < 7; day += 1) {
+      const date = cursor.toISOString().slice(0, 10);
+      const activity = contributionByDate.get(date);
+
+      week.push(
+        activity ?? {
+          date,
+          count: 0,
+          level: 0,
+        },
+      );
+
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    weeks.push(week);
+  }
+
+  const monthRanges: Array<{ label: string; span: number }> = [];
+  let currentMonth = -1;
+
+  weeks.forEach((week) => {
+    const visibleDay = week.find((day) => day.date.startsWith(`${currentYear}-`));
+    const month = visibleDay ? Number(visibleDay.date.slice(5, 7)) - 1 : currentMonth;
+
+    if (month !== currentMonth) {
+      currentMonth = month;
+      monthRanges.push({
+        label: new Date(Date.UTC(currentYear, month, 1)).toLocaleString("en-US", {
+          month: "short",
+          timeZone: "UTC",
+        }),
+        span: 1,
+      });
+    } else {
+      const last = monthRanges[monthRanges.length - 1];
+      if (last) last.span += 1;
+    }
+  });
+
+  const normalColors = [
+    "rgba(42,22,54,0.88)",
+    "rgba(82,45,108,0.92)",
+    "rgba(121,69,154,0.94)",
+    "rgba(168,105,198,0.96)",
+    "rgba(231,194,250,0.98)",
+  ];
+
+  const minimalColors = [
+    "rgba(0,0,0,0.045)",
+    "rgba(0,0,0,0.18)",
+    "rgba(0,0,0,0.36)",
+    "rgba(0,0,0,0.60)",
+    "rgba(0,0,0,0.90)",
+  ];
+
+  const colors = isMinimal ? minimalColors : normalColors;
+  const emptyColor = isMinimal ? "rgba(0,0,0,0.035)" : "rgba(20,12,30,0.72)";
 
   return (
     <section className="pt-2">
@@ -290,27 +355,89 @@ const GitHubActivity = () => {
           className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.055] blur-3xl"
         />
 
-        <div className="relative px-4 py-5 sm:px-6 sm:py-6 overflow-hidden">
+        <div className="relative px-4 py-5 sm:px-6 sm:py-6">
           {loading ? (
-            <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
+            <div className="h-[180px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
+          ) : error ? (
+            <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-white/10 px-6 text-center text-sm text-white/55">
+              GitHub activity is temporarily unavailable.
+            </div>
           ) : (
-            <ActivityCalendar
-              key={`github-calendar-${isMinimal ? "minimal" : "classic"}`}
-              data={contributions}
-              colorScheme={isMinimal ? "light" : "dark"}
-              blockSize={11}
-              blockMargin={4}
-              blockRadius={2}
-              fontSize={12}
-              showWeekdayLabels
-              showMonthLabels
-              showColorLegend
-              showTotalCount
-              labels={{
-                totalCount: `{{count}} contributions in ${currentYear}`,
-              }}
-              theme={calendarTheme}
-            />
+            <div className={`github-contribution-viewport ${isMinimal ? "github-contribution-minimal" : ""}`}>
+              <div
+                className="github-months"
+                style={{
+                  gridTemplateColumns: `24px repeat(${weeks.length}, minmax(0, 1fr))`,
+                }}
+              >
+                <span aria-hidden="true" />
+                {monthRanges.map((month, index) => (
+                  <span key={`${month.label}-${index}`} style={{ gridColumn: `span ${month.span}` }}>
+                    {month.label}
+                  </span>
+                ))}
+              </div>
+
+              <div className="github-calendar-body">
+                <div className="github-weekday-labels" aria-hidden="true">
+                  <span />
+                  <span>Mon</span>
+                  <span />
+                  <span>Wed</span>
+                  <span />
+                  <span>Fri</span>
+                  <span />
+                </div>
+
+                <div
+                  className="github-contribution-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {weeks.map((week, weekIndex) =>
+                    week.map((day) => {
+                      const isCurrentYear = day.date.startsWith(`${currentYear}-`);
+                      const background = !isCurrentYear ? emptyColor : colors[day.level];
+
+                      return (
+                        <div
+                          key={day.date}
+                          className="github-contribution-cell"
+                          title={`${day.count} contribution${day.count === 1 ? "" : "s"} on ${new Date(
+                            `${day.date}T00:00:00Z`,
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          })}`}
+                          data-week={weekIndex}
+                          data-level={day.level}
+                          style={{
+                            backgroundColor: background,
+                          }}
+                        />
+                      );
+                    }),
+                  )}
+                </div>
+              </div>
+
+              <div className="github-calendar-footer">
+                <span>
+                  {totalContributions ?? 0} contributions in {currentYear}
+                </span>
+
+                <span className="github-calendar-legend">
+                  <span>Less</span>
+                  {colors.map((color, index) => (
+                    <span key={index} className="github-legend-cell" style={{ backgroundColor: color }} />
+                  ))}
+                  <span>More</span>
+                </span>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -712,65 +839,148 @@ const Portfolio = () => {
           scrollbar-width: none;
         }
 
-        /* One horizontal scroll owner only:
-           ActivityCalendar's internal viewport handles the calendar's
-           overflow. Removing the outer nested scroller fixes sticky
-           trackpad/wheel scrolling between October and December. */
+        /* GitHub contribution calendar */
         .github-calendar-shell {
           overscroll-behavior: contain;
         }
 
-        .github-calendar-shell
-          .react-activity-calendar__scroll-container,
-        .github-calendar-shell
-          [class*="scroll-container"] {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-          -webkit-overflow-scrolling: touch;
-          scroll-behavior: auto;
-          overscroll-behavior-inline: contain;
+        .github-contribution-viewport {
+          width: 100%;
+          min-width: 0;
+          overflow: hidden;
         }
 
-        .github-calendar-shell
-          .react-activity-calendar__scroll-container::-webkit-scrollbar,
-        .github-calendar-shell
-          [class*="scroll-container"]::-webkit-scrollbar {
-          display: none;
-          width: 0;
-          height: 0;
+        .github-months {
+          display: grid;
+          align-items: end;
+          min-width: 0;
+          min-height: 24px;
+          margin-bottom: 7px;
+          padding-right: 1px;
+          color: rgba(255,255,255,0.52);
+          font-size: 10px;
+          line-height: 1;
         }
 
-        /* Keep the normal palette readable over the moving orange/yellow
-           wallpaper without making the GitHub panel look detached. */
-        .github-calendar-shell .react-activity-calendar__scroll-container {
-          color: rgba(255,255,255,0.82);
+        .github-months > span {
+          min-width: 0;
+          overflow: hidden;
+          white-space: nowrap;
         }
 
-        /* Minimal mode: avoid the sitewide article:hover inversion.
-           ActivityCalendar renders its root as an <article>. */
-        :root[data-theme="minimal"] .site-page .github-calendar-shell article,
-        :root[data-theme="minimal"] .site-page .github-calendar-shell article:hover {
-          background-color: transparent !important;
-          color: hsl(var(--foreground)) !important;
-          border-color: transparent !important;
-          box-shadow: none !important;
+        .github-calendar-body {
+          display: grid;
+          grid-template-columns: 24px minmax(0, 1fr);
+          gap: 5px;
+          min-width: 0;
         }
 
+        .github-weekday-labels {
+          display: grid;
+          grid-template-rows: repeat(7, minmax(0, 1fr));
+          gap: clamp(2px, 0.34vw, 4px);
+          color: rgba(255,255,255,0.46);
+          font-size: 9px;
+          line-height: 1;
+        }
+
+        .github-weekday-labels span {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+        }
+
+        .github-contribution-grid {
+          display: grid;
+          grid-template-rows: repeat(7, minmax(0, 1fr));
+          grid-auto-flow: column;
+          gap: clamp(2px, 0.34vw, 4px);
+          width: 100%;
+          min-width: 0;
+        }
+
+        .github-contribution-cell {
+          aspect-ratio: 1;
+          width: 100%;
+          min-width: 0;
+          min-height: 0;
+          border-radius: 2.5px;
+          border: 1px solid rgba(255,255,255,0.035);
+          transition:
+            transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+            filter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .github-contribution-cell:hover {
+          transform: scale(1.12);
+          filter: brightness(1.12);
+          z-index: 2;
+        }
+
+        .github-calendar-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 12px;
+          color: rgba(255,255,255,0.56);
+          font-size: 11px;
+          line-height: 1.2;
+        }
+
+        .github-calendar-legend {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          white-space: nowrap;
+        }
+
+        .github-legend-cell {
+          width: 10px;
+          height: 10px;
+          border-radius: 2px;
+        }
+
+        /* In minimal mode the calendar is an ordinary div-based component,
+           so it cannot trigger the site's global article:hover inversion. */
         :root[data-theme="minimal"] .github-calendar-shell {
           background: rgba(255,255,255,0.92) !important;
           border-color: rgba(0,0,0,0.12) !important;
-          backdrop-filter: none;
-          -webkit-backdrop-filter: none;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
         }
 
-        :root[data-theme="minimal"] .github-calendar-shell
-          .react-activity-calendar__scroll-container,
-        :root[data-theme="minimal"] .github-calendar-shell footer {
-          color: rgba(0,0,0,0.72) !important;
+        :root[data-theme="minimal"] .github-months,
+        :root[data-theme="minimal"] .github-weekday-labels,
+        :root[data-theme="minimal"] .github-calendar-footer {
+          color: rgba(0,0,0,0.55) !important;
         }
 
-        :root[data-theme="minimal"] .github-calendar-shell svg text {
-          fill: currentColor !important;
+        :root[data-theme="minimal"] .github-contribution-cell {
+          border-color: rgba(0,0,0,0.06);
+        }
+
+        /* Keep a usable full-size calendar on narrow screens without creating
+           another nested scrolling element. */
+        @media (max-width: 560px) {
+          .github-calendar-shell {
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            overscroll-behavior-x: contain;
+          }
+
+          .github-calendar-shell::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            height: 0;
+          }
+
+          .github-contribution-viewport {
+            min-width: 620px;
+          }
         }
       `}</style>
     </div>
