@@ -164,11 +164,11 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
               variant="ghost"
               size="sm"
               aria-label={isGdx ? "GDx. Double-click to change theme" : option.name}
-              className={`relative w-20 h-9 text-[12px] text-center tracking-normal rounded-full bg-transparent hover:bg-transparent border border-transparent ${
+              className={`relative w-20 h-9 p-0 inline-flex items-center justify-center text-[12px] leading-none tracking-normal rounded-full bg-transparent hover:bg-transparent border border-transparent ${
                 active ? "bg-white/10 border-white/20 text-white backdrop-blur-sm" : "text-gray-300 hover:text-white"
               } ${showGdxHint ? "gdx-theme-hint" : ""}`}
             >
-              <span className="relative -top-px">{option.name}</span>
+              <span>{option.name}</span>
             </Button>
           );
         })}
