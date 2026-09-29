@@ -1,98 +1,88 @@
 import { useEffect, useRef } from "react";
 
 /* ============================================================
-   LED MIND — single-file procedural short film
-   The substrate is intentionally kept byte-for-byte in spirit:
-   same CFG, hash, FBM, palette, 512 LUT and 64-level quantizer.
-   Everything above it is expressed only as brightness + LUT position.
+   LED MIND — procedural short film
+   The substrate below is intentionally the original substrate:
+   same CFG, palette, 512 LUT, hash, FBM and 64-level quantizer.
    ============================================================ */
 
 const CFG = {
-  speed: 1, // Existing substrate speed.
-  waveScale: 0.1, // Existing luminance field scale.
-  waveDriftX: 0.06, // Existing luminance field X drift.
-  waveDriftY: 0.025, // Existing luminance field Y drift.
-  waveEvolve: 0.09, // Existing luminance field temporal evolution.
-  colorScale: 0.05, // Existing color field scale.
-  colorDrift: 0.04, // Existing color field X drift.
-  colorDriftY: 0.018, // Existing color field Y drift.
-  colorEvolve: 0.05, // Existing color field temporal evolution.
-  hueCycle: 0.012, // Existing hue motion.
-  threshold: 0.02, // Existing brightness threshold.
-  gamma: 0.95, // Existing brightness gamma.
-  floor: 0.55, // Existing substrate floor.
+  speed: 1, // Original substrate temporal speed.
+  waveScale: 0.1, // Original luminance field scale.
+  waveDriftX: 0.06, // Original luminance X drift.
+  waveDriftY: 0.025, // Original luminance Y drift.
+  waveEvolve: 0.09, // Original luminance temporal evolution.
+  colorScale: 0.05, // Original color field scale.
+  colorDrift: 0.04, // Original color X drift.
+  colorDriftY: 0.018, // Original color Y drift.
+  colorEvolve: 0.05, // Original color temporal evolution.
+  hueCycle: 0.012, // Original hue motion.
+  threshold: 0.02, // Original brightness threshold.
+  gamma: 0.95, // Original brightness gamma.
+  floor: 0.55, // Original substrate floor.
 
   maxDpr: 1.5, // Required DPR cap.
-  unitScale: 1.6, // Normalized scene unit = min(cols, rows * 1.6).
-  sceneSoftCells: 1.05, // Approximate 1-cell SDF edge softness.
-  mobileFps: 30, // Mobile starting cap.
-  desktopFps: 60, // Desktop starting cap.
-  adaptiveWindow: 60, // Frames used for quality adaptation.
-  adaptiveBudgetMs: 20, // Reduce quality after sustained slow frames.
-  lowQualityFps: 30, // Adaptive low-quality FPS cap.
-  minFrameDt: 1 / 8, // Director timestep clamp.
-  maxFrameDt: 0.05, // Director timestep clamp.
+  unitScale: 1.6, // Normalized scene unit uses min(cols, rows * 1.6).
+  sceneSoftCells: 1.0, // SDF edge softness in cells.
+  mobileFps: 30, // Starting cap for narrow layouts.
+  desktopFps: 60, // Starting cap for desktop.
+  adaptiveWindow: 60, // Performance sampling window.
+  adaptiveBudgetMs: 20, // Slow-frame threshold.
+  lowQualityFps: 30, // Reduced quality frame cap.
   trailHalfLife: 0.35, // Afterimage half-life.
   bloomAmount: 0.25, // Bright-cell bloom contribution.
-  bloomThreshold: 0.78, // Bloom only the brightest field cells.
-  vignetteEdge: 0.16, // Edge luminance loss.
-  breathPeriod: 10, // Breathing cycle.
-  breathAmount: 0.06, // +/- 6% breathing gain.
-  heartbeatAmount: 0.04, // <=4% heartbeat ring.
-  safeDamper: 0.65, // About 35% central contrast reduction.
+  bloomThreshold: 0.78, // Bloom source threshold.
+  vignetteEdge: 0.15, // Edge luminance reduction.
+  breathPeriod: 10, // Global breathing period.
+  breathAmount: 0.06, // Global breathing amplitude.
+  heartbeatAmount: 0.04, // Center heartbeat amplitude.
+  safeDamper: 0.65, // Central safe-zone contrast factor.
   safeEllipseRx: 0.34, // Central safe-zone horizontal radius.
-  safeEllipseRy: 0.24, // Central safe-zone vertical radius.
-  safeScrollHz: 4, // Safe-rect recompute throttle.
-  heatDecay: 0.965, // Visitor heatmap slow decay.
-  heatInputGain: 0.035, // Visitor linger gain.
-  flashWindowMs: 1000, // Governor rolling window.
-  flashGuardMs: 340, // Conservative >25% flash separation.
-  maxFlashArea: 0.25, // Never allow >25% flash area.
-  maxGoldArea: 0.078, // Keep scene gold below 7.8% of the grid.
-  baselineTolerance: 0.1, // +/-10% substrate baseline requirement.
+  safeEllipseRy: 0.25, // Central safe-zone vertical radius.
+  safeScrollHz: 4, // Safe-rect recompute limit.
+  heatDecay: 0.984, // Visitor heatmap decay.
+  heatInputGain: 0.025, // Visitor heatmap input gain.
+  flashThreshold: 0.24, // Luminance change considered a flash.
+  maxFlashArea: 0.25, // Maximum flashing screen area.
+  maxGoldArea: 0.078, // Gold cells remain below 8%.
+  baselineTolerance: 0.1, // Baseline mean-luminance envelope.
 
-  episodeMin: 300, // ~5 minutes.
-  episodeMax: 480, // ~8 minutes.
-  initialRest: 2, // First-load hook.
-  restMin: 4, // Thought-rest minimum.
-  restMax: 10, // Thought-rest maximum.
-  sleepMin: 12, // Sleep beat minimum.
-  sleepMax: 20, // Sleep beat maximum.
-  interruptEyeMax: 6, // Fast-sweep notice max.
-  clickSparkMax: 4, // Click overlay lifetime.
-
-  maxNodes: 72, // Neural graph node pool.
-  maxPulses: 60, // Neural edge pulse pool.
-  maxSparklets: 24, // Spark secondary pool.
+  initialRest: 2, // First load substrate-only rest.
+  restMin: 4, // Thought rest minimum.
+  restMax: 10, // Thought rest maximum.
+  sleepMin: 14, // End-of-episode sleep minimum.
+  sleepMax: 20, // End-of-episode sleep maximum.
+  noticeMax: 6, // Pointer-notice interrupt maximum.
+  snapshotHz: 15, // Dream capture rate.
+  snapshotCount: 30, // Dream ring capacity.
+  thoughtHold: 2, // Thought text hold duration.
+  maxNodes: 70, // Neural node pool.
+  maxPulses: 60, // Neural active pulse pool.
   maxBuildings: 28, // World building pool.
-  maxWorldFigures: 3, // World background walker pool.
+  maxWorldFigures: 3, // World background figure pool.
   maxRain: 34, // World weather pool.
-  maxHumanFigures: 3, // Human background figure pool.
-  maxSafeRects: 24, // DOM safe-zone pool cap.
-  snapshotCount: 30, // Dream ring size.
-  snapshotHz: 15, // Dream capture cadence.
-  thoughtHold: 2, // Thought hold.
+  maxSafeRects: 24, // DOM safe-zone pool.
 };
 
 const SCENE_CFG = {
-  sparkDuration: [10, 16] as const, // Spark scene duration.
-  neuralDuration: [18, 30] as const, // Neural scene duration.
-  eyeDuration: [16, 24] as const, // Eye scene duration.
-  worldDuration: [26, 35] as const, // World centerpiece duration.
-  humanDuration: [20, 30] as const, // Human scene duration.
-  dreamDuration: [22, 30] as const, // Dream scene duration.
-  ideaGoldSeconds: 1.9, // Big-idea gold peak length.
-  eyeOpenSeconds: 1.2, // Eye lid open time.
-  eyeBlinkMin: 3, // Eye blink minimum.
-  eyeBlinkMax: 7, // Eye blink maximum.
-  wandererHeightWorld: 0.11, // World wanderer height in normalized units.
-  humanHeight: 0.4, // Human figure height in viewport rows.
-  humanRim: 0.022, // Human amber rim thickness.
-  worldRoadY: 0.79, // World road height.
-  cityHorizon: 0.6, // World city horizon.
-  cityGrow: 8, // World building grow time.
-  dreamSlice: 0.08, // Dream horizontal slice displacement.
-  dreamGhostAlpha: 0.18, // Dream ghost trail strength.
+  sparkDuration: [10, 14] as const, // Spark awakening duration.
+  neuralDuration: [18, 28] as const, // Neural thought duration.
+  eyeDuration: [16, 22] as const, // Eye attention duration.
+  worldDuration: [28, 35] as const, // World centerpiece duration.
+  humanDuration: [24, 30] as const, // Human doing duration.
+  dreamDuration: [28, 36] as const, // Dream memory duration.
+  ridgeCount: 3, // World ridge count.
+  cityGround: 0.76, // World city ground height.
+  worldRoadY: 0.84, // World road baseline.
+  wandererHeight: 0.16, // World wanderer height.
+  humanHeight: 0.42, // Human figure height.
+  humanRim: 0.012, // Human rim width.
+  eyeWidth: 0.68, // Eye almond width.
+  eyeHeight: 0.38, // Eye almond height.
+  eyeIris: 0.13, // Eye iris radius.
+  eyePupil: 0.055, // Eye pupil radius.
+  neuralPulseSpeed: 0.32, // Neural edge pulse normalized speed.
+  worldCityGrow: 8, // Seconds used to imagine buildings.
 };
 
 const palette = [
@@ -108,13 +98,15 @@ const palette = [
   "#ffe566",
   "#ff8a3d",
   "#ff4d1a",
-];
+] as const;
 
-const visitStorageKey = "led-mind-visit";
+const CELL_PROPERTY = "--cell";
+const LOCAL_KEY = "gd-led-mind-visit";
+const TAU = Math.PI * 2;
 
-/* ============================================================
-   TYPES
-   ============================================================ */
+type TimeOfDay = "dawn" | "day" | "dusk" | "night";
+type Transition = "crossfade" | "radial" | "scan";
+type SceneId = "spark" | "neural" | "eye" | "world" | "human" | "dream";
 
 type Mood = {
   arousal: number;
@@ -131,115 +123,97 @@ type Handoff = {
   hue: number;
 };
 
-type DurationRange = readonly [number, number];
-
-type TransitionKind = "crossfade" | "iris" | "scan";
-
-type SceneId = "spark" | "neural" | "eye" | "world" | "human" | "dream";
-
 type SceneContext = {
-  cols: number;
-  rows: number;
-  unit: number;
   dt: number;
   time: number;
   sceneTime: number;
   sceneDuration: number;
+  width: number;
+  height: number;
+  cols: number;
+  rows: number;
+  unit: number;
+  pointerX: number;
+  pointerY: number;
+  pointerSpeed: number;
+  pointerNear: boolean;
+  pointerActive: boolean;
+  mood: Mood;
+  timeOfDay: TimeOfDay;
   seed: number;
   rng: () => number;
   handoff: Handoff;
-  mood: Mood;
-  tod: TimeOfDay;
-  pointerX: number;
-  pointerY: number;
-  pointerActive: boolean;
-  pointerSpeed: number;
-  pointerNear: boolean;
-  clickX: number;
-  clickY: number;
-  clickPulse: number;
-  attentionHeat: Float32Array;
-  base: Float32Array;
-  sceneLum: Float32Array;
-  sceneHue: Float32Array;
-  sceneAlpha: Float32Array;
-  trail: Float32Array;
-  finalLum: Float32Array;
-  finalHue: Float32Array;
 };
 
 type Scene = {
   id: SceneId;
-  duration: DurationRange;
+  transition: Transition;
+  duration: readonly [number, number];
   enter: (ctx: SceneContext, handoff: Handoff) => void;
   update: (dt: number, t: number, ctx: SceneContext) => void;
   render: (ctx: SceneContext) => void;
   exit: () => Handoff;
-  transition: TransitionKind;
 };
-
-type SafeRect = { x: number; y: number; w: number; h: number };
-
-type TimeOfDay = "dawn" | "day" | "dusk" | "night";
-
-type BeatKind = "rest" | "scene" | "sleep" | "idea";
 
 type Beat = {
-  kind: BeatKind;
-  scene: SceneId | null;
+  kind: "rest" | SceneId | "sleep";
   duration: number;
-  variant: number;
 };
 
-type Quality = {
-  fpsCap: number;
-  skipSubstrate: boolean;
-  trail: boolean;
-  bloom: boolean;
+/* Semantic hues are derived from palette positions, never from RGB literals. */
+const hueFromIndex = (index: number): number => index / palette.length;
+const circularMean = (indices: readonly number[]): number => {
+  let sx = 0;
+  let sy = 0;
+  for (let i = 0; i < indices.length; i += 1) {
+    const a = hueFromIndex(indices[i]) * TAU;
+    sx += Math.cos(a);
+    sy += Math.sin(a);
+  }
+  let h = Math.atan2(sy, sx) / TAU;
+  if (h < 0) h += 1;
+  return h;
 };
+const EMBER_HUE = circularMean([11, 0, 1, 2, 10]);
+const AMBER_HUE = circularMean([3, 4, 5, 6]);
+const GOLD_HUE = circularMean([7, 8, 9]);
 
-/* ============================================================
-   UTILITIES
-   ============================================================ */
-
-const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
-
+const clamp01 = (v: number): number => clamp(v, 0, 1);
 const smooth = (t: number): number => {
   const x = clamp01(t);
   return x * x * (3 - 2 * x);
 };
-
 const easeInOut = (t: number): number => {
   const x = clamp01(t);
   return x * x * (3 - 2 * x);
 };
-
-const easeOut = (t: number): number => {
-  const x = clamp01(t);
-  const q = 1 - x;
-  return 1 - q * q * q;
-};
-
-const easeIn = (t: number): number => {
-  const x = clamp01(t);
-  return x * x * x;
-};
-
-const wrap01 = (v: number): number => {
-  let x = v - Math.floor(v);
-  if (x < 0) x += 1;
-  return x;
-};
-
+const easeOut = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3);
+const easeIn = (t: number): number => Math.pow(clamp01(t), 3);
 const shortestHue = (a: number, b: number): number => {
   let d = b - a;
   if (d > 0.5) d -= 1;
   if (d < -0.5) d += 1;
   return d;
 };
+const lerpHue = (a: number, b: number, t: number): number => {
+  let v = a + shortestHue(a, b) * clamp01(t);
+  if (v < 0) v += 1;
+  if (v >= 1) v -= 1;
+  return v;
+};
+const wrap01 = (v: number): number => ((v % 1) + 1) % 1;
 
-const lerpHueCircular = (a: number, b: number, t: number): number => wrap01(a + shortestHue(a, b) * clamp01(t));
+const mulberry32 = (seed: number): (() => number) => {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
 
 const hash3 = (x: number, y: number, z: number): number => {
   let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(z, 1440662683)) | 0;
@@ -258,220 +232,128 @@ const noise3 = (x: number, y: number, z: number): number => {
   const u = smooth(fx);
   const v = smooth(fy);
   const w = smooth(fz);
-
-  const x00 = hash3(xi, yi, zi) + (hash3(xi + 1, yi, zi) - hash3(xi, yi, zi)) * u;
-  const x10 = hash3(xi, yi + 1, zi) + (hash3(xi + 1, yi + 1, zi) - hash3(xi, yi + 1, zi)) * u;
-  const x01 = hash3(xi, yi, zi + 1) + (hash3(xi + 1, yi, zi + 1) - hash3(xi, yi, zi + 1)) * u;
-  const x11 = hash3(xi, yi + 1, zi + 1) + (hash3(xi + 1, yi + 1, zi + 1) - hash3(xi, yi + 1, zi + 1)) * u;
-  const a = x00 + (x10 - x00) * v;
-  const b = x01 + (x11 - x01) * v;
-  return a + (b - a) * w;
+  const x00 = hash3(xi, yi, zi) * (1 - u) + hash3(xi + 1, yi, zi) * u;
+  const x10 = hash3(xi, yi + 1, zi) * (1 - u) + hash3(xi + 1, yi + 1, zi) * u;
+  const x01 = hash3(xi, yi, zi + 1) * (1 - u) + hash3(xi + 1, yi, zi + 1) * u;
+  const x11 = hash3(xi, yi + 1, zi + 1) * (1 - u) + hash3(xi + 1, yi + 1, zi + 1) * u;
+  const a = x00 * (1 - v) + x10 * v;
+  const b = x01 * (1 - v) + x11 * v;
+  return a * (1 - w) + b * w;
 };
 
 const fbm = (x: number, y: number, z: number): number =>
   0.62 * noise3(x, y, z) + 0.38 * noise3(x * 2.17 + 11.3, y * 2.17 + 7.9, z * 2.17 + 3.1);
 
-const mulberry32 = (seed: number): (() => number) => {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
-const hashString = (value: string): number => {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < value.length; i += 1) {
-    h ^= value.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-};
-
-const parseSeed = (): number => {
-  let seed = (Date.now() >>> 0) ^ ((Date.now() / 0x100000000) | 0);
-  try {
-    const cryptoObj = globalThis.crypto;
-    if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
-      const arr = new Uint32Array(2);
-      cryptoObj.getRandomValues(arr);
-      seed ^= arr[0] ^ arr[1];
-    }
-  } catch {
-    // Date seed is sufficient fallback.
-  }
-  return seed >>> 0;
-};
-
-const readDevQuery = (): {
-  scene: SceneId | null;
-  seed: number | null;
-  tod: TimeOfDay | null;
-  speed: number;
-  debug: boolean;
-} => {
-  let enabled = false;
-  try {
-    const meta = import.meta as unknown as { env?: { DEV?: boolean } };
-    enabled = meta.env?.DEV === true;
-  } catch {
-    enabled = false;
-  }
-  if (!enabled) {
-    try {
-      const processLike = (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } }).process;
-      const nodeEnv = processLike?.env?.NODE_ENV;
-      enabled = typeof nodeEnv === "string" && nodeEnv !== "production";
-    } catch {
-      enabled = false;
-    }
-  }
-  if (!enabled || typeof window === "undefined") {
-    return { scene: null, seed: null, tod: null, speed: 1, debug: false };
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const sceneRaw = params.get("scene");
-  const todRaw = params.get("tod");
-  const speedRaw = Number(params.get("speed"));
-  const seedRaw = Number(params.get("seed"));
-  const validScene =
-    sceneRaw === "spark" ||
-    sceneRaw === "neural" ||
-    sceneRaw === "eye" ||
-    sceneRaw === "world" ||
-    sceneRaw === "human" ||
-    sceneRaw === "dream";
-  const validTod = todRaw === "dawn" || todRaw === "day" || todRaw === "dusk" || todRaw === "night";
-  return {
-    scene: validScene ? sceneRaw : null,
-    seed: Number.isFinite(seedRaw) ? seedRaw >>> 0 : null,
-    tod: validTod ? todRaw : null,
-    speed: Number.isFinite(speedRaw) && speedRaw > 0 ? clamp(speedRaw, 0.05, 20) : 1,
-    debug: params.get("debug") === "1",
-  };
-};
-
-const getTimeOfDay = (hour: number): TimeOfDay => {
-  if (hour >= 5 && hour < 8) return "dawn";
-  if (hour >= 8 && hour < 17) return "day";
-  if (hour >= 17 && hour < 20) return "dusk";
-  return "night";
-};
-
-const semanticHuePosition = (indices: readonly number[], paletteLength: number): number => {
-  let sx = 0;
-  let sy = 0;
-  for (let i = 0; i < indices.length; i += 1) {
-    const p = indices[i] / paletteLength;
-    const a = p * Math.PI * 2;
-    sx += Math.cos(a);
-    sy += Math.sin(a);
-  }
-  let h = Math.atan2(sy, sx) / (Math.PI * 2);
-  if (h < 0) h += 1;
-  return h;
-};
-
-const semanticHueSpan = (indices: readonly number[], paletteLength: number, t: number): number => {
-  let start = indices[0] / paletteLength;
-  let end = indices[indices.length - 1] / paletteLength;
-  if (shortestHue(start, end) < 0) {
-    const tmp = start;
-    start = end;
-    end = tmp;
-  }
-  return lerpHueCircular(start, end, t);
-};
-
-const EMBER_HUE = semanticHuePosition([0, 1, 2, 10, 11], palette.length);
-const AMBER_HUE = semanticHuePosition([3, 4, 5, 6], palette.length);
-const GOLD_HUE = semanticHuePosition([7, 8, 9], palette.length);
-const EMBER_WRAP_A = semanticHueSpan([11, 0, 1, 2], palette.length, 0.5);
-const GOLD_WRAP = lerpHueCircular(AMBER_HUE, GOLD_HUE, 0.82);
-const MOOD_PERIODS = [48, 62, 36, 78] as const;
-const MOOD_FIELDS = ["arousal", "curiosity", "attention", "calm"] as const;
-const HUMAN_BONES: readonly [number, number, number, number][] = [
-  [0, 2, 1.9, 0.62],
-  [2, 4, 2.2, 0.56],
-  [2, 6, 1.7, 0.46],
-  [6, 8, 1.5, 0.4],
-  [2, 10, 1.7, 0.46],
-  [10, 12, 1.5, 0.4],
-  [4, 14, 2.0, 0.5],
-  [14, 16, 1.8, 0.45],
-  [16, 18, 1.6, 0.39],
-  [4, 20, 2.0, 0.5],
-  [20, 22, 1.8, 0.45],
-  [22, 24, 1.6, 0.39],
+const parseHex = (hex: string): readonly [number, number, number] => [
+  parseInt(hex.slice(1, 3), 16),
+  parseInt(hex.slice(3, 5), 16),
+  parseInt(hex.slice(5, 7), 16),
 ];
 
-const hueForSemantic = (semantic: "ember" | "amber" | "gold", t: number): number => {
-  if (semantic === "ember") return lerpHueCircular(EMBER_HUE, EMBER_WRAP_A, t);
-  if (semantic === "gold") return lerpHueCircular(GOLD_HUE, GOLD_WRAP, t);
-  return lerpHueCircular(AMBER_HUE, GOLD_HUE, t * 0.18);
+const stops = palette.map(parseHex);
+const lut = new Uint8ClampedArray(512 * 3);
+const fillLUT = (): void => {
+  const n = stops.length;
+  for (let k = 0; k < 512; k += 1) {
+    const s = (k / 512) * n;
+    const i0 = Math.floor(s);
+    let f = s - i0;
+    f = f * f * (3 - 2 * f);
+    const a = stops[i0 % n];
+    const b = stops[(i0 + 1) % n];
+    for (let c = 0; c < 3; c += 1) {
+      lut[k * 3 + c] = Math.sqrt(a[c] * a[c] * (1 - f) + b[c] * b[c] * f);
+    }
+  }
+};
+fillLUT();
+
+const randomSeed = (): number => {
+  const now = Date.now() >>> 0;
+  const cryptoApi = typeof globalThis.crypto !== "undefined" ? globalThis.crypto : null;
+  if (cryptoApi?.getRandomValues) {
+    const bag = new Uint32Array(2);
+    cryptoApi.getRandomValues(bag);
+    return (now ^ bag[0] ^ bag[1]) >>> 0;
+  }
+  return (now ^ ((Math.random() * 0xffffffff) >>> 0)) >>> 0;
 };
 
-const luminanceFromRgb = (r: number, g: number, b: number): number => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-
-/* ============================================================
-   GLYPHS — compact bitmap thoughts
-   ============================================================ */
-
-const glyphRows: Record<string, readonly [number, number, number, number, number, number, number]> = {
-  a: [0, 6, 9, 9, 15, 9, 9],
-  b: [8, 8, 14, 9, 9, 14, 0],
-  c: [0, 6, 9, 8, 8, 6, 0],
-  d: [1, 1, 7, 9, 9, 7, 0],
-  e: [0, 6, 9, 15, 8, 7, 0],
-  f: [3, 4, 14, 4, 4, 4, 0],
-  g: [0, 7, 9, 9, 7, 1, 14],
-  h: [8, 8, 14, 9, 9, 9, 0],
-  i: [2, 0, 6, 2, 2, 7, 0],
-  j: [1, 0, 3, 1, 9, 9, 6],
-  k: [8, 8, 9, 14, 10, 9, 0],
-  l: [6, 2, 2, 2, 2, 7, 0],
-  m: [0, 26, 21, 21, 17, 17, 0],
-  n: [0, 14, 9, 9, 9, 9, 0],
-  o: [0, 6, 9, 9, 9, 6, 0],
-  p: [0, 14, 9, 14, 8, 8, 0],
-  q: [0, 7, 9, 9, 7, 1, 1],
-  r: [0, 11, 12, 8, 8, 8, 0],
-  s: [0, 7, 8, 6, 1, 14, 0],
-  t: [4, 31, 4, 4, 5, 2, 0],
-  u: [0, 9, 9, 9, 9, 7, 0],
-  v: [0, 9, 9, 9, 9, 6, 0],
-  w: [0, 17, 17, 21, 21, 10, 0],
-  x: [0, 9, 6, 6, 6, 9, 0],
-  y: [0, 9, 9, 7, 1, 6, 0],
-  z: [0, 15, 1, 2, 4, 15, 0],
-  "0": [0, 6, 9, 11, 13, 6, 0],
-  "1": [2, 6, 2, 2, 2, 7, 0],
-  "2": [0, 14, 1, 6, 8, 15, 0],
-  "3": [0, 14, 1, 6, 1, 14, 0],
-  "4": [0, 2, 6, 10, 15, 2, 0],
-  "5": [0, 15, 8, 14, 1, 14, 0],
-  "6": [0, 7, 8, 14, 9, 6, 0],
-  "7": [0, 15, 1, 2, 4, 4, 0],
-  "8": [0, 6, 9, 6, 9, 6, 0],
-  "9": [0, 6, 9, 7, 1, 14, 0],
-  ".": [0, 0, 0, 0, 0, 6, 6],
-  ",": [0, 0, 0, 0, 0, 6, 4],
-  "!": [4, 4, 4, 4, 0, 4, 0],
-  "?": [0, 6, 9, 2, 4, 0, 4],
-  "'": [4, 4, 0, 0, 0, 0, 0],
-  "-": [0, 0, 0, 14, 0, 0, 0],
-  "<": [0, 2, 4, 8, 4, 2, 0],
-  ">": [0, 8, 4, 2, 4, 8, 0],
-  heart: [0, 10, 31, 31, 14, 4, 0],
+const queryNumber = (name: string, fallback: number): number => {
+  try {
+    const value = new URLSearchParams(window.location.search).get(name);
+    if (value === null) return fallback;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
 };
-const glyphLetters = "abcdefghijklmnopqrstuvwxyz0123456789.,!?'-<>";
-/* ============================================================
-   COMPONENT
-   ============================================================ */
+
+const queryString = (name: string): string | null => {
+  try {
+    return new URLSearchParams(window.location.search).get(name);
+  } catch {
+    return null;
+  }
+};
+
+const isDevBuild = (): boolean => {
+  try {
+    const meta = import.meta as ImportMeta & { env?: { DEV?: boolean } };
+    if (typeof meta.env?.DEV === "boolean") return meta.env.DEV;
+  } catch {
+    /* Production bundles may not expose import.meta.env. */
+  }
+  const runtime = globalThis as typeof globalThis & { process?: { env?: { NODE_ENV?: string } } };
+  if (runtime.process?.env?.NODE_ENV) return runtime.process.env.NODE_ENV !== "production";
+  return false;
+};
+
+const glyphs: Record<string, readonly string[]> = {
+  a: ["01110", "00001", "01111", "10001", "01111"],
+  b: ["10000", "10110", "11001", "10001", "11110"],
+  c: ["01111", "10000", "10000", "10000", "01111"],
+  d: ["00001", "01101", "10011", "10001", "01111"],
+  e: ["01110", "10001", "11111", "10000", "01110"],
+  f: ["00111", "00100", "01110", "00100", "00100"],
+  g: ["01111", "10001", "01111", "00001", "11110"],
+  h: ["10000", "10000", "11110", "10001", "10001"],
+  i: ["00100", "00000", "01100", "00100", "01110"],
+  j: ["00010", "00000", "00010", "10010", "01100"],
+  k: ["10000", "10010", "10100", "11010", "10001"],
+  l: ["01100", "00100", "00100", "00100", "01110"],
+  m: ["11011", "10101", "10101", "10001", "10001"],
+  n: ["11110", "10001", "10001", "10001", "10001"],
+  o: ["01110", "10001", "10001", "10001", "01110"],
+  p: ["11110", "10001", "11110", "10000", "10000"],
+  q: ["01110", "10001", "10001", "01111", "00001"],
+  r: ["11110", "10001", "11110", "10100", "10010"],
+  s: ["01111", "10000", "01110", "00001", "11110"],
+  t: ["11111", "00100", "00100", "00100", "00011"],
+  u: ["10001", "10001", "10001", "10011", "01101"],
+  v: ["10001", "10001", "10001", "01010", "00100"],
+  w: ["10001", "10001", "10101", "10101", "01010"],
+  x: ["10001", "01010", "00100", "01010", "10001"],
+  y: ["10001", "01010", "00100", "00100", "11000"],
+  z: ["11111", "00010", "00100", "01000", "11111"],
+  "0": ["01110", "10011", "10101", "11001", "01110"],
+  "1": ["00100", "01100", "00100", "00100", "01110"],
+  "2": ["01110", "10001", "00010", "00100", "11111"],
+  "3": ["11110", "00001", "00110", "00001", "11110"],
+  "4": ["00010", "00110", "01010", "11111", "00010"],
+  "5": ["11111", "10000", "11110", "00001", "11110"],
+  "6": ["01110", "10000", "11110", "10001", "01110"],
+  "7": ["11111", "00010", "00100", "01000", "01000"],
+  "8": ["01110", "10001", "01110", "10001", "01110"],
+  "9": ["01110", "10001", "01111", "00001", "01110"],
+  ".": ["00000", "00000", "00000", "00100", "00100"],
+  ",": ["00000", "00000", "00000", "00100", "01000"],
+  "!": ["00100", "00100", "00100", "00000", "00100"],
+  "?": ["01110", "10001", "00010", "00100", "00100"],
+  "-": ["00000", "00000", "11111", "00000", "00000"],
+  "'": ["00100", "00100", "00000", "00000", "00000"],
+};
 
 const AnimatedLedBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -479,36 +361,90 @@ const AnimatedLedBackground = () => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    const pixelCanvas = document.createElement("canvas");
-    const pixelCtx = pixelCanvas.getContext("2d", { alpha: false });
-    if (!pixelCtx) return;
-
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const dev = readDevQuery();
+    const dev = isDevBuild();
+    const forcedScene = dev ? queryString("scene") : null;
+    const forcedSeedValue = dev ? queryNumber("seed", NaN) : NaN;
+    const forcedSpeed = dev ? queryNumber("speed", 1) : 1;
+    const forcedTod = dev ? queryString("tod") : null;
+    const debug = dev && queryString("debug") === "1";
 
     let raf = 0;
-    let last = performance.now();
-    let lastRenderAt = performance.now();
-    let realT = 0;
-    let filmT = 0;
+    let lastNow = performance.now();
+    let logicalTime = 0;
     let running = true;
-    let isMinimal = document.documentElement.dataset.theme === "minimal";
-    let destroyed = false;
-
-    let cell = 20;
-    let cols = 0;
-    let rows = 0;
+    let minimal = document.documentElement.dataset.theme === "minimal";
     let width = 1;
     let height = 1;
     let dpr = 1;
-    let unit = 1;
+    let cell = 20;
+    let cols = 2;
+    let rows = 2;
+    let unit = 2;
+    let frameCap = 60;
+    let lastRenderAt = 0;
     let hueSpin = 0;
+    let averageFrameMs = 0;
+    let qualityLow = false;
+    let skipSubstrate = false;
+    let trailEnabled = true;
+    let bloomEnabled = true;
+    let baselineMean = 0;
+    let meanLuminance = 0;
+    let goldPercent = 0;
+    let flashPercent = 0;
+    let flashesRecent = 0;
+    let lastFlashSecond = -1;
+    let frameIndex = 0;
+    let snapshotAccumulator = 0;
+    let snapshotHead = 0;
+    let snapshotValid = 0;
+    let noticePending = false;
+    let clickX = 0.5;
+    let clickY = 0.5;
+    let clickAge = 999;
+    let returnThought = false;
+    let welcomeThought = false;
+    let visitCount = 1;
+    let lastPointerTime = performance.now();
+    let pointerX = 0.5;
+    let pointerY = 0.5;
+    let pointerVX = 0;
+    let pointerVY = 0;
+    let pointerSpeed = 0;
+    let pointerActive = false;
+    let lastScrollY = window.scrollY;
+    let lastScrollTime = performance.now();
+    let scrollVelocity = 0;
+    let safeRectsDirty = true;
+    let safeRectTimer: number | null = null;
+    let hiddenBefore = false;
+    let firstLoad = true;
+
+    const seed = Number.isFinite(forcedSeedValue) ? forcedSeedValue >>> 0 : randomSeed();
+    const masterRng = mulberry32(seed);
+
+    const mood: Mood = {
+      arousal: 0.3 + masterRng() * 0.2,
+      curiosity: 0.52 + masterRng() * 0.2,
+      attention: 0.24,
+      calm: 0.72,
+    };
+    const moodPhase = new Float32Array(4);
+    const moodTarget = new Float32Array(4);
+    const moodPeriod = new Float32Array([
+      43 + masterRng() * 34,
+      35 + masterRng() * 42,
+      29 + masterRng() * 34,
+      51 + masterRng() * 35,
+    ]);
+    for (let i = 0; i < 4; i += 1) moodPhase[i] = masterRng() * TAU;
 
     let base = new Float32Array(1);
+    let baseHue = new Float32Array(1);
     let sceneLum = new Float32Array(1);
     let sceneHue = new Float32Array(1);
     let sceneAlpha = new Float32Array(1);
@@ -516,92 +452,49 @@ const AnimatedLedBackground = () => {
     let finalLum = new Float32Array(1);
     let finalHue = new Float32Array(1);
     let previousLum = new Float32Array(1);
-    let baseBlur = new Float32Array(1);
-    let bloomTemp = new Float32Array(1);
-    let finalIndex = new Uint8Array(1);
+    let blur = new Float32Array(1);
+    let bloom = new Float32Array(1);
+    const heat = new Float32Array(16 * 9);
+    const safeRects = new Float32Array(CFG.maxSafeRects * 4);
+    let snapshotStore = new Uint8Array(30);
+    let image = new ImageData(1, 1);
+    const offscreen = document.createElement("canvas");
+    const offCtx = offscreen.getContext("2d", { alpha: false });
 
-    let imageData = new ImageData(1, 1);
-    let snapshotSize = 1;
-    let snapshots = new Uint8Array(1);
-    let snapshotHead = 0;
-    let snapshotCount = 0;
-    let snapshotClock = 0;
-
-    const attentionHeat = new Float32Array(16 * 9);
-    const safeRects: SafeRect[] = [];
-
-    let baselineMean = 0.7;
-    let frameMean = 0.7;
-    let previousFrameMean = 0.7;
-    let goldArea = 0;
-    let flashArea = 0;
-    let flashTimes = new Float64Array(8);
-    let flashCount = 0;
-    let lastFlashAt = -Infinity;
-    let governor = 1;
-    let governorMeanSlew = 0;
-
-    let quality: Quality = {
-      fpsCap: window.innerWidth <= 768 ? CFG.mobileFps : CFG.desktopFps,
-      skipSubstrate: false,
-      trail: true,
-      bloom: true,
-    };
-    let slowFrames = 0;
-    let qualitySample = 0;
-    let qualityTime = 0;
-
-    let pointerX = 0.5;
-    let pointerY = 0.5;
-    let pointerActive = false;
-    let pointerSpeed = 0;
-    let lastPointerX = 0.5;
-    let lastPointerY = 0.5;
-    let lastPointerAt = performance.now();
-    let scrollVelocity = 0;
-    let lastScrollAt = performance.now();
-    let lastScrollY = window.scrollY;
-    let clickX = 0.5;
-    let clickY = 0.5;
-    let clickPulse = 0;
-    let lastInputAt = performance.now();
-    let hiddenAt = -1;
-    let visitorNear = false;
-    let noticedThisVisit = false;
-    let returnThought = false;
-    let fastSweepPending = false;
-    let interruptEyeRemaining = 0;
-    let clickInterruptRemaining = 0;
-    let noticeThought = false;
-    let tabLeftPending = false;
-    let tabBackPending = false;
-
-    let visitCount = 0;
-    try {
-      const raw = window.localStorage.getItem(visitStorageKey);
-      visitCount = raw ? Math.max(0, Number(JSON.parse(raw)?.count || 0)) : 0;
-      if (!Number.isFinite(visitCount)) visitCount = 0;
-      returnThought = visitCount > 0;
-      window.localStorage.setItem(visitStorageKey, JSON.stringify({ count: visitCount + 1, last: Date.now() }));
-    } catch {
-      visitCount = 0;
-    }
-
-    let seed = dev.seed ?? parseSeed();
-    const rng = mulberry32(seed);
-
-    const mood: Mood = { arousal: 0.35, curiosity: 0.58, attention: 0.25, calm: 0.72 };
-    const moodPhase = new Float32Array([rng() * 6, rng() * 6, rng() * 6, rng() * 6]);
-
-    let timeOfDay: TimeOfDay = dev.tod ?? getTimeOfDay(new Date().getHours());
-
-    const semanticAt = (baseHue: number, variation: number): number =>
-      wrap01(baseHue + shortestHue(baseHue, variation) * 0.25);
-
-    const setColor = (h: number, lum: number, alpha: number, i: number): void => {
-      sceneHue[i] = wrap01(h);
-      sceneLum[i] = clamp01(lum);
-      sceneAlpha[i] = clamp01(alpha);
+    const resize = (): void => {
+      if (window.innerWidth <= 768) cell = 16;
+      else if (window.innerWidth <= 900) cell = 18;
+      else cell = 20;
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.ceil(rect.width));
+      height = Math.max(1, Math.ceil(rect.height));
+      cols = Math.ceil(width / cell) + 2;
+      rows = Math.ceil(height / cell) + 2;
+      unit = Math.max(1, Math.min(cols, rows * CFG.unitScale));
+      dpr = Math.min(window.devicePixelRatio || 1, CFG.maxDpr);
+      frameCap = width <= 768 ? CFG.mobileFps : CFG.desktopFps;
+      canvas.width = Math.ceil(width * dpr);
+      canvas.height = Math.ceil(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      document.documentElement.style.setProperty(CELL_PROPERTY, `${cell}px`);
+      const size = cols * rows;
+      if (base.length !== size) base = new Float32Array(size);
+      if (baseHue.length !== size) baseHue = new Float32Array(size);
+      if (sceneLum.length !== size) sceneLum = new Float32Array(size);
+      if (sceneHue.length !== size) sceneHue = new Float32Array(size);
+      if (sceneAlpha.length !== size) sceneAlpha = new Float32Array(size);
+      if (trail.length !== size) trail = new Float32Array(size);
+      if (finalLum.length !== size) finalLum = new Float32Array(size);
+      if (finalHue.length !== size) finalHue = new Float32Array(size);
+      if (previousLum.length !== size) previousLum = new Float32Array(size);
+      if (blur.length !== size) blur = new Float32Array(size);
+      if (bloom.length !== size) bloom = new Float32Array(size);
+      snapshotStore = new Uint8Array(CFG.snapshotCount * cols * rows);
+      offscreen.width = cols;
+      offscreen.height = rows;
+      if (offCtx) image = new ImageData(cols, rows);
+      safeRectsDirty = true;
     };
 
     const clearScene = (): void => {
@@ -610,828 +503,87 @@ const AnimatedLedBackground = () => {
       sceneHue.fill(EMBER_HUE);
     };
 
-    const sceneCtx: SceneContext = {
-      cols,
-      rows,
-      unit,
-      dt: 0,
-      time: 0,
-      sceneTime: 0,
-      sceneDuration: 1,
-      seed,
-      rng,
-      handoff: { x: 0.5, y: 0.5, r: 0.08, energy: 1, hue: EMBER_HUE },
-      mood,
-      tod: timeOfDay,
-      pointerX,
-      pointerY,
-      pointerActive,
-      pointerSpeed,
-      pointerNear: visitorNear,
-      clickX,
-      clickY,
-      clickPulse,
-      attentionHeat,
-      base,
-      sceneLum,
-      sceneHue,
-      sceneAlpha,
-      trail,
-      finalLum,
-      finalHue,
+    const addCell = (x: number, y: number, radiusCells: number, lum: number, hue: number, alpha: number): void => {
+      const minCol = Math.max(0, Math.floor(x * cols - radiusCells - 1));
+      const maxCol = Math.min(cols - 1, Math.ceil(x * cols + radiusCells + 1));
+      const minRow = Math.max(0, Math.floor(y * rows - radiusCells - 1));
+      const maxRow = Math.min(rows - 1, Math.ceil(y * rows + radiusCells + 1));
+      const rr = Math.max(0.5, radiusCells / Math.max(cols, rows));
+      for (let row = minRow; row <= maxRow; row += 1) {
+        const py = (row + 0.5) / rows;
+        for (let col = minCol; col <= maxCol; col += 1) {
+          const px = (col + 0.5) / cols;
+          const dx = (px - x) / rr;
+          const dy = (py - y) / rr;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          const a = smooth(clamp01(1 - d));
+          if (a <= 0) continue;
+          const idx = row * cols + col;
+          sceneLum[idx] = Math.max(sceneLum[idx], lum * a);
+          sceneAlpha[idx] = Math.max(sceneAlpha[idx], alpha * a);
+          sceneHue[idx] = lerpHue(sceneHue[idx], hue, a);
+        }
+      }
     };
 
-    const cellDistance = (ax: number, ay: number, bx: number, by: number): number => {
-      const dx = (ax - bx) * cols;
-      const dy = (ay - by) * rows;
-      return Math.hypot(dx, dy);
+    const ellipseSdf = (x: number, y: number, cx: number, cy: number, rx: number, ry: number): number => {
+      const dx = (x - cx) / rx;
+      const dy = (y - cy) / ry;
+      return Math.sqrt(dx * dx + dy * dy) - 1;
     };
 
-    const capsuleDistance = (
-      px: number,
-      py: number,
+    const capsuleSdf = (
+      x: number,
+      y: number,
       ax: number,
       ay: number,
       bx: number,
       by: number,
       radius: number,
     ): number => {
-      const vx = bx - ax;
-      const vy = by - ay;
-      const wx = px - ax;
-      const wy = py - ay;
-      const vv = vx * vx + vy * vy;
-      const t = vv > 1e-7 ? clamp01((wx * vx + wy * vy) / vv) : 0;
-      const qx = ax + vx * t;
-      const qy = ay + vy * t;
-      return Math.hypot((px - qx) * cols, (py - qy) * rows) - radius;
+      const pax = x - ax;
+      const pay = y - ay;
+      const bax = bx - ax;
+      const bay = by - ay;
+      const h = clamp01((pax * bax + pay * bay) / Math.max(0.000001, bax * bax + bay * bay));
+      const dx = pax - bax * h;
+      const dy = pay - bay * h;
+      return Math.sqrt(dx * dx + dy * dy) - radius;
     };
 
-    const rectSoftSdf = (px: number, py: number, cx: number, cy: number, hw: number, hh: number): number => {
-      const dx = Math.abs(px - cx) - hw;
-      const dy = Math.abs(py - cy) - hh;
-      const ox = Math.max(dx, 0);
-      const oy = Math.max(dy, 0);
-      return Math.hypot(ox * cols, oy * rows) + Math.min(Math.max(dx, dy), 0) * Math.min(cols, rows);
+    const paintSdf = (sdf: number, softness: number, lum: number, hue: number, alpha: number, idx: number): void => {
+      const a = smooth(clamp01(1 - sdf / Math.max(0.001, softness)));
+      if (a <= 0) return;
+      sceneLum[idx] = Math.max(sceneLum[idx], lum * a);
+      sceneAlpha[idx] = Math.max(sceneAlpha[idx], alpha * a);
+      sceneHue[idx] = lerpHue(sceneHue[idx], hue, a);
     };
 
-    const writeBlob = (px: number, py: number, radiusCells: number, lum: number, hue: number, alpha: number): void => {
-      const minCol = Math.max(0, Math.floor(px * cols - radiusCells - 1));
-      const maxCol = Math.min(cols - 1, Math.ceil(px * cols + radiusCells + 1));
-      const minRow = Math.max(0, Math.floor(py * rows - radiusCells - 1));
-      const maxRow = Math.min(rows - 1, Math.ceil(py * rows + radiusCells + 1));
-      const rr = Math.max(0.1, radiusCells);
+    const drawEllipse = (
+      cx: number,
+      cy: number,
+      rx: number,
+      ry: number,
+      lum: number,
+      hue: number,
+      alpha: number,
+    ): void => {
+      const minCol = Math.max(0, Math.floor((cx - rx) * cols - 1));
+      const maxCol = Math.min(cols - 1, Math.ceil((cx + rx) * cols + 1));
+      const minRow = Math.max(0, Math.floor((cy - ry) * rows - 1));
+      const maxRow = Math.min(rows - 1, Math.ceil((cy + ry) * rows + 1));
+      const softness = CFG.sceneSoftCells / Math.max(cols, rows);
       for (let row = minRow; row <= maxRow; row += 1) {
-        const ny = (row + 0.5) / rows;
+        const py = (row + 0.5) / rows;
         for (let col = minCol; col <= maxCol; col += 1) {
-          const nx = (col + 0.5) / cols;
-          const d = cellDistance(nx, ny, px, py);
-          const a = clamp01(1 - d / (rr + CFG.sceneSoftCells));
-          if (a <= 0) continue;
-          const i = row * cols + col;
-          if (a * alpha > sceneAlpha[i]) {
-            setColor(hue, Math.max(sceneLum[i], lum * a), a * alpha, i);
-          }
+          const px = (col + 0.5) / cols;
+          const idx = row * cols + col;
+          paintSdf(ellipseSdf(px, py, cx, cy, rx, ry), softness, lum, hue, alpha, idx);
         }
       }
     };
 
-    const worldHue = (): number => {
-      if (timeOfDay === "night") return lerpHueCircular(EMBER_HUE, AMBER_HUE, 0.22);
-      if (timeOfDay === "dawn") return lerpHueCircular(EMBER_HUE, AMBER_HUE, 0.55);
-      if (timeOfDay === "dusk") return lerpHueCircular(EMBER_HUE, AMBER_HUE, 0.38);
-      return lerpHueCircular(AMBER_HUE, EMBER_HUE, 0.08);
-    };
-
-    /* ========================================================
-       SCENES
-       ======================================================== */
-
-    let sparkX = 0.5;
-    let sparkY = 0.5;
-    let sparkRingSpeed = 16;
-    const sparklets = new Float32Array(CFG.maxSparklets * 5);
-    let sparkletCount = 0;
-
-    const spark: Scene = {
-      id: "spark",
-      duration: SCENE_CFG.sparkDuration,
-      transition: "iris",
-      enter: (ctx, handoff) => {
-        sparkX = clamp(handoff.x * 0.7 + 0.15, 0.2, 0.8);
-        sparkY = clamp(handoff.y * 0.7 + 0.15, 0.2, 0.8);
-        if (!Number.isFinite(sparkX)) sparkX = 0.5;
-        if (!Number.isFinite(sparkY)) sparkY = 0.5;
-        sparkRingSpeed = 12 + ctx.rng() * 8;
-        sparkletCount = 8 + ((ctx.rng() * 10) | 0);
-        for (let i = 0; i < sparkletCount; i += 1) {
-          const o = i * 5;
-          sparklets[o] = (i / sparkletCount) * Math.PI * 2 + ctx.rng() * 0.35;
-          sparklets[o + 1] = 4 + ctx.rng() * 11;
-          sparklets[o + 2] = 0.7 + ctx.rng() * 0.7;
-          sparklets[o + 3] = 0.08 + ctx.rng() * 0.35;
-          sparklets[o + 4] = 0;
-        }
-      },
-      update: (_dt, _t, ctx) => {
-        const tt = ctx.sceneTime;
-        if (ctx.clickPulse > 0 && clickInterruptRemaining > 0) {
-          sparkX = ctx.clickX;
-          sparkY = ctx.clickY;
-        }
-        if (tt > ctx.sceneDuration * 0.38 && tt < ctx.sceneDuration * 0.58) {
-          sparkRingSpeed += 0.02;
-        }
-      },
-      render: (ctx) => {
-        const tt = ctx.sceneTime;
-        const appear = easeOut(clamp01(tt / 1.2));
-        const decay = 1 - easeInOut(clamp01((tt - ctx.sceneDuration * 0.55) / (ctx.sceneDuration * 0.45)));
-        const core = 0.92 * appear * Math.max(0, decay) + 0.2;
-        const hue = hueForSemantic("ember", smooth(tt / ctx.sceneDuration));
-        clearScene();
-        writeBlob(sparkX, sparkY, 1.7, core, hue, 0.95);
-        const ringR = tt * sparkRingSpeed;
-        const ringSoft = 1.2;
-        const minCol = Math.max(0, Math.floor(sparkX * cols - ringR - 4));
-        const maxCol = Math.min(cols - 1, Math.ceil(sparkX * cols + ringR + 4));
-        const minRow = Math.max(0, Math.floor(sparkY * rows - ringR - 4));
-        const maxRow = Math.min(rows - 1, Math.ceil(sparkY * rows + ringR + 4));
-        for (let row = minRow; row <= maxRow; row += 1) {
-          const y = (row + 0.5) / rows;
-          for (let col = minCol; col <= maxCol; col += 1) {
-            const x = (col + 0.5) / cols;
-            const d = cellDistance(x, y, sparkX, sparkY);
-            const wave = Math.exp(-Math.abs(d - ringR) / ringSoft);
-            if (wave < 0.02) continue;
-            const i = row * cols + col;
-            const a = wave * 0.66 * decay;
-            sceneAlpha[i] = Math.max(sceneAlpha[i], a);
-            sceneLum[i] = Math.max(sceneLum[i], 0.86 * a);
-            sceneHue[i] = hue;
-          }
-        }
-        for (let s = 0; s < sparkletCount; s += 1) {
-          const o = s * 5;
-          const angle = sparklets[o];
-          const radius = sparklets[o + 1] + tt * sparklets[o + 2];
-          const x = sparkX + ((Math.cos(angle) * radius) / Math.max(1, cols)) * 1.45;
-          const y = sparkY + ((Math.sin(angle) * radius) / Math.max(1, rows)) * 1.45;
-          const a = sparklets[o + 3] * clamp01(1 - tt / ctx.sceneDuration);
-          if (a > 0) writeBlob(x, y, 0.7, 0.7 * a, hue, a);
-        }
-      },
-      exit: () => ({ x: sparkX, y: sparkY, r: 0.035, energy: 0.92, hue: EMBER_HUE }),
-    };
-
-    const nodes = new Float32Array(CFG.maxNodes * 4);
-    const neighbors = new Int16Array(CFG.maxNodes * 3);
-    const neighborCount = new Uint8Array(CFG.maxNodes);
-    const nodePulse = new Float32Array(CFG.maxNodes);
-    const pulses = new Float32Array(CFG.maxPulses * 5);
-    let nodeCount = 0;
-    let pulseCount = 0;
-    let bigIdeaNode = 0;
-    let bigIdeaFired = false;
-    let bigIdeaTime = -1;
-
-    const resetPulses = (): void => {
-      pulseCount = 0;
-      for (let i = 0; i < CFG.maxPulses * 5; i += 1) pulses[i] = 0;
-    };
-
-    const seedNeuralGraph = (ctx: SceneContext): void => {
-      nodeCount = Math.min(CFG.maxNodes, 40 + Math.floor(((ctx.cols * ctx.rows) / (96 * 54)) * 32));
-      if (nodeCount < 18) nodeCount = 18;
-      for (let i = 0; i < nodeCount; i += 1) {
-        const o = i * 4;
-        nodes[o] = 0.1 + ctx.rng() * 0.8;
-        nodes[o + 1] = 0.12 + ctx.rng() * 0.76;
-        nodes[o + 2] = ctx.rng() * Math.PI * 2;
-        nodes[o + 3] = 0.015 + ctx.rng() * 0.03;
-        nodePulse[i] = 0;
-        neighborCount[i] = 0;
-        for (let k = 0; k < 3; k += 1) neighbors[i * 3 + k] = -1;
-      }
-
-      for (let i = 0; i < nodeCount; i += 1) {
-        let best0 = -1;
-        let best1 = -1;
-        let best2 = -1;
-        let d0 = Infinity;
-        let d1 = Infinity;
-        let d2 = Infinity;
-        const ix = nodes[i * 4];
-        const iy = nodes[i * 4 + 1];
-        for (let j = 0; j < nodeCount; j += 1) {
-          if (j === i) continue;
-          const dx = ix - nodes[j * 4];
-          const dy = iy - nodes[j * 4 + 1];
-          const d = dx * dx + dy * dy;
-          if (d < d0) {
-            d2 = d1;
-            best2 = best1;
-            d1 = d0;
-            best1 = best0;
-            d0 = d;
-            best0 = j;
-          } else if (d < d1) {
-            d2 = d1;
-            best2 = best1;
-            d1 = d;
-            best1 = j;
-          } else if (d < d2) {
-            d2 = d;
-            best2 = j;
-          }
-        }
-        neighbors[i * 3] = best0;
-        neighbors[i * 3 + 1] = best1;
-        neighbors[i * 3 + 2] = best2;
-        neighborCount[i] = best2 >= 0 ? 3 : best1 >= 0 ? 2 : 1;
-      }
-      resetPulses();
-      bigIdeaNode = (ctx.rng() * nodeCount) | 0;
-      bigIdeaFired = false;
-      bigIdeaTime = -1;
-    };
-
-    const firePulse = (from: number, to: number, energy: number, ctx: SceneContext): void => {
-      if (pulseCount >= CFG.maxPulses || to < 0) return;
-      const o = pulseCount * 5;
-      pulses[o] = from;
-      pulses[o + 1] = to;
-      pulses[o + 2] = 0;
-      pulses[o + 3] = clamp01(energy);
-      pulses[o + 4] = 0;
-      pulseCount += 1;
-      ctx.sceneTime += 0;
-    };
-
-    const neural: Scene = {
-      id: "neural",
-      duration: SCENE_CFG.neuralDuration,
-      transition: "iris",
-      enter: (ctx, handoff) => {
-        seedNeuralGraph(ctx);
-        const hx = handoff.x;
-        const hy = handoff.y;
-        let nearest = 0;
-        let nearestD = Infinity;
-        for (let i = 0; i < nodeCount; i += 1) {
-          const dx = nodes[i * 4] - hx;
-          const dy = nodes[i * 4 + 1] - hy;
-          const d = dx * dx + dy * dy;
-          if (d < nearestD) {
-            nearestD = d;
-            nearest = i;
-          }
-        }
-        bigIdeaNode = nearest;
-        if (handoff.energy > 0.6 && neighborCount[nearest] > 0) {
-          firePulse(nearest, neighbors[nearest * 3], handoff.energy, ctx);
-        }
-      },
-      update: (dt, _t, ctx) => {
-        for (let i = 0; i < nodeCount; i += 1) {
-          const o = i * 4;
-          nodes[o + 2] += dt * (0.18 + nodes[o + 3]);
-          nodePulse[i] *= Math.exp(-dt * 4.2);
-        }
-
-        for (let p = 0; p < pulseCount;) {
-          const o = p * 5;
-          const from = pulses[o] | 0;
-          const to = pulses[o + 1] | 0;
-          const distance = Math.hypot(
-            (nodes[from * 4] - nodes[to * 4]) * cols,
-            (nodes[from * 4 + 1] - nodes[to * 4 + 1]) * rows,
-          );
-          pulses[o + 2] += (dt * (20 + 20 * ctx.mood.arousal)) / Math.max(2, distance);
-          pulses[o + 3] *= Math.exp(-dt * 0.65);
-          if (pulses[o + 2] >= 1) {
-            nodePulse[to] = Math.min(1, nodePulse[to] + pulses[o + 3]);
-            if (ctx.rng() < 0.28 + 0.34 * ctx.mood.curiosity && pulses[o + 4] < 0.6) {
-              const count = 1 + ((ctx.rng() * Math.min(3, neighborCount[to])) | 0);
-              for (let k = 0; k < count; k += 1) firePulse(to, neighbors[to * 3 + k], pulses[o + 3] * 0.76, ctx);
-              pulses[o + 4] = 1;
-            }
-            pulseCount -= 1;
-            const last = pulseCount * 5;
-            pulses[o] = pulses[last];
-            pulses[o + 1] = pulses[last + 1];
-            pulses[o + 2] = pulses[last + 2];
-            pulses[o + 3] = pulses[last + 3];
-            pulses[o + 4] = pulses[last + 4];
-            continue;
-          }
-          p += 1;
-        }
-
-        if (
-          pulseCount < Math.min(12 + nodeCount, CFG.maxPulses - 2) &&
-          ctx.rng() < dt * (1.2 + ctx.mood.attention * 2)
-        ) {
-          const from = (ctx.rng() * nodeCount) | 0;
-          const nc = neighborCount[from];
-          if (nc > 0) firePulse(from, neighbors[from * 3 + ((ctx.rng() * nc) | 0)], 0.55 + ctx.rng() * 0.45, ctx);
-        }
-
-        if (!bigIdeaFired && ctx.sceneTime > Math.max(8, ctx.sceneDuration - 4.5)) {
-          bigIdeaFired = true;
-          bigIdeaTime = ctx.sceneTime;
-          nodePulse[bigIdeaNode] = 1;
-        }
-      },
-      render: (ctx) => {
-        clearScene();
-        const sx = Math.sin(ctx.sceneTime * 0.16) * 0.01;
-        const sy = Math.sin(ctx.sceneTime * 0.12 + 1.3) * 0.01;
-        const graphHue = hueForSemantic("amber", ctx.mood.curiosity);
-
-        for (let i = 0; i < nodeCount; i += 1) {
-          const x = nodes[i * 4] + sx * Math.sin(nodes[i * 4 + 2]);
-          const y = nodes[i * 4 + 1] + sy * Math.cos(nodes[i * 4 + 2]);
-          const nc = neighborCount[i];
-          for (let k = 0; k < nc; k += 1) {
-            const j = neighbors[i * 3 + k];
-            if (j < 0 || j <= i) continue;
-            const x2 = nodes[j * 4] + sx * Math.sin(nodes[j * 4 + 2]);
-            const y2 = nodes[j * 4 + 1] + sy * Math.cos(nodes[j * 4 + 2]);
-            const minCol = Math.max(0, Math.floor(Math.min(x, x2) * cols - 2));
-            const maxCol = Math.min(cols - 1, Math.ceil(Math.max(x, x2) * cols + 2));
-            const minRow = Math.max(0, Math.floor(Math.min(y, y2) * rows - 2));
-            const maxRow = Math.min(rows - 1, Math.ceil(Math.max(y, y2) * rows + 2));
-            for (let row = minRow; row <= maxRow; row += 1) {
-              const py = (row + 0.5) / rows;
-              for (let col = minCol; col <= maxCol; col += 1) {
-                const px = (col + 0.5) / cols;
-                const d = capsuleDistance(px, py, x, y, x2, y2, 0.55);
-                const a = clamp01(1 - d / 1.7);
-                if (a <= 0) continue;
-                const idx = row * cols + col;
-                const val = 0.2 * a;
-                if (val > sceneLum[idx]) sceneLum[idx] = val;
-                if (a * 0.34 > sceneAlpha[idx]) sceneAlpha[idx] = a * 0.34;
-                sceneHue[idx] = graphHue;
-              }
-            }
-          }
-        }
-
-        for (let i = 0; i < nodeCount; i += 1) {
-          const x = nodes[i * 4] + sx * Math.sin(nodes[i * 4 + 2]);
-          const y = nodes[i * 4 + 1] + sy * Math.cos(nodes[i * 4 + 2]);
-          const pulse = nodePulse[i];
-          const radius = 0.9 + pulse * 0.75;
-          writeBlob(x, y, radius, 0.42 + pulse * 0.45, graphHue, 0.55 + pulse * 0.4);
-        }
-
-        for (let p = 0; p < pulseCount; p += 1) {
-          const o = p * 5;
-          const from = pulses[o] | 0;
-          const to = pulses[o + 1] | 0;
-          const t = easeOut(pulses[o + 2]);
-          const e = pulses[o + 3];
-          const x = nodes[from * 4] + (nodes[to * 4] - nodes[from * 4]) * t;
-          const y = nodes[from * 4 + 1] + (nodes[to * 4 + 1] - nodes[from * 4 + 1]) * t;
-          writeBlob(x, y, 0.8, 0.65 * e, graphHue, 0.65 * e);
-        }
-
-        if (bigIdeaFired && bigIdeaTime >= 0) {
-          const tt = ctx.sceneTime - bigIdeaTime;
-          const r = tt * 18;
-          const decay = Math.exp(-tt * 1.2);
-          const bx = nodes[bigIdeaNode * 4];
-          const by = nodes[bigIdeaNode * 4 + 1];
-          const minCol = Math.max(0, Math.floor(bx * cols - r - 4));
-          const maxCol = Math.min(cols - 1, Math.ceil(bx * cols + r + 4));
-          const minRow = Math.max(0, Math.floor(by * rows - r - 4));
-          const maxRow = Math.min(rows - 1, Math.ceil(by * rows + r + 4));
-          for (let row = minRow; row <= maxRow; row += 1) {
-            const py = (row + 0.5) / rows;
-            for (let col = minCol; col <= maxCol; col += 1) {
-              const px = (col + 0.5) / cols;
-              const d = cellDistance(px, py, bx, by);
-              const wave = Math.exp(-Math.abs(d - r) / 1.4) * decay;
-              if (wave < 0.015) continue;
-              const idx = row * cols + col;
-              sceneLum[idx] = Math.max(sceneLum[idx], wave * 0.96);
-              sceneAlpha[idx] = Math.max(sceneAlpha[idx], wave * 0.58);
-              sceneHue[idx] = lerpHueCircular(AMBER_HUE, GOLD_HUE, 0.8);
-            }
-          }
-        }
-      },
-      exit: () => {
-        const o = bigIdeaNode * 4;
-        return {
-          x: nodes[o],
-          y: nodes[o + 1],
-          r: 0.03,
-          energy: bigIdeaFired ? 1 : 0.74,
-          hue: bigIdeaFired ? GOLD_HUE : AMBER_HUE,
-        };
-      },
-    };
-
-    let eyeBlinkAt = 4;
-    let eyeBlinkPhase = 0;
-    let eyeGazeX = 0.5;
-    let eyeGazeY = 0.5;
-    let eyeSaccadeX = 0.5;
-    let eyeSaccadeY = 0.5;
-
-    const eye: Scene = {
-      id: "eye",
-      duration: SCENE_CFG.eyeDuration,
-      transition: "iris",
-      enter: (ctx, handoff) => {
-        eyeBlinkAt = 3 + ctx.rng() * 4;
-        eyeBlinkPhase = 0;
-        eyeGazeX = handoff.x;
-        eyeGazeY = handoff.y;
-        eyeSaccadeX = handoff.x;
-        eyeSaccadeY = handoff.y;
-      },
-      update: (dt, _t, ctx) => {
-        if (ctx.pointerActive) {
-          const tx = 0.5 + (ctx.pointerX - 0.5) * 0.2;
-          const ty = 0.5 + (ctx.pointerY - 0.5) * 0.16;
-          eyeGazeX += (tx - eyeGazeX) * Math.min(1, dt * 4);
-          eyeGazeY += (ty - eyeGazeY) * Math.min(1, dt * 4);
-        } else {
-          if (ctx.sceneTime > eyeSaccadeX + 1000) {
-            // No expensive timers: deterministic saccade refresh from scene time.
-          }
-          let hot = -1;
-          let hotV = 0;
-          for (let i = 0; i < attentionHeat.length; i += 1) {
-            if (attentionHeat[i] > hotV) {
-              hotV = attentionHeat[i];
-              hot = i;
-            }
-          }
-          if (hot >= 0 && hotV > 0.02) {
-            const hx = ((hot % 16) + 0.5) / 16;
-            const hy = (Math.floor(hot / 16) + 0.5) / 9;
-            eyeSaccadeX += (hx - eyeSaccadeX) * dt * 0.3;
-            eyeSaccadeY += (hy - eyeSaccadeY) * dt * 0.3;
-          } else {
-            eyeSaccadeX = 0.5 + Math.sin(ctx.sceneTime * 0.7) * 0.13;
-            eyeSaccadeY = 0.5 + Math.sin(ctx.sceneTime * 0.47 + 1.4) * 0.08;
-          }
-          eyeGazeX += (eyeSaccadeX - eyeGazeX) * Math.min(1, dt * 1.6);
-          eyeGazeY += (eyeSaccadeY - eyeGazeY) * Math.min(1, dt * 1.6);
-        }
-
-        if (ctx.pointerSpeed > 1.6 || clickPulse > 0.75) {
-          eyeBlinkPhase = Math.min(1, eyeBlinkPhase + dt * 4);
-        } else {
-          eyeBlinkPhase = Math.max(0, eyeBlinkPhase - dt * 2.5);
-        }
-
-        if (ctx.sceneTime >= eyeBlinkAt) {
-          const local = ctx.sceneTime - eyeBlinkAt;
-          if (local < 0.42) eyeBlinkPhase = easeInOut(local / 0.42);
-          else if (local < 0.84) eyeBlinkPhase = 1 - easeInOut((local - 0.42) / 0.42);
-          else {
-            eyeBlinkAt += 3 + ctx.rng() * 4;
-            eyeBlinkPhase = 0;
-          }
-        }
-      },
-      render: (ctx) => {
-        clearScene();
-        const openT = easeOut(clamp01(ctx.sceneTime / SCENE_CFG.eyeOpenSeconds));
-        const closeT = easeIn(clamp01((ctx.sceneTime - ctx.sceneDuration * 0.8) / (ctx.sceneDuration * 0.2)));
-        const lid = Math.min(openT, 1 - closeT);
-        const cx = 0.5;
-        const cy = 0.48;
-        const a = Math.max(0.22, Math.min(0.34, 0.55 * Math.min(1, Math.min(cols, rows) / 54)));
-        const b = a * 0.42;
-        const pupilX = cx + clamp((eyeGazeX - 0.5) * 0.11, -0.105, 0.105);
-        const pupilY = cy + clamp((eyeGazeY - 0.5) * 0.08, -0.075, 0.075);
-        const eyeHue = hueForSemantic("amber", ctx.mood.attention);
-        const irisHue = lerpHueCircular(AMBER_HUE, GOLD_HUE, 0.08);
-
-        const minCol = Math.max(0, Math.floor((cx - a - 0.02) * cols));
-        const maxCol = Math.min(cols - 1, Math.ceil((cx + a + 0.02) * cols));
-        const minRow = Math.max(0, Math.floor((cy - b - 0.02) * rows));
-        const maxRow = Math.min(rows - 1, Math.ceil((cy + b + 0.02) * rows));
-
-        for (let row = minRow; row <= maxRow; row += 1) {
-          const y = (row + 0.5) / rows;
-          for (let col = minCol; col <= maxCol; col += 1) {
-            const x = (col + 0.5) / cols;
-            const nx = (x - cx) / a;
-            const taper = Math.cos(nx * Math.PI * 0.5);
-            const hh = b * (0.28 + 0.72 * Math.max(0, taper));
-            const q = Math.hypot((x - cx) / a, (y - cy) / Math.max(0.001, hh));
-            const d = (q - 1) * Math.min(a * cols, b * rows);
-            if (d > CFG.sceneSoftCells) continue;
-            const edge = clamp01(1 - d / CFG.sceneSoftCells);
-            const lidMask = clamp01(((b * lid - Math.abs(y - cy)) * rows) / 1.5 + 0.1);
-            const aa = edge * lidMask;
-            const idx = row * cols + col;
-            sceneLum[idx] = Math.max(sceneLum[idx], 0.52 * aa);
-            sceneAlpha[idx] = Math.max(sceneAlpha[idx], 0.58 * aa);
-            sceneHue[idx] = eyeHue;
-          }
-        }
-
-        const irisR = Math.min(cols, rows) * 0.18;
-        const ringW = 2.2;
-        const pR = Math.min(cols, rows) * (0.07 + ctx.pointerSpeed * 0.005);
-        const coreMinX = Math.max(0, Math.floor(pupilX * cols - irisR - 4));
-        const coreMaxX = Math.min(cols - 1, Math.ceil(pupilX * cols + irisR + 4));
-        const coreMinY = Math.max(0, Math.floor(pupilY * rows - irisR - 4));
-        const coreMaxY = Math.min(rows - 1, Math.ceil(pupilY * rows + irisR + 4));
-        for (let row = coreMinY; row <= coreMaxY; row += 1) {
-          const y = (row + 0.5) / rows;
-          for (let col = coreMinX; col <= coreMaxX; col += 1) {
-            const x = (col + 0.5) / cols;
-            const d = cellDistance(x, y, pupilX, pupilY);
-            const iris = Math.exp(-Math.abs(d - irisR) / ringW);
-            const pupil = Math.exp(-d / Math.max(0.5, pR));
-            const idx = row * cols + col;
-            sceneLum[idx] = Math.max(sceneLum[idx], iris * 0.66 * lid);
-            sceneAlpha[idx] = Math.max(sceneAlpha[idx], iris * 0.7 * lid);
-            sceneHue[idx] = irisHue;
-            sceneLum[idx] = Math.max(sceneLum[idx], pupil * 0.22 * lid);
-            sceneAlpha[idx] = Math.max(sceneAlpha[idx], pupil * 0.7 * lid);
-          }
-        }
-
-        const hx = cx + (ctx.pointerX - 0.5) * 0.18;
-        const hy = cy + (ctx.pointerY - 0.5) * 0.12;
-        writeBlob(hx, hy, 0.65, 0.9, GOLD_HUE, 0.9 * lid);
-
-        if (ctx.sceneTime > ctx.sceneDuration * 0.82) {
-          const wipeT = easeInOut((ctx.sceneTime - ctx.sceneDuration * 0.82) / (ctx.sceneDuration * 0.18));
-          for (let row = 0; row < rows; row += 1) {
-            for (let col = 0; col < cols; col += 1) {
-              const x = (col + 0.5) / cols;
-              const y = (row + 0.5) / rows;
-              const d = cellDistance(x, y, pupilX, pupilY);
-              if (d < 1 + wipeT * Math.min(cols, rows)) {
-                const idx = row * cols + col;
-                sceneAlpha[idx] *= 1 - wipeT * 0.5;
-              }
-            }
-          }
-        }
-      },
-      exit: () => ({ x: 0.5, y: 0.48, r: 0.2, energy: 0.88, hue: irisBlinkHue() }),
-    };
-
-    const irisBlinkHue = (): number => lerpHueCircular(AMBER_HUE, GOLD_HUE, 0.14);
-
-    const worldBuildings = new Float32Array(CFG.maxBuildings * 6);
-    const worldFigures = new Float32Array(CFG.maxWorldFigures * 5);
-    const worldRain = new Float32Array(CFG.maxRain * 4);
-    let worldBuildingCount = 0;
-    let worldFigureCount = 0;
-    let worldRainCount = 0;
-    let worldVariantNoise = 0;
-
-    const setupWorld = (ctx: SceneContext): void => {
-      worldBuildingCount = Math.min(CFG.maxBuildings, 18 + Math.floor(ctx.cols / 3));
-      let x = -0.04;
-      for (let i = 0; i < worldBuildingCount; i += 1) {
-        const o = i * 6;
-        const w = 0.02 + ctx.rng() * 0.04;
-        const h = 0.07 + ctx.rng() * (0.14 + ctx.mood.curiosity * 0.12);
-        worldBuildings[o] = x;
-        worldBuildings[o + 1] = w;
-        worldBuildings[o + 2] = h;
-        worldBuildings[o + 3] = 1.5 + ctx.rng() * 20;
-        worldBuildings[o + 4] = ctx.rng();
-        worldBuildings[o + 5] = 0;
-        x += w + 0.006 + ctx.rng() * 0.015;
-      }
-      worldFigureCount = Math.min(CFG.maxWorldFigures, Math.floor(ctx.mood.curiosity * 3));
-      for (let i = 0; i < worldFigureCount; i += 1) {
-        const o = i * 5;
-        worldFigures[o] = 0.12 + ctx.rng() * 0.76;
-        worldFigures[o + 1] = -1;
-        worldFigures[o + 2] = 0.16 + ctx.rng() * 0.18;
-        worldFigures[o + 3] = 0.002 + ctx.rng() * 0.003;
-        worldFigures[o + 4] = 0.6 + ctx.rng() * 0.8;
-      }
-      worldRainCount =
-        timeOfDay === "night"
-          ? Math.min(CFG.maxRain, 16 + ((ctx.rng() * 14) | 0))
-          : Math.min(CFG.maxRain, 8 + ((ctx.rng() * 14) | 0));
-      for (let i = 0; i < worldRainCount; i += 1) {
-        const o = i * 4;
-        worldRain[o] = ctx.rng();
-        worldRain[o + 1] = ctx.rng();
-        worldRain[o + 2] = 0.04 + ctx.rng() * 0.1;
-        worldRain[o + 3] = 0.5 + ctx.rng() * 1.2;
-      }
-      worldVariantNoise = ctx.rng();
-    };
-
-    const world: Scene = {
-      id: "world",
-      duration: SCENE_CFG.worldDuration,
-      transition: "scan",
-      enter: (ctx, handoff) => {
-        setupWorld(ctx);
-        if (handoff.r > 0.08) worldVariantNoise += handoff.r;
-      },
-      update: (dt, _t, ctx) => {
-        for (let i = 0; i < worldFigureCount; i += 1) {
-          const o = i * 5;
-          worldFigures[o] += dt * worldFigures[o + 3] * worldFigures[o + 4];
-          if (worldFigures[o] > 1.02) worldFigures[o] = -0.04;
-        }
-        for (let i = 0; i < worldRainCount; i += 1) {
-          const o = i * 4;
-          worldRain[o + 1] += dt * worldRain[o + 3] * 0.04;
-          if (worldRain[o + 1] > 1.05) worldRain[o + 1] = -0.05;
-        }
-      },
-      render: (ctx) => {
-        clearScene();
-        const skyHue = worldHue();
-        const dusk = timeOfDay === "dusk" ? 0.11 : 0;
-        const night = timeOfDay === "night" ? 0.18 : 0;
-        const horizon = SCENE_CFG.cityHorizon;
-        const sunArc = easeInOut((ctx.sceneTime % ctx.sceneDuration) / ctx.sceneDuration);
-        const sunX = 0.18 + sunArc * 0.64;
-        const sunBaseY = timeOfDay === "night" ? 0.28 : 0.44;
-        const sunY = sunBaseY - Math.sin(sunArc * Math.PI) * 0.2;
-        const sunLum = timeOfDay === "night" ? 0.35 : 0.84;
-        writeBlob(
-          sunX,
-          sunY,
-          timeOfDay === "night" ? 3.4 : 4.6,
-          sunLum,
-          lerpHueCircular(skyHue, GOLD_HUE, timeOfDay === "night" ? 0.0 : 0.75),
-          timeOfDay === "night" ? 0.46 : 0.72,
-        );
-
-        for (let row = Math.floor(horizon * rows); row < rows; row += 1) {
-          const y = (row + 0.5) / rows;
-          const ridge1 =
-            horizon + 0.11 + fbm(y * 2.2 + worldVariantNoise, 0.4, seed * 0.0001 + ctx.sceneTime * 0.015) * 0.09;
-          const ridge2 = horizon + 0.15 + fbm(y * 1.4 + 3.3, 0.7, seed * 0.00013 + ctx.sceneTime * 0.01) * 0.1;
-          for (let col = 0; col < cols; col += 1) {
-            const x = (col + 0.5) / cols;
-            const drift1 = Math.sin(x * 5 + ctx.sceneTime * 0.035) * 0.017;
-            const drift2 = Math.sin(x * 3.7 - ctx.sceneTime * 0.022) * 0.025;
-            const idx = row * cols + col;
-            let land = 0;
-            if (y > ridge1 + drift1) land = 0.2;
-            if (y > ridge2 + drift2) land = Math.max(land, 0.26);
-            sceneLum[idx] = Math.max(sceneLum[idx], land * (1 - night * 0.6));
-            sceneAlpha[idx] = Math.max(sceneAlpha[idx], land > 0 ? 0.55 : 0);
-            sceneHue[idx] = lerpHueCircular(skyHue, EMBER_HUE, 0.65);
-          }
-        }
-
-        const growT = easeOut(clamp01(ctx.sceneTime / SCENE_CFG.cityGrow));
-        const unmakeT = easeIn(clamp01((ctx.sceneTime - Math.max(0, ctx.sceneDuration - 5)) / 5));
-        const buildingHue = lerpHueCircular(skyHue, EMBER_HUE, 0.34 + dusk);
-        for (let b = 0; b < worldBuildingCount; b += 1) {
-          const o = b * 6;
-          const bx = worldBuildings[o];
-          const bw = worldBuildings[o + 1];
-          const bh = worldBuildings[o + 2];
-          const start = worldBuildings[o + 3];
-          const grow = clamp01((ctx.sceneTime - start * 0.15) / SCENE_CFG.cityGrow) * growT;
-          const h = bh * easeOut(grow) * (1 - unmakeT);
-          if (h <= 0) continue;
-          const baseY = horizon + 0.14;
-          const topY = baseY - h;
-          const minCol = Math.max(0, Math.floor(bx * cols));
-          const maxCol = Math.min(cols - 1, Math.ceil((bx + bw) * cols));
-          const minRow = Math.max(0, Math.floor(topY * rows));
-          const maxRow = Math.min(rows - 1, Math.ceil(baseY * rows));
-          for (let row = minRow; row <= maxRow; row += 1) {
-            const y = (row + 0.5) / rows;
-            for (let col = minCol; col <= maxCol; col += 1) {
-              const x = (col + 0.5) / cols;
-              const d = rectSoftSdf(x, y, bx + bw * 0.5, baseY - h * 0.5, bw * 0.5, h * 0.5);
-              const edge = clamp01(1 - d / CFG.sceneSoftCells);
-              const idx = row * cols + col;
-              if (edge > sceneAlpha[idx]) sceneAlpha[idx] = edge * 0.66;
-              sceneLum[idx] = Math.max(sceneLum[idx], 0.3 * edge);
-              sceneHue[idx] = buildingHue;
-            }
-          }
-
-          const windowChance = 0.11 + ctx.mood.attention * 0.1;
-          const columns = Math.max(1, Math.floor((bw * cols) / 2.7));
-          const windowRows = Math.max(2, Math.floor((h * rows) / 4.8));
-          for (let wy = 0; wy < windowRows; wy += 1) {
-            for (let wx = 0; wx < columns; wx += 1) {
-              const hash = hash3(b * 31 + wx, wy, seed);
-              const on = hash < windowChance + 0.03 * Math.sin(ctx.sceneTime * 0.7 + hash * 12);
-              if (!on) continue;
-              const px = bx + ((wx + 0.5) * bw) / columns;
-              const py = topY + ((wy + 0.5) * h) / windowRows;
-              const flick = 0.45 + 0.25 * Math.sin(ctx.sceneTime * (0.8 + hash) + hash * 20);
-              writeBlob(
-                px,
-                py,
-                0.42,
-                flick * (timeOfDay === "night" ? 0.86 : 0.58),
-                timeOfDay === "night" ? AMBER_HUE : GOLD_HUE,
-                0.44,
-              );
-            }
-          }
-        }
-
-        const roadY = SCENE_CFG.worldRoadY;
-        for (let col = 0; col < cols; col += 1) {
-          const x = (col + 0.5) / cols;
-          const roadDist = Math.abs(x - 0.5) * 0.025;
-          for (
-            let row = Math.floor((roadY - 0.025) * rows);
-            row < Math.min(rows, Math.ceil((roadY + 0.025) * rows));
-            row += 1
-          ) {
-            const idx = row * cols + col;
-            sceneLum[idx] = Math.max(sceneLum[idx], 0.24 - roadDist);
-            sceneAlpha[idx] = Math.max(sceneAlpha[idx], 0.5);
-            sceneHue[idx] = emberRoadHue();
-          }
-        }
-
-        const wx = 0.16 + easeInOut(clamp01(ctx.sceneTime / ctx.sceneDuration)) * 0.67;
-        const wy = roadY - SCENE_CFG.wandererHeightWorld;
-        drawMiniWanderer(ctx, wx, wy, 1, 0.7);
-
-        for (let i = 0; i < worldFigureCount; i += 1) {
-          const o = i * 5;
-          const fx = worldFigures[o];
-          const fy = roadY - 0.055;
-          drawMiniWanderer(ctx, fx, fy, 0.58, 0.35);
-        }
-
-        if (timeOfDay === "night") {
-          for (let i = 0; i < 14; i += 1) {
-            const sx = wrap01(hash3(i + 13, 7, seed) * 1.2);
-            const sy = 0.08 + hash3(i + 19, 3, seed) * 0.34;
-            if (Math.sin(ctx.sceneTime * 0.45 + i * 1.7) < -0.82) continue;
-            writeBlob(sx, sy, 0.4, 0.42, GOLD_HUE, 0.28);
-          }
-        } else if (timeOfDay === "dawn") {
-          for (let i = 0; i < worldRainCount; i += 1) {
-            const o = i * 4;
-            const x = worldRain[o];
-            const y = worldRain[o + 1];
-            writeBlob(x, y, 0.35, 0.26, AMBER_HUE, 0.22);
-          }
-        } else {
-          for (let i = 0; i < Math.min(18, worldRainCount); i += 1) {
-            const o = i * 4;
-            const x = worldRain[o];
-            const y = worldRain[o + 1];
-            writeBlob(x, y, 0.32, 0.2, AMBER_HUE, 0.2);
-          }
-        }
-      },
-      exit: () => ({ x: 0.78, y: SCENE_CFG.worldRoadY - 0.05, r: 0.03, energy: 0.72, hue: AMBER_HUE }),
-    };
-
-    const emberRoadHue = (): number => lerpHueCircular(EMBER_HUE, AMBER_HUE, 0.24);
-
-    const drawMiniWanderer = (ctx: SceneContext, x: number, y: number, scale: number, strength: number): void => {
-      const h = SCENE_CFG.wandererHeightWorld * scale;
-      const phase = ctx.sceneTime * (2.2 + ctx.mood.arousal * 0.6) + x * 18;
-      const stride = Math.sin(phase) * 0.009;
-      writeBlob(x, y - h * 0.82, Math.max(0.38, scale * 0.55), 0.48 * strength, AMBER_HUE, 0.5 * strength);
-      drawCapsuleLimited(
-        ctx,
-        x,
-        y - h * 0.73,
-        x + stride,
-        y - h * 0.38,
-        0.85 * scale,
-        0.38 * strength,
-        EMBER_HUE,
-        0.66 * strength,
-      );
-      drawCapsuleLimited(
-        ctx,
-        x + stride,
-        y - h * 0.39,
-        x - stride,
-        y,
-        0.75 * scale,
-        0.4 * strength,
-        EMBER_HUE,
-        0.64 * strength,
-      );
-    };
-
-    const drawCapsuleLimited = (
-      ctx: SceneContext,
+    const drawCapsule = (
       ax: number,
       ay: number,
       bx: number,
@@ -1441,670 +593,42 @@ const AnimatedLedBackground = () => {
       hue: number,
       alpha: number,
     ): void => {
-      const minCol = Math.max(0, Math.floor(Math.min(ax, bx) * cols - radius - 1));
-      const maxCol = Math.min(cols - 1, Math.ceil(Math.max(ax, bx) * cols + radius + 1));
-      const minRow = Math.max(0, Math.floor(Math.min(ay, by) * rows - radius - 1));
-      const maxRow = Math.min(rows - 1, Math.ceil(Math.max(ay, by) * rows + radius + 1));
+      const minCol = Math.max(0, Math.floor(Math.min(ax, bx) * cols - radius * cols - 2));
+      const maxCol = Math.min(cols - 1, Math.ceil(Math.max(ax, bx) * cols + radius * cols + 2));
+      const minRow = Math.max(0, Math.floor(Math.min(ay, by) * rows - radius * rows - 2));
+      const maxRow = Math.min(rows - 1, Math.ceil(Math.max(ay, by) * rows + radius * rows + 2));
+      const softness = CFG.sceneSoftCells / Math.max(cols, rows);
       for (let row = minRow; row <= maxRow; row += 1) {
         const py = (row + 0.5) / rows;
         for (let col = minCol; col <= maxCol; col += 1) {
           const px = (col + 0.5) / cols;
-          const d = capsuleDistance(px, py, ax, ay, bx, by, radius);
-          const a = clamp01(1 - d / (CFG.sceneSoftCells + 1.6));
-          if (a <= 0) continue;
           const idx = row * cols + col;
-          sceneLum[idx] = Math.max(sceneLum[idx], lum * a);
-          sceneAlpha[idx] = Math.max(sceneAlpha[idx], alpha * a);
-          sceneHue[idx] = hue;
+          paintSdf(capsuleSdf(px, py, ax, ay, bx, by, radius), softness, lum, hue, alpha, idx);
         }
       }
     };
 
-    const humanJoint = new Float32Array(13 * 2); // head, neck, pelvis, two arms, two legs.
-    const backgroundHuman = new Float32Array(CFG.maxHumanFigures * 4);
-    let humanState = 0;
-    let humanStateTime = 0;
-    let humanPhase = 0;
-    let humanNoticed = false;
-    let thinkingStarted = false;
-
-    const configureHumanState = (ctx: SceneContext): void => {
-      const r = ctx.rng();
-      if (ctx.mood.arousal > 0.7) humanState = r < 0.52 ? 1 : 0;
-      else if (ctx.mood.calm > 0.72) humanState = r < 0.35 ? 3 : r < 0.65 ? 4 : 2;
-      else humanState = r < 0.2 ? 2 : r < 0.38 ? 3 : r < 0.56 ? 4 : r < 0.74 ? 5 : r < 0.9 ? 6 : 0;
-      humanPhase = r * Math.PI * 2;
-      humanStateTime = 0;
-      humanNoticed = false;
-      thinkingStarted = false;
-      for (let i = 0; i < backgroundHuman.length; i += 4) backgroundHuman[i] = 0;
-      const bgCount = Math.min(CFG.maxHumanFigures - 1, Math.floor(ctx.mood.arousal * 3));
-      for (let i = 0; i < bgCount; i += 1) {
-        const o = i * 4;
-        backgroundHuman[o] = 0.12 + ctx.rng() * 0.76;
-        backgroundHuman[o + 1] = 0.008 + ctx.rng() * 0.012;
-        backgroundHuman[o + 2] = ctx.rng() < 0.5 ? -1 : 1;
-        backgroundHuman[o + 3] = 0.12 + ctx.rng() * 0.08;
-      }
-    };
-
-    const buildHumanSkeleton = (
-      ctx: SceneContext,
-      x: number,
-      baseY: number,
-      scale: number,
-      state: number,
-      phase: number,
+    const drawLine = (
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+      lum: number,
+      hue: number,
+      alpha: number,
+      thickness = 0.012,
     ): void => {
-      const H = SCENE_CFG.humanHeight * scale;
-      const bob = state === 0 ? Math.sin(phase * 2) * H * 0.02 : state === 1 ? Math.sin(phase * 1.7) * H * 0.035 : 0;
-      const torsoLean = state === 6 ? -0.12 : state === 2 ? 0.05 : 0;
-      const jump = state === 6 ? Math.max(0, Math.sin(phase)) * H * 0.1 : 0;
-      const headY = baseY - H + bob - jump;
-      humanJoint[0] = x;
-      humanJoint[1] = headY;
-      if (state === 2 && humanNoticed) humanJoint[0] += clamp((pointerX - x) * 0.1, -0.06, 0.06);
-      humanJoint[2] = x + torsoLean * H;
-      humanJoint[3] = headY + H * 0.16;
-      humanJoint[4] = x + torsoLean * H * 0.75;
-      humanJoint[5] = headY + H * 0.52;
-
-      const arm = H * 0.23;
-      const leg = H * 0.36;
-      const gait = Math.sin(phase);
-      const gait2 = Math.sin(phase + Math.PI);
-      const wave = state === 2 ? 1 : 0;
-
-      humanJoint[6] = x - H * 0.12 - arm * (0.35 + 0.25 * gait);
-      humanJoint[7] = humanJoint[3] + arm * (0.55 + 0.2 * Math.abs(gait));
-      humanJoint[8] = x - H * 0.12 - arm * (0.82 + 0.25 * gait) + wave * H * 0.08;
-      humanJoint[9] = humanJoint[3] + arm * (1.04 + wave * 0.16);
-
-      humanJoint[10] = x + H * 0.12 + arm * (0.35 + 0.25 * gait2);
-      humanJoint[11] = humanJoint[3] + arm * (0.55 + 0.16 * Math.abs(gait2));
-      humanJoint[12] = x + H * 0.12 + arm * (0.82 + 0.25 * gait2);
-      humanJoint[13] = humanJoint[3] + arm * (1.03 + wave * 0.06);
-      if (state === 6) {
-        humanJoint[6] -= H * 0.05;
-        humanJoint[7] -= arm * 0.48;
-        humanJoint[8] -= H * 0.09;
-        humanJoint[9] -= arm * 0.9;
-        humanJoint[10] += H * 0.05;
-        humanJoint[11] -= arm * 0.48;
-        humanJoint[12] += H * 0.09;
-        humanJoint[13] -= arm * 0.9;
-      }
-
-      const hipY = headY + H * 0.52;
-      humanJoint[14] = x - H * 0.08;
-      humanJoint[15] = hipY;
-      humanJoint[16] = x - H * 0.08 + leg * 0.35 * gait;
-      humanJoint[17] = hipY + leg * (0.52 + 0.08 * Math.abs(gait));
-      humanJoint[18] = x - H * 0.08 - leg * 0.15 * gait;
-      humanJoint[19] = baseY;
-      humanJoint[20] = x + H * 0.08;
-      humanJoint[21] = hipY;
-      humanJoint[22] = x + H * 0.08 + leg * 0.35 * gait2;
-      humanJoint[23] = hipY + leg * (0.52 + 0.08 * Math.abs(gait2));
-      humanJoint[24] = x + H * 0.08 - leg * 0.15 * gait2;
-      humanJoint[25] = baseY;
-
-      if (state === 3) {
-        humanJoint[16] = x - H * 0.15;
-        humanJoint[17] = hipY + leg * 0.68;
-        humanJoint[18] = x - H * 0.03;
-        humanJoint[19] = baseY;
-        humanJoint[22] = x + H * 0.15;
-        humanJoint[23] = hipY + leg * 0.68;
-        humanJoint[24] = x + H * 0.03;
-        humanJoint[25] = baseY;
-      }
+      drawCapsule(x0, y0, x1, y1, thickness, lum, hue, alpha);
     };
 
-    const renderHumanFigure = (
-      ctx: SceneContext,
-      scale: number,
-      x: number,
-      baseY: number,
-      state: number,
-      phase: number,
-      strength: number,
-    ): void => {
-      buildHumanSkeleton(ctx, x, baseY, scale, state, phase);
-      const bodyHue = EMBER_HUE;
-      const rimHue = AMBER_HUE;
-      for (let i = 0; i < HUMAN_BONES.length; i += 1) {
-        const b = HUMAN_BONES[i];
-        const aIdx = b[0];
-        const bIdx = b[1];
-        const radCells = Math.max(0.65, b[2]);
-        drawCapsuleLimited(
-          ctx,
-          humanJoint[aIdx],
-          humanJoint[aIdx + 1],
-          humanJoint[bIdx],
-          humanJoint[bIdx + 1],
-          radCells,
-          b[3] * strength,
-          bodyHue,
-          0.74 * strength,
-        );
-        drawCapsuleLimited(
-          ctx,
-          humanJoint[aIdx],
-          humanJoint[aIdx + 1],
-          humanJoint[bIdx],
-          humanJoint[bIdx + 1],
-          Math.max(0.65, SCENE_CFG.humanRim * cols),
-          b[3] * 0.9 * strength,
-          rimHue,
-          0.2 * strength,
-        );
-      }
-      writeBlob(humanJoint[0], humanJoint[1], 2.0 * strength, 0.22 * strength, bodyHue, 0.8 * strength);
-      writeBlob(
-        humanJoint[0],
-        humanJoint[1],
-        Math.max(0.7, SCENE_CFG.humanRim * cols),
-        0.75 * strength,
-        rimHue,
-        0.36 * strength,
-      );
-
-      if (state === 4) {
-        const lx = humanJoint[8];
-        const ly = humanJoint[9];
-        for (let i = 0; i < 3; i += 1) writeBlob(lx + (i - 1) * 0.008, ly + 0.008, 0.55, 0.82, GOLD_HUE, 0.58);
-      }
-    };
-
-    const human: Scene = {
-      id: "human",
-      duration: SCENE_CFG.humanDuration,
-      transition: "crossfade",
-      enter: (ctx, _handoff) => configureHumanState(ctx),
-      update: (dt, _t, ctx) => {
-        humanStateTime += dt;
-        humanPhase += dt * (humanState === 1 ? 3.1 : humanState === 0 ? 2.1 : 1.3);
-        for (let i = 0; i < backgroundHuman.length; i += 4) {
-          const speed = backgroundHuman[i + 1];
-          const dir = backgroundHuman[i + 2];
-          if (speed === 0) continue;
-          backgroundHuman[i] += dir * speed * dt;
-          if (backgroundHuman[i] > 1.05) backgroundHuman[i] = -0.05;
-          if (backgroundHuman[i] < -0.05) backgroundHuman[i] = 1.05;
-        }
-
-        if (!humanNoticed && noticedThisVisit && ctx.pointerSpeed > 1.3 && ctx.pointerNear) {
-          humanNoticed = true;
-          humanState = 2;
-          humanStateTime = 0;
-        }
-
-        if (humanStateTime > ctx.sceneDuration * 0.5 && !thinkingStarted) {
-          thinkingStarted = true;
-          if (ctx.mood.curiosity > 0.5) humanState = 5;
-        }
-      },
-      render: (ctx) => {
-        clearScene();
-        if (humanState === 5) {
-          const x = 0.55;
-          const y = 0.84;
-          renderHumanFigure(ctx, 1, x, y, 0, 0.1, 0.86);
-          for (let i = 0; i < 14; i += 1) {
-            const a = i * 0.57 + ctx.sceneTime * 0.4;
-            const r = 0.04 + (i % 3) * 0.02;
-            const sx = x + Math.cos(a) * r;
-            const sy = y - SCENE_CFG.humanHeight * 0.4 - Math.abs(Math.sin(a)) * 0.11;
-            writeBlob(sx, sy, 0.58, 0.58, AMBER_HUE, 0.46);
-          }
-        } else {
-          renderHumanFigure(ctx, 1, 0.54, 0.86, humanState, humanPhase, 1);
-        }
-
-        for (let i = 0; i < CFG.maxHumanFigures - 1; i += 1) {
-          const o = i * 4;
-          if (backgroundHuman[o + 1] <= 0) continue;
-          renderHumanFigure(ctx, 0.45, backgroundHuman[o], 0.86, 0, humanPhase * 0.55 + i, backgroundHuman[o + 3]);
-        }
-
-        if (humanState === 6) {
-          const deskX = 0.67;
-          const deskY = 0.72;
-          for (let i = 0; i < 4; i += 1) writeBlob(deskX + i * 0.013, deskY, 0.38, 0.76, GOLD_HUE, 0.54);
-        }
-      },
-      exit: () => ({ x: 0.55, y: 0.46, r: 0.04, energy: 0.85, hue: humanState === 5 ? AMBER_HUE : EMBER_HUE }),
-    };
-
-    let dreamThought = "hello.";
-    let dreamThoughtStart = -1;
-    let dreamReplayOffset = 0;
-    let dreamReverse = false;
-
-    const thoughts: Record<string, readonly string[]> = {
-      ambient: ["hello.", "still thinking...", "oh.", "slow down."],
-      reactive: ["you're here", "you left.", "slow down.", "oh."],
-      "welcome-back": ["hello.", "you're here", "oh."],
-    };
-
-    const pickThought = (ctx: SceneContext): string => {
-      let category = "ambient";
-      if (returnThought) category = "welcome-back";
-      else if (noticeThought || ctx.clickPulse > 0.1 || scrollVelocity > 1.2) category = "reactive";
-      const items = thoughts[category];
-      const selected = items[(ctx.rng() * items.length) | 0];
-      return selected;
-    };
-
-    const glyphWidth5 = 5;
-    const glyphWidth3 = 3;
-
-    const drawThought = (ctx: SceneContext, textValue: string, progress: number): void => {
-      const compact = cols < 34;
-      const scale = compact ? 1 : 1;
-      const charW = compact ? glyphWidth3 : glyphWidth5;
-      const gap = compact ? 1 : 1;
-      const maxCols = Math.floor(cols * 0.7);
-      let charsPerLine = Math.max(1, Math.floor((maxCols + gap) / (charW + gap)));
-      if (charsPerLine < 2 && textValue.length > 1) {
-        writeBlob(0.5, 0.5, 2.0, 0.72, AMBER_HUE, 0.5);
-        return;
-      }
-      const lineCount = Math.ceil(textValue.length / charsPerLine);
-      if (lineCount > 2) {
-        writeBlob(0.5, 0.5, 2.4, 0.52, AMBER_HUE, 0.4);
-        return;
-      }
-      const visibleChars = Math.min(textValue.length, Math.max(1, Math.floor(progress * textValue.length + 1e-6)));
-      const blockW = Math.min(maxCols, charsPerLine * (charW + gap) - gap);
-      const startX = Math.max(0, Math.floor((cols - blockW) * 0.5));
-      const startY = Math.floor((rows - lineCount * 7) * 0.5);
-      for (let i = 0; i < visibleChars; i += 1) {
-        const ch = textValue[i].toLowerCase();
-        const code = glyphLetters.indexOf(ch);
-        const line = Math.floor(i / charsPerLine);
-        const place = i % charsPerLine;
-        const gx = startX + place * (charW + gap);
-        const gy = startY + line * 7;
-        if (code < 0) continue;
-        if (!compact) {
-          const src = glyphRows[ch];
-          if (!src) continue;
-          for (let row = 0; row < 7; row += 1) {
-            const bits = src[row];
-            for (let bit = 0; bit < 5; bit += 1) {
-              if ((bits & (1 << (4 - bit))) === 0) continue;
-              const x = gx + bit;
-              const y = gy + row;
-              if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
-              const idx = y * cols + x;
-              sceneLum[idx] = Math.max(sceneLum[idx], 0.66);
-              sceneAlpha[idx] = Math.max(sceneAlpha[idx], 0.66);
-              sceneHue[idx] = semanticAt(AMBER_HUE, EMBER_HUE);
-            }
-          }
-        } else {
-          const src = glyphRows[ch];
-          if (!src) continue;
-          for (let row = 0; row < 5; row += 1) {
-            const sourceBits = src[row + 1] || 0;
-            for (let bit = 0; bit < 3; bit += 1) {
-              const sourceBit = 4 - bit;
-              if ((sourceBits & (1 << sourceBit)) === 0) continue;
-              const x = gx + bit;
-              const y = gy + row + 1;
-              if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
-              const idx = y * cols + x;
-              sceneLum[idx] = Math.max(sceneLum[idx], 0.62);
-              sceneAlpha[idx] = Math.max(sceneAlpha[idx], 0.62);
-              sceneHue[idx] = EMBER_HUE;
-            }
-          }
-        }
-      }
-    };
-
-    const dream: Scene = {
-      id: "dream",
-      duration: SCENE_CFG.dreamDuration,
-      transition: "scan",
-      enter: (ctx, _handoff) => {
-        if (tabLeftPending) {
-          dreamThought = "you left.";
-          tabLeftPending = false;
-        } else if (tabBackPending) {
-          dreamThought = "you're here";
-          tabBackPending = false;
-        } else dreamThought = pickThought(ctx);
-        dreamThoughtStart = ctx.sceneTime;
-        dreamReplayOffset = ctx.rng() * 0.7;
-        dreamReverse = ctx.rng() < 0.35;
-        returnThought = false;
-        noticeThought = false;
-      },
-      update: (dt, _t, ctx) => {
-        dreamReplayOffset += dt * (dreamReverse ? -0.18 : 0.22 + ctx.mood.calm * 0.08);
-        if (ctx.sceneTime > SCENE_CFG.dreamDuration[0] * 0.45 && dreamThought.length > 0) {
-          dreamThoughtStart = Math.min(dreamThoughtStart, ctx.sceneTime - 0.8);
-        }
-      },
-      render: (ctx) => {
-        clearScene();
-        if (snapshotCount > 0 && snapshotSize === cols * rows) {
-          const age = easeInOut(clamp01(ctx.sceneTime / ctx.sceneDuration));
-          for (let row = 0; row < rows; row += 1) {
-            const slice = Math.floor((row / Math.max(1, rows)) * 7);
-            const shift = Math.sin(ctx.sceneTime * 1.3 + slice * 0.8) * SCENE_CFG.dreamSlice;
-            const srcIndex = Math.max(
-              0,
-              Math.min(snapshotCount - 1, Math.floor(Math.abs(Math.sin(dreamReplayOffset + slice)) * snapshotCount)),
-            );
-            const actual = dreamReverse
-              ? (snapshotHead - 1 - srcIndex + CFG.snapshotCount) % CFG.snapshotCount
-              : (snapshotHead - 1 - srcIndex + CFG.snapshotCount) % CFG.snapshotCount;
-            const srcBase = actual * snapshotSize;
-            for (let col = 0; col < cols; col += 1) {
-              const shiftedX = col + Math.round(shift * cols);
-              const srcCol = ((shiftedX % cols) + cols) % cols;
-              const idx = row * cols + col;
-              const q = snapshots[srcBase + row * cols + srcCol] / 63;
-              const ghost = q * (0.38 + 0.22 * (1 - age));
-              sceneLum[idx] = Math.min(0.85, ghost);
-              sceneAlpha[idx] = clamp01(0.32 + q * 0.38);
-              sceneHue[idx] = lerpHueCircular(EMBER_HUE, AMBER_HUE, 0.12 + 0.15 * q);
-            }
-          }
-        }
-
-        for (let i = 0; i < attentionHeat.length; i += 1) {
-          const v = attentionHeat[i];
-          if (v < 0.035) continue;
-          const hx = ((i % 16) + 0.5) / 16;
-          const hy = (Math.floor(i / 16) + 0.5) / 9;
-          writeBlob(hx, hy, 1.0 + v * 1.5, 0.24 * v, EMBER_HUE, 0.2 * v);
-        }
-
-        const thoughtAge = ctx.sceneTime - dreamThoughtStart;
-        if (thoughtAge >= 0 && thoughtAge < dreamThought.length * 0.42 + CFG.thoughtHold + 1) {
-          const writeStart = dreamThought.length * 0.42;
-          const progress = thoughtAge < writeStart ? easeInOut(thoughtAge / Math.max(0.1, writeStart)) : 1;
-          const hold = thoughtAge > writeStart && thoughtAge < writeStart + CFG.thoughtHold;
-          const fade = hold
-            ? 1
-            : thoughtAge >= writeStart + CFG.thoughtHold
-              ? 1 - easeInOut((thoughtAge - writeStart - CFG.thoughtHold) / 1.3)
-              : 1;
-          if (fade > 0) {
-            drawThought(ctx, dreamThought, progress);
-            if (fade < 1) {
-              for (let i = 0; i < sceneAlpha.length; i += 1) sceneAlpha[i] *= fade;
-            }
-          }
-        }
-      },
-      exit: () => ({ x: 0.5, y: 0.5, r: 0.14, energy: 0.4, hue: EMBER_HUE }),
-    };
-
-    const scenes: Scene[] = [spark, neural, eye, world, human, dream];
-
-    const sceneById = (id: SceneId): Scene => {
-      if (id === "spark") return spark;
-      if (id === "neural") return neural;
-      if (id === "eye") return eye;
-      if (id === "world") return world;
-      if (id === "human") return human;
-      return dream;
-    };
-
-    /* ========================================================
-       DIRECTOR
-       ======================================================== */
-
-    let episode = 1;
-    let beatIndex = -1;
-    let beatElapsed = 0;
-    let currentScene: Scene | null = null;
-    let currentSceneDuration = 0;
-    let previousSceneId: SceneId | null = null;
-    let previousHandoff: Handoff = { x: 0.5, y: 0.5, r: 0.08, energy: 0.65, hue: EMBER_HUE };
-    let beats: Beat[] = [];
-    let lastEpisodeSignature = "";
-
-    const randomDuration = (range: DurationRange): number => range[0] + rng() * (range[1] - range[0]);
-
-    const pushBeat = (kind: BeatKind, sceneId: SceneId | null, duration: number, variant: number): void => {
-      beats.push({ kind, scene: sceneId, duration, variant });
-    };
-
-    const addRest = (): void => pushBeat("rest", null, CFG.restMin + rng() * (CFG.restMax - CFG.restMin), 0);
-
-    const buildEpisode = (): void => {
-      beats = [];
-      pushBeat("sleep", null, CFG.sleepMin + rng() * (CFG.sleepMax - CFG.sleepMin), 0);
-      pushBeat("scene", "spark", randomDuration(SCENE_CFG.sparkDuration), rng());
-      addRest();
-      pushBeat("scene", "neural", randomDuration(SCENE_CFG.neuralDuration), rng());
-      addRest();
-
-      const candidates: SceneId[] = ["eye", "world", "human", "dream", "world", "human"];
-      if (mood.curiosity > 0.62) {
-        candidates[0] = "eye";
-        candidates[1] = "world";
-        candidates[2] = "world";
-      } else if (mood.arousal > 0.68) {
-        candidates[0] = "human";
-        candidates[1] = "neural";
-        candidates[2] = "human";
-      } else if (mood.calm > 0.74) {
-        candidates[0] = "dream";
-        candidates[1] = "world";
-        candidates[2] = "dream";
-      }
-
-      let last: SceneId | null = "neural";
-      const middleCount = 4 + ((rng() * 3) | 0);
-      for (let i = 0; i < middleCount; i += 1) {
-        let pick = candidates[(rng() * candidates.length) | 0];
-        if (pick === last) pick = pick === "world" ? "human" : "world";
-        const range = sceneById(pick).duration;
-        pushBeat("scene", pick, randomDuration(range), rng());
-        last = pick;
-        addRest();
-      }
-
-      pushBeat("idea", "neural", Math.max(20, randomDuration(SCENE_CFG.neuralDuration)), rng());
-      addRest();
-      pushBeat("scene", "dream", randomDuration(SCENE_CFG.dreamDuration), rng());
-      if (mood.curiosity > 0.58 || mood.calm > 0.7) {
-        addRest();
-        pushBeat("scene", "world", randomDuration(SCENE_CFG.worldDuration), rng());
-      }
-      addRest();
-      pushBeat("sleep", null, CFG.sleepMin + rng() * (CFG.sleepMax - CFG.sleepMin), 0);
-
-      let total = 0;
-      for (let i = 0; i < beats.length; i += 1) total += beats[i].duration;
-      const target = CFG.episodeMin + rng() * (CFG.episodeMax - CFG.episodeMin);
-      if (total < target) {
-        const delta = target - total;
-        const end = beats.length - 1;
-        beats[end].duration += delta;
-      }
-      let signature = "";
-      for (let i = 0; i < beats.length; i += 1)
-        signature += `${beats[i].scene || beats[i].kind}-${Math.round(beats[i].variant * 9)}|`;
-      if (signature === lastEpisodeSignature) {
-        const swapIndex = Math.min(5, Math.max(2, beats.length - 4));
-        if (beats[swapIndex].kind === "scene") beats[swapIndex].variant += 0.17;
-      }
-      lastEpisodeSignature = signature;
-    };
-
-    const beginScene = (id: SceneId, duration: number): void => {
-      currentScene = sceneById(id);
-      currentSceneDuration = duration;
-      sceneCtx.sceneDuration = duration;
-      sceneCtx.sceneTime = 0;
-      sceneCtx.handoff = previousHandoff;
-      currentScene.enter(sceneCtx, previousHandoff);
-    };
-
-    const beginNextBeat = (): void => {
-      beatIndex += 1;
-      beatElapsed = 0;
-      if (beatIndex >= beats.length) {
-        episode += 1;
-        seed = (seed ^ ((episode * 0x9e3779b9) >>> 0)) >>> 0;
-        sceneCtx.seed = seed;
-        buildEpisode();
-        beatIndex = 0;
-      }
-      const beat = beats[beatIndex];
-      if (beat.kind === "scene" || beat.kind === "idea") {
-        if (beat.scene !== null) beginScene(beat.scene, beat.duration);
-      } else {
-        currentScene = null;
-        currentSceneDuration = 0;
-      }
-    };
-
-    buildEpisode();
-    if (dev.scene) {
-      beats = [{ kind: "scene", scene: dev.scene, duration: 9999, variant: 0.5 }];
-      beatIndex = -1;
-    } else {
-      beatIndex = -1;
-    }
-    beginNextBeat();
-    if (dev.scene === null) {
-      // Honor the requested two-second opening rest regardless of generated sleep length.
-      beats[0].duration = CFG.initialRest;
-      beatElapsed = 0;
-    }
-
-    /* ========================================================
-       SUBSTRATE / BUFFERS
-       ======================================================== */
-
-    const stops = new Array(palette.length) as Array<[number, number, number]>;
-    for (let i = 0; i < palette.length; i += 1) {
-      const hex = palette[i];
-      stops[i] = [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
-    }
-
-    const lut = new Uint8ClampedArray(512 * 3);
-    const fillLUT = (): void => {
-      const n = stops.length;
-      for (let k = 0; k < 512; k += 1) {
-        const s = (k / 512) * n;
-        const i0 = Math.floor(s);
-        let f = s - i0;
-        f = f * f * (3 - 2 * f);
-        const a = stops[i0 % n];
-        const b = stops[(i0 + 1) % n];
-        for (let c = 0; c < 3; c += 1) {
-          lut[k * 3 + c] = Math.sqrt(a[c] * a[c] * (1 - f) + b[c] * b[c] * f);
-        }
-      }
-    };
-    fillLUT();
-
-    const resize = (): void => {
-      if (window.innerWidth <= 768) cell = 16;
-      else if (window.innerWidth <= 900) cell = 18;
-      else cell = 20;
-
-      const rect = canvas.getBoundingClientRect();
-      width = Math.max(1, Math.ceil(rect.width));
-      height = Math.max(1, Math.ceil(rect.height));
-      cols = Math.ceil(width / cell) + 2;
-      rows = Math.ceil(height / cell) + 2;
-      dpr = Math.min(window.devicePixelRatio || 1, CFG.maxDpr);
-      canvas.width = Math.ceil(width * dpr);
-      canvas.height = Math.ceil(height * dpr);
-      pixelCanvas.width = cols;
-      pixelCanvas.height = rows;
-      pixelCtx.imageSmoothingEnabled = false;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.imageSmoothingEnabled = false;
-      unit = Math.max(1, Math.min(cols, rows * CFG.unitScale));
-
-      const size = cols * rows;
-      base = new Float32Array(size);
-      sceneLum = new Float32Array(size);
-      sceneHue = new Float32Array(size);
-      sceneAlpha = new Float32Array(size);
-      trail = new Float32Array(size);
-      finalLum = new Float32Array(size);
-      finalHue = new Float32Array(size);
-      previousLum = new Float32Array(size);
-      baseBlur = new Float32Array(size);
-      bloomTemp = new Float32Array(size);
-      finalIndex = new Uint8Array(size);
-      imageData = new ImageData(cols, rows);
-      snapshotSize = size;
-      snapshots = new Uint8Array(CFG.snapshotCount * snapshotSize);
-      snapshotHead = 0;
-      snapshotCount = 0;
-      snapshotClock = 0;
-      sceneCtx.cols = cols;
-      sceneCtx.rows = rows;
-      sceneCtx.unit = unit;
-      sceneCtx.base = base;
-      sceneCtx.sceneLum = sceneLum;
-      sceneCtx.sceneHue = sceneHue;
-      sceneCtx.sceneAlpha = sceneAlpha;
-      sceneCtx.trail = trail;
-      sceneCtx.finalLum = finalLum;
-      sceneCtx.finalHue = finalHue;
-      document.documentElement.style.setProperty("--cell", `${cell}px`);
-      recomputeSafeRects();
-    };
-
-    const recomputeSafeRects = (): void => {
-      safeRects.length = 0;
-      const nodes = document.querySelectorAll<HTMLElement>("[data-led-safe]");
-      for (let i = 0; i < nodes.length && i < CFG.maxSafeRects; i += 1) {
-        const rect = nodes[i].getBoundingClientRect();
-        safeRects.push({
-          x: rect.left / Math.max(1, width),
-          y: rect.top / Math.max(1, height),
-          w: rect.width / Math.max(1, width),
-          h: rect.height / Math.max(1, height),
-        });
-      }
-    };
-
-    let lastSafeRectUpdate = -Infinity;
-    const maybeRefreshSafeRects = (now: number): void => {
-      if (now - lastSafeRectUpdate < 1000 / CFG.safeScrollHz) return;
-      lastSafeRectUpdate = now;
-      recomputeSafeRects();
-    };
-
-    const insideSafeZone = (x: number, y: number): boolean => {
-      const ex = (x - 0.5) / CFG.safeEllipseRx;
-      const ey = (y - 0.5) / CFG.safeEllipseRy;
-      if (ex * ex + ey * ey <= 1) return true;
-      for (let i = 0; i < safeRects.length; i += 1) {
-        const r = safeRects[i];
-        if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return true;
-      }
-      return false;
-    };
-
-    const applySubstrate = (t: number, allowSkip: boolean): void => {
+    const buildSubstrate = (t: number): void => {
+      if (skipSubstrate && frameIndex % 2 !== 0) return;
       const motion = reducedMotionQuery.matches ? 0.18 : 1;
       const wtW = t * CFG.speed * motion;
       const wtC = t * CFG.speed * motion;
-      let sum = 0;
-      if (allowSkip) return;
-
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < cols; col += 1) {
-          const i = row * cols + col;
+          const idx = row * cols + col;
           let brightness = fbm(
             col * CFG.waveScale + wtW * CFG.waveDriftX,
             row * CFG.waveScale + wtW * CFG.waveDriftY,
@@ -2113,8 +637,6 @@ const AnimatedLedBackground = () => {
           brightness = (brightness - CFG.threshold) / (1 - CFG.threshold);
           brightness = brightness < 0 ? 0 : Math.pow(brightness, CFG.gamma);
           brightness = CFG.floor + (1 - CFG.floor) * clamp01(brightness);
-          base[i] = brightness;
-          sum += brightness;
 
           let colorField = fbm(
             col * CFG.colorScale + wtC * CFG.colorDrift,
@@ -2122,716 +644,1530 @@ const AnimatedLedBackground = () => {
             wtC * CFG.colorEvolve,
           );
           colorField += wtC * CFG.hueCycle;
-          colorField -= Math.floor(colorField);
+          colorField = wrap01(colorField);
           colorField += Math.sin(wtC * 0.18 + col * 0.017 + row * 0.009 + hueSpin) * 0.025;
-          colorField -= Math.floor(colorField);
-          finalHue[i] = colorField;
-        }
-      }
-      baselineMean = sum / Math.max(1, cols * rows);
-    };
-
-    const blurBase3x3 = (source: Float32Array, target: Float32Array): void => {
-      for (let row = 0; row < rows; row += 1) {
-        const r0 = Math.max(0, row - 1);
-        const r1 = Math.min(rows - 1, row + 1);
-        for (let col = 0; col < cols; col += 1) {
-          const c0 = Math.max(0, col - 1);
-          const c1 = Math.min(cols - 1, col + 1);
-          const idx = row * cols + col;
-          let s = 0;
-          let n = 0;
-          for (let rr = r0; rr <= r1; rr += 1) {
-            for (let cc = c0; cc <= c1; cc += 1) {
-              s += source[rr * cols + cc];
-              n += 1;
-            }
-          }
-          target[idx] = s / n;
+          colorField = wrap01(colorField);
+          base[idx] = brightness;
+          baseHue[idx] = colorField;
         }
       }
     };
 
-    const renderScenesIntoFinal = (): void => {
-      const sceneActive = currentScene !== null;
-      const rackFocus = sceneActive && (currentScene?.id === "world" || currentScene?.id === "human");
-      if (quality.skipSubstrate && currentScene !== null) {
-        for (let i = 0; i < base.length; i += 1) base[i] = baselineMean;
+    const updateMood = (dt: number): void => {
+      for (let i = 0; i < 4; i += 1) {
+        const wave = 0.5 + 0.5 * Math.sin((logicalTime / moodPeriod[i]) * TAU + moodPhase[i]);
+        moodTarget[i] = clamp01(0.22 + wave * 0.58);
       }
-      if (rackFocus) blurBase3x3(base, baseBlur);
+      mood.arousal += (moodTarget[0] - mood.arousal) * clamp01(dt / 12);
+      mood.curiosity += (moodTarget[1] - mood.curiosity) * clamp01(dt / 16);
+      mood.attention += (moodTarget[2] - mood.attention) * clamp01(dt / 8);
+      mood.calm += (moodTarget[3] - mood.calm) * clamp01(dt / 14);
+      mood.attention = clamp01(mood.attention + pointerSpeed * 0.012);
+      mood.arousal = clamp01(mood.arousal + Math.min(1, Math.abs(scrollVelocity) * 0.00045));
+      if (performance.now() - lastPointerTime > 12000) mood.calm = clamp01(mood.calm + dt * 0.015);
+      if (scrollVelocity !== 0) scrollVelocity *= Math.exp(-dt * 4);
+    };
 
-      for (let i = 0; i < base.length; i += 1) {
-        const b = rackFocus ? baseBlur[i] : base[i];
-        let lum = b;
-        let hue = finalHue[i];
-        if (sceneActive) {
-          const a = sceneAlpha[i] * governor;
-          const sceneMix = a * 0.52;
-          lum = b + (sceneLum[i] - b) * sceneMix;
-          hue = lerpHueCircular(hue, sceneHue[i], a);
+    const updateHeat = (dt: number): void => {
+      const decay = Math.pow(CFG.heatDecay, Math.max(0.25, dt * 30));
+      for (let i = 0; i < heat.length; i += 1) heat[i] *= decay;
+      if (!pointerActive) return;
+      const hx = clamp(Math.floor(pointerX * 16), 0, 15);
+      const hy = clamp(Math.floor(pointerY * 9), 0, 8);
+      heat[hy * 16 + hx] = clamp01(heat[hy * 16 + hx] + pointerSpeed * CFG.heatInputGain + 0.001);
+    };
+
+    let hotspotX = 0.5;
+    let hotspotY = 0.5;
+
+    const attentionHotspot = (): void => {
+      let best = 0;
+      let bx = 8;
+      let by = 4;
+      for (let y = 0; y < 9; y += 1) {
+        for (let x = 0; x < 16; x += 1) {
+          const v = heat[y * 16 + x];
+          if (v > best) {
+            best = v;
+            bx = x;
+            by = y;
+          }
         }
-        finalLum[i] = clamp01(lum);
-        finalHue[i] = hue;
+      }
+      hotspotX = (bx + 0.5) / 16;
+      hotspotY = (by + 0.5) / 9;
+    };
+
+    const deriveTimeOfDay = (): TimeOfDay => {
+      if (forcedTod === "dawn" || forcedTod === "day" || forcedTod === "dusk" || forcedTod === "night")
+        return forcedTod;
+      const h = new Date().getHours();
+      if (h >= 5 && h < 8) return "dawn";
+      if (h >= 8 && h < 17) return "day";
+      if (h >= 17 && h < 20) return "dusk";
+      return "night";
+    };
+
+    const readVisitMemory = (): void => {
+      try {
+        const raw = window.localStorage.getItem(LOCAL_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { count?: number; last?: number };
+          if (typeof parsed.count === "number") visitCount = Math.max(1, parsed.count + 1);
+          if (typeof parsed.last === "number" && Date.now() - parsed.last > 15000) returnThought = true;
+        }
+        window.localStorage.setItem(LOCAL_KEY, JSON.stringify({ count: visitCount, last: Date.now() }));
+      } catch {
+        visitCount = 1;
+      }
+      welcomeThought = visitCount > 1;
+    };
+
+    readVisitMemory();
+
+    const pointerSpeedPx = (dx: number, dy: number, dtMs: number): number => {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      return dist / Math.max(1, dtMs);
+    };
+
+    const onPointerMove = (event: PointerEvent): void => {
+      const now = performance.now();
+      const rect = canvas.getBoundingClientRect();
+      const nx = clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+      const ny = clamp((event.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
+      const dtMs = now - lastPointerTime;
+      const dx = nx - pointerX;
+      const dy = ny - pointerY;
+      const speed = pointerSpeedPx(dx, dy, dtMs);
+      pointerVX += (dx - pointerVX) * 0.28;
+      pointerVY += (dy - pointerVY) * 0.28;
+      pointerSpeed += (speed - pointerSpeed) * 0.28;
+      pointerX = nx;
+      pointerY = ny;
+      pointerActive = true;
+      lastPointerTime = now;
+      if (speed > 1.2 && Math.abs(dx) + Math.abs(dy) > 0.1) noticePending = true;
+    };
+
+    const onPointerLeave = (): void => {
+      pointerActive = false;
+    };
+
+    const onClick = (event: MouseEvent): void => {
+      const rect = canvas.getBoundingClientRect();
+      clickX = clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+      clickY = clamp((event.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
+      clickAge = 0;
+      if (currentSceneId === "world") {
+        worldTinyTreeAge = 0;
+        worldTinyTreeX = clickX;
+        worldTinyTreeY = clamp(clickY, 0.5, 0.82);
       }
     };
 
-    const applyPost = (t: number): void => {
-      const sceneActive = currentScene !== null;
-      const reduced = reducedMotionQuery.matches;
-      const breath = reduced
-        ? 1 + Math.sin(((t * 0.18) / CFG.breathPeriod) * Math.PI * 2) * CFG.breathAmount
-        : sceneActive
-          ? 1 + Math.sin((t / CFG.breathPeriod) * Math.PI * 2) * CFG.breathAmount
-          : 1;
-      const beat = !reduced && sceneActive ? heartbeat(t) : 0;
-      const eyeId = currentScene?.id === "eye";
-      const worldHuman = currentScene?.id === "world" || currentScene?.id === "human";
-      const vignetteGain = sceneActive ? 1 : 1;
-      for (let row = 0; row < rows; row += 1) {
-        for (let col = 0; col < cols; col += 1) {
-          const idx = row * cols + col;
-          let lum = finalLum[idx] * breath * vignetteGain;
-          const x = (col + 0.5) / cols;
-          const y = (row + 0.5) / rows;
-          const dx = Math.abs(x - 0.5) * 2;
-          const dy = Math.abs(y - 0.5) * 2;
-          const edge = clamp01(Math.max(dx, dy));
-          if (sceneActive) lum *= 1 - CFG.vignetteEdge * edge * edge;
-
-          if (!eyeId && beat > 0) {
-            const d = cellDistance(x, y, 0.5, 0.5);
-            const ring = Math.exp(-Math.abs(d - (5 + beat * 13)) / 1.8) * beat;
-            lum += ring * CFG.heartbeatAmount * (worldHuman ? 0.65 : 1);
-          }
-
-          if (trail && quality.trail && !reduced) {
-            const dec = Math.exp((-Math.log(2) * sceneCtx.dt) / CFG.trailHalfLife);
-            trail[idx] *= dec;
-            if (lum > trail[idx]) trail[idx] = lum;
-            lum += trail[idx] * 0.038;
-          }
-          finalLum[idx] = clamp01(lum);
-        }
+    const onScroll = (): void => {
+      const now = performance.now();
+      const dy = window.scrollY - lastScrollY;
+      const dtMs = Math.max(1, now - lastScrollTime);
+      scrollVelocity = dy / dtMs;
+      lastScrollY = window.scrollY;
+      lastScrollTime = now;
+      safeRectsDirty = true;
+      if (safeRectTimer === null) {
+        safeRectTimer = window.setTimeout(() => {
+          safeRectTimer = null;
+          recomputeSafeRects();
+        }, 250);
       }
+    };
 
-      if (quality.bloom && !reduced && currentScene !== null) {
-        for (let i = 0; i < base.length; i += 1) bloomTemp[i] = finalLum[i] > CFG.bloomThreshold ? finalLum[i] : 0;
-        blurBase3x3(bloomTemp, baseBlur);
-        for (let i = 0; i < finalLum.length; i += 1)
-          finalLum[i] = clamp01(finalLum[i] + baseBlur[i] * CFG.bloomAmount * 0.1);
+    const recomputeSafeRects = (): void => {
+      safeRects.fill(-1);
+      const elements = document.querySelectorAll<HTMLElement>("[data-led-safe]");
+      let count = 0;
+      for (let i = 0; i < elements.length && count < CFG.maxSafeRects; i += 1) {
+        const r = elements[i].getBoundingClientRect();
+        const x = clamp(r.left / Math.max(1, width), 0, 1);
+        const y = clamp(r.top / Math.max(1, height), 0, 1);
+        const w = clamp(r.width / Math.max(1, width), 0, 1);
+        const h = clamp(r.height / Math.max(1, height), 0, 1);
+        const o = count * 4;
+        safeRects[o] = x;
+        safeRects[o + 1] = y;
+        safeRects[o + 2] = x + w;
+        safeRects[o + 3] = y + h;
+        count += 1;
       }
+      safeRectsDirty = false;
+    };
+
+    const insideSafe = (x: number, y: number): boolean => {
+      const dx = (x - 0.5) / CFG.safeEllipseRx;
+      const dy = (y - 0.5) / CFG.safeEllipseRy;
+      if (dx * dx + dy * dy <= 1) return true;
+      for (let i = 0; i < safeRects.length; i += 4) {
+        if (safeRects[i] < 0) break;
+        if (x >= safeRects[i] && x <= safeRects[i + 2] && y >= safeRects[i + 1] && y <= safeRects[i + 3]) return true;
+      }
+      return false;
     };
 
     const heartbeat = (t: number): number => {
-      const local = (t * 0.68) % 1;
-      if (local < 0.1) return easeOut(local / 0.1);
-      if (local < 0.18) return 1 - easeIn((local - 0.1) / 0.08);
-      if (local < 0.3) return easeOut((local - 0.18) / 0.12) * 0.72;
-      if (local < 0.38) return 0.72 * (1 - easeIn((local - 0.3) / 0.08));
+      const phase = (t * 0.72) % 1;
+      if (phase < 0.09) return easeOut(phase / 0.09);
+      if (phase < 0.17) return 1 - easeIn((phase - 0.09) / 0.08);
+      if (phase < 0.29) return 0.72 * easeOut((phase - 0.17) / 0.12);
+      if (phase < 0.37) return 0.72 * (1 - easeIn((phase - 0.29) / 0.08));
       return 0;
     };
 
-    const enforceGoldBudget = (): void => {
-      let count = 0;
-      const total = Math.max(1, finalLum.length);
-      for (let i = 0; i < finalHue.length; i += 1) {
-        const d = Math.abs(shortestHue(AMBER_HUE, finalHue[i]));
-        const isSceneGold = sceneAlpha[i] > 0.08 && Math.abs(shortestHue(GOLD_HUE, sceneHue[i])) < 0.065;
-        if (isSceneGold && finalLum[i] > 0.12) count += 1;
-        if (d < 0.07 && !isSceneGold && finalLum[i] > 0.78) finalLum[i] *= 0.86;
+    let preparedThoughtFirst = "";
+    let preparedThoughtSecond = "";
+    let preparedThoughtLength = 0;
+
+    const prepareThought = (text: string): void => {
+      const normalized = text.toLowerCase();
+      const charsPerLine = Math.max(4, Math.floor((cols * 0.7) / 6));
+      if (normalized.length <= charsPerLine) {
+        preparedThoughtFirst = normalized;
+        preparedThoughtSecond = "";
+      } else {
+        const cut = normalized.lastIndexOf(" ", charsPerLine);
+        preparedThoughtFirst = cut > 0 ? normalized.slice(0, cut) : "";
+        preparedThoughtSecond = cut > 0 ? normalized.slice(cut + 1) : "";
       }
-      goldArea = count / total;
-      if (goldArea > CFG.maxGoldArea) {
-        const ratio = CFG.maxGoldArea / goldArea;
-        for (let i = 0; i < finalHue.length; i += 1) {
-          if (sceneAlpha[i] > 0.08 && Math.abs(shortestHue(GOLD_HUE, sceneHue[i])) < 0.065) finalLum[i] *= ratio;
+      preparedThoughtLength = preparedThoughtFirst.length + preparedThoughtSecond.length;
+    };
+
+    const drawGlyphLine = (line: string, y: number, shown: number, lum: number, scale: number): void => {
+      const totalW = Math.max(1, line.length * 6 - 1);
+      const x0 = 0.5 - (totalW * scale) / (2 * cols);
+      for (let c = 0; c < shown; c += 1) {
+        const glyph = glyphs[line[c]];
+        if (!glyph) continue;
+        for (let gy = 0; gy < 5; gy += 1) {
+          for (let gx = 0; gx < 5; gx += 1) {
+            if (glyph[gy][gx] !== "1") continue;
+            addCell(x0 + ((c * 6 + gx) * scale) / cols, y + (gy * scale) / rows, 0.48, lum, EMBER_HUE, 0.56);
+          }
         }
-        goldArea = CFG.maxGoldArea;
       }
     };
 
-    const applySafeZone = (): void => {
+    const writeThought = (progress: number, lum: number): void => {
+      if (preparedThoughtLength === 0) return;
+      const scale = cols < 30 ? 1 : 1.1;
+      if (preparedThoughtLength > Math.floor((cols * 0.72) / Math.max(1, scale))) return;
+      const shown = Math.min(preparedThoughtLength, Math.floor(progress));
+      const firstShown = Math.min(preparedThoughtFirst.length, shown);
+      const secondShown = Math.max(0, Math.min(preparedThoughtSecond.length, shown - preparedThoughtFirst.length));
+      drawGlyphLine(preparedThoughtFirst, preparedThoughtSecond.length > 0 ? 0.4 : 0.46, firstShown, lum, scale);
+      if (preparedThoughtSecond) drawGlyphLine(preparedThoughtSecond, 0.52, secondShown, lum, scale);
+    };
+
+    let currentSceneId: SceneId | null = null;
+    let sceneTime = 0;
+    let sceneDuration = 0;
+    let sceneHandoff: Handoff = { x: 0.5, y: 0.5, r: 0.03, energy: 0.5, hue: EMBER_HUE };
+    let beatIndex = 0;
+    let episodeNumber = 1;
+    let episodeElapsed = 0;
+    let resting = true;
+    let restRemaining = CFG.initialRest;
+    let thoughtText = "";
+    let thoughtAge = 99;
+    let worldTinyTreeAge = 99;
+    let worldTinyTreeX = 0.5;
+    let worldTinyTreeY = 0.7;
+    let worldWorldSeed = masterRng() * 10000;
+    let worldSunX = 0.26;
+    let worldSunY = 0.28;
+    let worldVariant: TimeOfDay = deriveTimeOfDay();
+    let worldWandererX = 0.25;
+    let worldWandererDir = 1;
+    let eyeBlink = 0;
+    let eyeSaccadeX = 0.5;
+    let eyeSaccadeY = 0.5;
+    let eyeTargetX = 0.5;
+    let eyeTargetY = 0.5;
+    let neuralPulse = 0;
+    let humanState = 0;
+    let humanPhase = 0;
+    let humanNoticed = false;
+    let thinking = false;
+
+    const neuralX = new Float32Array(CFG.maxNodes);
+    const neuralY = new Float32Array(CFG.maxNodes);
+    const neuralAlive = new Uint8Array(CFG.maxNodes);
+    const neuralLinkA = new Int16Array(CFG.maxNodes * 3);
+    const neuralLinkB = new Int16Array(CFG.maxNodes * 3);
+    const neuralLinkCount = new Uint8Array(CFG.maxNodes);
+    const pulseFrom = new Uint8Array(CFG.maxPulses);
+    const pulseTo = new Uint8Array(CFG.maxPulses);
+    const pulseAge = new Float32Array(CFG.maxPulses);
+    const pulseLife = new Float32Array(CFG.maxPulses);
+    const worldBuildings = new Float32Array(SCENE_CFG.worldDuration[1] * 7);
+    const humanJoints = new Float32Array(26);
+    const dreamOffsets = new Float32Array(4);
+
+    const nearestNeighbors = (nodeCount: number): void => {
+      neuralLinkCount.fill(0);
+      neuralLinkA.fill(-1);
+      neuralLinkB.fill(-1);
+      for (let i = 0; i < nodeCount; i += 1) {
+        let bestA = -1;
+        let bestB = -1;
+        let distA = 99;
+        let distB = 99;
+        for (let j = 0; j < nodeCount; j += 1) {
+          if (i === j) continue;
+          const dx = neuralX[i] - neuralX[j];
+          const dy = neuralY[i] - neuralY[j];
+          const d = dx * dx + dy * dy;
+          if (d < distA) {
+            distB = distA;
+            bestB = bestA;
+            distA = d;
+            bestA = j;
+          } else if (d < distB) {
+            distB = d;
+            bestB = j;
+          }
+        }
+        if (bestA >= 0) {
+          neuralLinkA[i * 3] = i;
+          neuralLinkB[i * 3] = bestA;
+          neuralLinkCount[i] = 1;
+        }
+        if (bestB >= 0) {
+          neuralLinkA[i * 3 + 1] = i;
+          neuralLinkB[i * 3 + 1] = bestB;
+          neuralLinkCount[i] = 2;
+        }
+      }
+    };
+
+    const initNeural = (): void => {
+      const r = mulberry32((seed ^ (episodeNumber * 0x9e3779b9)) >>> 0);
+      const count = clamp(Math.round(40 + ((cols * rows) / 5000) * 25), 40, CFG.maxNodes);
+      neuralAlive.fill(0);
+      for (let i = 0; i < count; i += 1) {
+        neuralAlive[i] = 1;
+        neuralX[i] = 0.14 + r() * 0.72;
+        neuralY[i] = 0.16 + r() * 0.68;
+      }
+      nearestNeighbors(count);
+      neuralPulse = 0;
+      for (let i = 0; i < CFG.maxPulses; i += 1) pulseLife[i] = 0;
+    };
+
+    const firePulse = (from: number, to: number): void => {
+      for (let i = 0; i < CFG.maxPulses; i += 1) {
+        if (pulseLife[i] > 0) continue;
+        pulseFrom[i] = from;
+        pulseTo[i] = to;
+        pulseAge[i] = 0;
+        pulseLife[i] = 0.7;
+        return;
+      }
+    };
+
+    const initWorld = (ctx: SceneContext, variant: TimeOfDay): void => {
+      const r = mulberry32((seed ^ (episodeNumber * 1337)) >>> 0);
+      worldWorldSeed = r() * 10000;
+      worldVariant = variant;
+      worldSunX = variant === "night" ? 0.72 : 0.22;
+      worldSunY = variant === "night" ? 0.25 : variant === "dusk" ? 0.36 : 0.28;
+      worldWandererX = 0.18 + r() * 0.2;
+      worldWandererDir = 1;
+      for (let i = 0; i < worldBuildings.length; i += 7) {
+        worldBuildings[i] = 0;
+        worldBuildings[i + 1] = 0;
+        worldBuildings[i + 2] = 0;
+        worldBuildings[i + 3] = 0;
+        worldBuildings[i + 4] = 0;
+        worldBuildings[i + 5] = 0;
+        worldBuildings[i + 6] = 0;
+      }
+      const count = clamp(11 + Math.round(mood.curiosity * 12), 11, 26);
+      for (let i = 0; i < count; i += 1) {
+        const o = i * 7;
+        worldBuildings[o] = 0.07 + i * (0.83 / count);
+        worldBuildings[o + 1] = 0.05 + r() * 0.11;
+        worldBuildings[o + 2] = 0.08 + r() * 0.18;
+        worldBuildings[o + 3] = r();
+        worldBuildings[o + 4] = 0.2 + r() * 0.55;
+        worldBuildings[o + 5] = Math.floor(2 + r() * 6);
+        worldBuildings[o + 6] = r() > 0.55 ? 1 : -1;
+      }
+      worldTinyTreeAge = 99;
+    };
+
+    const renderNeural = (ctx: SceneContext, dense: boolean): void => {
+      const wave = easeOut(clamp01(ctx.sceneTime / Math.max(0.01, ctx.sceneDuration)));
+      for (let i = 0; i < neuralX.length; i += 1) {
+        if (!neuralAlive[i]) continue;
+        const wobble = Math.sin(ctx.time * 0.8 + i * 1.71) * 0.004;
+        const x = neuralX[i] + wobble;
+        const y = neuralY[i] + Math.cos(ctx.time * 0.65 + i * 1.37) * 0.004;
+        for (let k = 0; k < neuralLinkCount[i]; k += 1) {
+          const o = i * 3 + k;
+          const to = neuralLinkB[o];
+          if (to < 0 || !neuralAlive[to]) continue;
+          drawLine(x, y, neuralX[to], neuralY[to], 0.14, AMBER_HUE, 0.22, 0.006);
+        }
+        addCell(x, y, 0.9, dense ? 0.7 : 0.56, AMBER_HUE, 0.6);
+      }
+      for (let i = 0; i < CFG.maxPulses; i += 1) {
+        if (pulseLife[i] <= 0) continue;
+        const from = pulseFrom[i];
+        const to = pulseTo[i];
+        const p = easeInOut(clamp01(pulseAge[i] / pulseLife[i]));
+        const px = neuralX[from] + (neuralX[to] - neuralX[from]) * p;
+        const py = neuralY[from] + (neuralY[to] - neuralY[from]) * p;
+        addCell(px, py, 1.1, 0.96, AMBER_HUE, 0.82);
+      }
+      if (dense && ctx.sceneTime > ctx.sceneDuration * 0.7) {
+        const cx = 0.5;
+        const cy = 0.48;
+        const r = 0.08 + easeOut(clamp01((ctx.sceneTime - ctx.sceneDuration * 0.7) / 2.2)) * 0.22;
+        const ringWidth = 0.016;
+        for (let row = 0; row < rows; row += 1) {
+          const y = (row + 0.5) / rows;
+          for (let col = 0; col < cols; col += 1) {
+            const x = (col + 0.5) / cols;
+            const d = Math.abs(Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) - r);
+            const a = smooth(clamp01(1 - d / ringWidth));
+            if (a <= 0) continue;
+            const idx = row * cols + col;
+            sceneLum[idx] = Math.max(sceneLum[idx], 0.98 * a);
+            sceneAlpha[idx] = Math.max(sceneAlpha[idx], 0.9 * a);
+            sceneHue[idx] = GOLD_HUE;
+          }
+        }
+      }
+      void wave;
+    };
+
+    const spark: Scene = {
+      id: "spark",
+      transition: "radial",
+      duration: SCENE_CFG.sparkDuration,
+      enter: (_ctx, handoff) => {
+        sceneHandoff = handoff;
+        clickAge = 999;
+      },
+      update: (dt) => {
+        clickAge += dt;
+      },
+      render: (ctx) => {
+        clearScene();
+        const cx = sceneHandoff.x;
+        const cy = sceneHandoff.y;
+        const progress = clamp01(ctx.sceneTime / Math.max(0.01, ctx.sceneDuration));
+        const pulse = Math.sin(progress * Math.PI * 0.7);
+        addCell(cx, cy, 1.0 + pulse * 1.7, 0.98, EMBER_HUE, 0.92);
+        for (let ring = 0; ring < 3; ring += 1) {
+          const radius = (ctx.sceneTime * (0.045 + ring * 0.012)) % 0.55;
+          const fade = Math.exp(-ctx.sceneTime * (0.17 + ring * 0.07));
+          for (let row = 0; row < rows; row += 1) {
+            const y = (row + 0.5) / rows;
+            for (let col = 0; col < cols; col += 1) {
+              const x = (col + 0.5) / cols;
+              const d = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+              const ringD = Math.abs(d - radius);
+              if (ringD > 0.018) continue;
+              const a = fade * smooth(clamp01(1 - ringD / 0.018));
+              const idx = row * cols + col;
+              sceneLum[idx] = Math.max(sceneLum[idx], 0.72 * a);
+              sceneAlpha[idx] = Math.max(sceneAlpha[idx], 0.55 * a);
+              sceneHue[idx] = EMBER_HUE;
+            }
+          }
+        }
+        if (ctx.sceneTime > 1.1 && ctx.sceneTime < ctx.sceneDuration * 0.65) {
+          const count = 3 + Math.floor(ctx.sceneTime * 0.8);
+          for (let i = 0; i < count; i += 1) {
+            const a = hash3(i, episodeNumber, seed) * TAU + ctx.sceneTime * (0.18 + i * 0.01);
+            const r = 0.07 + ((i * 17) % 9) * 0.012;
+            addCell(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 0.65, 0.48, EMBER_HUE, 0.48);
+          }
+        }
+      },
+      exit: () => ({ x: sceneHandoff.x, y: sceneHandoff.y, r: 0.025, energy: 0.72, hue: EMBER_HUE }),
+    };
+
+    const neural: Scene = {
+      id: "neural",
+      transition: "crossfade",
+      duration: SCENE_CFG.neuralDuration,
+      enter: (_ctx, handoff) => {
+        sceneHandoff = handoff;
+        initNeural();
+      },
+      update: (dt, _t, ctx) => {
+        neuralPulse += dt;
+        for (let i = 0; i < CFG.maxPulses; i += 1) {
+          if (pulseLife[i] <= 0) continue;
+          pulseAge[i] += dt;
+          if (pulseAge[i] >= pulseLife[i]) {
+            const to = pulseTo[i];
+            pulseLife[i] = 0;
+            if (ctx.mood.curiosity > 0.35 && masterRng() < 0.18) {
+              for (let k = 0; k < neuralLinkCount[to] && k < 2; k += 1) {
+                const o = to * 3 + k;
+                if (neuralLinkB[o] >= 0 && masterRng() < 0.65) firePulse(to, neuralLinkB[o]);
+              }
+            }
+          }
+        }
+        if (neuralPulse > 0.55) {
+          neuralPulse = 0;
+          const node = Math.floor(masterRng() * CFG.maxNodes);
+          if (neuralAlive[node]) {
+            for (let k = 0; k < neuralLinkCount[node] && k < 2; k += 1) {
+              const o = node * 3 + k;
+              if (neuralLinkB[o] >= 0 && masterRng() < 0.8) firePulse(node, neuralLinkB[o]);
+            }
+          }
+        }
+      },
+      render: (ctx) => {
+        clearScene();
+        renderNeural(ctx, false);
+        if (ctx.sceneTime < 1.8) {
+          addCell(sceneHandoff.x, sceneHandoff.y, 1.1, 0.88, EMBER_HUE, 0.9);
+        }
+      },
+      exit: () => {
+        let nearest = 0;
+        let best = Infinity;
+        for (let i = 0; i < CFG.maxNodes; i += 1) {
+          if (!neuralAlive[i]) continue;
+          const dx = neuralX[i] - 0.5;
+          const dy = neuralY[i] - 0.5;
+          const d = dx * dx + dy * dy;
+          if (d < best) {
+            best = d;
+            nearest = i;
+          }
+        }
+        return { x: neuralX[nearest], y: neuralY[nearest], r: 0.04, energy: 0.78, hue: AMBER_HUE };
+      },
+    };
+
+    const eye: Scene = {
+      id: "eye",
+      transition: "radial",
+      duration: SCENE_CFG.eyeDuration,
+      enter: (_ctx, handoff) => {
+        sceneHandoff = handoff;
+        eyeBlink = 1.2;
+        eyeSaccadeX = 0.5;
+        eyeSaccadeY = 0.5;
+        if (!pointerActive) attentionHotspot();
+        eyeTargetX = pointerActive ? pointerX : hotspotX;
+        eyeTargetY = pointerActive ? pointerY : hotspotY;
+      },
+      update: (dt, _t, ctx) => {
+        eyeBlink = Math.max(0, eyeBlink - dt);
+        if (eyeBlink <= 0 && Math.sin(ctx.sceneTime * 1.1) > 0.995) eyeBlink = 0.9;
+        if (pointerActive) {
+          eyeTargetX = pointerX;
+          eyeTargetY = pointerY;
+        } else if (Math.floor(ctx.sceneTime / 3) % 2 === 0) {
+          attentionHotspot();
+          eyeTargetX = hotspotX;
+          eyeTargetY = hotspotY;
+        } else {
+          eyeTargetX = 0.5 + Math.sin(ctx.sceneTime * 0.33) * 0.12;
+          eyeTargetY = 0.5 + Math.cos(ctx.sceneTime * 0.41) * 0.08;
+        }
+        eyeSaccadeX += (eyeTargetX - eyeSaccadeX) * clamp01(dt * 2.4);
+        eyeSaccadeY += (eyeTargetY - eyeSaccadeY) * clamp01(dt * 2.4);
+      },
+      render: (ctx) => {
+        clearScene();
+        const open = easeOut(clamp01((1.2 - eyeBlink) / 1.2));
+        const cx = 0.5;
+        const cy = 0.5;
+        const rx = SCENE_CFG.eyeWidth * 0.5;
+        const ry = SCENE_CFG.eyeHeight * 0.5 * Math.max(0.03, open);
+        drawEllipse(cx, cy, rx, ry, 0.14, EMBER_HUE, 0.7);
+        drawEllipse(cx, cy, rx * 0.84, ry * 0.58, 0.24, AMBER_HUE, 0.58);
+        const px = cx + clamp((eyeSaccadeX - 0.5) * 0.18, -0.09, 0.09);
+        const py = cy + clamp((eyeSaccadeY - 0.5) * 0.12, -0.055, 0.055);
+        drawEllipse(px, py, SCENE_CFG.eyeIris, SCENE_CFG.eyeIris, 0.72, AMBER_HUE, 0.82);
+        drawEllipse(px, py, SCENE_CFG.eyePupil, SCENE_CFG.eyePupil, 0.12, EMBER_HUE, 0.94);
+        addCell(pointerActive ? pointerX : px, pointerActive ? pointerY : py, 0.45, 0.92, AMBER_HUE, 0.82);
+        const blinkMask = open < 0.25 ? 1 - open / 0.25 : 0;
+        if (blinkMask > 0) {
+          drawLine(0.22, 0.5, 0.78, 0.5, 0.22 * blinkMask, EMBER_HUE, 0.9 * blinkMask, 0.018);
+        }
+        if (ctx.sceneTime > ctx.sceneDuration - 2.5) {
+          const wipe = easeInOut(clamp01((ctx.sceneTime - (ctx.sceneDuration - 2.5)) / 2.5));
+          const wipeX = 0.5 + (wipe - 0.5) * 1.4;
+          addCell(wipeX, 0.5, 2.0, 0.9, AMBER_HUE, 0.42);
+        }
+      },
+      exit: () => ({ x: 0.5, y: 0.5, r: 0.18, energy: 0.86, hue: AMBER_HUE }),
+    };
+
+    const renderWorldRidge = (baseY: number, amp: number, phase: number, hue: number, alpha: number): void => {
+      for (let col = 0; col < cols; col += 1) {
+        const x = (col + 0.5) / cols;
+        const y = baseY + Math.sin(x * 6.5 + phase) * amp + Math.sin(x * 16 + phase * 0.6) * amp * 0.35;
+        drawCapsule(x, y, x + 1 / cols, 0.98, 0.009, 0.2, hue, alpha);
+      }
+    };
+
+    const world: Scene = {
+      id: "world",
+      transition: "radial",
+      duration: SCENE_CFG.worldDuration,
+      enter: (ctx, handoff) => {
+        sceneHandoff = handoff;
+        worldVariant = deriveTimeOfDay();
+        initWorld(ctx, worldVariant);
+        if (handoff.r > 0.1) {
+          worldSunX = handoff.x;
+          worldSunY = handoff.y;
+        }
+      },
+      update: (dt, _t, ctx) => {
+        worldWandererX += worldWandererDir * dt * (0.01 + ctx.mood.arousal * 0.006);
+        if (worldWandererX > 0.82) worldWandererDir = -1;
+        if (worldWandererX < 0.18) worldWandererDir = 1;
+        worldTinyTreeAge += dt;
+      },
+      render: (ctx) => {
+        clearScene();
+        const dusk = worldVariant === "dusk";
+        const night = worldVariant === "night";
+        const dawn = worldVariant === "dawn";
+        const skyHue = night ? EMBER_HUE : lerpHue(AMBER_HUE, EMBER_HUE, dusk ? 0.45 : dawn ? 0.18 : 0.08);
+        drawEllipse(
+          worldSunX,
+          worldSunY,
+          night ? 0.046 : 0.055,
+          night ? 0.046 : 0.055,
+          night ? 0.54 : 0.74,
+          night ? AMBER_HUE : GOLD_HUE,
+          0.72,
+        );
+        renderWorldRidge(0.67, 0.055, worldWorldSeed * 0.01, skyHue, 0.32);
+        renderWorldRidge(0.73, 0.045, worldWorldSeed * 0.013 + 2.1, EMBER_HUE, 0.42);
+        renderWorldRidge(0.79, 0.03, worldWorldSeed * 0.017 + 3.2, EMBER_HUE, 0.5);
+
+        const reveal = easeOut(clamp01(ctx.sceneTime / SCENE_CFG.worldCityGrow));
+        const buildingCount = Math.min(28, Math.floor(worldBuildings.length / 7));
+        for (let i = 0; i < buildingCount; i += 1) {
+          const o = i * 7;
+          const bx = worldBuildings[o];
+          const bw = worldBuildings[o + 1];
+          const bh = worldBuildings[o + 2] * reveal;
+          const windows = Math.floor(worldBuildings[o + 5]);
+          const x0 = bx;
+          const x1 = bx + bw;
+          const top = SCENE_CFG.cityGround - bh;
+          drawLine(x0, SCENE_CFG.cityGround, x0, top, 0.26, AMBER_HUE, 0.46, 0.008);
+          drawLine(x1, SCENE_CFG.cityGround, x1, top, 0.26, AMBER_HUE, 0.46, 0.008);
+          drawLine(x0, top, x1, top, 0.26, AMBER_HUE, 0.4, 0.008);
+          for (let w = 0; w < windows; w += 1) {
+            const yy = top + 0.012 + (w / Math.max(1, windows)) * Math.max(0.012, bh - 0.03);
+            const side = 0.5 + Math.sin(i * 12.7 + w * 3.1 + ctx.sceneTime * 0.18) * 0.4;
+            addCell(
+              x0 + bw * (0.28 + side * 0.42),
+              yy,
+              0.48,
+              0.48 + 0.18 * Math.sin(w + i),
+              night || dusk ? GOLD_HUE : AMBER_HUE,
+              0.34,
+            );
+          }
+        }
+
+        drawLine(0.08, SCENE_CFG.worldRoadY, 0.92, SCENE_CFG.worldRoadY, 0.16, EMBER_HUE, 0.55, 0.014);
+        drawLine(0.08, SCENE_CFG.worldRoadY + 0.018, 0.92, SCENE_CFG.worldRoadY + 0.018, 0.1, EMBER_HUE, 0.35, 0.008);
+        const wy = SCENE_CFG.worldRoadY;
+        const wh = SCENE_CFG.wandererHeight;
+        addCell(worldWandererX, wy - wh * 0.82, 0.4, 0.55, AMBER_HUE, 0.66);
+        drawCapsule(worldWandererX, wy - wh * 0.66, worldWandererX, wy - wh * 0.3, 0.008, 0.4, EMBER_HUE, 0.68);
+        drawCapsule(
+          worldWandererX,
+          wy - wh * 0.3,
+          worldWandererX + worldWandererDir * 0.018,
+          wy,
+          0.007,
+          0.34,
+          EMBER_HUE,
+          0.62,
+        );
+        drawCapsule(
+          worldWandererX,
+          wy - wh * 0.3,
+          worldWandererX - worldWandererDir * 0.018,
+          wy,
+          0.007,
+          0.34,
+          EMBER_HUE,
+          0.62,
+        );
+        if (!night) addCell(worldWandererX + worldWandererDir * 0.02, wy - wh * 0.82, 0.38, 0.34, AMBER_HUE, 0.34);
+
+        for (let i = 0; i < 2; i += 1) {
+          const fx = wrap01(0.12 + i * 0.37 + ctx.sceneTime * (i === 0 ? 0.003 : -0.002));
+          const fy = 0.72 + i * 0.04;
+          addCell(fx, fy, 0.35, 0.26, AMBER_HUE, 0.26);
+        }
+
+        if (night) {
+          for (let i = 0; i < 11; i += 1) {
+            if (Math.sin(ctx.sceneTime * 0.45 + i * 1.7) < -0.75) continue;
+            const sx = 0.08 + hash3(i + 13, 7, seed) * 0.84;
+            const sy = 0.07 + hash3(i + 19, 3, seed) * 0.34;
+            addCell(sx, sy, 0.28, 0.38, GOLD_HUE, 0.28);
+          }
+        } else if (dawn || dusk) {
+          for (let i = 0; i < 14; i += 1) {
+            const sx = wrap01(i * 0.083 + ctx.sceneTime * 0.004);
+            const sy = 0.1 + hash3(i, 4, seed) * 0.45;
+            addCell(sx, sy, 0.25, 0.22, AMBER_HUE, 0.22);
+          }
+        }
+
+        if (worldTinyTreeAge < 2.5) {
+          const grow = easeOut(clamp01(worldTinyTreeAge / 1.7));
+          drawCapsule(
+            worldTinyTreeX,
+            worldTinyTreeY,
+            worldTinyTreeX,
+            worldTinyTreeY - 0.07 * grow,
+            0.006,
+            0.42,
+            AMBER_HUE,
+            0.46,
+          );
+          addCell(worldTinyTreeX, worldTinyTreeY - 0.08 * grow, 0.95 * grow, 0.54, AMBER_HUE, 0.46);
+        }
+      },
+      exit: () => ({ x: worldWandererX, y: SCENE_CFG.worldRoadY - 0.07, r: 0.03, energy: 0.78, hue: AMBER_HUE }),
+    };
+
+    const setHumanJoints = (x: number, y: number, scale: number, state: number, phase: number): void => {
+      const h = SCENE_CFG.humanHeight * scale;
+      const bob = state === 0 ? Math.sin(phase * 2) * h * 0.018 : state === 1 ? Math.sin(phase * 1.7) * h * 0.032 : 0;
+      const jump = state === 5 ? Math.max(0, Math.sin(phase)) * h * 0.1 : 0;
+      const headX = x;
+      const headY = y - h + bob - jump;
+      humanJoints[0] = headX;
+      humanJoints[1] = headY;
+      humanJoints[2] = x;
+      humanJoints[3] = headY + h * 0.16;
+      humanJoints[4] = x;
+      humanJoints[5] = headY + h * 0.48;
+      const a = h * 0.2;
+      const l = h * 0.34;
+      const g = Math.sin(phase);
+      humanJoints[6] = x - h * 0.1;
+      humanJoints[7] = humanJoints[3] + a * 0.48;
+      humanJoints[8] = x - h * 0.1 - a * (0.75 + 0.22 * g);
+      humanJoints[9] = humanJoints[7] + a * 0.52;
+      humanJoints[10] = x + h * 0.1;
+      humanJoints[11] = humanJoints[3] + a * 0.48;
+      humanJoints[12] = x + h * 0.1 + a * (0.75 - 0.22 * g);
+      humanJoints[13] = humanJoints[11] + a * 0.52;
+      humanJoints[14] = x - h * 0.07;
+      humanJoints[15] = humanJoints[5];
+      humanJoints[16] = x - h * 0.07 + l * 0.34 * g;
+      humanJoints[17] = humanJoints[15] + l * 0.5;
+      humanJoints[18] = x - h * 0.07 - l * 0.12 * g;
+      humanJoints[19] = y;
+      humanJoints[20] = x + h * 0.07;
+      humanJoints[21] = humanJoints[5];
+      humanJoints[22] = x + h * 0.07 - l * 0.34 * g;
+      humanJoints[23] = humanJoints[21] + l * 0.5;
+      humanJoints[24] = x + h * 0.07 + l * 0.12 * g;
+      humanJoints[25] = y;
+      if (state === 2) {
+        humanJoints[8] = x + h * 0.08;
+        humanJoints[9] = headY + h * 0.01;
+        humanJoints[12] = x + h * 0.2;
+        humanJoints[13] = headY - h * 0.05;
+      }
+      if (state === 3) {
+        humanJoints[14] -= h * 0.08;
+        humanJoints[16] -= h * 0.08;
+        humanJoints[18] -= h * 0.02;
+        humanJoints[20] += h * 0.08;
+        humanJoints[22] += h * 0.08;
+        humanJoints[24] += h * 0.02;
+      }
+    };
+
+    const drawHumanBone = (a: number, b: number, radius: number, lum: number, strength: number): void => {
+      drawCapsule(
+        humanJoints[a],
+        humanJoints[a + 1],
+        humanJoints[b],
+        humanJoints[b + 1],
+        radius,
+        lum,
+        EMBER_HUE,
+        0.72 * strength,
+      );
+      drawCapsule(
+        humanJoints[a],
+        humanJoints[a + 1],
+        humanJoints[b],
+        humanJoints[b + 1],
+        radius + SCENE_CFG.humanRim,
+        lum * 0.92,
+        AMBER_HUE,
+        0.24 * strength,
+      );
+    };
+
+    const renderHumanFigure = (
+      x: number,
+      y: number,
+      scale: number,
+      state: number,
+      phase: number,
+      strength: number,
+    ): void => {
+      setHumanJoints(x, y, scale, state, phase);
+      drawHumanBone(0, 2, 0.013, 0.34 * strength, strength);
+      drawHumanBone(2, 4, 0.014, 0.4 * strength, strength);
+      drawHumanBone(4, 6, 0.009, 0.32 * strength, strength);
+      drawHumanBone(6, 8, 0.008, 0.36 * strength, strength);
+      drawHumanBone(10, 12, 0.009, 0.32 * strength, strength);
+      drawHumanBone(12, 14, 0.008, 0.36 * strength, strength);
+      drawHumanBone(4, 14, 0.01, 0.32 * strength, strength);
+      drawHumanBone(14, 16, 0.008, 0.34 * strength, strength);
+      drawHumanBone(16, 18, 0.007, 0.3 * strength, strength);
+      drawHumanBone(20, 22, 0.008, 0.34 * strength, strength);
+      drawHumanBone(22, 24, 0.007, 0.3 * strength, strength);
+      addCell(humanJoints[0], humanJoints[1], 1.5 * strength, 0.38 * strength, EMBER_HUE, 0.7 * strength);
+      addCell(humanJoints[0], humanJoints[1], 0.62 * strength, 0.72 * strength, AMBER_HUE, 0.42 * strength);
+      if (state === 3) {
+        for (let i = 0; i < 3; i += 1)
+          addCell(x + 0.022 + i * 0.01, y - SCENE_CFG.humanHeight * 0.31, 0.42, 0.92, GOLD_HUE, 0.42);
+      }
+    };
+
+    const human: Scene = {
+      id: "human",
+      transition: "crossfade",
+      duration: SCENE_CFG.humanDuration,
+      enter: (_ctx, handoff) => {
+        sceneHandoff = handoff;
+        const r = masterRng();
+        humanState = mood.arousal > 0.72 ? (r > 0.5 ? 1 : 0) : mood.calm > 0.72 ? (r > 0.5 ? 3 : 0) : r > 0.84 ? 4 : 0;
+        humanPhase = r * TAU;
+        humanNoticed = false;
+        thinking = false;
+      },
+      update: (dt, _t, ctx) => {
+        humanPhase += dt * (humanState === 1 ? 2.8 : 1.7);
+        if (!humanNoticed && ctx.pointerSpeed > 1.2 && ctx.pointerNear && noticePending) {
+          humanNoticed = true;
+          noticePending = false;
+          humanState = 2;
+        }
+        if (!thinking && ctx.sceneTime > ctx.sceneDuration * 0.54) {
+          thinking = true;
+          humanState = 3;
+        }
+      },
+      render: (ctx) => {
+        clearScene();
+        const x = 0.54;
+        const y = 0.86;
+        renderHumanFigure(x, y, 1, humanState, humanPhase, 1);
+        for (let i = 0; i < 2; i += 1) {
+          const bx = wrap01(0.14 + i * 0.52 - ctx.sceneTime * 0.004);
+          renderHumanFigure(bx, 0.88, 0.56, 0, humanPhase * 0.65 + i, 0.28);
+        }
+        if (thinking) {
+          for (let i = 0; i < 12; i += 1) {
+            const a = i * 0.52 + ctx.sceneTime * 0.22;
+            const r = 0.025 + (i % 4) * 0.015;
+            const sx = x + Math.cos(a) * r;
+            const sy = y - SCENE_CFG.humanHeight * 0.72 - Math.abs(Math.sin(a)) * 0.12;
+            addCell(sx, sy, 0.5, 0.55, AMBER_HUE, 0.48);
+          }
+          if (ctx.sceneTime > ctx.sceneDuration - 2.8) {
+            const wave = easeInOut(clamp01((ctx.sceneTime - (ctx.sceneDuration - 2.8)) / 2.8));
+            for (let row = 0; row < rows; row += 1) {
+              for (let col = 0; col < cols; col += 1) {
+                const px = (col + 0.5) / cols;
+                const py = (row + 0.5) / rows;
+                const d = Math.sqrt((px - x) ** 2 + (py - (y - 0.3)) ** 2);
+                const ring = Math.abs(d - wave * 0.3);
+                if (ring > 0.016) continue;
+                const a = smooth(clamp01(1 - ring / 0.016));
+                const idx = row * cols + col;
+                sceneLum[idx] = Math.max(sceneLum[idx], 0.96 * a);
+                sceneAlpha[idx] = Math.max(sceneAlpha[idx], 0.92 * a);
+                sceneHue[idx] = GOLD_HUE;
+              }
+            }
+          }
+        }
+      },
+      exit: () => ({ x: 0.54, y: 0.48, r: 0.05, energy: 0.86, hue: AMBER_HUE }),
+    };
+
+    const thoughtQueue: readonly string[] = [
+      "hello.",
+      "still thinking...",
+      "you're here",
+      "you left.",
+      "slow down.",
+      "oh.",
+    ];
+    let dreamThoughtIndex = 0;
+
+    const captureSnapshot = (): void => {
+      const size = cols * rows;
+      const baseOffset = snapshotHead * size;
+      for (let i = 0; i < size; i += 1) {
+        snapshotStore[baseOffset + i] = Math.round(clamp01(finalLum[i]) * 255);
+      }
+      snapshotHead = (snapshotHead + 1) % CFG.snapshotCount;
+      snapshotValid = Math.min(CFG.snapshotCount, snapshotValid + 1);
+    };
+
+    const renderDream = (ctx: SceneContext): void => {
+      clearScene();
+      const size = cols * rows;
+      const replayT = ctx.sceneTime * 0.42;
+      const reverse = Math.floor(ctx.sceneTime / 5) % 2 === 1;
+      const phase = Math.floor(replayT * CFG.snapshotHz);
+      if (snapshotValid > 0) {
+        const age = reverse
+          ? (snapshotHead - 1 - (phase % snapshotValid) + CFG.snapshotCount) % CFG.snapshotCount
+          : (snapshotHead - 1 + phase) % CFG.snapshotCount;
+        const source = snapshotStore.subarray(age * size, age * size + size);
+        const sliceShift = Math.sin(ctx.sceneTime * 0.8) * 0.045;
+        for (let row = 0; row < rows; row += 1) {
+          const displacement = Math.sin(row * 0.55 + ctx.sceneTime * 1.2) * sliceShift;
+          const shift = Math.round(displacement * cols);
+          for (let col = 0; col < cols; col += 1) {
+            const srcCol = (col + shift + cols) % cols;
+            const v = source[row * cols + srcCol] / 255;
+            if (v < 0.08) continue;
+            const idx = row * cols + col;
+            sceneLum[idx] = Math.min(0.85, v * 0.68);
+            sceneAlpha[idx] = Math.min(0.78, v * 0.62);
+            sceneHue[idx] = lerpHue(EMBER_HUE, AMBER_HUE, 0.35 + v * 0.35);
+          }
+        }
+      }
+      attentionHotspot();
+      addCell(
+        hotspotX + Math.sin(ctx.sceneTime * 0.4) * 0.02,
+        hotspotY + Math.cos(ctx.sceneTime * 0.32) * 0.02,
+        1.0,
+        0.3,
+        EMBER_HUE,
+        0.22,
+      );
+      if (ctx.sceneTime > ctx.sceneDuration * 0.35 && ctx.sceneTime < ctx.sceneDuration * 0.72) {
+        const text = thoughtQueue[dreamThoughtIndex % thoughtQueue.length];
+        const progress = Math.min(text.length, Math.max(0, (ctx.sceneTime - ctx.sceneDuration * 0.35) * 3.5));
+        writeThought(progress, 0.42);
+      }
+    };
+
+    const dream: Scene = {
+      id: "dream",
+      transition: "scan",
+      duration: SCENE_CFG.dreamDuration,
+      enter: () => {
+        sceneHandoff = { x: 0.5, y: 0.5, r: 0.04, energy: 0.62, hue: EMBER_HUE };
+        dreamThoughtIndex = Math.floor(masterRng() * thoughtQueue.length);
+      },
+      update: (_dt) => {
+        /* Snapshots are captured by the director after the composed frame is shown. */
+      },
+      render: (ctx) => renderDream(ctx),
+      exit: () => ({ x: 0.5, y: 0.5, r: 0.02, energy: 0.35, hue: EMBER_HUE }),
+    };
+
+    const scenes: readonly Scene[] = [spark, neural, eye, world, human, dream];
+
+    const getScene = (id: SceneId): Scene => {
+      for (let i = 0; i < scenes.length; i += 1) if (scenes[i].id === id) return scenes[i];
+      return spark;
+    };
+
+    const chooseMiddleBeats = (): Beat[] => {
+      const r = mulberry32((seed ^ (episodeNumber * 0x45d9f3b)) >>> 0);
+      const beats: Beat[] = [];
+      const choose = (id: SceneId, min: number, max: number): void => {
+        beats.push({ kind: id, duration: min + r() * (max - min) });
+      };
+      if (mood.curiosity > 0.45) choose("eye", SCENE_CFG.eyeDuration[0], SCENE_CFG.eyeDuration[1]);
+      if (mood.curiosity > 0.32) choose("world", SCENE_CFG.worldDuration[0], SCENE_CFG.worldDuration[1]);
+      choose("human", SCENE_CFG.humanDuration[0], SCENE_CFG.humanDuration[1]);
+      choose("neural", SCENE_CFG.neuralDuration[0], SCENE_CFG.neuralDuration[1]);
+      if (mood.calm > 0.55 || r() > 0.35) choose("dream", SCENE_CFG.dreamDuration[0], SCENE_CFG.dreamDuration[1]);
+      if (mood.arousal > 0.62 && r() > 0.4) choose("human", SCENE_CFG.humanDuration[0], SCENE_CFG.humanDuration[1] - 2);
+      if (mood.curiosity > 0.65 && r() > 0.45) choose("world", SCENE_CFG.worldDuration[0], SCENE_CFG.worldDuration[1]);
+      if (beats.length > 1) {
+        for (let i = beats.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(r() * (i + 1));
+          const tmp = beats[i];
+          beats[i] = beats[j];
+          beats[j] = tmp;
+        }
+      }
+      return beats;
+    };
+
+    let episode: Beat[] = [];
+
+    const buildEpisode = (): void => {
+      episode = [];
+      episode.push({ kind: "sleep", duration: CFG.sleepMin + masterRng() * 2 });
+      episode.push({ kind: "spark", duration: SCENE_CFG.sparkDuration[0] + masterRng() * 2 });
+      episode.push({ kind: "rest", duration: CFG.restMin + masterRng() * 2 });
+      episode.push({ kind: "neural", duration: SCENE_CFG.neuralDuration[0] + masterRng() * 5 });
+      const middle = chooseMiddleBeats();
+      for (let i = 0; i < middle.length; i += 1) {
+        const prior = episode[episode.length - 1].kind;
+        if (middle[i].kind === prior) continue;
+        episode.push({ kind: "rest", duration: CFG.restMin + masterRng() * (CFG.restMax - CFG.restMin) });
+        episode.push(middle[i]);
+      }
+      episode.push({ kind: "rest", duration: CFG.restMin + masterRng() * 2 });
+      episode.push({ kind: "neural", duration: SCENE_CFG.neuralDuration[0] + masterRng() * 4 });
+      episode.push({ kind: "rest", duration: CFG.restMin + masterRng() * 2 });
+      episode.push({ kind: "dream", duration: SCENE_CFG.dreamDuration[0] + masterRng() * 5 });
+      episode.push({ kind: "sleep", duration: CFG.sleepMin + masterRng() * (CFG.sleepMax - CFG.sleepMin) });
+      let sum = 0;
+      for (let i = 0; i < episode.length; i += 1) sum += episode[i].duration;
+      if (sum < 300) episode.push({ kind: "sleep", duration: 18 + masterRng() * 18 });
+      if (sum > 480 && episode.length > 13) episode.splice(6, 2);
+    };
+
+    const nextBeat = (): void => {
+      if (
+        forcedScene === "spark" ||
+        forcedScene === "neural" ||
+        forcedScene === "eye" ||
+        forcedScene === "world" ||
+        forcedScene === "human" ||
+        forcedScene === "dream"
+      ) {
+        const scene = getScene(forcedScene as SceneId);
+        currentSceneId = scene.id;
+        resting = false;
+        sceneTime = 0;
+        sceneDuration = scene.duration[0];
+        const ctx = makeSceneContext(sceneDuration);
+        scene.enter(ctx, sceneHandoff);
+        return;
+      }
+      if (episode.length === 0 || beatIndex >= episode.length) {
+        episodeNumber += 1;
+        beatIndex = 0;
+        buildEpisode();
+      }
+      if (firstLoad && episode.length > 0 && beatIndex === 0) {
+        firstLoad = false;
+        beatIndex = 1;
+      }
+      const beat = episode[beatIndex];
+      beatIndex += 1;
+      episodeElapsed += beat.duration;
+      if (beat.kind === "rest" || beat.kind === "sleep") {
+        resting = true;
+        currentSceneId = null;
+        restRemaining = beat.duration;
+        sceneTime = 0;
+        sceneDuration = beat.duration;
+        thoughtAge = 99;
+        return;
+      }
+      const scene = getScene(beat.kind);
+      resting = false;
+      currentSceneId = scene.id;
+      sceneTime = 0;
+      sceneDuration = beat.duration;
+      sceneHandoff =
+        scene.id === "world" && sceneHandoff.energy < 0.4
+          ? { x: 0.5, y: 0.32, r: 0.05, energy: 0.8, hue: AMBER_HUE }
+          : sceneHandoff;
+      const ctx = makeSceneContext(sceneDuration);
+      scene.enter(ctx, sceneHandoff);
+      if (scene.id === "dream" && welcomeThought) welcomeThought = false;
+    };
+
+    const sceneContext: SceneContext = {
+      dt: 0,
+      time: 0,
+      sceneTime: 0,
+      sceneDuration: 1,
+      width: 1,
+      height: 1,
+      cols: 2,
+      rows: 2,
+      unit: 2,
+      pointerX: 0.5,
+      pointerY: 0.5,
+      pointerSpeed: 0,
+      pointerNear: false,
+      pointerActive: false,
+      mood,
+      timeOfDay: worldVariant,
+      seed,
+      rng: masterRng,
+      handoff: sceneHandoff,
+    };
+
+    const makeSceneContext = (duration: number): SceneContext => {
+      sceneContext.sceneDuration = duration;
+      sceneContext.width = width;
+      sceneContext.height = height;
+      sceneContext.cols = cols;
+      sceneContext.rows = rows;
+      sceneContext.unit = unit;
+      sceneContext.pointerX = pointerX;
+      sceneContext.pointerY = pointerY;
+      sceneContext.pointerSpeed = pointerSpeed;
+      sceneContext.pointerNear = Math.sqrt((pointerX - 0.5) ** 2 + (pointerY - 0.5) ** 2) < 0.32;
+      sceneContext.pointerActive = pointerActive;
+      sceneContext.time = logicalTime;
+      sceneContext.sceneTime = sceneTime;
+      sceneContext.timeOfDay = worldVariant;
+      sceneContext.handoff = sceneHandoff;
+      return sceneContext;
+    };
+
+    const renderScene = (): void => {
+      clearScene();
+      if (resting || currentSceneId === null) return;
+      const scene = getScene(currentSceneId);
+      const context = makeSceneContext(sceneDuration);
+      context.dt = 0;
+      context.time = logicalTime;
+      context.sceneTime = sceneTime;
+      scene.render(context);
+      if (clickAge < CFG.noticeMax) {
+        const radius = 0.04 + easeOut(clamp01(clickAge / 0.8)) * 0.1;
+        addCell(
+          clickX,
+          clickY,
+          radius * Math.max(cols, rows),
+          0.86 * Math.exp(-clickAge * 1.1),
+          AMBER_HUE,
+          0.78 * Math.exp(-clickAge * 1.1),
+        );
+      }
+    };
+
+    const applyTransition = (): void => {
+      if (resting || currentSceneId === null) return;
+      const p = clamp01(sceneTime / Math.max(0.01, sceneDuration));
+      const scene = getScene(currentSceneId);
+      let a = 1;
+      if (p < 0.1) a *= easeOut(p / 0.1);
+      if (p > 0.9) a *= 1 - easeIn((p - 0.9) / 0.1);
+      if (scene.transition === "radial") {
+        const focal = sceneHandoff;
+        for (let row = 0; row < rows; row += 1) {
+          const y = (row + 0.5) / rows;
+          for (let col = 0; col < cols; col += 1) {
+            const x = (col + 0.5) / cols;
+            const d = Math.sqrt((x - focal.x) ** 2 + (y - focal.y) ** 2);
+            const reveal = smooth(clamp01((a + p * 0.18 - d) / 0.42));
+            const idx = row * cols + col;
+            sceneAlpha[idx] *= reveal;
+            sceneLum[idx] *= reveal;
+          }
+        }
+      } else if (scene.transition === "scan") {
+        const edge = p < 0.18 ? p / 0.18 : p > 0.82 ? (1 - p) / 0.18 : 1;
+        const lead = p < 0.5 ? p * 2 : (1 - p) * 2;
+        for (let row = 0; row < rows; row += 1) {
+          const y = (row + 0.5) / rows;
+          const keep = smooth(clamp01((lead - Math.abs(y - lead) * 0.65) / 0.35));
+          for (let col = 0; col < cols; col += 1) {
+            const idx = row * cols + col;
+            sceneAlpha[idx] *= keep * edge;
+            sceneLum[idx] *= keep * edge;
+          }
+        }
+      } else {
+        for (let i = 0; i < sceneAlpha.length; i += 1) {
+          sceneAlpha[i] *= a;
+          sceneLum[i] *= a;
+        }
+      }
+    };
+
+    const applyPost = (dt: number): void => {
+      const size = cols * rows;
+      let targetMean = 0;
+      for (let i = 0; i < size; i += 1) {
+        const b = base[i];
+        const alpha = sceneAlpha[i];
+        const sceneMix = alpha * 0.56;
+        finalLum[i] = clamp01(b + (sceneLum[i] - b) * sceneMix);
+        finalHue[i] = alpha > 0.01 ? lerpHue(baseHue[i], sceneHue[i], alpha) : baseHue[i];
+        targetMean += base[i];
+      }
+      targetMean /= Math.max(1, size);
+      if (baselineMean <= 0) baselineMean = targetMean;
+      const breathScale = 1 + Math.sin((logicalTime / CFG.breathPeriod) * TAU) * CFG.breathAmount;
+      const heartbeatScale = reducedMotionQuery.matches || resting ? 0 : heartbeat(logicalTime);
+      const halfLifeDecay = Math.exp((-Math.log(2) * dt) / CFG.trailHalfLife);
       for (let row = 0; row < rows; row += 1) {
         const y = (row + 0.5) / rows;
         for (let col = 0; col < cols; col += 1) {
           const x = (col + 0.5) / cols;
-          if (!insideSafeZone(x, y)) continue;
           const idx = row * cols + col;
-          finalLum[idx] *= CFG.safeDamper;
-          if (Math.abs(shortestHue(GOLD_HUE, finalHue[idx])) < 0.08) {
-            finalLum[idx] *= 0.85;
-            finalHue[idx] = EMBER_HUE;
+          let lum = finalLum[idx] * breathScale;
+          const edgeX = Math.abs(x - 0.5) * 2;
+          const edgeY = Math.abs(y - 0.5) * 2;
+          const vignette = 1 - CFG.vignetteEdge * Math.max(edgeX, edgeY) ** 2;
+          lum *= vignette;
+          if (heartbeatScale > 0) {
+            const d = Math.sqrt((x - 0.5) ** 2 + (y - 0.5) ** 2);
+            const ring = Math.exp(-Math.abs(d - 0.11 - heartbeatScale * 0.1) / 0.018) * heartbeatScale;
+            lum = clamp01(lum + ring * CFG.heartbeatAmount);
+          }
+          if (trailEnabled) {
+            trail[idx] *= halfLifeDecay;
+            if (lum > trail[idx]) trail[idx] = lum;
+            lum = clamp01(lum + trail[idx] * 0.032);
+          }
+          if (insideSafe(x, y)) {
+            lum *= CFG.safeDamper;
+            if (Math.abs(shortestHue(GOLD_HUE, finalHue[idx])) < 0.08) finalHue[idx] = EMBER_HUE;
+          }
+          finalLum[idx] = lum;
+        }
+      }
+      if (bloomEnabled && !reducedMotionQuery.matches && currentSceneId !== null) {
+        for (let i = 0; i < size; i += 1) bloom[i] = finalLum[i] > CFG.bloomThreshold ? finalLum[i] : 0;
+        for (let row = 0; row < rows; row += 1) {
+          const r0 = Math.max(0, row - 1);
+          const r1 = Math.min(rows - 1, row + 1);
+          for (let col = 0; col < cols; col += 1) {
+            const c0 = Math.max(0, col - 1);
+            const c1 = Math.min(cols - 1, col + 1);
+            let total = 0;
+            let count = 0;
+            for (let rr = r0; rr <= r1; rr += 1)
+              for (let cc = c0; cc <= c1; cc += 1) {
+                total += bloom[rr * cols + cc];
+                count += 1;
+              }
+            blur[row * cols + col] = total / count;
           }
         }
+        for (let i = 0; i < size; i += 1) finalLum[i] = clamp01(finalLum[i] + blur[i] * CFG.bloomAmount * 0.12);
       }
     };
 
-    const applyLuminanceGovernor = (): void => {
-      const total = Math.max(1, finalLum.length);
-      const priorMean = previousFrameMean;
-      const governorTolerance = CFG.baselineTolerance * 0.9;
-      const lower = baselineMean * (1 - governorTolerance);
-      const upper = baselineMean * (1 + governorTolerance);
+    const enforceBudgets = (): void => {
+      const size = cols * rows;
       let mean = 0;
+      let gold = 0;
       let flashes = 0;
-      let flashMass = 0;
-
-      for (let i = 0; i < finalLum.length; i += 1) {
+      for (let i = 0; i < size; i += 1) {
         mean += finalLum[i];
-        const delta = finalLum[i] - previousLum[i];
-        if (delta > 0.24) flashes += 1;
-        if (delta > 0.18) flashMass += delta;
+        if (sceneAlpha[i] > 0.08 && Math.abs(shortestHue(GOLD_HUE, sceneHue[i])) < 0.065 && finalLum[i] > 0.12)
+          gold += 1;
+        if (finalLum[i] - previousLum[i] > CFG.flashThreshold) flashes += 1;
       }
-      mean /= total;
-
-      // Luminance slew target: bounded by the previous frame, but never outside the baseline envelope.
-      const maxMeanStep = Math.max(0.012, baselineMean * 0.095);
-      const slewTarget = clamp(mean, priorMean - maxMeanStep, priorMean + maxMeanStep);
-      const target = clamp(slewTarget, lower, upper);
-      if (mean > 0.001 && Math.abs(target - mean) > 0.0005) {
-        const gain = target / mean;
-        for (let i = 0; i < finalLum.length; i += 1) finalLum[i] = clamp01(finalLum[i] * gain);
-        mean = target;
+      mean /= Math.max(1, size);
+      const low = baselineMean * (1 - CFG.baselineTolerance);
+      const high = baselineMean * (1 + CFG.baselineTolerance);
+      if (mean < low || mean > high) {
+        const target = clamp(mean, low, high);
+        const offset = target - mean;
+        for (let i = 0; i < size; i += 1) finalLum[i] = clamp01(finalLum[i] + offset);
       }
-
-      let flashAreaNow = flashes / total;
-      if (flashAreaNow > CFG.maxFlashArea || flashMass / total > 0.06) {
-        const flashBlend = clamp((CFG.maxFlashArea / Math.max(CFG.maxFlashArea, flashAreaNow)) * 0.16, 0.025, 0.16);
-        for (let i = 0; i < finalLum.length; i += 1) {
-          const delta = finalLum[i] - previousLum[i];
-          if (delta > 0) finalLum[i] = previousLum[i] + delta * flashBlend;
+      if (gold / Math.max(1, size) > CFG.maxGoldArea) {
+        const ratio = CFG.maxGoldArea / Math.max(0.0001, gold / size);
+        for (let i = 0; i < size; i += 1) {
+          if (Math.abs(shortestHue(GOLD_HUE, finalHue[i])) < 0.07) finalLum[i] *= ratio;
         }
+        gold = Math.floor(size * CFG.maxGoldArea);
       }
-
-      mean = 0;
-      flashes = 0;
-      for (let i = 0; i < finalLum.length; i += 1) {
-        mean += finalLum[i];
-        if (finalLum[i] - previousLum[i] > 0.24) flashes += 1;
-      }
-      mean /= total;
-      flashAreaNow = flashes / total;
-
-      // Recover the frame envelope using a uniform brightness offset. This preserves hue and avoids a large
-      // multiplicative jump that could turn a calm scene into a flash.
-      if (mean < lower || mean > upper) {
-        const offset = clamp(clamp(mean, lower, upper) - mean, -0.12, 0.12);
-        for (let i = 0; i < finalLum.length; i += 1) finalLum[i] = clamp01(finalLum[i] + offset);
-        mean += offset;
-      }
-
-      // If too much of the frame would flash, freeze those cells to their previous luminance first.
-      flashes = 0;
-      for (let i = 0; i < finalLum.length; i += 1) {
-        if (finalLum[i] - previousLum[i] > 0.24) flashes += 1;
-      }
-      flashAreaNow = flashes / total;
-      if (flashAreaNow > CFG.maxFlashArea) {
-        for (let i = 0; i < finalLum.length; i += 1) {
-          if (finalLum[i] - previousLum[i] > 0.24) finalLum[i] = previousLum[i];
-        }
-      }
-
-      // Recompute after clipping and nudge up to three times; this keeps the frame inside the envelope.
-      for (let pass = 0; pass < 3; pass += 1) {
-        mean = 0;
-        for (let i = 0; i < finalLum.length; i += 1) mean += finalLum[i];
-        mean /= total;
-        if (mean >= lower && mean <= upper) break;
-        const offset = mean < lower ? lower - mean : mean - upper;
-        const signedOffset = mean < lower ? offset : -offset;
-        for (let i = 0; i < finalLum.length; i += 1) finalLum[i] = clamp01(finalLum[i] + signedOffset);
-      }
-
-      mean = 0;
-      for (let i = 0; i < finalLum.length; i += 1) mean += finalLum[i];
-      mean /= total;
-      if (mean < lower || mean > upper) {
-        let capacity = 0;
-        if (mean < lower) {
-          for (let i = 0; i < finalLum.length; i += 1) capacity += 1 - finalLum[i];
-        } else {
-          for (let i = 0; i < finalLum.length; i += 1) capacity += finalLum[i];
-        }
-        const needed = Math.abs((mean < lower ? lower : upper) - mean) * total;
-        const amount = Math.min(needed, capacity);
-        if (capacity > 0.000001 && amount > 0.000001) {
-          const ratio = amount / capacity;
-          if (mean < lower) {
-            for (let i = 0; i < finalLum.length; i += 1) finalLum[i] += (1 - finalLum[i]) * ratio;
-          } else {
-            for (let i = 0; i < finalLum.length; i += 1) finalLum[i] -= finalLum[i] * ratio;
-          }
-        }
-      }
-
-      mean = 0;
-      for (let i = 0; i < finalLum.length; i += 1) mean += finalLum[i];
-      mean /= total;
-
-      flashes = 0;
-      for (let i = 0; i < finalLum.length; i += 1) {
-        if (finalLum[i] - previousLum[i] > 0.24) flashes += 1;
-      }
-      flashArea = flashes / total;
-      const now = performance.now();
+      const flashArea = flashes / Math.max(1, size);
       if (flashArea > CFG.maxFlashArea) {
-        if (now - lastFlashAt > CFG.flashGuardMs) {
-          flashTimes[flashCount % flashTimes.length] = now;
-          flashCount += 1;
-          lastFlashAt = now;
+        for (let i = 0; i < size; i += 1) {
+          const delta = finalLum[i] - previousLum[i];
+          if (delta > CFG.flashThreshold) finalLum[i] = previousLum[i] + delta * 0.1;
         }
-        governor = Math.max(0.45, governor * 0.64);
-      } else {
-        governor += (1 - governor) * 0.035;
       }
-      let recent = 0;
-      for (let i = 0; i < flashTimes.length; i += 1) {
-        if (now - flashTimes[i] <= CFG.flashWindowMs) recent += 1;
+      meanLuminance = 0;
+      goldPercent = gold / Math.max(1, size);
+      flashPercent = flashArea;
+      for (let i = 0; i < size; i += 1) {
+        meanLuminance += finalLum[i];
+        previousLum[i] = finalLum[i];
       }
-      if (recent >= 3) governor = Math.min(governor, 0.62);
-      previousFrameMean = mean;
-      frameMean = mean;
-      governorMeanSlew = Math.abs(mean - priorMean);
-      for (let i = 0; i < finalLum.length; i += 1) previousLum[i] = finalLum[i];
+      meanLuminance /= Math.max(1, size);
     };
 
-    const compositeToCanvas = (cameraX: number, cameraY: number): void => {
-      const data = imageData.data;
-      for (let i = 0; i < finalLum.length; i += 1) {
-        const b = Math.min(63, Math.max(0, (finalLum[i] * 64) | 0));
-        const h = Math.min(511, Math.max(0, (finalHue[i] * 512) | 0));
-        finalIndex[i] = b;
-        const lutBase = h * 3;
-        const m = (b + 0.5) / 64;
-        const o = i * 4;
-        data[o] = lut[lutBase] * m;
-        data[o + 1] = lut[lutBase + 1] * m;
-        data[o + 2] = lut[lutBase + 2] * m;
-        data[o + 3] = 255;
+    const writeFrame = (): void => {
+      const size = cols * rows;
+      for (let i = 0; i < size; i += 1) {
+        const hueIndex = clamp(Math.floor(finalHue[i] * 512), 0, 511);
+        const brightnessIndex = clamp(Math.floor(clamp01(finalLum[i]) * 64), 0, 63);
+        const m = (brightnessIndex + 0.5) / 64;
+        const o = hueIndex * 3;
+        image.data[i * 4] = Math.round(lut[o] * m);
+        image.data[i * 4 + 1] = Math.round(lut[o + 1] * m);
+        image.data[i * 4 + 2] = Math.round(lut[o + 2] * m);
+        image.data[i * 4 + 3] = 255;
       }
-      pixelCtx.putImageData(imageData, 0, 0);
+      if (!offCtx) return;
+      offCtx.putImageData(image, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.imageSmoothingEnabled = false;
-      const zoomT =
-        currentScene && !reducedMotionQuery.matches
-          ? easeInOut(sceneCtx.sceneTime / Math.max(1, sceneCtx.sceneDuration))
-          : 0;
-      const zoom = 1 + 0.06 * zoomT;
-      const dw = cols * cell * zoom;
-      const dh = rows * cell * zoom;
-      const dx = cameraX - cell - (dw - cols * cell) * 0.5;
-      const dy = cameraY - cell - (dh - rows * cell) * 0.5;
-      ctx.drawImage(pixelCanvas, dx, dy, dw, dh);
+      ctx.drawImage(offscreen, 0, 0, width, height);
     };
 
-    const captureSnapshot = (): void => {
-      const baseIndex = snapshotHead * snapshotSize;
-      for (let i = 0; i < finalIndex.length; i += 1) snapshots[baseIndex + i] = finalIndex[i];
-      snapshotHead = (snapshotHead + 1) % CFG.snapshotCount;
-      if (snapshotCount < CFG.snapshotCount) snapshotCount += 1;
-    };
-
-    const updateMood = (dt: number): void => {
-      const idle = performance.now() - lastInputAt > 12000 ? 1 : 0;
-      for (let i = 0; i < 4; i += 1) {
-        const phase = moodPhase[i] + filmT * ((Math.PI * 2) / MOOD_PERIODS[i]);
-        const noiseDrift =
-          0.5 + 0.5 * noise3(Math.sin(phase) * 0.9 + i * 3.17, i * 0.7, seed * 0.000001 + filmT * 0.005);
-        const target = noiseDrift;
-        const key = MOOD_FIELDS[i];
-        const response = dt / (i === 3 ? 9 : 7);
-        mood[key] += (target - mood[key]) * response;
-      }
-      mood.attention = clamp01(mood.attention + clamp01(pointerSpeed / 2.5) * 0.12 * dt);
-      mood.arousal = clamp01(mood.arousal + clamp01(scrollVelocity / 2.5) * 0.1 * dt);
-      mood.calm = clamp01(mood.calm + idle * dt * 0.004 - mood.arousal * dt * 0.002);
-      if (reducedMotionQuery.matches) mood.calm = clamp01(mood.calm + dt * 0.004);
-    };
-
-    const updateAttentionHeat = (dt: number): void => {
-      for (let i = 0; i < attentionHeat.length; i += 1) attentionHeat[i] *= Math.pow(CFG.heatDecay, dt * 15);
-      if (!pointerActive) return;
-      const hx = clamp((pointerX * 16) | 0, 0, 15);
-      const hy = clamp((pointerY * 9) | 0, 0, 8);
-      const idx = hy * 16 + hx;
-      attentionHeat[idx] = clamp01(attentionHeat[idx] + dt * CFG.heatInputGain);
-      visitorNear = cellDistance(pointerX, pointerY, 0.5, 0.5) < Math.min(cols, rows) * 0.22;
-    };
-
-    let cameraX = 0;
-    let cameraY = 0;
-    const updateCamera = (): void => {
-      if (reducedMotionQuery.matches || !currentScene) {
-        cameraX = 0;
-        cameraY = 0;
-        return;
-      }
-      const scenePhase = sceneCtx.sceneTime / Math.max(1, sceneCtx.sceneDuration);
-      const push = 1 - 1 / (1 + 0.06 * easeInOut(scenePhase));
-      cameraX = Math.sin(sceneCtx.sceneTime * 0.09 + seed * 0.00001) * 1.5 * push;
-      cameraY = Math.sin(sceneCtx.sceneTime * 0.07 + seed * 0.000013) * 1.2 * push;
-    };
-
-    const applyTransitionAlpha = (): void => {
-      if (!currentScene) return;
-      const t = sceneCtx.sceneTime;
-      const dur = sceneCtx.sceneDuration;
-      const enter = easeOut(clamp01(t / 1.2));
-      const exit = 1 - easeIn(clamp01((t - Math.max(0, dur - 1.9)) / 1.9));
-      const alphaScale = Math.min(enter, exit);
-      const kind = currentScene.transition;
-      if (alphaScale >= 0.999 && kind === "crossfade") return;
-
-      let focalX = sceneCtx.handoff.x;
-      let focalY = sceneCtx.handoff.y;
-      if (currentScene.id === "eye") {
-        focalX = 0.5;
-        focalY = 0.48;
-      } else if (currentScene.id === "world") {
-        focalX = 0.5;
-        focalY = 0.44;
-      }
-
-      for (let row = 0; row < rows; row += 1) {
-        for (let col = 0; col < cols; col += 1) {
-          const idx = row * cols + col;
-          if (alphaScale <= 0) {
-            sceneAlpha[idx] = 0;
-            continue;
-          }
-          let local = alphaScale;
-          const x = (col + 0.5) / cols;
-          const y = (row + 0.5) / rows;
-          if (kind === "iris") {
-            const d = cellDistance(x, y, focalX, focalY);
-            const radius = Math.max(1, d);
-            local *= clamp01((sceneCtx.sceneTime * 10 - radius) / 8);
-          } else if (kind === "scan") {
-            const edge = easeInOut(clamp01(t / 1.4));
-            const scanX = kind === "scan" ? edge : 1;
-            local *= x < scanX ? 1 : 0.12;
-          }
-          sceneAlpha[idx] *= local;
-        }
-      }
-    };
-
-    const directorUpdate = (dt: number): void => {
-      if (currentScene) {
-        sceneCtx.sceneTime += dt * dev.speed;
-        currentScene.update(dt * dev.speed, filmT, sceneCtx);
-        currentScene.render(sceneCtx);
-        applyTransitionAlpha();
-      }
-      beatElapsed += dt * dev.speed;
-      const beat = beats[beatIndex];
-      if (beat && beatElapsed >= beat.duration) {
-        if (currentScene) previousHandoff = currentScene.exit();
-        previousSceneId = currentScene?.id ?? previousSceneId;
-        currentScene = null;
-        sceneCtx.sceneTime = 0;
-        beginNextBeat();
-      }
-    };
-
-    /* ========================================================
-       EVENTS / LIFECYCLE
-       ======================================================== */
-
-    const startLoop = (): void => {
-      if (destroyed || document.hidden || isMinimal) return;
-      if (raf !== 0) return;
-      running = true;
-      last = performance.now();
-      raf = requestAnimationFrame(tick);
-    };
-
-    const stopLoop = (): void => {
-      running = false;
-      if (raf !== 0) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-    };
-
-    const handleResize = (): void => {
-      resize();
-      maybeRefreshSafeRects(performance.now());
-    };
-
-    let scrollRaf = 0;
-    const handleScroll = (): void => {
-      const now = performance.now();
-      const dy = window.scrollY - lastScrollY;
-      const elapsed = Math.max(16, now - lastScrollAt);
-      scrollVelocity = clamp((dy / elapsed) * 16, -5, 5);
-      lastScrollY = window.scrollY;
-      lastScrollAt = now;
-      maybeRefreshSafeRects(now);
-      if (scrollRaf === 0)
-        scrollRaf = window.setTimeout(() => {
-          scrollRaf = 0;
-          maybeRefreshSafeRects(performance.now());
-        }, 250) as unknown as number;
-    };
-
-    const handlePointerMove = (event: PointerEvent): void => {
-      const rect = canvas.getBoundingClientRect();
-      const nx = clamp01((event.clientX - rect.left) / Math.max(1, rect.width));
-      const ny = clamp01((event.clientY - rect.top) / Math.max(1, rect.height));
-      const now = performance.now();
-      const elapsed = Math.max(8, now - lastPointerAt);
-      const speed = Math.hypot(nx - lastPointerX, ny - lastPointerY) / (elapsed / 1000);
-      pointerSpeed = pointerSpeed * 0.78 + speed * 0.22;
-      if (speed > 1.35) {
-        fastSweepPending = true;
-        if (!noticedThisVisit && human && currentScene?.id === "human") {
-          noticedThisVisit = true;
-        }
-      }
-      pointerX = nx;
-      pointerY = ny;
-      lastPointerX = nx;
-      lastPointerY = ny;
-      lastPointerAt = now;
-      pointerActive = true;
-      lastInputAt = now;
-      visitorNear = cellDistance(nx, ny, 0.5, 0.5) < Math.min(cols, rows) * 0.22;
-    };
-
-    const handlePointerLeave = (): void => {
-      pointerActive = false;
-      pointerSpeed *= 0.5;
-    };
-
-    const handlePointerDown = (event: PointerEvent): void => {
-      const rect = canvas.getBoundingClientRect();
-      clickX = clamp01((event.clientX - rect.left) / Math.max(1, rect.width));
-      clickY = clamp01((event.clientY - rect.top) / Math.max(1, rect.height));
-      clickPulse = 1;
-      clickInterruptRemaining = CFG.clickSparkMax;
-      lastInputAt = performance.now();
-      noticeThought = true;
-      if (currentScene?.id === "world") {
-        worldVariantNoise += 0.03;
-        writeBlob(clickX, clickY, 0.7, 0.75, AMBER_HUE, 0.75);
-      }
-    };
-
-    const handleVisibility = (): void => {
-      if (document.hidden) {
-        hiddenAt = performance.now();
-        tabLeftPending = true;
-        stopLoop();
-        return;
-      }
-      if (hiddenAt >= 0 && performance.now() - hiddenAt > 800) {
-        returnThought = true;
-        tabBackPending = true;
-        noticeThought = true;
-        mood.attention = 0.1;
-      }
-      hiddenAt = -1;
-      startLoop();
-    };
-
-    const handleThemeMutation = (): void => {
-      const nextMinimal = document.documentElement.dataset.theme === "minimal";
-      if (nextMinimal === isMinimal) return;
-      isMinimal = nextMinimal;
-      if (isMinimal) {
-        stopLoop();
-      } else {
-        resize();
-        startLoop();
-      }
-    };
-
-    const handleReducedMotion = (): void => {
-      if (reducedMotionQuery.matches) {
-        currentScene = null;
-        quality = { fpsCap: 30, skipSubstrate: false, trail: false, bloom: false };
-      } else {
-        quality = {
-          fpsCap: window.innerWidth <= 768 ? CFG.mobileFps : CFG.desktopFps,
-          skipSubstrate: false,
-          trail: true,
-          bloom: true,
-        };
-      }
-      stopLoop();
-      if (!isMinimal && !document.hidden) startLoop();
-    };
-
-    const observer = new MutationObserver(handleThemeMutation);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-
-    const tick = (now: number): void => {
-      raf = 0;
-      if (!running || destroyed || document.hidden || isMinimal) return;
-
-      const frameStart = performance.now();
-      const frameGap = 1000 / Math.max(1, quality.fpsCap);
-      if (now - lastRenderAt < frameGap - 0.25) {
-        raf = requestAnimationFrame(tick);
-        return;
-      }
-      let dt = (now - last) / 1000;
-      if (!Number.isFinite(dt)) dt = 0;
-      dt = clamp(dt, 0, CFG.maxFrameDt);
-      last = now;
-      lastRenderAt = now;
-      realT += dt;
-      filmT += dt;
-      hueSpin += dt * 0.04;
-      pointerSpeed *= Math.exp(-dt * 2.8);
-      scrollVelocity *= Math.exp(-dt * 3.0);
-      clickPulse = Math.max(0, clickPulse - dt * 1.8);
-      clickInterruptRemaining = Math.max(0, clickInterruptRemaining - dt);
-      interruptEyeRemaining = Math.max(0, interruptEyeRemaining - dt);
-
-      updateMood(dt);
-      updateAttentionHeat(dt);
-
-      if (fastSweepPending && currentScene === null && interruptEyeRemaining <= 0) {
-        fastSweepPending = false;
-        interruptEyeRemaining = CFG.interruptEyeMax;
-        previousHandoff = { x: pointerX, y: pointerY, r: 0.1, energy: 0.9, hue: AMBER_HUE };
-        beatElapsed = 0;
-        beginScene("eye", CFG.interruptEyeMax);
-      } else if (interruptEyeRemaining <= 0 && currentScene?.id === "eye" && beatIndex >= 0) {
-        // The director keeps the eye as a short attention overlay; once its timer ends the normal beat resumes.
-      }
-
-      sceneCtx.dt = dt;
-      sceneCtx.time = filmT;
-      sceneCtx.pointerX = pointerX;
-      sceneCtx.pointerY = pointerY;
-      sceneCtx.pointerActive = pointerActive;
-      sceneCtx.pointerSpeed = pointerSpeed;
-      sceneCtx.pointerNear = visitorNear;
-      sceneCtx.clickX = clickX;
-      sceneCtx.clickY = clickY;
-      sceneCtx.clickPulse = clickPulse;
-      sceneCtx.tod = timeOfDay;
-
-      const dueToDprOrResize = qualitySample === 0 || qualitySample % 8 === 0;
-      applySubstrate(filmT, quality.skipSubstrate && !dueToDprOrResize && currentScene !== null);
-      clearScene();
-      if (!reducedMotionQuery.matches) directorUpdate(dt);
-
-      if (clickPulse > 0 && currentScene === null && clickInterruptRemaining > 0) {
-        writeBlob(clickX, clickY, 1.1 + clickPulse * 1.7, 0.86 * clickPulse, AMBER_HUE, 0.74 * clickPulse);
-      } else if (clickPulse > 0 && currentScene !== null && currentScene.id === "world") {
-        writeBlob(clickX, clickY, 0.9 + clickPulse * 1.4, 0.82 * clickPulse, AMBER_HUE, 0.56 * clickPulse);
-        writeBlob(clickX - 0.01, clickY - 0.018, 0.55, 0.62 * clickPulse, AMBER_HUE, 0.42 * clickPulse);
-        writeBlob(clickX + 0.01, clickY - 0.018, 0.55, 0.62 * clickPulse, AMBER_HUE, 0.42 * clickPulse);
-      } else if (clickPulse > 0 && currentScene !== null && currentScene.id !== "spark") {
-        writeBlob(clickX, clickY, 0.9 + clickPulse * 1.4, 0.82 * clickPulse, AMBER_HUE, 0.56 * clickPulse);
-      }
-
-      snapshotClock += dt;
-      if (snapshotClock >= 1 / CFG.snapshotHz) {
-        snapshotClock -= 1 / CFG.snapshotHz;
-        renderScenesIntoFinal();
-        applyPost(filmT);
-        enforceGoldBudget();
-        applySafeZone();
-        applyLuminanceGovernor();
-        updateCamera();
-        compositeToCanvas(cameraX, cameraY);
-        captureSnapshot();
-      } else {
-        renderScenesIntoFinal();
-        applyPost(filmT);
-        enforceGoldBudget();
-        applySafeZone();
-        applyLuminanceGovernor();
-        updateCamera();
-        compositeToCanvas(cameraX, cameraY);
-      }
-
-      const frameMs = performance.now() - frameStart;
-      qualityTime += frameMs;
-      qualitySample += 1;
-      if (qualitySample >= CFG.adaptiveWindow) {
-        const avg = qualityTime / qualitySample;
-        if (avg > CFG.adaptiveBudgetMs) slowFrames += 1;
-        else slowFrames = Math.max(0, slowFrames - 1);
-        if (slowFrames >= 1) {
-          quality = { fpsCap: CFG.lowQualityFps, skipSubstrate: true, trail: false, bloom: false };
-        }
-        if (avg < 12 && slowFrames === 0) {
-          quality = {
-            fpsCap: window.innerWidth <= 768 ? CFG.mobileFps : CFG.desktopFps,
-            skipSubstrate: false,
-            trail: true,
-            bloom: true,
-          };
-        }
-        qualitySample = 0;
-        qualityTime = 0;
-      }
-
-      if (dev.debug) drawDebugHud();
-
-      raf = requestAnimationFrame(tick);
-    };
-
-    const drawDebugHud = (): void => {
-      const fps = sceneCtx.dt > 0 ? Math.min(999, 1 / sceneCtx.dt) : 0;
-      const beatName = beats[beatIndex]?.scene ?? beats[beatIndex]?.kind ?? "rest";
-      const text = `LED MIND  ${fps.toFixed(0)}fps  ${currentScene?.id ?? "sleep"}  beat:${beatName}  ep:${episode}\nA ${mood.arousal.toFixed(2)}  C ${mood.curiosity.toFixed(2)}  T ${mood.attention.toFixed(2)}  S ${mood.calm.toFixed(2)}\nL ${frameMean.toFixed(4)} / ${baselineMean.toFixed(4)}  gold ${(goldArea * 100).toFixed(1)}%  flash ${(flashArea * 100).toFixed(1)}%`;
+    const drawDebug = (): void => {
+      if (!debug) return;
       ctx.save();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.font = "10px monospace";
-      ctx.textBaseline = "top";
       ctx.globalAlpha = 0.72;
-      ctx.fillStyle = "black";
-      ctx.fillText(text.replace(/\n/g, " "), 10, 10);
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      const sceneText = currentSceneId ?? "sleep";
+      const moodText = `a ${mood.arousal.toFixed(2)}  c ${mood.curiosity.toFixed(2)}  t ${mood.attention.toFixed(2)}  calm ${mood.calm.toFixed(2)}`;
+      ctx.fillText(`fps ${frameCap}  scene ${sceneText}  ep ${episodeNumber}`, 10, 18);
+      ctx.fillText(moodText, 10, 33);
+      ctx.fillText(
+        `lum ${(meanLuminance * 100).toFixed(1)} / base ${(baselineMean * 100).toFixed(1)}  gold ${(goldPercent * 100).toFixed(2)}%  flash ${(flashPercent * 100).toFixed(2)}%`,
+        10,
+        48,
+      );
+      ctx.fillText(
+        `safe ${safeRectsDirty ? "recompute" : "ok"}  quality ${qualityLow ? "low" : "full"}  seed ${seed}`,
+        10,
+        63,
+      );
       ctx.restore();
     };
 
-    /* Initial state and listeners. */
-    resize();
-    if (!isMinimal) {
-      applySubstrate(0, false);
-      clearScene();
-      renderScenesIntoFinal();
-      applyPost(0);
-      enforceGoldBudget();
-      applySafeZone();
-      compositeToCanvas(0, 0);
-      for (let i = 0; i < finalLum.length; i += 1) previousLum[i] = finalLum[i];
+    const startSceneFromRest = (): void => {
+      if (noticePending && !reducedMotionQuery.matches) {
+        noticePending = false;
+        const prior = currentSceneId;
+        currentSceneId = "eye";
+        resting = false;
+        sceneTime = 0;
+        sceneDuration = Math.min(CFG.noticeMax, 5 + mood.attention);
+        sceneHandoff = {
+          x: pointerActive ? pointerX : 0.5,
+          y: pointerActive ? pointerY : 0.5,
+          r: 0.05,
+          energy: 0.62,
+          hue: AMBER_HUE,
+        };
+        getScene("eye").enter(makeSceneContext(sceneDuration), sceneHandoff);
+        void prior;
+        return;
+      }
+      nextBeat();
+    };
+
+    const tickDirector = (dt: number): void => {
+      if (reducedMotionQuery.matches) return;
+      episodeElapsed += dt;
+      clickAge += dt;
+      if (resting) {
+        restRemaining -= dt;
+        if (restRemaining <= 0) startSceneFromRest();
+      } else if (currentSceneId !== null) {
+        const scene = getScene(currentSceneId);
+        sceneTime += dt;
+        const context = makeSceneContext(sceneDuration);
+        context.dt = dt;
+        context.sceneTime = sceneTime;
+        scene.update(dt, logicalTime, context);
+        if (sceneTime >= sceneDuration) {
+          sceneHandoff = scene.exit();
+          resting = true;
+          currentSceneId = null;
+          restRemaining = CFG.restMin + masterRng() * (CFG.restMax - CFG.restMin);
+          sceneTime = 0;
+        }
+      }
+      if (returnThought && resting) {
+        thoughtText = "you left.";
+        prepareThought(thoughtText);
+        thoughtAge += dt;
+        if (thoughtAge > 0.7) returnThought = false;
+      }
+      if (welcomeThought && resting) {
+        thoughtText = "you're here";
+        thoughtAge += dt;
+      }
+    };
+
+    const renderThoughtOverlay = (): void => {
+      if ((!returnThought && !welcomeThought) || !resting || reducedMotionQuery.matches) return;
+      writeThought(preparedThoughtLength, 0.25);
+    };
+
+    const onVisibility = (): void => {
+      if (document.hidden) {
+        hiddenBefore = true;
+        running = false;
+        cancelAnimationFrame(raf);
+        return;
+      }
+      if (hiddenBefore) {
+        hiddenBefore = false;
+        pointerActive = false;
+        mood.attention = 0.12;
+        thoughtText = "you left.";
+        prepareThought(thoughtText);
+        thoughtAge = 0;
+        returnThought = true;
+      }
+      if (minimal) return;
+      running = true;
+      lastNow = performance.now();
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(tick);
+    };
+
+    const onMotionPreference = (): void => {
+      if (reducedMotionQuery.matches) {
+        cancelAnimationFrame(raf);
+        currentSceneId = null;
+        resting = true;
+      } else if (!minimal && !document.hidden) {
+        running = true;
+        lastNow = performance.now();
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      minimal = document.documentElement.dataset.theme === "minimal";
+      if (minimal) {
+        running = false;
+        cancelAnimationFrame(raf);
+        return;
+      }
+      if (!document.hidden) {
+        running = true;
+        lastNow = performance.now();
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(tick);
+      }
+    });
+
+    const onResize = (): void => {
+      resize();
+      recomputeSafeRects();
+    };
+
+    function tick(now: number): void {
+      if (!running || minimal || document.hidden) return;
+      const frameStart = performance.now();
+      const minFrameGap = 1000 / frameCap;
+      if (now - lastRenderAt < minFrameGap) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      const rawDt = (now - lastNow) / 1000;
+      const dt = clamp(rawDt, 0.001, 0.05) * clamp(forcedSpeed, 0.1, 20);
+      lastNow = now;
+      logicalTime += dt;
+      hueSpin += dt * 0.04;
+      frameIndex += 1;
+      updateMood(dt);
+      updateHeat(dt);
+      if (safeRectsDirty) recomputeSafeRects();
+      tickDirector(dt);
+      buildSubstrate(logicalTime);
+      renderScene();
+      applyTransition();
+      renderThoughtOverlay();
+      applyPost(dt);
+      enforceBudgets();
+      snapshotAccumulator += dt;
+      if (snapshotAccumulator >= 1 / CFG.snapshotHz) {
+        snapshotAccumulator = 0;
+        captureSnapshot();
+      }
+      writeFrame();
+      drawDebug();
+
+      const elapsedMs = performance.now() - frameStart;
+      averageFrameMs = averageFrameMs === 0 ? elapsedMs : averageFrameMs * 0.96 + elapsedMs * 0.04;
+      if (frameIndex % CFG.adaptiveWindow === 0) {
+        if (averageFrameMs > CFG.adaptiveBudgetMs) {
+          qualityLow = true;
+          skipSubstrate = true;
+          trailEnabled = false;
+          bloomEnabled = false;
+          frameCap = CFG.lowQualityFps;
+        } else if (averageFrameMs < CFG.adaptiveBudgetMs * 0.75) {
+          qualityLow = false;
+          skipSubstrate = false;
+          trailEnabled = true;
+          bloomEnabled = true;
+          frameCap = width <= 768 ? CFG.mobileFps : CFG.desktopFps;
+        }
+      }
+      lastRenderAt = now;
+      raf = requestAnimationFrame(tick);
     }
 
-    window.addEventListener("resize", handleResize, { passive: true });
-    window.addEventListener("orientationchange", handleResize, { passive: true });
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    window.addEventListener("pointerleave", handlePointerLeave, { passive: true });
-    window.addEventListener("pointerdown", handlePointerDown, { passive: true });
-    document.addEventListener("visibilitychange", handleVisibility);
-    reducedMotionQuery.addEventListener("change", handleReducedMotion);
+    /* The first frame establishes the resting-substrate baseline before the film wakes. */
+    resize();
+    recomputeSafeRects();
+    if (welcomeThought) prepareThought("you're here");
+    buildEpisode();
+    buildSubstrate(0);
+    finalLum.set(base);
+    finalHue.set(baseHue);
+    previousLum.set(finalLum);
+    enforceBudgets();
+    previousLum.set(finalLum);
+    writeFrame();
+    drawDebug();
 
-    if (!isMinimal && !document.hidden) startLoop();
+    if (!reducedMotionQuery.matches && !minimal && !document.hidden) {
+      raf = requestAnimationFrame(tick);
+    }
+
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("orientationchange", onResize, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerleave", onPointerLeave, { passive: true });
+    window.addEventListener("click", onClick, { passive: true });
+    document.addEventListener("visibilitychange", onVisibility);
+    reducedMotionQuery.addEventListener("change", onMotionPreference);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
     return () => {
-      destroyed = true;
       running = false;
-      if (raf !== 0) cancelAnimationFrame(raf);
-      raf = 0;
-      if (scrollRaf !== 0) window.clearTimeout(scrollRaf);
+      cancelAnimationFrame(raf);
       observer.disconnect();
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleResize);
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerleave", handlePointerLeave);
-      window.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      reducedMotionQuery.removeEventListener("change", handleReducedMotion);
+      reducedMotionQuery.removeEventListener("change", onMotionPreference);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("click", onClick);
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (safeRectTimer !== null) window.clearTimeout(safeRectTimer);
     };
   }, []);
 
@@ -2843,17 +2179,3 @@ const AnimatedLedBackground = () => {
 };
 
 export default AnimatedLedBackground;
-
-/* ============================================================
-   10 MOST USEFUL KNOBS
-   1. CFG.episodeMin / episodeMax — overall film length.
-   2. CFG.safeEllipseRx / safeEllipseRy — white-text breathing room.
-   3. CFG.safeDamper — contrast reduction under content.
-   4. SCENE_CFG.worldDuration — centerpiece linger.
-   5. SCENE_CFG.neuralDuration — thought density.
-   6. SCENE_CFG.eyeDuration — curiosity / gaze linger.
-   7. SCENE_CFG.humanDuration — life-on-screen linger.
-   8. CFG.trailHalfLife — memory smear persistence.
-   9. CFG.bloomAmount — cinematic glow restraint.
-   10. CFG.maxGoldArea — insight peak budget.
-   ============================================================ */
