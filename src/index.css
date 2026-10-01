@@ -107,7 +107,9 @@
   overflow: hidden;
   pointer-events: none;
   isolation: isolate;
-  background: transparent;
+  --ember-shift-x: 0px;
+  --ember-shift-y: 0px;
+  background: hsl(350 62% 5%);
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -131,12 +133,51 @@
   pointer-events: none;
   user-select: none;
   z-index: 0;
-  transform: translateZ(0);
+  opacity: 0.9;
+  filter: contrast(1.06) saturate(0.94);
+  transform: translate3d(var(--ember-shift-x), var(--ember-shift-y), 0) scale(1.045);
   backface-visibility: hidden;
   image-rendering: auto;
 }
 
-/* Heavy procedural grain texture overlay replacing checkered grid */
+.orange-bg .ember-illumination {
+  position: absolute;
+  inset: -8%;
+  z-index: 1;
+  pointer-events: none;
+  transform: translate3d(var(--ember-shift-x), var(--ember-shift-y), 0);
+  background:
+    radial-gradient(circle at 50% 42%, hsl(28 100% 62% / 0.22) 0%, hsl(14 88% 42% / 0.1) 27%, transparent 61%),
+    radial-gradient(circle at 18% 86%, hsl(354 72% 26% / 0.2), transparent 42%);
+  transition: opacity 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.orange-bg[data-background-mood="classic"] .ember-illumination {
+  opacity: 0.72;
+  background: radial-gradient(ellipse at 48% 26%, hsl(22 96% 52% / 0.18), transparent 58%);
+}
+
+.orange-bg[data-background-mood="notions"] .ember-illumination {
+  opacity: 0.58;
+  background: radial-gradient(ellipse at 50% 30%, hsl(18 72% 43% / 0.14), transparent 55%);
+}
+
+.orange-bg[data-background-mood="visuals"] .ember-illumination {
+  opacity: 0.25;
+  background: radial-gradient(ellipse at 50% 50%, hsl(12 65% 28% / 0.13), transparent 58%);
+}
+
+.orange-bg .ember-texture {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, hsl(0 0% 100% / 0.018) 0 1px, transparent 1px 5px),
+    radial-gradient(ellipse at center, transparent 32%, hsl(350 75% 3% / 0.48) 100%);
+}
+
+/* Fine film grain keeps the field tactile without overpowering content. */
 .orange-bg::after {
   content: "";
   position: absolute;
@@ -145,14 +186,30 @@
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   background-repeat: repeat;
-  background-size: 160px 160px;
-  mix-blend-mode: overlay;
-  opacity: 0.55;
+  background-size: 220px 220px;
+  mix-blend-mode: soft-light;
+  opacity: 0.2;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .orange-bg .led-wallpaper-canvas {
-    opacity: 0.96;
+    opacity: 0.86;
+    transform: none;
+  }
+
+  .orange-bg .ember-illumination {
+    transform: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .orange-bg::after {
+    background-size: 280px 280px;
+    opacity: 0.12;
+  }
+
+  .orange-bg .ember-texture {
+    background: radial-gradient(ellipse at center, transparent 28%, hsl(350 75% 3% / 0.42) 100%);
   }
 }
 
@@ -459,6 +516,14 @@ body,
 
 :root[data-theme="minimal"] .site-background {
   opacity: 0;
+}
+
+:root[data-theme="minimal"] .orange-bg,
+:root[data-theme="minimal"] .orange-bg .led-wallpaper-canvas,
+:root[data-theme="minimal"] .orange-bg .ember-illumination,
+:root[data-theme="minimal"] .orange-bg .ember-texture {
+  animation: none !important;
+  transform: none !important;
 }
 
 :root[data-theme="minimal"] .site-page [class*="text-white"],

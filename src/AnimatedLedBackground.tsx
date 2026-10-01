@@ -1,12 +1,22 @@
 import { useEffect, useRef } from "react";
 
-/**
- * Procedural continuous warm wallpaper with heavy grain overlay.
- * The checkerboard gap has been removed so tiles are seamless,
- * driven by evolving dual FBM fields for luminance and color.
- */
-const AnimatedLedBackground = () => {
+type AnimatedLedBackgroundProps = {
+  pathname: string;
+};
+
+type BackgroundMood = "gdx" | "classic" | "notions" | "visuals" | "other";
+
+const moodForPath = (pathname: string): BackgroundMood => {
+  if (pathname === "/") return "gdx";
+  if (pathname === "/hobbies") return "classic";
+  if (pathname === "/blog") return "notions";
+  if (pathname === "/visuals") return "visuals";
+  return "other";
+};
+
+const AnimatedLedBackground = ({ pathname }: AnimatedLedBackgroundProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mood = moodForPath(pathname);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -24,34 +34,34 @@ const AnimatedLedBackground = () => {
     let isMinimal = document.documentElement.dataset.theme === "minimal";
 
     const CFG = {
-      speed: 1,
-      waveScale: 0.1,
-      waveDriftX: 0.06,
-      waveDriftY: 0.025,
-      waveEvolve: 0.09,
-      colorScale: 0.05,
-      colorDrift: 0.04,
-      colorDriftY: 0.018,
-      colorEvolve: 0.05,
-      hueCycle: 0.012,
-      threshold: 0.02,
-      gamma: 0.95,
-      floor: 0.55,
+      speed: mood === "visuals" ? 0.34 : mood === "notions" ? 0.48 : 0.58,
+      waveScale: 0.055,
+      waveDriftX: 0.028,
+      waveDriftY: 0.014,
+      waveEvolve: 0.045,
+      colorScale: 0.027,
+      colorDrift: 0.021,
+      colorDriftY: 0.01,
+      colorEvolve: 0.026,
+      hueCycle: 0.0035,
+      threshold: 0.08,
+      gamma: 1.22,
+      floor: mood === "gdx" ? 0.34 : mood === "visuals" ? 0.16 : 0.24,
     };
 
     const palette = [
-      "#ff2d00",
-      "#ff5400",
-      "#ff6b1a",
-      "#ff8510",
-      "#ff9f1c",
-      "#ffad24",
-      "#ffbd32",
-      "#ffd047",
-      "#ffd60a",
-      "#ffe566",
-      "#ff8a3d",
-      "#ff4d1a",
+      "#120407",
+      "#26070b",
+      "#430b0b",
+      "#6d160e",
+      "#9b2c12",
+      "#d44a16",
+      "#f2761b",
+      "#ffad32",
+      "#cf4215",
+      "#72120d",
+      "#300609",
+      "#180407",
     ];
 
     let cell = 20;
@@ -61,6 +71,11 @@ const AnimatedLedBackground = () => {
     let height = 1;
     let dpr = 1;
     let hueSpin = 0;
+    let pointerTargetX = 0;
+    let pointerTargetY = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+    const canTrackPointer = window.matchMedia("(pointer: fine)").matches && !reducedMotionQuery.matches;
 
     const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -125,9 +140,9 @@ const AnimatedLedBackground = () => {
     fillLUT();
 
     const resize = () => {
-      if (window.innerWidth <= 768) cell = 16;
-      else if (window.innerWidth <= 900) cell = 18;
-      else cell = 20;
+      if (window.innerWidth <= 768) cell = 22;
+      else if (window.innerWidth <= 900) cell = 20;
+      else cell = 18;
 
       const rect = canvas.getBoundingClientRect();
       width = Math.max(1, Math.ceil(rect.width));
@@ -191,9 +206,12 @@ const AnimatedLedBackground = () => {
           const m = (bIndex + 0.5) / 64;
           const o = hueIndex * 3;
 
-          const rr = lut[o] * m;
-          const gg = lut[o + 1] * m;
-          const bb = lut[o + 2] * m;
+          const saturation = mood === "notions" ? 0.72 : mood === "visuals" ? 0.62 : 1;
+          const luminance = mood === "visuals" ? 0.58 : mood === "classic" ? 0.82 : 1;
+          const average = (lut[o] + lut[o + 1] + lut[o + 2]) / 3;
+          const rr = (average + (lut[o] - average) * saturation) * m * luminance;
+          const gg = (average + (lut[o + 1] - average) * saturation) * m * luminance;
+          const bb = (average + (lut[o + 2] - average) * saturation) * m * luminance;
 
           ctx.fillStyle = `rgb(${rr | 0} ${gg | 0} ${bb | 0})`;
           // Draw flush with +0.5 to avoid subpixel seam artifacts
@@ -210,6 +228,10 @@ const AnimatedLedBackground = () => {
       last = now;
       realT += dt;
       hueSpin += dt * 0.04;
+      pointerX += (pointerTargetX - pointerX) * 0.025;
+      pointerY += (pointerTargetY - pointerY) * 0.025;
+      document.documentElement.style.setProperty("--ember-shift-x", `${pointerX.toFixed(2)}px`);
+      document.documentElement.style.setProperty("--ember-shift-y", `${pointerY.toFixed(2)}px`);
 
       draw();
       raf = requestAnimationFrame(tick);
@@ -233,6 +255,12 @@ const AnimatedLedBackground = () => {
       raf = requestAnimationFrame(tick);
     };
 
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!canTrackPointer) return;
+      pointerTargetX = ((event.clientX / window.innerWidth) * 2 - 1) * 16;
+      pointerTargetY = ((event.clientY / window.innerHeight) * 2 - 1) * 12;
+    };
+
     const observer = new MutationObserver(() => {
       isMinimal = document.documentElement.dataset.theme === "minimal";
 
@@ -250,6 +278,7 @@ const AnimatedLedBackground = () => {
 
     window.addEventListener("resize", handleResize, { passive: true });
     window.addEventListener("orientationchange", handleResize, { passive: true });
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
@@ -259,13 +288,18 @@ const AnimatedLedBackground = () => {
 
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
+      window.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("visibilitychange", handleVisibility);
+      document.documentElement.style.removeProperty("--ember-shift-x");
+      document.documentElement.style.removeProperty("--ember-shift-y");
     };
-  }, []);
+  }, [mood]);
 
   return (
-    <div aria-hidden="true" className="site-background orange-bg">
+    <div aria-hidden="true" className="site-background orange-bg" data-background-mood={mood}>
       <canvas ref={canvasRef} className="led-wallpaper-canvas" />
+      <div className="ember-illumination" />
+      <div className="ember-texture" />
     </div>
   );
 };
