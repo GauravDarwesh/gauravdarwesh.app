@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import AnimatedLedBackground from "@/AnimatedLedBackground";
 
 import Index from "./pages/Index";
@@ -17,7 +17,10 @@ import { SiteThemeProvider } from "@/components/SiteThemeProvider";
 
 const queryClient = new QueryClient();
 
-const SiteBackground = () => <AnimatedLedBackground />;
+const SiteBackground = () => {
+  const { pathname } = useLocation();
+  return <AnimatedLedBackground pathname={pathname} />;
+};
 
 const App = () => (
   <SiteThemeProvider>
@@ -27,23 +30,13 @@ const App = () => (
         <Sonner />
 
         {/* =========================================================
-            PERSISTENT SITE BACKGROUND
-
-            IMPORTANT:
-            This is intentionally OUTSIDE BrowserRouter.
-
-            Route changes can therefore replace everything inside
-            BrowserRouter without touching the wallpaper element.
-        ========================================================= */}
-        <SiteBackground />
-
-        {/* =========================================================
             ROUTER / PAGE CONTENT
 
             Only the page content changes when navigating.
             The background remains mounted independently.
         ========================================================= */}
         <BrowserRouter>
+          <SiteBackground />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/hobbies" element={<Hobbies />} />
