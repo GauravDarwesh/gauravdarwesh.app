@@ -334,36 +334,126 @@ const SECTION_NAV = [
   { id: "skills", label: "Skills" },
 ] as const;
 
-const SectionRail = () => {
-  const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({
+const SectionRail = ({ scrollContainerRef }: { scrollContainerRef: { current: HTMLDivElement | null } }) => {
+  const [activeSection, setActiveSection] = useState<(typeof SECTION_NAV)[number]["id"]>("about");
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const updateActiveSection = () => {
+      const containerRect = container.getBoundingClientRect();
+      const activationLine = containerRect.top + containerRect.height * 0.32;
+
+      let currentSection = SECTION_NAV[0].id;
+
+      for (const section of SECTION_NAV) {
+        const element = document.getElementById(section.id);
+        if (!element) continue;
+
+        const rect = element.getBoundingClientRect();
+
+        if (rect.top <= activationLine) {
+          currentSection = section.id;
+        }
+      }
+
+      setActiveSection(currentSection);
+    };
+
+    const handleScroll = () => {
+      if (frameRef.current !== null) return;
+
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        updateActiveSection();
+      });
+    };
+
+    updateActiveSection();
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, [scrollContainerRef]);
+
+  const scrollToSection = (id: (typeof SECTION_NAV)[number]["id"]) => {
+    const container = scrollContainerRef.current;
+    const target = document.getElementById(id);
+
+    if (!container || !target) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const targetTop = container.scrollTop + (targetRect.top - containerRect.top) - 24;
+
+    setActiveSection(id);
+    container.scrollTo({
+      top: Math.max(0, targetTop),
       behavior: "smooth",
-      block: "start",
     });
   };
 
   return (
     <nav
       aria-label="Page sections"
-      className="fixed left-4 sm:left-6 top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-2 lg:flex"
+      className="fixed left-4 sm:left-6 top-1/2 z-30 hidden -translate-y-1/2 flex-col xl:flex"
     >
-      {SECTION_NAV.map((section) => (
-        <button
-          key={section.id}
-          type="button"
-          aria-label={`Go to ${section.label}`}
-          title={section.label}
-          onClick={() => scrollToSection(section.id)}
-          className="group flex h-5 w-10 items-center justify-start focus:outline-none"
-        >
-          <span className="h-px w-6 rounded-full bg-white/25 transition-all duration-300 ease-out group-hover:w-10 group-hover:bg-white/75 group-focus-visible:w-10 group-focus-visible:bg-white/75" />
-        </button>
-      ))}
+      <div className="relative flex flex-col gap-1 rounded-2xl border border-white/[0.08] bg-black/[0.06] px-3 py-2 backdrop-blur-[2px]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[13px] top-[13px] bottom-[13px] w-px bg-white/[0.10]"
+        />
+
+        {SECTION_NAV.map((section) => {
+          const isActive = activeSection === section.id;
+
+          return (
+            <button
+              key={section.id}
+              type="button"
+              aria-label={`Go to ${section.label}`}
+              aria-current={isActive ? "location" : undefined}
+              onClick={() => scrollToSection(section.id)}
+              className="group relative flex min-h-8 items-center gap-3 rounded-lg pr-2 text-left focus:outline-none focus-visible:bg-white/[0.08]"
+            >
+              <span
+                aria-hidden="true"
+                className={`relative z-10 block shrink-0 rounded-full transition-all duration-300 ease-out ${
+                  isActive
+                    ? "h-[3px] w-9 bg-white shadow-[0_0_10px_rgba(255,255,255,0.35)]"
+                    : "h-[2px] w-6 bg-white/30 group-hover:w-9 group-hover:bg-white/70"
+                }`}
+              />
+
+              <span
+                className={`whitespace-nowrap text-[11px] font-medium tracking-wide transition-all duration-300 ${
+                  isActive
+                    ? "translate-x-0 text-white opacity-100"
+                    : "-translate-x-1 text-white/55 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+                }`}
+              >
+                {section.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 };
 
 const Portfolio = () => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   return (
     <div className="site-page min-h-screen w-full flex flex-col items-center relative overflow-hidden">
       <Helmet>
@@ -387,10 +477,13 @@ const Portfolio = () => {
       <NavigationToggle />
 
       {/* Notion-style section rail */}
-      <SectionRail />
+      <SectionRail scrollContainerRef={scrollContainerRef} />
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
+      <div
+        ref={scrollContainerRef}
+        className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24"
+      >
         {/* ================================================================ */}
         {/* Header                                                           */}
         {/* ================================================================ */}
