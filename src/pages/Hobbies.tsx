@@ -334,8 +334,10 @@ const SECTION_NAV = [
   { id: "skills", label: "Skills" },
 ] as const;
 
+type SectionId = (typeof SECTION_NAV)[number]["id"];
+
 const SectionRail = ({ scrollContainerRef }: { scrollContainerRef: { current: HTMLDivElement | null } }) => {
-  const [activeSection, setActiveSection] = useState<(typeof SECTION_NAV)[number]["id"]>("about");
+  const [activeSection, setActiveSection] = useState<SectionId>("about");
   const frameRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -346,7 +348,7 @@ const SectionRail = ({ scrollContainerRef }: { scrollContainerRef: { current: HT
       const containerRect = container.getBoundingClientRect();
       const activationLine = containerRect.top + containerRect.height * 0.32;
 
-      let currentSection = SECTION_NAV[0].id;
+      let currentSection: SectionId = SECTION_NAV[0].id;
 
       for (const section of SECTION_NAV) {
         const element = document.getElementById(section.id);
@@ -385,7 +387,7 @@ const SectionRail = ({ scrollContainerRef }: { scrollContainerRef: { current: HT
     };
   }, [scrollContainerRef]);
 
-  const scrollToSection = (id: (typeof SECTION_NAV)[number]["id"]) => {
+  const scrollToSection = (id: SectionId) => {
     const container = scrollContainerRef.current;
     const target = document.getElementById(id);
 
