@@ -1,26 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import ambientSound from "@/assets/gdx-warm-ambient.mp3.asset.json";
+import ambientSound from "@/assets/gdx-warm-ambient-seamless.wav.asset.json";
 
 const STORAGE_KEY = "gdx-ambient-sound";
 const AMBIENT_VOLUME = 0.12;
-const FADE_DURATION_MS = 750;
+const FADE_IN_DURATION_MS = 1100;
+const FADE_OUT_DURATION_MS = 1400;
 
 const AmbientSoundControl = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const fadeTimerRef = useRef<number | null>(null);
+  const fadeFrameRef = useRef<number | null>(null);
   const desiredPlayingRef = useRef(true);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const clearFade = useCallback(() => {
-    if (fadeTimerRef.current !== null) {
-      window.clearInterval(fadeTimerRef.current);
-      fadeTimerRef.current = null;
+    if (fadeFrameRef.current !== null) {
+      window.cancelAnimationFrame(fadeFrameRef.current);
+      fadeFrameRef.current = null;
     }
   }, []);
 
   const fadeVolume = useCallback(
-    (target: number, onComplete?: () => void) => {
+    (target: number, duration: number, onComplete?: () => void) => {
       const audio = audioRef.current;
       if (!audio) return;
 
@@ -28,16 +29,21 @@ const AmbientSoundControl = () => {
       const initial = audio.volume;
       const startedAt = performance.now();
 
-      fadeTimerRef.current = window.setInterval(() => {
-        const progress = Math.min((performance.now() - startedAt) / FADE_DURATION_MS, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
+      const updateVolume = (now: number) => {
+        const progress = Math.min((now - startedAt) / duration, 1);
+        const eased = 0.5 - Math.cos(progress * Math.PI) / 2;
         audio.volume = initial + (target - initial) * eased;
 
         if (progress >= 1) {
           clearFade();
           onComplete?.();
+          return;
         }
-      }, 32);
+
+        fadeFrameRef.current = window.requestAnimationFrame(updateVolume);
+      };
+
+      fadeFrameRef.current = window.requestAnimationFrame(updateVolume);
     },
     [clearFade],
   );
@@ -52,7 +58,7 @@ const AmbientSoundControl = () => {
     try {
       await audio.play();
       setIsPlaying(true);
-      fadeVolume(AMBIENT_VOLUME);
+      fadeVolume(AMBIENT_VOLUME, FADE_IN_DURATION_MS);
       return true;
     } catch {
       setIsPlaying(false);
@@ -64,7 +70,7 @@ const AmbientSoundControl = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    fadeVolume(0, () => {
+    fadeVolume(0, FADE_OUT_DURATION_MS, () => {
       audio.pause();
       setIsPlaying(false);
     });
