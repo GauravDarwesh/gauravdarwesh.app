@@ -9,3 +9,4 @@
 - [x] Refine mobile sound-control placement and smooth its visual transitions
 - [x] Replace the soundtrack with a seamless lossless loop
 - [x] Remove the visible ambient sound control
+- [x] Constrain the animated wallpaper to bright yellow and orange tones
