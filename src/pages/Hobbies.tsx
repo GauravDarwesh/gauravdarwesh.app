@@ -124,6 +124,7 @@ const CategorySpotlight = () => {
 
   return (
     <section
+      id="skills"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -282,7 +283,7 @@ const GitHubActivity = () => {
       };
 
   return (
-    <section className="pt-2">
+    <section id="github" className="pt-2">
       <div className="mb-5">
         <h2 className="text-xl sm:text-2xl font-semibold">GitHub Activity</h2>
 
@@ -324,6 +325,44 @@ const GitHubActivity = () => {
   );
 };
 
+const SECTION_NAV = [
+  { id: "about", label: "About" },
+  { id: "education", label: "Education" },
+  { id: "experience", label: "Experience" },
+  { id: "recommendations", label: "Recommendations" },
+  { id: "github", label: "GitHub Activity" },
+  { id: "skills", label: "Skills" },
+] as const;
+
+const SectionRail = () => {
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  return (
+    <nav
+      aria-label="Page sections"
+      className="fixed left-4 sm:left-6 top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-2 lg:flex"
+    >
+      {SECTION_NAV.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          aria-label={`Go to ${section.label}`}
+          title={section.label}
+          onClick={() => scrollToSection(section.id)}
+          className="group flex h-5 w-10 items-center justify-start focus:outline-none"
+        >
+          <span className="h-px w-6 rounded-full bg-white/25 transition-all duration-300 ease-out group-hover:w-10 group-hover:bg-white/75 group-focus-visible:w-10 group-focus-visible:bg-white/75" />
+        </button>
+      ))}
+    </nav>
+  );
+};
+
 const Portfolio = () => {
   return (
     <div className="site-page min-h-screen w-full flex flex-col items-center relative overflow-hidden">
@@ -346,6 +385,9 @@ const Portfolio = () => {
 
       {/* Navigation Toggle */}
       <NavigationToggle />
+
+      {/* Notion-style section rail */}
+      <SectionRail />
 
       {/* Main Content */}
       <div className="relative z-10 max-w-3xl w-full px-4 sm:px-6 md:px-8 text-left space-y-10 overflow-y-scroll no-scrollbar pt-20 sm:pt-24 pb-20 sm:pb-24">
@@ -430,7 +472,7 @@ const Portfolio = () => {
         {/* About                                                            */}
         {/* ================================================================ */}
 
-        <p className="text-base sm:text-lg leading-relaxed mt-4">
+        <p id="about" className="text-base sm:text-lg leading-relaxed mt-4">
           Results-oriented professional with a strong foundation in regulatory tech and customer success operations.
           Skilled in transforming complex requirements into scalable solutions and streamlining end-to-end processes
           through Applied AI and workflow automation. Experienced in equipping teams with AI-powered insights and tools
@@ -442,7 +484,7 @@ const Portfolio = () => {
         {/* Education                                                        */}
         {/* ================================================================ */}
 
-        <section>
+        <section id="education">
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Education</h2>
 
           {/* University of Mumbai */}
@@ -474,7 +516,7 @@ const Portfolio = () => {
         {/* Experience                                                       */}
         {/* ================================================================ */}
 
-        <section>
+        <section id="experience">
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Experience</h2>
 
           {/* ============================================================ */}
@@ -643,7 +685,7 @@ const Portfolio = () => {
         {/* Recommendations                                                   */}
         {/* ================================================================ */}
 
-        <section>
+        <section id="recommendations">
           <h2 className="text-xl sm:text-2xl font-semibold mb-3">Recommendations</h2>
 
           <div className="space-y-6">
@@ -687,16 +729,16 @@ const Portfolio = () => {
         </section>
 
         {/* ================================================================ */}
-        {/* Category Spotlight                                                */}
-        {/* ================================================================ */}
-
-        <CategorySpotlight />
-
-        {/* ================================================================ */}
         {/* GitHub Activity                                                   */}
         {/* ================================================================ */}
 
         <GitHubActivity />
+
+        {/* ================================================================ */}
+        {/* Category Spotlight                                                */}
+        {/* ================================================================ */}
+
+        <CategorySpotlight />
       </div>
 
       {/* ================================================================ */}
