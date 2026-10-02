@@ -8,3 +8,4 @@
 - [x] Add a looping ambient soundtrack with a persistent play/pause control
 - [x] Refine mobile sound-control placement and smooth its visual transitions
 - [x] Replace the soundtrack with a seamless lossless loop
+- [x] Remove the visible ambient sound control
