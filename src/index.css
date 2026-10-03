@@ -46,10 +46,10 @@
     /* GitHub activity interaction */
     --github-cell-ring: 0 0% 100% / 0.82;
     --github-cell-glow: 28 100% 70% / 0.48;
-    --github-tooltip-background: 12 24% 10% / 0.88;
+    --github-tooltip-background: 18 46% 22% / 0.78;
     --github-tooltip-foreground: 0 0% 98%;
-    --github-tooltip-border: 0 0% 100% / 0.2;
-    --github-tooltip-shadow: 8 40% 4% / 0.34;
+    --github-tooltip-border: 28 100% 88% / 0.3;
+    --github-tooltip-shadow: 8 50% 5% / 0.28;
   }
 }
 
