@@ -1,4 +1,4 @@
-import { cloneElement, useCallback, useEffect, useRef, useState } from "react";
+import { cloneElement, useCallback, useEffect, useRef, useState, type FocusEvent, type MouseEvent } from "react";
 import { Helmet } from "react-helmet-async";
 import { ActivityCalendar, type Activity } from "react-activity-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
@@ -201,7 +201,26 @@ const GitHubActivity = () => {
   const [isMinimal, setIsMinimal] = useState(false);
   const [contributions, setContributions] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activityTooltip, setActivityTooltip] = useState<{
+    text: string;
+    left: number;
+    top: number;
+  } | null>(null);
   const currentYear = new Date().getFullYear();
+
+  const showActivityTooltip = (
+    event: MouseEvent<SVGElement> | FocusEvent<SVGElement>,
+    activity: Activity,
+  ) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const safeLeft = Math.min(window.innerWidth - 118, Math.max(118, bounds.left + bounds.width / 2));
+
+    setActivityTooltip({
+      text: formatContributionDetail(activity),
+      left: safeLeft,
+      top: bounds.top - 10,
+    });
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -343,26 +362,29 @@ const GitHubActivity = () => {
                   role: "img",
                   tabIndex: 0,
                   "aria-label": formatContributionDetail(activity),
+                  onMouseEnter: (event: MouseEvent<SVGElement>) =>
+                    showActivityTooltip(event, activity),
+                  onMouseLeave: () => setActivityTooltip(null),
+                  onFocus: (event: FocusEvent<SVGElement>) =>
+                    showActivityTooltip(event, activity),
+                  onBlur: () => setActivityTooltip(null),
                 })
               }
               theme={calendarTheme}
-              tooltips={{
-                activity: {
-                  text: formatContributionDetail,
-                  placement: "top",
-                  offset: 8,
-                  hoverRestMs: 90,
-                  withArrow: true,
-                  transitionStyles: {
-                    duration: 160,
-                    initial: { opacity: 0, transform: "translateY(3px) scale(0.97)" },
-                  },
-                },
-              }}
             />
           )}
         </div>
       </div>
+
+      {activityTooltip && (
+        <div
+          className="github-activity-tooltip"
+          role="tooltip"
+          style={{ left: activityTooltip.left, top: activityTooltip.top }}
+        >
+          {activityTooltip.text}
+        </div>
+      )}
     </section>
   );
 };
@@ -804,7 +826,8 @@ const Portfolio = () => {
           transform: scale(1.18);
         }
 
-        .react-activity-calendar__tooltip {
+        .github-activity-tooltip {
+          position: fixed;
           z-index: 80;
           width: max-content;
           max-width: calc(100vw - 24px);
@@ -821,12 +844,20 @@ const Portfolio = () => {
           line-height: 1.35;
           letter-spacing: 0;
           pointer-events: none;
+          transform: translate(-50%, -100%);
+          animation: github-tooltip-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
-        .react-activity-calendar__tooltip-arrow {
-          fill: hsl(var(--github-tooltip-background));
-          stroke: hsl(var(--github-tooltip-border));
-          stroke-width: 1px;
+        @keyframes github-tooltip-in {
+          from {
+            opacity: 0;
+            transform: translate(-50%, calc(-100% + 3px)) scale(0.97);
+          }
+
+          to {
+            opacity: 1;
+            transform: translate(-50%, -100%) scale(1);
+          }
         }
 
         .github-activity-calendar
@@ -877,7 +908,7 @@ const Portfolio = () => {
           fill: currentColor !important;
         }
 
-        :root[data-theme="minimal"] .react-activity-calendar__tooltip {
+        :root[data-theme="minimal"] .github-activity-tooltip {
           -webkit-backdrop-filter: none;
           backdrop-filter: none;
         }
@@ -890,6 +921,10 @@ const Portfolio = () => {
           .github-contribution-cell:hover,
           .github-contribution-cell:focus-visible {
             transform: none;
+          }
+
+          .github-activity-tooltip {
+            animation: none;
           }
         }
       `}</style>
