@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { cloneElement, useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { ActivityCalendar, type Activity } from "react-activity-calendar";
 import NavigationToggle from "@/components/NavigationToggle";
@@ -6,6 +6,27 @@ import NavigationToggle from "@/components/NavigationToggle";
 const CATEGORIES = ["Languages", "Skills", "Platforms", "Certifications", "Extracurriculars"] as const;
 
 type Category = (typeof CATEGORIES)[number];
+
+const getOrdinalSuffix = (day: number) => {
+  const remainder100 = day % 100;
+
+  if (remainder100 >= 11 && remainder100 <= 13) return "th";
+
+  if (day % 10 === 1) return "st";
+  if (day % 10 === 2) return "nd";
+  if (day % 10 === 3) return "rd";
+
+  return "th";
+};
+
+const formatContributionDetail = ({ count, date }: Activity) => {
+  const parsedDate = new Date(`${date}T12:00:00`);
+  const month = parsedDate.toLocaleDateString("en-US", { month: "long" });
+  const day = parsedDate.getDate();
+  const contributionLabel = count === 1 ? "contribution" : "contributions";
+
+  return `${count} ${contributionLabel} on ${month} ${day}${getOrdinalSuffix(day)}.`;
+};
 
 const CATEGORY_DATA: Record<Category, string[]> = {
   Languages: ["English", "Marathi", "Hindi", "Japanese"],
@@ -316,7 +337,28 @@ const GitHubActivity = () => {
               labels={{
                 totalCount: `{{count}} contributions in ${currentYear}`,
               }}
+              renderBlock={(block, activity) =>
+                cloneElement(block, {
+                  className: "github-contribution-cell",
+                  role: "img",
+                  tabIndex: 0,
+                  "aria-label": formatContributionDetail(activity),
+                })
+              }
               theme={calendarTheme}
+              tooltips={{
+                activity: {
+                  text: formatContributionDetail,
+                  placement: "top",
+                  offset: 8,
+                  hoverRestMs: 90,
+                  withArrow: true,
+                  transitionStyles: {
+                    duration: 160,
+                    initial: { opacity: 0, transform: "translateY(3px) scale(0.97)" },
+                  },
+                },
+              }}
             />
           )}
         </div>
@@ -743,6 +785,50 @@ const Portfolio = () => {
           scroll-behavior: smooth;
         }
 
+        .github-contribution-cell {
+          cursor: crosshair;
+          transform-box: fill-box;
+          transform-origin: center;
+          transition:
+            transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+            filter 150ms ease,
+            stroke 150ms ease;
+        }
+
+        .github-contribution-cell:hover,
+        .github-contribution-cell:focus-visible {
+          filter: drop-shadow(0 0 5px hsl(var(--github-cell-glow)));
+          outline: none;
+          stroke: hsl(var(--github-cell-ring));
+          stroke-width: 1.5px;
+          transform: scale(1.18);
+        }
+
+        .react-activity-calendar__tooltip {
+          z-index: 80;
+          width: max-content;
+          max-width: calc(100vw - 24px);
+          padding: 7px 10px;
+          border: 1px solid hsl(var(--github-tooltip-border));
+          border-radius: 6px;
+          background: hsl(var(--github-tooltip-background));
+          color: hsl(var(--github-tooltip-foreground));
+          box-shadow: 0 8px 24px hsl(var(--github-tooltip-shadow));
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.35;
+          letter-spacing: 0;
+          pointer-events: none;
+        }
+
+        .react-activity-calendar__tooltip-arrow {
+          fill: hsl(var(--github-tooltip-background));
+          stroke: hsl(var(--github-tooltip-border));
+          stroke-width: 1px;
+        }
+
         .github-activity-calendar
           .react-activity-calendar__scroll-container::-webkit-scrollbar {
           display: none;
@@ -789,6 +875,22 @@ const Portfolio = () => {
 
         :root[data-theme="minimal"] .github-calendar-shell svg text {
           fill: currentColor !important;
+        }
+
+        :root[data-theme="minimal"] .react-activity-calendar__tooltip {
+          -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .github-contribution-cell {
+            transition: none;
+          }
+
+          .github-contribution-cell:hover,
+          .github-contribution-cell:focus-visible {
+            transform: none;
+          }
         }
       `}</style>
     </div>
