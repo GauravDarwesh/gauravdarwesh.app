@@ -831,16 +831,14 @@ const Portfolio = () => {
           z-index: 80;
           width: max-content;
           max-width: calc(100vw - 24px);
-          padding: 8px 11px;
+          padding: 7px 10px;
           border: 1px solid hsl(var(--github-tooltip-border));
-          border-radius: 8px;
+          border-radius: 6px;
           background: hsl(var(--github-tooltip-background));
           color: hsl(var(--github-tooltip-foreground));
-          box-shadow:
-            inset 0 1px 0 hsl(var(--github-tooltip-border)),
-            0 8px 24px hsl(var(--github-tooltip-shadow));
-          -webkit-backdrop-filter: blur(16px) saturate(1.15);
-          backdrop-filter: blur(16px) saturate(1.15);
+          box-shadow: 0 8px 24px hsl(var(--github-tooltip-shadow));
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
           font-size: 12px;
           font-weight: 500;
           line-height: 1.35;
@@ -848,19 +846,6 @@ const Portfolio = () => {
           pointer-events: none;
           transform: translate(-50%, -100%);
           animation: github-tooltip-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
-        .github-activity-tooltip::after {
-          content: "";
-          position: absolute;
-          left: 50%;
-          bottom: -4px;
-          width: 8px;
-          height: 8px;
-          border-right: 1px solid hsl(var(--github-tooltip-border));
-          border-bottom: 1px solid hsl(var(--github-tooltip-border));
-          background: hsl(var(--github-tooltip-background));
-          transform: translateX(-50%) rotate(45deg);
         }
 
         @keyframes github-tooltip-in {
