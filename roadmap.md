@@ -10,3 +10,4 @@
 - [x] Replace the soundtrack with a seamless lossless loop
 - [x] Remove the visible ambient sound control
 - [x] Add GitHub-style contribution details and hover feedback to the Classic page
+- [ ] Smooth existing animations, component transitions, and wallpaper motion sitewide without changing behavior or theme
