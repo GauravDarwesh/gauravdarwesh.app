@@ -80,10 +80,7 @@ const AmbientSoundControl = () => {
     const minimalAudio = minimalAudioRef.current;
     if (!glassAudio || !minimalAudio) return;
 
-    if (glassAudio.paused || minimalAudio.paused) {
-      void startPlayback(isMinimal);
-      return;
-    }
+    if (glassAudio.paused || minimalAudio.paused) return;
 
     applyThemeMix(isMinimal, THEME_CROSSFADE_DURATION_MS);
   }, [applyThemeMix, isMinimal, startPlayback]);
