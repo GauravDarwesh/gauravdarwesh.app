@@ -66,19 +66,23 @@ const AmbientSoundControl = () => {
     const minimalAudio = minimalAudioRef.current;
     if (!glassAudio || !minimalAudio || document.hidden) return false;
 
-    const playbackAttempts: Promise<unknown>[] = [];
-    if (glassAudio.paused) playbackAttempts.push(glassAudio.play());
-    if (minimalAudio.paused) playbackAttempts.push(minimalAudio.play());
+    const targetAudio = minimal ? minimalAudio : glassAudio;
+    const backgroundAudio = minimal ? glassAudio : minimalAudio;
 
-    if (playbackAttempts.length > 0) {
-      await Promise.allSettled(playbackAttempts);
+    if (targetAudio.paused) {
+      try {
+        await targetAudio.play();
+      } catch {
+        return false;
+      }
     }
+
+    if (backgroundAudio.paused) void backgroundAudio.play().catch(() => undefined);
 
     const currentThemeIsMinimal = isMinimalRef.current;
     const targetTheme = currentThemeIsMinimal === minimal ? minimal : currentThemeIsMinimal;
-    const hasPlayingTrack = !glassAudio.paused || !minimalAudio.paused;
-    if (hasPlayingTrack) applyThemeMix(targetTheme, duration);
-    return hasPlayingTrack;
+    applyThemeMix(targetTheme, duration);
+    return true;
   }, [applyThemeMix]);
 
   useEffect(() => {
