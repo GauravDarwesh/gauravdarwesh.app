@@ -14,6 +14,10 @@ const AmbientSoundControl = () => {
   const minimalAudioRef = useRef<HTMLAudioElement | null>(null);
   const glassFadeFrameRef = useRef<number | null>(null);
   const minimalFadeFrameRef = useRef<number | null>(null);
+  const isMinimalRef = useRef(isMinimal);
+  const hasMountedRef = useRef(false);
+
+  isMinimalRef.current = isMinimal;
 
   const clearFades = useCallback(() => {
     if (glassFadeFrameRef.current !== null) {
@@ -57,52 +61,61 @@ const AmbientSoundControl = () => {
     fadeVolume(minimalAudioRef.current, minimalFadeFrameRef, minimal ? MINIMAL_VOLUME : 0, duration);
   }, [fadeVolume]);
 
-  const startPlayback = useCallback(async (minimal: boolean) => {
+  const ensurePlayback = useCallback(async (minimal: boolean, duration: number) => {
     const glassAudio = glassAudioRef.current;
     const minimalAudio = minimalAudioRef.current;
     if (!glassAudio || !minimalAudio || document.hidden) return false;
 
-    clearFades();
-    glassAudio.volume = 0;
-    minimalAudio.volume = 0;
+    const targetAudio = minimal ? minimalAudio : glassAudio;
+    const backgroundAudio = minimal ? glassAudio : minimalAudio;
 
-    try {
-      await Promise.all([glassAudio.play(), minimalAudio.play()]);
-      applyThemeMix(minimal, FADE_IN_DURATION_MS);
-      return true;
-    } catch {
-      return false;
+    if (targetAudio.paused) {
+      try {
+        await targetAudio.play();
+      } catch {
+        return false;
+      }
     }
-  }, [applyThemeMix, clearFades]);
+
+    if (backgroundAudio.paused) void backgroundAudio.play().catch(() => undefined);
+
+    const currentThemeIsMinimal = isMinimalRef.current;
+    const targetTheme = currentThemeIsMinimal === minimal ? minimal : currentThemeIsMinimal;
+    applyThemeMix(targetTheme, duration);
+    return true;
+  }, [applyThemeMix]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    void ensurePlayback(isMinimal, THEME_CROSSFADE_DURATION_MS);
+  }, [ensurePlayback, isMinimal]);
 
   useEffect(() => {
     const glassAudio = glassAudioRef.current;
     const minimalAudio = minimalAudioRef.current;
     if (!glassAudio || !minimalAudio) return;
 
-    if (glassAudio.paused || minimalAudio.paused) return;
-
-    applyThemeMix(isMinimal, THEME_CROSSFADE_DURATION_MS);
-  }, [applyThemeMix, isMinimal, startPlayback]);
-
-  useEffect(() => {
-    void startPlayback(isMinimal);
+    glassAudio.volume = 0;
+    minimalAudio.volume = 0;
+    void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
 
     const unlockPlayback = () => {
-      if (glassAudioRef.current?.paused || minimalAudioRef.current?.paused) void startPlayback(isMinimal);
+      if (glassAudio.paused || minimalAudio.paused) {
+        void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
+      }
     };
 
     const handleVisibility = () => {
-      const glassAudio = glassAudioRef.current;
-      const minimalAudio = minimalAudioRef.current;
-      if (!glassAudio || !minimalAudio) return;
-
       if (document.hidden) {
         clearFades();
         glassAudio.pause();
         minimalAudio.pause();
       } else {
-        void startPlayback(isMinimal);
+        void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
       }
     };
 
@@ -116,7 +129,7 @@ const AmbientSoundControl = () => {
       document.removeEventListener("keydown", unlockPlayback);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [clearFades, isMinimal, startPlayback]);
+  }, [clearFades, ensurePlayback]);
 
   return (
     <div aria-hidden="true">
