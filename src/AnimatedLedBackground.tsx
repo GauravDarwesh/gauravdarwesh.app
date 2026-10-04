@@ -20,6 +20,7 @@ const AnimatedLedBackground = () => {
     let raf = 0;
     let last = performance.now();
     let realT = 0;
+    let smoothedDt = 1 / 60;
     let running = true;
     let isMinimal = document.documentElement.dataset.theme === "minimal";
 
@@ -205,7 +206,11 @@ const AnimatedLedBackground = () => {
     const tick = (now: number) => {
       if (!running) return;
 
-      const dt = Math.min((now - last) / 1000, 0.05);
+      const rawDt = Math.min(Math.max((now - last) / 1000, 0), 0.05);
+      // Dampen frame-time fluctuations so the field glides at a stable speed
+      // through occasional delayed frames without changing its path or pace.
+      smoothedDt += (rawDt - smoothedDt) * 0.12;
+      const dt = Math.min(smoothedDt, 1 / 30);
 
       last = now;
       realT += dt;
@@ -229,6 +234,7 @@ const AnimatedLedBackground = () => {
 
       running = true;
       last = performance.now();
+      smoothedDt = 1 / 60;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(tick);
     };
