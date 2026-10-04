@@ -234,7 +234,7 @@ export default function Visuals() {
     if (layerARef.current) {
       layerARef.current.style.backgroundImage = `url("${first}")`;
       layerARef.current.style.opacity = "1";
-      layerARef.current.style.transition = `opacity ${FADE_MS}ms linear`;
+      layerARef.current.style.transition = `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`;
       layerARef.current.style.willChange = "opacity";
       layerARef.current.style.backgroundSize = "cover";
       layerARef.current.style.backgroundPosition = "center";
@@ -242,7 +242,7 @@ export default function Visuals() {
     if (layerBRef.current) {
       layerBRef.current.style.backgroundImage = isVideo(second) ? "" : `url("${second}")`;
       layerBRef.current.style.opacity = "0";
-      layerBRef.current.style.transition = `opacity ${FADE_MS}ms linear`;
+      layerBRef.current.style.transition = `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`;
       layerBRef.current.style.willChange = "opacity";
       layerBRef.current.style.backgroundSize = "cover";
       layerBRef.current.style.backgroundPosition = "center";
@@ -306,14 +306,14 @@ export default function Visuals() {
           <div className="w-full max-w-[90vw] sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[75vw] xl:max-w-[65vw] flex flex-col h-full max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
             {/* Top row: Title (left) and Navigation Buttons (right) */}
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              <div className="h-9 px-4 text-[12px] rounded-full bg-white/20 hover:bg-white/30 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm transition-all duration-300 ease-out flex items-center cursor-default">
+              <div className="h-9 px-4 text-[12px] rounded-full bg-white/20 hover:bg-white/30 text-white/80 hover:text-white/90 border border-white/20 hover:border-white/30 backdrop-blur-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center cursor-default">
                 {collectionTitle}
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={prevCollection}
-                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
                   aria-label="Previous collection"
                 >
                   <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
@@ -321,7 +321,7 @@ export default function Visuals() {
 
                 <button
                   onClick={nextCollection}
-                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-lg hover:shadow-xl hover:scale-105 border border-white/20 flex-shrink-0"
                   aria-label="Next collection"
                 >
                   <ChevronRight size={14} className="sm:w-4 sm:h-4" />
@@ -331,7 +331,7 @@ export default function Visuals() {
 
             {/* Tile container */}
             <div className="flex-1 min-h-0 max-h-[60vh] sm:max-h-none">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/20 hover:bg-white/20 transition w-full h-full flex items-center justify-center overflow-hidden relative">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/20 hover:bg-white/20 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] w-full h-full flex items-center justify-center overflow-hidden relative">
                 <div className="relative w-full h-full">
                   {/* Layer A (images) */}
                   <div
@@ -339,7 +339,7 @@ export default function Visuals() {
                     className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover pointer-events-none select-none"
                     style={{
                       opacity: showVideo ? 0 : 1,
-                      transition: `opacity ${FADE_MS}ms linear`,
+                      transition: `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                       willChange: "opacity",
                       WebkitTouchCallout: "none",
                     }}
@@ -352,7 +352,7 @@ export default function Visuals() {
                     className="absolute inset-0 rounded-xl shadow-lg bg-center bg-cover pointer-events-none select-none"
                     style={{
                       opacity: 0,
-                      transition: `opacity ${FADE_MS}ms linear`,
+                      transition: `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                       willChange: "opacity",
                       WebkitTouchCallout: "none",
                     }}

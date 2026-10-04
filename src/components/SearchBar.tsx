@@ -407,7 +407,7 @@ function Fade({ show, duration = 300, children }: { show: boolean; duration?: nu
 
   return (
     <div
-      className={`transition-opacity ${show ? "opacity-100" : "opacity-0"}`}
+      className={`transition-opacity ease-[cubic-bezier(0.4,0,0.2,1)] ${show ? "opacity-100" : "opacity-0"}`}
       style={{ transitionDuration: `${duration}ms` }}
     >
       {children}
@@ -3376,7 +3376,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           maxWidth: "92vw",
           borderRadius: layoutValues.targetRadius,
           transition:
-            "width 0.8s cubic-bezier(0.25, 1, 0.3, 1), border-radius 0.8s cubic-bezier(0.25, 1, 0.3, 1), background-color 0.6s ease, box-shadow 0.6s ease",
+            "width 0.8s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.8s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
           willChange: "width, border-radius",
           cursor: isListening ? "default" : undefined,
           WebkitTouchCallout: "none",
@@ -3385,7 +3385,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }}
       >
         <div
-          className={`transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
+          className={`transition-all ease-[cubic-bezier(0.22,1,0.36,1)] ${layoutValues.isExpanded ? "p-5 pt-6" : "p-2"}`}
           style={{
             transitionDuration: "800ms",
             transitionDelay: layoutValues.isExpanded && !isRestoredFromStorage ? "600ms" : "0ms",
@@ -3397,7 +3397,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           >
             <div
               className="flex gap-2 flex-wrap justify-center mb-3 animate-fadeIn"
-              style={{ animation: "fadeIn 0.8s ease forwards" }}
+              style={{ animation: "fadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards" }}
             >
               {suggestions.map((suggestion, index) => (
                 <button
@@ -3413,7 +3413,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           </Fade>
 
           <div
-            className={`overflow-hidden transition-all ease-[cubic-bezier(0.25,1,0.3,1)] ${
+            className={`overflow-hidden transition-all ease-[cubic-bezier(0.22,1,0.36,1)] ${
               response && !isVoiceSession && !isTranscribing
                 ? isCollapsing || isCollapsingToThink
                   ? "opacity-0 mb-0"
@@ -3442,7 +3442,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 <div
                   className="text-foreground text-sm leading-relaxed font-normal px-4 overflow-y-auto scrollbar-hide"
                   style={{
-                    animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.25,1,0.3,1) both",
+                    animation: isRestoredFromStorage ? "none" : "fadeSlideIn 800ms cubic-bezier(0.22,1,0.36,1) both",
                     animationDelay: "0ms",
                     maxHeight: "300px",
                     fontWeight: 400,
@@ -3540,21 +3540,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                       startVoiceSession();
                     }
                   }}
-                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] active:scale-95 shadow-sm cursor-pointer ${
+                  className={`gdx-tts-button h-9 w-9 flex items-center justify-center rounded-full border border-transparent transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 shadow-sm cursor-pointer ${
                     query.trim() ? "bg-[#0084FF] hover:bg-[#0074E8]" : "bg-[#0084FF] hover:bg-[#0074E8]"
                   }`}
                   title={query.trim() ? "Search" : "Talk with GDx"}
                   aria-label={query.trim() ? "Search" : "Talk with GDx"}
                 >
                   <span
-                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                       query.trim() ? "opacity-0 scale-75 -translate-x-1.5" : "opacity-100 scale-100 translate-x-0"
                     }`}
                   >
                     <ChatGPTWaveformIcon className="h-4 w-4 text-white" />
                   </span>
                   <span
-                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.3,1)] ${
+                    className={`absolute flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                       query.trim() ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-75 translate-x-1.5"
                     }`}
                   >
@@ -3615,11 +3615,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         }
 
         .animate-fadeIn {
-          animation: fadeIn 0.8s ease forwards;
+          animation: fadeIn 0.8s var(--motion-ease-gentle) forwards;
         }
 
         .animate-delayedFadeIn {
-          animation: delayedFadeIn 1s ease forwards;
+          animation: delayedFadeIn 1s var(--motion-ease-gentle) forwards;
           animation-delay: 0.1s;
         }
 

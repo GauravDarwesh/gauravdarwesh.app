@@ -138,7 +138,7 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
       {/* Navigation */}
       <div
         data-site-navigation
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 transition-all duration-700 ease-out ${
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           enabledOnThisPath && showScrollTop
             ? "opacity-0 scale-98 pointer-events-none"
             : "opacity-100 scale-100 pointer-events-auto"
@@ -182,18 +182,18 @@ const NavigationToggle = ({ isModalOpen = false, onCloseModal, isBlurred = false
         aria-label={isModalOpen ? "Close modal" : "Scroll to top"}
         className={`fixed bottom-6 right-6 ${
           isModalOpen ? "z-[70]" : "z-50"
-        } flex items-center justify-center w-12 h-12 rounded-full backdrop-blur-md bg-white/10 border border-white/20 text-white shadow-lg transition-opacity duration-700 ease-in-out hover:bg-white/20 ${
+        } flex items-center justify-center w-12 h-12 rounded-full backdrop-blur-md bg-white/10 border border-white/20 text-white shadow-lg transition-[opacity,background-color,transform] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-white/20 ${
           (enabledOnThisPath && showScrollTop) || isModalOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
         <div className="relative w-5 h-5">
           <ChevronUp
-            className={`absolute top-0 left-0 w-5 h-5 transition-all duration-500 ease-out ${
+            className={`absolute top-0 left-0 w-5 h-5 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isModalOpen ? "opacity-0 scale-75 rotate-45" : "opacity-100 scale-100 rotate-0"
             }`}
           />
           <X
-            className={`absolute top-0 left-0 w-5 h-5 transition-all duration-500 ease-out ${
+            className={`absolute top-0 left-0 w-5 h-5 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isModalOpen ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-75 -rotate-45"
             }`}
           />

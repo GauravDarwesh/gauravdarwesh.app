@@ -88,7 +88,7 @@ const DURATIONS: Record<Category, number> = {
 
 // Uniform squircle chip
 const chipClass =
-  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-out px-4 py-2 text-sm";
+  "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] px-4 py-2 text-sm";
 
 const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
   const items = CATEGORY_DATA[category];
@@ -158,7 +158,7 @@ const CategorySpotlight = () => {
             <button
               type="button"
               onClick={() => select(cat)}
-              className={`relative pb-1 transition-all duration-500 focus:outline-none ${
+              className={`relative pb-1 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] focus:outline-none ${
                 active === cat
                   ? "text-white [text-shadow:0_0_18px_rgba(255,255,255,0.55)]"
                   : "text-white/40 hover:text-white/70"
@@ -812,9 +812,9 @@ const Portfolio = () => {
           transform-box: fill-box;
           transform-origin: center;
           transition:
-            transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
-            filter 150ms ease,
-            stroke 150ms ease;
+            transform 220ms var(--motion-ease-gentle),
+            filter 260ms var(--motion-ease-gentle),
+            stroke 220ms var(--motion-ease-gentle);
         }
 
         .github-contribution-cell:hover,
@@ -845,7 +845,7 @@ const Portfolio = () => {
           letter-spacing: 0;
           pointer-events: none;
           transform: translate(-50%, -100%);
-          animation: github-tooltip-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: github-tooltip-in 220ms var(--motion-ease-enter) both;
         }
 
         @keyframes github-tooltip-in {

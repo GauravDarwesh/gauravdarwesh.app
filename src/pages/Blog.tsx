@@ -166,7 +166,7 @@ const Blog = () => {
                       setFilterOpen(true);
                     }
                   }}
-                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${filterOpen ? "relative z-[57]" : ""}`}
+                  className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${filterOpen ? "relative z-[57]" : ""}`}
                   aria-expanded={filterOpen}
                   aria-controls="blog-filter-dropdown"
                 >
@@ -175,7 +175,7 @@ const Blog = () => {
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => setSelectedTags([])}
-                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-out ${filterOpen ? "relative z-[57]" : ""}`}
+                    className={`h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${filterOpen ? "relative z-[57]" : ""}`}
                   >
                     Clear All
                   </button>
@@ -206,7 +206,7 @@ const Blog = () => {
                       setSortOpen(true);
                     }
                   }}
-                  className={`ml-auto h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out ${sortOpen ? "relative z-[57]" : ""}`}
+                  className={`ml-auto h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${sortOpen ? "relative z-[57]" : ""}`}
                   aria-expanded={sortOpen}
                   aria-controls="blog-sort-dropdown"
                 >
@@ -217,7 +217,7 @@ const Blog = () => {
               {/* Shared overlay for filter or sort */}
               {(filterOpen || sortOpen) && (
                 <div
-                  className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[55] transition-all duration-300 ease-out ${
+                  className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[55] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
                     isAnimating || isSortAnimating ? "opacity-0" : "opacity-100"
                   }`}
                   onClick={() => {
@@ -243,7 +243,7 @@ const Blog = () => {
               {filterOpen && (
                 <div
                   id="blog-filter-dropdown"
-                  className={`absolute mt-3 left-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-out ${
+                  className={`absolute mt-3 left-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg w-full max-w-lg transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isAnimating ? "opacity-0 scale-95 translate-y-2" : "opacity-100 scale-100 translate-y-0"
                   }`}
                 >
@@ -252,7 +252,7 @@ const Blog = () => {
                       <button
                         key={tag}
                         onClick={() => toggleTag(tag)}
-                        className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
+                        className={`px-3 py-1 rounded-full text-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] border hover:scale-105 ${
                           selectedTags.includes(tag)
                             ? "bg-white/30 text-white border-white/30"
                             : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
@@ -269,7 +269,7 @@ const Blog = () => {
               {sortOpen && (
                 <div
                   id="blog-sort-dropdown"
-                  className={`absolute mt-3 right-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg transition-all duration-300 ease-out ${
+                  className={`absolute mt-3 right-0 z-[56] bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isSortAnimating ? "opacity-0 scale-95 translate-y-2" : "opacity-100 scale-100 translate-y-0"
                   }`}
                 >
@@ -283,7 +283,7 @@ const Blog = () => {
                           setIsSortAnimating(false);
                         }, 300);
                       }}
-                      className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
+                      className={`px-3 py-1 rounded-full text-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] border hover:scale-105 ${
                         sortOrder === "newer"
                           ? "bg-white/30 text-white border-white/30"
                           : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
@@ -300,7 +300,7 @@ const Blog = () => {
                           setIsSortAnimating(false);
                         }, 300);
                       }}
-                      className={`px-3 py-1 rounded-full text-sm transition-all duration-200 border hover:scale-105 ${
+                      className={`px-3 py-1 rounded-full text-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] border hover:scale-105 ${
                         sortOrder === "older"
                           ? "bg-white/30 text-white border-white/30"
                           : "bg-white/10 text-white/80 border-white/20 hover:bg-white/20"
@@ -317,7 +317,7 @@ const Blog = () => {
                 <article
                   key={idx}
                   onClick={() => setActiveNotion(post.notionUrl)}
-                  className="notion-writing-card cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition"
+                  className="notion-writing-card cursor-pointer bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-[background-color,border-color,color,transform,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
                 >
                   <div className="notion-writing-copy mb-4">
                     <span className="text-white/70 text-sm">{post.date}</span>
@@ -366,7 +366,7 @@ const Blog = () => {
               href={activeNotion}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-out"
+              className="flex items-center gap-2 h-9 px-4 text-[12px] rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
             >
               Visit Notion Page
               <ExternalLink size={14} />
