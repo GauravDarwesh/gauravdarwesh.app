@@ -66,23 +66,17 @@ const AmbientSoundControl = () => {
     const minimalAudio = minimalAudioRef.current;
     if (!glassAudio || !minimalAudio || document.hidden) return false;
 
-    const targetAudio = minimal ? minimalAudio : glassAudio;
-    const backgroundAudio = minimal ? glassAudio : minimalAudio;
+    // Start both tracks in the same browser-activation task. Mobile browsers can
+    // consume the activation before a second play() call if the first is awaited.
+    const glassPlay = glassAudio.paused ? glassAudio.play() : Promise.resolve();
+    const minimalPlay = minimalAudio.paused ? minimalAudio.play() : Promise.resolve();
+    const results = await Promise.allSettled([glassPlay, minimalPlay]);
 
-    if (targetAudio.paused) {
-      try {
-        await targetAudio.play();
-      } catch {
-        return false;
-      }
-    }
+    const activeAudio = isMinimalRef.current ? minimalAudio : glassAudio;
+    if (activeAudio.paused) return false;
 
-    if (backgroundAudio.paused) void backgroundAudio.play().catch(() => undefined);
-
-    const currentThemeIsMinimal = isMinimalRef.current;
-    const targetTheme = currentThemeIsMinimal === minimal ? minimal : currentThemeIsMinimal;
-    applyThemeMix(targetTheme, duration);
-    return true;
+    applyThemeMix(isMinimalRef.current, duration);
+    return results.some((result) => result.status === "fulfilled");
   }, [applyThemeMix]);
 
   useEffect(() => {
@@ -119,13 +113,15 @@ const AmbientSoundControl = () => {
       }
     };
 
-    document.addEventListener("pointerdown", unlockPlayback, { passive: true });
+    document.addEventListener("pointerdown", unlockPlayback, { passive: true, capture: true });
+    document.addEventListener("touchstart", unlockPlayback, { passive: true, capture: true });
     document.addEventListener("keydown", unlockPlayback);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       clearFades();
-      document.removeEventListener("pointerdown", unlockPlayback);
+      document.removeEventListener("pointerdown", unlockPlayback, { capture: true });
+      document.removeEventListener("touchstart", unlockPlayback, { capture: true });
       document.removeEventListener("keydown", unlockPlayback);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
@@ -133,8 +129,8 @@ const AmbientSoundControl = () => {
 
   return (
     <div aria-hidden="true">
-      <audio ref={glassAudioRef} src={ambientSound.url} loop preload="auto" />
-      <audio ref={minimalAudioRef} src={minimalPianoSound.url} loop preload="auto" />
+      <audio ref={glassAudioRef} src={ambientSound.url} loop preload="auto" autoPlay playsInline />
+      <audio ref={minimalAudioRef} src={minimalPianoSound.url} loop preload="auto" autoPlay playsInline />
     </div>
   );
 };
