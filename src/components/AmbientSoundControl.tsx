@@ -61,7 +61,7 @@ const AmbientSoundControl = () => {
     fadeVolume(minimalAudioRef.current, minimalFadeFrameRef, minimal ? MINIMAL_VOLUME : 0, duration);
   }, [fadeVolume]);
 
-  const ensurePlayback = useCallback(async (minimal: boolean, duration: number) => {
+  const ensurePlayback = useCallback(async (duration: number) => {
     const glassAudio = glassAudioRef.current;
     const minimalAudio = minimalAudioRef.current;
     if (!glassAudio || !minimalAudio || document.hidden) return false;
@@ -85,7 +85,7 @@ const AmbientSoundControl = () => {
       return;
     }
 
-    void ensurePlayback(isMinimal, THEME_CROSSFADE_DURATION_MS);
+    void ensurePlayback(THEME_CROSSFADE_DURATION_MS);
   }, [ensurePlayback, isMinimal]);
 
   useEffect(() => {
@@ -95,11 +95,11 @@ const AmbientSoundControl = () => {
 
     glassAudio.volume = 0;
     minimalAudio.volume = 0;
-    void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
+    void ensurePlayback(FADE_IN_DURATION_MS);
 
     const unlockPlayback = () => {
       if (glassAudio.paused || minimalAudio.paused) {
-        void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
+        void ensurePlayback(FADE_IN_DURATION_MS);
       }
     };
 
@@ -109,7 +109,7 @@ const AmbientSoundControl = () => {
         glassAudio.pause();
         minimalAudio.pause();
       } else {
-        void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
+        void ensurePlayback(FADE_IN_DURATION_MS);
       }
     };
 
