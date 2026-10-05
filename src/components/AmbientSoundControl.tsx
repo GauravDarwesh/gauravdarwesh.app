@@ -61,28 +61,22 @@ const AmbientSoundControl = () => {
     fadeVolume(minimalAudioRef.current, minimalFadeFrameRef, minimal ? MINIMAL_VOLUME : 0, duration);
   }, [fadeVolume]);
 
-  const ensurePlayback = useCallback(async (minimal: boolean, duration: number) => {
+  const ensurePlayback = useCallback(async (duration: number) => {
     const glassAudio = glassAudioRef.current;
     const minimalAudio = minimalAudioRef.current;
     if (!glassAudio || !minimalAudio || document.hidden) return false;
 
-    const targetAudio = minimal ? minimalAudio : glassAudio;
-    const backgroundAudio = minimal ? glassAudio : minimalAudio;
+    // Start both tracks in the same browser-activation task. Mobile browsers can
+    // consume the activation before a second play() call if the first is awaited.
+    const glassPlay = glassAudio.paused ? glassAudio.play() : Promise.resolve();
+    const minimalPlay = minimalAudio.paused ? minimalAudio.play() : Promise.resolve();
+    const results = await Promise.allSettled([glassPlay, minimalPlay]);
 
-    if (targetAudio.paused) {
-      try {
-        await targetAudio.play();
-      } catch {
-        return false;
-      }
-    }
+    const activeAudio = isMinimalRef.current ? minimalAudio : glassAudio;
+    if (activeAudio.paused) return false;
 
-    if (backgroundAudio.paused) void backgroundAudio.play().catch(() => undefined);
-
-    const currentThemeIsMinimal = isMinimalRef.current;
-    const targetTheme = currentThemeIsMinimal === minimal ? minimal : currentThemeIsMinimal;
-    applyThemeMix(targetTheme, duration);
-    return true;
+    applyThemeMix(isMinimalRef.current, duration);
+    return results.some((result) => result.status === "fulfilled");
   }, [applyThemeMix]);
 
   useEffect(() => {
@@ -91,7 +85,7 @@ const AmbientSoundControl = () => {
       return;
     }
 
-    void ensurePlayback(isMinimal, THEME_CROSSFADE_DURATION_MS);
+    void ensurePlayback(THEME_CROSSFADE_DURATION_MS);
   }, [ensurePlayback, isMinimal]);
 
   useEffect(() => {
@@ -101,11 +95,11 @@ const AmbientSoundControl = () => {
 
     glassAudio.volume = 0;
     minimalAudio.volume = 0;
-    void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
+    void ensurePlayback(FADE_IN_DURATION_MS);
 
     const unlockPlayback = () => {
       if (glassAudio.paused || minimalAudio.paused) {
-        void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
+        void ensurePlayback(FADE_IN_DURATION_MS);
       }
     };
 
@@ -115,17 +109,19 @@ const AmbientSoundControl = () => {
         glassAudio.pause();
         minimalAudio.pause();
       } else {
-        void ensurePlayback(isMinimalRef.current, FADE_IN_DURATION_MS);
+        void ensurePlayback(FADE_IN_DURATION_MS);
       }
     };
 
-    document.addEventListener("pointerdown", unlockPlayback, { passive: true });
+    document.addEventListener("pointerdown", unlockPlayback, { passive: true, capture: true });
+    document.addEventListener("touchstart", unlockPlayback, { passive: true, capture: true });
     document.addEventListener("keydown", unlockPlayback);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       clearFades();
-      document.removeEventListener("pointerdown", unlockPlayback);
+      document.removeEventListener("pointerdown", unlockPlayback, { capture: true });
+      document.removeEventListener("touchstart", unlockPlayback, { capture: true });
       document.removeEventListener("keydown", unlockPlayback);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
@@ -133,8 +129,8 @@ const AmbientSoundControl = () => {
 
   return (
     <div aria-hidden="true">
-      <audio ref={glassAudioRef} src={ambientSound.url} loop preload="auto" />
-      <audio ref={minimalAudioRef} src={minimalPianoSound.url} loop preload="auto" />
+      <audio ref={glassAudioRef} src={ambientSound.url} loop preload="auto" autoPlay playsInline />
+      <audio ref={minimalAudioRef} src={minimalPianoSound.url} loop preload="auto" autoPlay playsInline />
     </div>
   );
 };
