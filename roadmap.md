@@ -12,3 +12,4 @@
 - [x] Add GitHub-style contribution details and hover feedback to the Classic page
 - [x] Smooth existing animations, component transitions, and wallpaper motion sitewide without changing behavior or theme
 - [x] Add an independent seamless minimal-piano soundtrack for the black-and-white theme
+- [x] Make mobile theme soundtrack switching reliable with one shared audio engine

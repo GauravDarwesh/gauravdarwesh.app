@@ -5,134 +5,143 @@ import { useSiteTheme } from "@/components/SiteThemeProvider";
 
 const AMBIENT_VOLUME = 0.12;
 const MINIMAL_VOLUME = 0.1;
-const FADE_IN_DURATION_MS = 1100;
-const THEME_CROSSFADE_DURATION_MS = 1400;
+const FADE_IN_SECONDS = 1.1;
+const THEME_CROSSFADE_SECONDS = 1.4;
+
+type AudioGraph = {
+  context: AudioContext;
+  ambientGain: GainNode;
+  minimalGain: GainNode;
+  sourcesStarted: boolean;
+};
 
 const AmbientSoundControl = () => {
   const { isMinimal } = useSiteTheme();
-  const glassAudioRef = useRef<HTMLAudioElement | null>(null);
-  const minimalAudioRef = useRef<HTMLAudioElement | null>(null);
-  const glassFadeFrameRef = useRef<number | null>(null);
-  const minimalFadeFrameRef = useRef<number | null>(null);
   const isMinimalRef = useRef(isMinimal);
-  const hasMountedRef = useRef(false);
+  const graphRef = useRef<AudioGraph | null>(null);
+  const buffersRef = useRef<AudioBuffer[] | null>(null);
+  const loadingRef = useRef<Promise<AudioBuffer[]> | null>(null);
+  const mountedRef = useRef(true);
 
   isMinimalRef.current = isMinimal;
 
-  const clearFades = useCallback(() => {
-    if (glassFadeFrameRef.current !== null) {
-      window.cancelAnimationFrame(glassFadeFrameRef.current);
-      glassFadeFrameRef.current = null;
-    }
-    if (minimalFadeFrameRef.current !== null) {
-      window.cancelAnimationFrame(minimalFadeFrameRef.current);
-      minimalFadeFrameRef.current = null;
-    }
+  const setThemeMix = useCallback((minimal: boolean, durationSeconds: number) => {
+    const graph = graphRef.current;
+    if (!graph) return;
+
+    const now = graph.context.currentTime;
+    const ambientTarget = minimal ? 0 : AMBIENT_VOLUME;
+    const minimalTarget = minimal ? MINIMAL_VOLUME : 0;
+
+    [
+      [graph.ambientGain.gain, ambientTarget],
+      [graph.minimalGain.gain, minimalTarget],
+    ].forEach(([parameter, target]) => {
+      const gain = parameter as AudioParam;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(gain.value, now);
+      gain.linearRampToValueAtTime(target as number, now + durationSeconds);
+    });
   }, []);
 
-  const fadeVolume = useCallback(
-    (audio: HTMLAudioElement | null, frameRef: React.MutableRefObject<number | null>, target: number, duration: number) => {
-      if (!audio) return;
+  const loadBuffers = useCallback((context: AudioContext) => {
+    if (buffersRef.current) return Promise.resolve(buffersRef.current);
+    if (loadingRef.current) return loadingRef.current;
 
-      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
-      const initial = audio.volume;
-      const startedAt = performance.now();
+    loadingRef.current = Promise.all(
+      [ambientSound.url, minimalPianoSound.url].map(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Unable to load soundtrack: ${response.status}`);
+        return context.decodeAudioData(await response.arrayBuffer());
+      }),
+    );
 
-      const updateVolume = (now: number) => {
-        const progress = Math.min((now - startedAt) / duration, 1);
-        const eased = 0.5 - Math.cos(progress * Math.PI) / 2;
-        audio.volume = initial + (target - initial) * eased;
+    loadingRef.current.then((buffers) => {
+      buffersRef.current = buffers;
+    }).catch(() => {
+      loadingRef.current = null;
+    });
 
-        if (progress >= 1) {
-          frameRef.current = null;
-          return;
-        }
+    return loadingRef.current;
+  }, []);
 
-        frameRef.current = window.requestAnimationFrame(updateVolume);
-      };
+  const startSources = useCallback(async () => {
+    const graph = graphRef.current;
+    if (!graph || graph.sourcesStarted) return;
 
-      frameRef.current = window.requestAnimationFrame(updateVolume);
-    },
-    [],
-  );
+    const buffers = await loadBuffers(graph.context);
+    if (!mountedRef.current || graphRef.current !== graph || graph.sourcesStarted) return;
 
-  const applyThemeMix = useCallback((minimal: boolean, duration: number) => {
-    fadeVolume(glassAudioRef.current, glassFadeFrameRef, minimal ? 0 : AMBIENT_VOLUME, duration);
-    fadeVolume(minimalAudioRef.current, minimalFadeFrameRef, minimal ? MINIMAL_VOLUME : 0, duration);
-  }, [fadeVolume]);
+    const ambientSource = graph.context.createBufferSource();
+    const minimalSource = graph.context.createBufferSource();
+    ambientSource.buffer = buffers[0];
+    minimalSource.buffer = buffers[1];
+    ambientSource.loop = true;
+    minimalSource.loop = true;
+    ambientSource.connect(graph.ambientGain);
+    minimalSource.connect(graph.minimalGain);
+    graph.sourcesStarted = true;
+    ambientSource.start();
+    minimalSource.start();
+    setThemeMix(isMinimalRef.current, FADE_IN_SECONDS);
+  }, [loadBuffers, setThemeMix]);
 
-  const ensurePlayback = useCallback(async (duration: number) => {
-    const glassAudio = glassAudioRef.current;
-    const minimalAudio = minimalAudioRef.current;
-    if (!glassAudio || !minimalAudio || document.hidden) return false;
+  const resumePlayback = useCallback(() => {
+    const graph = graphRef.current;
+    if (!graph || document.hidden) return;
 
-    // Start both tracks in the same browser-activation task. Mobile browsers can
-    // consume the activation before a second play() call if the first is awaited.
-    const glassPlay = glassAudio.paused ? glassAudio.play() : Promise.resolve();
-    const minimalPlay = minimalAudio.paused ? minimalAudio.play() : Promise.resolve();
-    const results = await Promise.allSettled([glassPlay, minimalPlay]);
-
-    const activeAudio = isMinimalRef.current ? minimalAudio : glassAudio;
-    if (activeAudio.paused) return false;
-
-    applyThemeMix(isMinimalRef.current, duration);
-    return results.some((result) => result.status === "fulfilled");
-  }, [applyThemeMix]);
-
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
-
-    void ensurePlayback(THEME_CROSSFADE_DURATION_MS);
-  }, [ensurePlayback, isMinimal]);
+    // Calling resume synchronously inside the original touch is essential on iOS.
+    void graph.context.resume().then(() => startSources()).catch(() => undefined);
+  }, [startSources]);
 
   useEffect(() => {
-    const glassAudio = glassAudioRef.current;
-    const minimalAudio = minimalAudioRef.current;
-    if (!glassAudio || !minimalAudio) return;
+    const AudioContextConstructor = window.AudioContext;
+    if (!AudioContextConstructor) return;
 
-    glassAudio.volume = 0;
-    minimalAudio.volume = 0;
-    void ensurePlayback(FADE_IN_DURATION_MS);
+    mountedRef.current = true;
+    const context = new AudioContextConstructor();
+    const ambientGain = context.createGain();
+    const minimalGain = context.createGain();
+    ambientGain.gain.value = 0;
+    minimalGain.gain.value = 0;
+    ambientGain.connect(context.destination);
+    minimalGain.connect(context.destination);
+    graphRef.current = { context, ambientGain, minimalGain, sourcesStarted: false };
 
-    const unlockPlayback = () => {
-      if (glassAudio.paused || minimalAudio.paused) {
-        void ensurePlayback(FADE_IN_DURATION_MS);
-      }
-    };
+    // This succeeds on browsers that permit audible autoplay. Mobile Safari and
+    // Chrome may hold it until the first real touch, where resumePlayback runs again.
+    resumePlayback();
 
     const handleVisibility = () => {
       if (document.hidden) {
-        clearFades();
-        glassAudio.pause();
-        minimalAudio.pause();
+        void context.suspend();
       } else {
-        void ensurePlayback(FADE_IN_DURATION_MS);
+        resumePlayback();
       }
     };
 
-    document.addEventListener("pointerdown", unlockPlayback, { passive: true, capture: true });
-    document.addEventListener("touchstart", unlockPlayback, { passive: true, capture: true });
-    document.addEventListener("keydown", unlockPlayback);
+    document.addEventListener("pointerdown", resumePlayback, { capture: true, passive: true });
+    document.addEventListener("touchstart", resumePlayback, { capture: true, passive: true });
+    document.addEventListener("keydown", resumePlayback, { capture: true });
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      clearFades();
-      document.removeEventListener("pointerdown", unlockPlayback, { capture: true });
-      document.removeEventListener("touchstart", unlockPlayback, { capture: true });
-      document.removeEventListener("keydown", unlockPlayback);
+      mountedRef.current = false;
+      document.removeEventListener("pointerdown", resumePlayback, { capture: true });
+      document.removeEventListener("touchstart", resumePlayback, { capture: true });
+      document.removeEventListener("keydown", resumePlayback, { capture: true });
       document.removeEventListener("visibilitychange", handleVisibility);
+      graphRef.current = null;
+      void context.close();
     };
-  }, [clearFades, ensurePlayback]);
+  }, [resumePlayback]);
 
-  return (
-    <div aria-hidden="true">
-      <audio ref={glassAudioRef} src={ambientSound.url} loop preload="auto" autoPlay playsInline />
-      <audio ref={minimalAudioRef} src={minimalPianoSound.url} loop preload="auto" autoPlay playsInline />
-    </div>
-  );
+  useEffect(() => {
+    resumePlayback();
+    setThemeMix(isMinimal, THEME_CROSSFADE_SECONDS);
+  }, [isMinimal, resumePlayback, setThemeMix]);
+
+  return null;
 };
 
 export default AmbientSoundControl;
