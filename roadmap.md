@@ -13,3 +13,4 @@
 - [x] Smooth existing animations, component transitions, and wallpaper motion sitewide without changing behavior or theme
 - [x] Add an independent seamless minimal-piano soundtrack for the black-and-white theme
 - [x] Make mobile theme soundtrack switching reliable with one shared audio engine
+- [x] Strengthen load-time playback attempts and raise both soundtrack levels

@@ -3,8 +3,8 @@ import ambientSound from "@/assets/gdx-warm-ambient-seamless.wav.asset.json";
 import minimalPianoSound from "@/assets/gdx-minimal-piano-seamless.wav.asset.json";
 import { useSiteTheme } from "@/components/SiteThemeProvider";
 
-const AMBIENT_VOLUME = 0.12;
-const MINIMAL_VOLUME = 0.1;
+const AMBIENT_VOLUME = 0.2;
+const MINIMAL_VOLUME = 0.18;
 const FADE_IN_SECONDS = 1.1;
 const THEME_CROSSFADE_SECONDS = 1.4;
 
@@ -91,7 +91,8 @@ const AmbientSoundControl = () => {
     if (!graph || document.hidden) return;
 
     // Calling resume synchronously inside the original touch is essential on iOS.
-    void graph.context.resume().then(() => startSources()).catch(() => undefined);
+    void graph.context.resume().catch(() => undefined);
+    void startSources().catch(() => undefined);
   }, [startSources]);
 
   useEffect(() => {
@@ -108,9 +109,12 @@ const AmbientSoundControl = () => {
     minimalGain.connect(context.destination);
     graphRef.current = { context, ambientGain, minimalGain, sourcesStarted: false };
 
-    // This succeeds on browsers that permit audible autoplay. Mobile Safari and
-    // Chrome may hold it until the first real touch, where resumePlayback runs again.
+    // Decode and schedule both loops immediately, even while a browser keeps the
+    // context suspended. This lets autoplay-capable browsers begin without waiting
+    // for a click and leaves only the context resume for restricted mobile browsers.
     resumePlayback();
+
+    const handlePageReady = () => resumePlayback();
 
     const handleVisibility = () => {
       if (document.hidden) {
@@ -124,6 +128,8 @@ const AmbientSoundControl = () => {
     document.addEventListener("touchstart", resumePlayback, { capture: true, passive: true });
     document.addEventListener("keydown", resumePlayback, { capture: true });
     document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("load", handlePageReady);
+    window.addEventListener("pageshow", handlePageReady);
 
     return () => {
       mountedRef.current = false;
@@ -131,6 +137,8 @@ const AmbientSoundControl = () => {
       document.removeEventListener("touchstart", resumePlayback, { capture: true });
       document.removeEventListener("keydown", resumePlayback, { capture: true });
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("load", handlePageReady);
+      window.removeEventListener("pageshow", handlePageReady);
       graphRef.current = null;
       void context.close();
     };
