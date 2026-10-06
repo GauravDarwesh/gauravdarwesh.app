@@ -1275,6 +1275,27 @@ const Portfolio = () => {
           fill: currentColor !important;
         }
 
+        .training-activity-tooltip {
+          position: fixed;
+          z-index: 80;
+          width: max-content;
+          max-width: min(520px, calc(100vw - 24px));
+          padding: 8px 11px;
+          border: 1px solid hsl(var(--github-tooltip-border));
+          border-radius: 6px;
+          background: hsl(var(--github-tooltip-background));
+          color: hsl(var(--github-tooltip-foreground));
+          box-shadow: 0 8px 24px hsl(var(--github-tooltip-shadow));
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.4;
+          pointer-events: none;
+          transform: translate(-50%, -100%);
+          animation: github-tooltip-in 220ms var(--motion-ease-enter) both;
+        }
+
         :root[data-theme="minimal"] .training-activity-tooltip {
           -webkit-backdrop-filter: none;
           backdrop-filter: none;
@@ -1289,7 +1310,8 @@ const Portfolio = () => {
             transform: none;
           }
 
-          .github-activity-tooltip {
+          .github-activity-tooltip,
+          .training-activity-tooltip {
             animation: none;
           }
         }
