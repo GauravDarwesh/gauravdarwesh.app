@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import ambientSound from "@/assets/gdx-warm-ambient-seamless.wav.asset.json";
-import minimalPianoSound from "@/assets/gdx-minimal-piano-seamless.wav.asset.json";
+import ambientSound from "@/assets/gdx-warm-ambient.mp3.asset.json";
+import minimalPianoSound from "@/assets/gdx-minimal-piano-seamless.mp3.asset.json";
 import { useSiteTheme } from "@/components/SiteThemeProvider";
 
 const AMBIENT_VOLUME = 0.2;
@@ -50,7 +50,7 @@ const AmbientSoundControl = () => {
 
     loadingRef.current = Promise.all(
       [ambientSound.url, minimalPianoSound.url].map(async (url) => {
-        const response = await fetch(url);
+        const response = await fetch(url, { cache: "force-cache" });
         if (!response.ok) throw new Error(`Unable to load soundtrack: ${response.status}`);
         return context.decodeAudioData(await response.arrayBuffer());
       }),
@@ -90,9 +90,14 @@ const AmbientSoundControl = () => {
     const graph = graphRef.current;
     if (!graph || document.hidden) return;
 
-    // Calling resume synchronously inside the original touch is essential on iOS.
-    void graph.context.resume().catch(() => undefined);
-    void startSources().catch(() => undefined);
+    // On iOS, the context must be resumed within a user gesture.
+    if (graph.context.state !== "running") {
+      void graph.context.resume().then(() => {
+        if (mountedRef.current) void startSources();
+      }).catch(() => undefined);
+    } else {
+      void startSources().catch(() => undefined);
+    }
   }, [startSources]);
 
   useEffect(() => {
@@ -108,6 +113,13 @@ const AmbientSoundControl = () => {
     ambientGain.connect(context.destination);
     minimalGain.connect(context.destination);
     graphRef.current = { context, ambientGain, minimalGain, sourcesStarted: false };
+
+    const handleStateChange = () => {
+      if ((context.state === "suspended" || (context.state as any) === "interrupted") && !document.hidden) {
+        void context.resume().catch(() => undefined);
+      }
+    };
+    context.addEventListener("statechange", handleStateChange);
 
     // Decode and schedule both loops immediately, even while a browser keeps the
     // context suspended. This lets autoplay-capable browsers begin without waiting
@@ -126,8 +138,10 @@ const AmbientSoundControl = () => {
 
     document.addEventListener("pointerdown", resumePlayback, { capture: true, passive: true });
     document.addEventListener("touchstart", resumePlayback, { capture: true, passive: true });
+    document.addEventListener("click", resumePlayback, { capture: true, passive: true });
     document.addEventListener("keydown", resumePlayback, { capture: true });
     document.addEventListener("visibilitychange", handleVisibility);
+    
     window.addEventListener("load", handlePageReady);
     window.addEventListener("pageshow", handlePageReady);
 
@@ -135,11 +149,14 @@ const AmbientSoundControl = () => {
       mountedRef.current = false;
       document.removeEventListener("pointerdown", resumePlayback, { capture: true });
       document.removeEventListener("touchstart", resumePlayback, { capture: true });
+      document.removeEventListener("click", resumePlayback, { capture: true });
       document.removeEventListener("keydown", resumePlayback, { capture: true });
       document.removeEventListener("visibilitychange", handleVisibility);
+      
       window.removeEventListener("load", handlePageReady);
       window.removeEventListener("pageshow", handlePageReady);
       graphRef.current = null;
+      context.removeEventListener("statechange", handleStateChange);
       void context.close();
     };
   }, [resumePlayback]);
