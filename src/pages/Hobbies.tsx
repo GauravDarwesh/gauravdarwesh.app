@@ -90,7 +90,15 @@ const DURATIONS: Record<Category, number> = {
 const chipClass =
   "rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 transition-colors duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] px-4 py-2 text-sm";
 
-const SpotlightContent = ({ category, animKey }: { category: Category; animKey: number }) => {
+const SpotlightContent = ({
+  category,
+  animKey,
+  measure = false,
+}: {
+  category: Category;
+  animKey: number;
+  measure?: boolean;
+}) => {
   const items = CATEGORY_DATA[category];
 
   const stagger = (i: number) => ({
@@ -98,7 +106,10 @@ const SpotlightContent = ({ category, animKey }: { category: Category; animKey: 
   });
 
   return (
-    <div key={animKey} className="flex flex-wrap gap-2.5 sm:gap-3">
+    <div
+      key={animKey}
+      className={`flex flex-wrap gap-2.5 sm:gap-3 ${measure ? "spotlight-measure-content" : ""}`}
+    >
       {items.map((item, i) => (
         <div key={item} style={stagger(i)} className={`spotlight-item ${chipClass}`}>
           {item}
@@ -186,8 +197,21 @@ const CategorySpotlight = () => {
       </h2>
 
       {/* Content */}
-      <div className="pt-2 max-w-4xl">
-        <SpotlightContent category={active} animKey={progressKey} />
+      <div className="spotlight-stage pt-2 max-w-4xl">
+        <div className="spotlight-active-content">
+          <SpotlightContent category={active} animKey={progressKey} />
+        </div>
+
+        <div className="spotlight-measure" aria-hidden="true">
+          {CATEGORIES.map((category) => (
+            <SpotlightContent
+              key={`measure-${category}`}
+              category={category}
+              animKey={0}
+              measure
+            />
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -501,17 +525,7 @@ const OutsideWork = () => {
   return (
     <section id="outside-work" className="pt-2">
       <div className="mb-5">
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 className="text-xl sm:text-2xl font-semibold">Outside Work</h2>
-          <a
-            href="https://strava.app.link/hNhQ2KtF94b"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-white/40 hover:text-white transition-colors"
-          >
-            strava/ ↗
-          </a>
-        </div>
+        <h2 className="text-xl sm:text-2xl font-semibold">Outside Work</h2>
         <p className="text-sm text-white/45 mt-1">A year of movement outside the screen.</p>
       </div>
 
@@ -686,6 +700,10 @@ const Portfolio = () => {
 
             <a href="https://github.com/GauravDarwesh" target="_blank" rel="noopener noreferrer">
               github/
+            </a>
+
+            <a href="https://strava.app.link/hNhQ2KtF94b" target="_blank" rel="noopener noreferrer">
+              strava/
             </a>
           </div>
         </div>
@@ -1118,6 +1136,33 @@ const Portfolio = () => {
           backdrop-filter: none;
         }
 
+        /*
+         * Measure all rotating categories in one grid cell so the section
+         * reserves the tallest required height. The visible category keeps
+         * its existing animation; content below it no longer shifts.
+         */
+        .spotlight-stage {
+          display: grid;
+          align-items: start;
+        }
+
+        .spotlight-stage > * {
+          grid-area: 1 / 1;
+        }
+
+        .spotlight-measure {
+          display: grid;
+          pointer-events: none;
+          visibility: hidden;
+        }
+
+        .spotlight-measure > * {
+          grid-area: 1 / 1;
+        }
+
+        .spotlight-measure-content .spotlight-item {
+          animation: none !important;
+        }
         .training-heatmap {
           display: grid;
           grid-auto-flow: column;
@@ -1138,15 +1183,15 @@ const Portfolio = () => {
           transition: transform 180ms var(--motion-ease-gentle), filter 220ms var(--motion-ease-gentle), background-color 220ms var(--motion-ease-gentle);
         }
 
-        .training-cell-1 { background: rgba(255, 115, 85, 0.24); border-color: rgba(255, 115, 85, 0.12); }
-        .training-cell-2 { background: rgba(255, 130, 70, 0.42); border-color: rgba(255, 130, 70, 0.16); }
-        .training-cell-3 { background: rgba(245, 105, 55, 0.64); border-color: rgba(245, 105, 55, 0.20); }
-        .training-cell-4 { background: rgba(255, 165, 105, 0.88); border-color: rgba(255, 165, 105, 0.28); }
+        .training-cell-1 { background: rgba(120, 125, 255, 0.24); border-color: rgba(120, 125, 255, 0.12); }
+        .training-cell-2 { background: rgba(130, 110, 255, 0.42); border-color: rgba(130, 110, 255, 0.16); }
+        .training-cell-3 { background: rgba(155, 105, 255, 0.64); border-color: rgba(155, 105, 255, 0.20); }
+        .training-cell-4 { background: rgba(190, 155, 255, 0.88); border-color: rgba(190, 155, 255, 0.28); }
 
         .training-cell:hover,
         .training-cell:focus-visible {
           transform: scale(1.32);
-          filter: drop-shadow(0 0 5px rgba(255, 145, 90, 0.42));
+          filter: drop-shadow(0 0 5px rgba(175, 145, 255, 0.42));
           outline: none;
         }
 
@@ -1183,10 +1228,10 @@ const Portfolio = () => {
         }
 
         :root[data-theme="minimal"] .training-cell { background: rgba(0, 0, 0, 0.045); border-color: rgba(0, 0, 0, 0.035); }
-        :root[data-theme="minimal"] .training-cell-1 { background: rgba(135, 45, 20, 0.20); }
-        :root[data-theme="minimal"] .training-cell-2 { background: rgba(145, 55, 20, 0.34); }
-        :root[data-theme="minimal"] .training-cell-3 { background: rgba(150, 60, 20, 0.52); }
-        :root[data-theme="minimal"] .training-cell-4 { background: rgba(165, 75, 25, 0.72); }
+        :root[data-theme="minimal"] .training-cell-1 { background: rgba(0, 0, 0, 0.16); }
+        :root[data-theme="minimal"] .training-cell-2 { background: rgba(0, 0, 0, 0.32); }
+        :root[data-theme="minimal"] .training-cell-3 { background: rgba(0, 0, 0, 0.52); }
+        :root[data-theme="minimal"] .training-cell-4 { background: rgba(0, 0, 0, 0.72); }
 
         @media (prefers-reduced-motion: reduce) {
           .github-contribution-cell {
