@@ -502,7 +502,17 @@ const OutsideWork = () => {
   return (
     <section id="outside-work" className="pt-2">
       <div className="mb-5">
-        <h2 className="text-xl sm:text-2xl font-semibold">Outside Work</h2>
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-xl sm:text-2xl font-semibold">Outside Work</h2>
+          <a
+            href="https://strava.app.link/hNhQ2KtF94b"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-white/40 hover:text-white transition-colors"
+          >
+            strava/ ↗
+          </a>
+        </div>
         <p className="text-sm text-white/45 mt-1">A year of movement outside the screen.</p>
       </div>
 
