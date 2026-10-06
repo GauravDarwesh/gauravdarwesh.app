@@ -1253,11 +1253,24 @@ const Portfolio = () => {
           transform: scale(1.18);
         }
 
+        :root[data-theme="minimal"]
+          .site-page
+          .training-shell
+          article,
+        :root[data-theme="minimal"]
+          .site-page
+          .training-shell
+          article:hover {
+          background-color: transparent !important;
+          color: hsl(var(--foreground)) !important;
+          border-color: transparent !important;
+          box-shadow: none !important;
+        }
+
         :root[data-theme="minimal"] .training-shell {
           background: rgba(255, 255, 255, 0.92) !important;
           border-color: rgba(0, 0, 0, 0.12) !important;
           backdrop-filter: none;
-          -webkit-backdrop-filter: none;
         }
 
         :root[data-theme="minimal"] .training-shell article {
