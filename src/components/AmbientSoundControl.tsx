@@ -90,9 +90,14 @@ const AmbientSoundControl = () => {
     const graph = graphRef.current;
     if (!graph || document.hidden) return;
 
-    // Calling resume synchronously inside the original touch is essential on iOS.
-    void graph.context.resume().catch(() => undefined);
-    void startSources().catch(() => undefined);
+    // On iOS, the context must be resumed within a user gesture.
+    if (graph.context.state !== "running") {
+      void graph.context.resume().then(() => {
+        if (mountedRef.current) void startSources();
+      }).catch(() => undefined);
+    } else {
+      void startSources().catch(() => undefined);
+    }
   }, [startSources]);
 
   useEffect(() => {
@@ -109,15 +114,19 @@ const AmbientSoundControl = () => {
     minimalGain.connect(context.destination);
     graphRef.current = { context, ambientGain, minimalGain, sourcesStarted: false };
 
+    const handleStateChange = () => {
+      if ((context.state === "suspended" || (context.state as any) === "interrupted") && !document.hidden) {
+        void context.resume().catch(() => undefined);
+      }
+    };
+    context.addEventListener("statechange", handleStateChange);
+
     // Decode and schedule both loops immediately, even while a browser keeps the
     // context suspended. This lets autoplay-capable browsers begin without waiting
     // for a click and leaves only the context resume for restricted mobile browsers.
     resumePlayback();
 
     const handlePageReady = () => resumePlayback();
-    const handleContextState = () => {
-      if (context.state === "interrupted") resumePlayback();
-    };
 
     const handleVisibility = () => {
       if (document.hidden) {
@@ -129,9 +138,10 @@ const AmbientSoundControl = () => {
 
     document.addEventListener("pointerdown", resumePlayback, { capture: true, passive: true });
     document.addEventListener("touchstart", resumePlayback, { capture: true, passive: true });
+    document.addEventListener("click", resumePlayback, { capture: true, passive: true });
     document.addEventListener("keydown", resumePlayback, { capture: true });
     document.addEventListener("visibilitychange", handleVisibility);
-    context.addEventListener("statechange", handleContextState);
+    
     window.addEventListener("load", handlePageReady);
     window.addEventListener("pageshow", handlePageReady);
 
@@ -139,12 +149,14 @@ const AmbientSoundControl = () => {
       mountedRef.current = false;
       document.removeEventListener("pointerdown", resumePlayback, { capture: true });
       document.removeEventListener("touchstart", resumePlayback, { capture: true });
+      document.removeEventListener("click", resumePlayback, { capture: true });
       document.removeEventListener("keydown", resumePlayback, { capture: true });
       document.removeEventListener("visibilitychange", handleVisibility);
-      context.removeEventListener("statechange", handleContextState);
+      
       window.removeEventListener("load", handlePageReady);
       window.removeEventListener("pageshow", handlePageReady);
       graphRef.current = null;
+      context.removeEventListener("statechange", handleStateChange);
       void context.close();
     };
   }, [resumePlayback]);
