@@ -466,11 +466,21 @@ const formatTrainingType = (type: string) =>
 const OutsideWork = () => {
   const [training, setTraining] = useState<TrainingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMinimal, setIsMinimal] = useState(false);
   const [trainingTooltip, setTrainingTooltip] = useState<{
     text: string;
     left: number;
     top: number;
   } | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const syncTheme = () => setIsMinimal(root.dataset.theme === "minimal");
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -497,7 +507,7 @@ const OutsideWork = () => {
   }, []);
 
   const showTrainingTooltip = (
-    event: MouseEvent<HTMLDivElement> | FocusEvent<HTMLDivElement>,
+    event: MouseEvent<SVGElement> | FocusEvent<SVGElement>,
     day: TrainingDay,
   ) => {
     if (day.count === 0) return;
@@ -517,10 +527,35 @@ const OutsideWork = () => {
   if (!loading && !training) return null;
 
   const days = training?.days ?? [];
-  const maxDailyActivities = Math.max(1, ...days.map((day) => day.count));
+  const trainingDayByDate = new Map(days.map((day) => [day.date, day]));
+  const calendarData: Activity[] = days.map((day) => ({
+    date: day.date,
+    count: day.count,
+    level: day.count === 0 ? 0 : Math.min(4, Math.max(1, day.count)),
+  }));
   const totalHours = Math.floor((training?.totals.movingMinutes ?? 0) / 60);
   const totalMinutes = Math.round((training?.totals.movingMinutes ?? 0) % 60);
   const latestActiveDay = [...days].reverse().find((day) => day.count > 0) ?? null;
+
+  const trainingCalendarTheme = isMinimal
+    ? {
+        light: [
+          "rgba(0,0,0,0.045)",
+          "rgba(0,0,0,0.18)",
+          "rgba(0,0,0,0.38)",
+          "rgba(0,0,0,0.62)",
+          "rgba(0,0,0,0.92)",
+        ],
+      }
+    : {
+        dark: [
+          "rgba(255,255,255,0.045)",
+          "rgba(120,125,255,0.24)",
+          "rgba(130,110,255,0.42)",
+          "rgba(155,105,255,0.64)",
+          "rgba(190,155,255,0.88)",
+        ],
+      };
 
   return (
     <section id="outside-work" className="pt-2">
@@ -536,7 +571,7 @@ const OutsideWork = () => {
             <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3 mb-5">
                 <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 sm:px-4">
                   <p className="text-2xl sm:text-3xl font-semibold tracking-tight">{totalHours}<span className="text-sm sm:text-base text-white/40 ml-1">h</span></p>
                   <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">moving</p>
@@ -551,43 +586,53 @@ const OutsideWork = () => {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-white/[0.10] bg-white/[0.025] px-3 py-4 sm:px-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs uppercase tracking-[0.14em] text-white/40">{training?.year}</span>
-                  <span className="text-[11px] text-white/30">{totalMinutes > 0 ? `${totalHours}h ${totalMinutes}m moving` : `${totalHours}h moving`}</span>
-                </div>
-                <div className="training-heatmap" role="grid" aria-label={`${training?.year} training activity`}>
-                  {days.map((day) => {
-                    const intensity = day.count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((day.count / maxDailyActivities) * 4)));
-                    return (
-                      <div
-                        key={day.date}
-                        role="gridcell"
-                        tabIndex={day.count > 0 ? 0 : -1}
-                        aria-label={day.count > 0 ? `${formatTrainingDate(day.date)}: ${day.count} activities` : `${formatTrainingDate(day.date)}: no activity`}
-                        className={`training-cell training-cell-${intensity}`}
-                        onMouseEnter={(event) => showTrainingTooltip(event, day)}
-                        onMouseLeave={() => setTrainingTooltip(null)}
-                        onFocus={(event) => showTrainingTooltip(event, day)}
-                        onBlur={() => setTrainingTooltip(null)}
-                      />
-                    );
-                  })}
-                </div>
-                {latestActiveDay && (
-                  <div className="mt-4 pt-4 border-t border-white/[0.08]">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-xs uppercase tracking-[0.14em] text-white/35">Most recent</span>
-                      <span className="text-xs text-white/35">{formatTrainingDate(latestActiveDay.date)}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2">
-                      {latestActiveDay.activities.map((activity) => (
-                        <span key={activity.id} className="text-sm text-white/75">{formatTrainingType(activity.type)}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="training-calendar-shell relative w-full overflow-hidden">
+                <ActivityCalendar
+                  key={`training-calendar-${isMinimal ? "minimal" : "classic"}`}
+                  className="training-activity-calendar"
+                  data={calendarData}
+                  colorScheme={isMinimal ? "light" : "dark"}
+                  blockSize={11}
+                  blockMargin={4}
+                  blockRadius={2}
+                  fontSize={12}
+                  showWeekdayLabels
+                  showMonthLabels
+                  showColorLegend={false}
+                  showTotalCount={false}
+                  renderBlock={(block, activity) => {
+                    const day = trainingDayByDate.get(activity.date);
+                    if (!day) return block;
+                    return cloneElement(block, {
+                      className: "training-calendar-cell",
+                      role: "img",
+                      tabIndex: day.count > 0 ? 0 : -1,
+                      "aria-label": day.count > 0
+                        ? `${formatTrainingDate(day.date)}: ${day.count} activities`
+                        : `${formatTrainingDate(day.date)}: no activity`,
+                      onMouseEnter: (event: MouseEvent<SVGElement>) => showTrainingTooltip(event, day),
+                      onMouseLeave: () => setTrainingTooltip(null),
+                      onFocus: (event: FocusEvent<SVGElement>) => showTrainingTooltip(event, day),
+                      onBlur: () => setTrainingTooltip(null),
+                    });
+                  }}
+                  theme={trainingCalendarTheme}
+                />
               </div>
+
+              {latestActiveDay && (
+                <div className="mt-5 pt-5 border-t border-white/[0.10]">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-xs uppercase tracking-[0.14em] text-white/35">Most recent</span>
+                    <span className="text-xs text-white/35">{formatTrainingDate(latestActiveDay.date)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2">
+                    {latestActiveDay.activities.map((activity) => (
+                      <span key={activity.id} className="text-sm text-white/75">{formatTrainingType(activity.type)}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -601,7 +646,6 @@ const OutsideWork = () => {
     </section>
   );
 };
-
 const Portfolio = () => {
   return (
     <div className="site-page min-h-screen w-full flex flex-col items-center relative overflow-hidden">
@@ -1163,57 +1207,50 @@ const Portfolio = () => {
         .spotlight-measure-content .spotlight-item {
           animation: none !important;
         }
-        .training-heatmap {
-          display: grid;
-          grid-auto-flow: column;
-          grid-template-rows: repeat(7, minmax(0, 1fr));
-          grid-auto-columns: minmax(8px, 1fr);
-          gap: 4px;
+        .training-calendar-shell {
           width: 100%;
-          min-width: 0;
         }
 
-        .training-cell {
-          aspect-ratio: 1;
-          min-width: 0;
-          border-radius: 2px;
-          background: rgba(255, 255, 255, 0.035);
-          border: 1px solid rgba(255, 255, 255, 0.025);
+        .training-activity-calendar {
+          width: max-content;
+          max-width: 100%;
+          margin: 0;
+        }
+
+        .training-activity-calendar .react-activity-calendar__scroll-container {
+          max-width: 100%;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior-x: contain;
+          scroll-behavior: smooth;
+        }
+
+        .training-activity-calendar .react-activity-calendar__scroll-container::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+
+        .training-calendar-cell {
           cursor: crosshair;
-          transition: transform 180ms var(--motion-ease-gentle), filter 220ms var(--motion-ease-gentle), background-color 220ms var(--motion-ease-gentle);
+          transform-box: fill-box;
+          transform-origin: center;
+          transition:
+            transform 220ms var(--motion-ease-gentle),
+            filter 260ms var(--motion-ease-gentle),
+            stroke 220ms var(--motion-ease-gentle);
         }
 
-        .training-cell-1 { background: rgba(120, 125, 255, 0.24); border-color: rgba(120, 125, 255, 0.12); }
-        .training-cell-2 { background: rgba(130, 110, 255, 0.42); border-color: rgba(130, 110, 255, 0.16); }
-        .training-cell-3 { background: rgba(155, 105, 255, 0.64); border-color: rgba(155, 105, 255, 0.20); }
-        .training-cell-4 { background: rgba(190, 155, 255, 0.88); border-color: rgba(190, 155, 255, 0.28); }
-
-        .training-cell:hover,
-        .training-cell:focus-visible {
-          transform: scale(1.32);
+        .training-calendar-cell:hover,
+        .training-calendar-cell:focus-visible {
           filter: drop-shadow(0 0 5px rgba(175, 145, 255, 0.42));
           outline: none;
-        }
-
-        .training-activity-tooltip {
-          position: fixed;
-          z-index: 80;
-          width: max-content;
-          max-width: min(520px, calc(100vw - 24px));
-          padding: 8px 11px;
-          border: 1px solid hsl(var(--github-tooltip-border));
-          border-radius: 6px;
-          background: hsl(var(--github-tooltip-background));
-          color: hsl(var(--github-tooltip-foreground));
-          box-shadow: 0 8px 24px hsl(var(--github-tooltip-shadow));
-          -webkit-backdrop-filter: blur(12px);
-          backdrop-filter: blur(12px);
-          font-size: 12px;
-          font-weight: 500;
-          line-height: 1.4;
-          pointer-events: none;
-          transform: translate(-50%, -100%);
-          animation: github-tooltip-in 220ms var(--motion-ease-enter) both;
+          stroke: rgba(210, 195, 255, 0.95);
+          stroke-width: 1.5px;
+          transform: scale(1.18);
         }
 
         :root[data-theme="minimal"] .training-shell {
@@ -1223,16 +1260,25 @@ const Portfolio = () => {
           -webkit-backdrop-filter: none;
         }
 
-        :root[data-theme="minimal"] .training-shell [class*="bg-white/"] {
-          background-color: rgba(0, 0, 0, 0.035) !important;
+        :root[data-theme="minimal"] .training-shell article {
+          background-color: transparent !important;
+          color: hsl(var(--foreground)) !important;
+          border-color: transparent !important;
+          box-shadow: none !important;
         }
 
-        :root[data-theme="minimal"] .training-cell { background: rgba(0, 0, 0, 0.045); border-color: rgba(0, 0, 0, 0.035); }
-        :root[data-theme="minimal"] .training-cell-1 { background: rgba(0, 0, 0, 0.16); }
-        :root[data-theme="minimal"] .training-cell-2 { background: rgba(0, 0, 0, 0.32); }
-        :root[data-theme="minimal"] .training-cell-3 { background: rgba(0, 0, 0, 0.52); }
-        :root[data-theme="minimal"] .training-cell-4 { background: rgba(0, 0, 0, 0.72); }
+        :root[data-theme="minimal"] .training-shell .react-activity-calendar__scroll-container {
+          color: rgba(0, 0, 0, 0.72) !important;
+        }
 
+        :root[data-theme="minimal"] .training-shell svg text {
+          fill: currentColor !important;
+        }
+
+        :root[data-theme="minimal"] .training-activity-tooltip {
+          -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+        }
         @media (prefers-reduced-motion: reduce) {
           .github-contribution-cell {
             transition: none;
