@@ -26,39 +26,13 @@ type PublicActivity = {
   movingMinutes: number;
 };
 
-type MonthSummary = {
-  key: string;
-  label: string;
-  activities: number;
-  distanceKm: number;
-};
+const startOfYearUtc = (year: number) => new Date(Date.UTC(year, 0, 1));
 
-const monthFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  timeZone: "UTC",
-});
+const endOfYearUtc = (year: number) => new Date(Date.UTC(year + 1, 0, 1));
 
-const datePartsInIndia = (date: Date) => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
+const addUtcDays = (date: Date, days: number) =>
+  new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-
-  return {
-    year: Number(get("year")),
-    month: Number(get("month")),
-    day: Number(get("day")),
-  };
-};
-
-const formatYmd = (date: Date) => date.toISOString().slice(0, 10);
-
-const startOfMonthUtc = (year: number, monthIndex: number) =>
-  new Date(Date.UTC(year, monthIndex, 1));
 
 const toFiniteNumber = (value: unknown) => {
   const number = typeof value === "number" ? value : Number(value);
@@ -73,7 +47,6 @@ const fetchIntervalsActivities = async (
   const url = new URL(INTERVALS_API + "/athlete/0/activities");
   url.searchParams.set("oldest", oldest);
   url.searchParams.set("newest", newest);
-  url.searchParams.set("limit", "200");
 
   const auth = btoa("API_KEY:" + apiKey);
 
@@ -126,10 +99,8 @@ Deno.serve(async (request: Request) => {
     const { year: currentYear, month: currentMonth, day: currentDay } =
       datePartsInIndia(now);
 
-    const oldestDate = startOfMonthUtc(currentYear, currentMonth - 5);
-    const newestDate = new Date(
-      Date.UTC(currentYear, currentMonth, currentDay),
-    );
+    const oldestDate = startOfYearUtc(currentYear);
+    const newestDate = new Date(Date.UTC(currentYear, currentMonth, currentDay));
 
     const oldest = formatYmd(oldestDate);
     const newest = formatYmd(newestDate);
@@ -161,26 +132,20 @@ Deno.serve(async (request: Request) => {
       })
       .sort((a, b) => b.date.localeCompare(a.date));
 
-    const monthly: MonthSummary[] = [];
+    const days = [];
+    const yearStart = startOfYearUtc(currentYear);
+    const yearEnd = endOfYearUtc(currentYear);
 
-    for (let offset = 5; offset >= 0; offset -= 1) {
-      const monthDate = startOfMonthUtc(
-        currentYear,
-        currentMonth - offset,
-      );
-      const key = formatYmd(monthDate).slice(0, 7);
+    for (let cursor = yearStart; cursor < yearEnd; cursor = addUtcDays(cursor, 1)) {
+      const key = formatYmd(cursor);
       const activities = publicActivities.filter(
-        (activity) => activity.date.slice(0, 7) === key,
+        (activity) => activity.date.slice(0, 10) === key,
       );
 
-      monthly.push({
-        key,
-        label: monthFormatter.format(monthDate),
-        activities: activities.length,
-        distanceKm: activities.reduce(
-          (sum, activity) => sum + activity.distanceKm,
-          0,
-        ),
+      days.push({
+        date: key,
+        count: activities.length,
+        activities,
       });
     }
 
@@ -195,11 +160,11 @@ Deno.serve(async (request: Request) => {
 
     const payload = {
       source: "Intervals.icu",
+      year: currentYear,
       from: oldest,
       to: newest,
       totals,
-      monthly,
-      recent: publicActivities.slice(0, 8),
+      days,
     };
 
     return new Response(JSON.stringify(payload), {
