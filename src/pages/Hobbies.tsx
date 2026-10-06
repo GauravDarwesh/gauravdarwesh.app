@@ -389,6 +389,241 @@ const GitHubActivity = () => {
   );
 };
 
+/* ======================================================================== */
+/* Outside Work / Training                                                  */
+/* ======================================================================== */
+
+type TrainingActivity = {
+  id: string;
+  type: string;
+  date: string;
+  distanceKm: number;
+  movingMinutes: number;
+};
+
+type TrainingMonth = {
+  key: string;
+  label: string;
+  activities: number;
+  distanceKm: number;
+};
+
+type TrainingResponse = {
+  source: string;
+  from: string;
+  to: string;
+  totals: {
+    activities: number;
+    distanceKm: number;
+    movingMinutes: number;
+  };
+  monthly: TrainingMonth[];
+  recent: TrainingActivity[];
+};
+
+const formatTrainingDuration = (minutes: number) => {
+  const rounded = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(rounded / 60);
+  const remaining = rounded % 60;
+
+  if (hours === 0) return `${remaining}m`;
+  if (remaining === 0) return `${hours}h`;
+  return `${hours}h ${remaining}m`;
+};
+
+const formatTrainingDate = (date: string) =>
+  new Date(date).toLocaleDateString("en-IN", {
+    month: "short",
+    day: "numeric",
+  });
+
+const OutsideWork = () => {
+  const [training, setTraining] = useState<TrainingResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadTraining = async () => {
+      setLoading(true);
+
+      try {
+        const response = await fetch(
+          "https://zdrcjhohalgzhlbufwcl.supabase.co/functions/v1/intervals-activity",
+          {
+            signal: controller.signal,
+            cache: "no-store",
+            headers: {
+              Accept: "application/json",
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`Training request failed: ${response.status}`);
+        }
+
+        const data = (await response.json()) as TrainingResponse;
+        setTraining(data);
+      } catch (error) {
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Training activity loading failed:", error);
+          setTraining(null);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadTraining();
+
+    return () => controller.abort();
+  }, []);
+
+  if (!loading && !training) return null;
+
+  const maxMonthlyActivities = Math.max(
+    1,
+    ...(training?.monthly ?? []).map((month) => month.activities),
+  );
+
+  return (
+    <section id="outside-work" className="pt-2">
+      <div className="mb-5">
+        <h2 className="text-xl sm:text-2xl font-semibold">Outside Work</h2>
+        <p className="text-sm text-white/45 mt-1">
+          Running, cycling, and getting some distance from the screen.
+        </p>
+      </div>
+
+      <div className="training-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 right-8 h-44 w-64 rounded-full bg-white/[0.055] blur-3xl"
+        />
+
+        <div className="relative px-5 py-5 sm:px-6 sm:py-6">
+          {loading ? (
+            <div className="space-y-4 animate-pulse">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="h-16 rounded-2xl bg-white/[0.05]" />
+                <div className="h-16 rounded-2xl bg-white/[0.05]" />
+                <div className="h-16 rounded-2xl bg-white/[0.05]" />
+              </div>
+              <div className="h-24 rounded-2xl bg-white/[0.05]" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 sm:px-4">
+                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">
+                    {training?.totals.activities ?? 0}
+                  </p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">
+                    activities
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 sm:px-4">
+                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">
+                    {(training?.totals.distanceKm ?? 0).toFixed(0)}
+                  </p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">
+                    km
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 sm:px-4">
+                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">
+                    {formatTrainingDuration(training?.totals.movingMinutes ?? 0)}
+                  </p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">
+                    moving
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="flex items-end justify-between gap-2 h-24">
+                  {(training?.monthly ?? []).map((month) => (
+                    <div
+                      key={month.key}
+                      className="flex-1 h-full flex flex-col items-center justify-end gap-2"
+                    >
+                      <div
+                        title={`${month.activities} activities · ${month.distanceKm.toFixed(0)} km`}
+                        className="w-full max-w-10 rounded-full bg-white/45 min-h-1 transition-[height,opacity] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                        style={{
+                          height: `${Math.max(5, (month.activities / maxMonthlyActivities) * 58)}px`,
+                          opacity: Math.max(
+                            0.18,
+                            month.activities / maxMonthlyActivities,
+                          ),
+                        }}
+                      />
+                      <span className="text-[10px] text-white/35 uppercase tracking-[0.08em]">
+                        {month.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {(training?.recent ?? []).length > 0 && (
+                <div className="mt-6 pt-5 border-t border-white/[0.10]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium">Recent movement</span>
+                    <a
+                      href="https://intervals.icu"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-white/45 hover:text-white transition-colors"
+                    >
+                      intervals/ ↗
+                    </a>
+                  </div>
+
+                  <div className="space-y-2">
+                    {(training?.recent ?? []).slice(0, 4).map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-center justify-between gap-4 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm">{activity.type}</p>
+                          <p className="text-xs text-white/35 mt-0.5">
+                            {formatTrainingDate(activity.date)}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm">
+                            {activity.distanceKm > 0
+                              ? `${activity.distanceKm.toFixed(1)} km`
+                              : formatTrainingDuration(activity.movingMinutes)}
+                          </p>
+                          {activity.distanceKm > 0 && (
+                            <p className="text-xs text-white/35 mt-0.5">
+                              {formatTrainingDuration(activity.movingMinutes)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-[11px] text-white/30 mt-5">
+                Synced from Zepp via Intervals.icu.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const Portfolio = () => {
   return (
     <div className="site-page min-h-screen w-full flex flex-col items-center relative overflow-hidden">
@@ -758,6 +993,12 @@ const Portfolio = () => {
         <GitHubActivity />
 
         {/* ================================================================ */}
+        {/* Outside Work / Training                                           */}
+        {/* ================================================================ */}
+
+        <OutsideWork />
+
+        {/* ================================================================ */}
         {/* Category Spotlight                                                */}
         {/* ================================================================ */}
 
@@ -911,6 +1152,21 @@ const Portfolio = () => {
         :root[data-theme="minimal"] .github-activity-tooltip {
           -webkit-backdrop-filter: none;
           backdrop-filter: none;
+        }
+
+        :root[data-theme="minimal"] .training-shell {
+          background: rgba(255, 255, 255, 0.92) !important;
+          border-color: rgba(0, 0, 0, 0.12) !important;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+
+        :root[data-theme="minimal"] .training-shell [class*="bg-white/"] {
+          background-color: rgba(0, 0, 0, 0.035) !important;
+        }
+
+        :root[data-theme="minimal"] .training-shell .bg-white\/45 {
+          background-color: rgba(0, 0, 0, 0.62) !important;
         }
 
         @media (prefers-reduced-motion: reduce) {
