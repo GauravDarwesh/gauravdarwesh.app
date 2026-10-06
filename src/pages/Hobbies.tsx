@@ -401,15 +401,15 @@ type TrainingActivity = {
   movingMinutes: number;
 };
 
-type TrainingMonth = {
-  key: string;
-  label: string;
-  activities: number;
-  distanceKm: number;
+type TrainingDay = {
+  date: string;
+  count: number;
+  activities: TrainingActivity[];
 };
 
 type TrainingResponse = {
   source: string;
+  year: number;
   from: string;
   to: string;
   totals: {
@@ -417,209 +417,173 @@ type TrainingResponse = {
     distanceKm: number;
     movingMinutes: number;
   };
-  monthly: TrainingMonth[];
-  recent: TrainingActivity[];
+  days: TrainingDay[];
 };
 
 const formatTrainingDuration = (minutes: number) => {
   const rounded = Math.max(0, Math.round(minutes));
   const hours = Math.floor(rounded / 60);
   const remaining = rounded % 60;
-
   if (hours === 0) return `${remaining}m`;
   if (remaining === 0) return `${hours}h`;
   return `${hours}h ${remaining}m`;
 };
 
 const formatTrainingDate = (date: string) =>
-  new Date(date).toLocaleDateString("en-IN", {
+  new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", {
+    weekday: "long",
     month: "short",
     day: "numeric",
   });
 
+const formatTrainingType = (type: string) =>
+  type.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+
 const OutsideWork = () => {
   const [training, setTraining] = useState<TrainingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [trainingTooltip, setTrainingTooltip] = useState<{
+    text: string;
+    left: number;
+    top: number;
+  } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-
     const loadTraining = async () => {
       setLoading(true);
-
       try {
         const response = await fetch(
           "https://zdrcjhohalgzhlbufwcl.supabase.co/functions/v1/intervals-activity",
-          {
-            signal: controller.signal,
-            cache: "no-store",
-            headers: {
-              Accept: "application/json",
-            },
-          },
+          { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } },
         );
-
-        if (!response.ok) {
-          throw new Error(`Training request failed: ${response.status}`);
-        }
-
-        const data = (await response.json()) as TrainingResponse;
-        setTraining(data);
+        if (!response.ok) throw new Error(`Training request failed: ${response.status}`);
+        setTraining((await response.json()) as TrainingResponse);
       } catch (error) {
         if (error instanceof Error && error.name !== "AbortError") {
           console.error("Training activity loading failed:", error);
           setTraining(null);
         }
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     void loadTraining();
-
     return () => controller.abort();
   }, []);
 
+  const showTrainingTooltip = (
+    event: MouseEvent<HTMLDivElement> | FocusEvent<HTMLDivElement>,
+    day: TrainingDay,
+  ) => {
+    if (day.count === 0) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const safeLeft = Math.min(window.innerWidth - 150, Math.max(150, bounds.left + bounds.width / 2));
+    const details = day.activities.map((activity) => {
+      const distance = activity.distanceKm > 0 ? ` · ${activity.distanceKm.toFixed(1)} km` : "";
+      return `${formatTrainingType(activity.type)} · ${formatTrainingDuration(activity.movingMinutes)}${distance}`;
+    }).join(" | ");
+    setTrainingTooltip({
+      text: `${formatTrainingDate(day.date)} · ${details}`,
+      left: safeLeft,
+      top: bounds.top - 10,
+    });
+  };
+
   if (!loading && !training) return null;
 
-  const maxMonthlyActivities = Math.max(
-    1,
-    ...(training?.monthly ?? []).map((month) => month.activities),
-  );
+  const days = training?.days ?? [];
+  const maxDailyActivities = Math.max(1, ...days.map((day) => day.count));
+  const totalHours = Math.floor((training?.totals.movingMinutes ?? 0) / 60);
+  const totalMinutes = Math.round((training?.totals.movingMinutes ?? 0) % 60);
+  const latestActiveDay = [...days].reverse().find((day) => day.count > 0) ?? null;
 
   return (
     <section id="outside-work" className="pt-2">
       <div className="mb-5">
-        <h2 className="text-xl sm:text-2xl font-semibold">Outside Work</h2>
-        <p className="text-sm text-white/45 mt-1">
-          Running, cycling, and getting some distance from the screen.
-        </p>
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-xl sm:text-2xl font-semibold">Outside Work</h2>
+          <a
+            href="https://strava.app.link/hNhQ2KtF94b"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-white/40 hover:text-white transition-colors"
+          >
+            strava/ ↗
+          </a>
+        </div>
+        <p className="text-sm text-white/45 mt-1">A year of movement outside the screen.</p>
       </div>
 
       <div className="training-shell relative w-full overflow-hidden rounded-3xl border border-white/[0.16] bg-white/[0.10] backdrop-blur-[5px]">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 right-8 h-44 w-64 rounded-full bg-white/[0.055] blur-3xl"
-        />
-
-        <div className="relative px-5 py-5 sm:px-6 sm:py-6">
+        <div aria-hidden="true" className="pointer-events-none absolute -top-24 left-1/2 h-44 w-80 -translate-x-1/2 rounded-full bg-white/[0.055] blur-3xl" />
+        <div className="relative px-4 py-5 sm:px-6 sm:py-6 overflow-hidden">
           {loading ? (
-            <div className="space-y-4 animate-pulse">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="h-16 rounded-2xl bg-white/[0.05]" />
-                <div className="h-16 rounded-2xl bg-white/[0.05]" />
-                <div className="h-16 rounded-2xl bg-white/[0.05]" />
-              </div>
-              <div className="h-24 rounded-2xl bg-white/[0.05]" />
-            </div>
+            <div className="h-[190px] w-full animate-pulse rounded-2xl bg-white/[0.04]" />
           ) : (
             <>
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 sm:px-4">
-                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">
-                    {training?.totals.activities ?? 0}
-                  </p>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">
-                    activities
-                  </p>
+                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">{totalHours}<span className="text-sm sm:text-base text-white/40 ml-1">h</span></p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">moving</p>
                 </div>
                 <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 sm:px-4">
-                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">
-                    {(training?.totals.distanceKm ?? 0).toFixed(0)}
-                  </p>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">
-                    km
-                  </p>
+                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">{(training?.totals.distanceKm ?? 0).toFixed(0)}<span className="text-sm sm:text-base text-white/40 ml-1">km</span></p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">distance</p>
                 </div>
                 <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 sm:px-4">
-                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">
-                    {formatTrainingDuration(training?.totals.movingMinutes ?? 0)}
-                  </p>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">
-                    moving
-                  </p>
+                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">{training?.totals.activities ?? 0}</p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mt-1">activities</p>
                 </div>
               </div>
 
-              <div className="mt-5">
-                <div className="flex items-end justify-between gap-2 h-24">
-                  {(training?.monthly ?? []).map((month) => (
-                    <div
-                      key={month.key}
-                      className="flex-1 h-full flex flex-col items-center justify-end gap-2"
-                    >
+              <div className="mt-5 rounded-2xl border border-white/[0.10] bg-white/[0.025] px-3 py-4 sm:px-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs uppercase tracking-[0.14em] text-white/40">{training?.year}</span>
+                  <span className="text-[11px] text-white/30">{totalMinutes > 0 ? `${totalHours}h ${totalMinutes}m moving` : `${totalHours}h moving`}</span>
+                </div>
+                <div className="training-heatmap" role="grid" aria-label={`${training?.year} training activity`}>
+                  {days.map((day) => {
+                    const intensity = day.count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((day.count / maxDailyActivities) * 4)));
+                    return (
                       <div
-                        title={`${month.activities} activities · ${month.distanceKm.toFixed(0)} km`}
-                        className="w-full max-w-10 rounded-full bg-white/45 min-h-1 transition-[height,opacity] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                        style={{
-                          height: `${Math.max(5, (month.activities / maxMonthlyActivities) * 58)}px`,
-                          opacity: Math.max(
-                            0.18,
-                            month.activities / maxMonthlyActivities,
-                          ),
-                        }}
+                        key={day.date}
+                        role="gridcell"
+                        tabIndex={day.count > 0 ? 0 : -1}
+                        aria-label={day.count > 0 ? `${formatTrainingDate(day.date)}: ${day.count} activities` : `${formatTrainingDate(day.date)}: no activity`}
+                        className={`training-cell training-cell-${intensity}`}
+                        onMouseEnter={(event) => showTrainingTooltip(event, day)}
+                        onMouseLeave={() => setTrainingTooltip(null)}
+                        onFocus={(event) => showTrainingTooltip(event, day)}
+                        onBlur={() => setTrainingTooltip(null)}
                       />
-                      <span className="text-[10px] text-white/35 uppercase tracking-[0.08em]">
-                        {month.label}
-                      </span>
+                    );
+                  })}
+                </div>
+                {latestActiveDay && (
+                  <div className="mt-4 pt-4 border-t border-white/[0.08]">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-xs uppercase tracking-[0.14em] text-white/35">Most recent</span>
+                      <span className="text-xs text-white/35">{formatTrainingDate(latestActiveDay.date)}</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2">
+                      {latestActiveDay.activities.map((activity) => (
+                        <span key={activity.id} className="text-sm text-white/75">{formatTrainingType(activity.type)}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {(training?.recent ?? []).length > 0 && (
-                <div className="mt-6 pt-5 border-t border-white/[0.10]">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium">Recent movement</span>
-                    <a
-                      href="https://intervals.icu"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-white/45 hover:text-white transition-colors"
-                    >
-                      intervals/ ↗
-                    </a>
-                  </div>
-
-                  <div className="space-y-2">
-                    {(training?.recent ?? []).slice(0, 4).map((activity) => (
-                      <div
-                        key={activity.id}
-                        className="flex items-center justify-between gap-4 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm">{activity.type}</p>
-                          <p className="text-xs text-white/35 mt-0.5">
-                            {formatTrainingDate(activity.date)}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-sm">
-                            {activity.distanceKm > 0
-                              ? `${activity.distanceKm.toFixed(1)} km`
-                              : formatTrainingDuration(activity.movingMinutes)}
-                          </p>
-                          {activity.distanceKm > 0 && (
-                            <p className="text-xs text-white/35 mt-0.5">
-                              {formatTrainingDuration(activity.movingMinutes)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <p className="text-[11px] text-white/30 mt-5">
-                Synced from Zepp via Intervals.icu.
-              </p>
             </>
           )}
         </div>
       </div>
+
+      {trainingTooltip && (
+        <div className="training-activity-tooltip" role="tooltip" style={{ left: trainingTooltip.left, top: trainingTooltip.top }}>
+          {trainingTooltip.text}
+        </div>
+      )}
     </section>
   );
 };
@@ -990,6 +954,12 @@ const Portfolio = () => {
         {/* GitHub Activity                                                   */}
         {/* ================================================================ */}
 
+        <CategorySpotlight />
+
+        {/* ================================================================ */}
+        {/* GitHub Activity                                                   */}
+        {/* ================================================================ */}
+
         <GitHubActivity />
 
         {/* ================================================================ */}
@@ -997,12 +967,6 @@ const Portfolio = () => {
         {/* ================================================================ */}
 
         <OutsideWork />
-
-        {/* ================================================================ */}
-        {/* Category Spotlight                                                */}
-        {/* ================================================================ */}
-
-        <CategorySpotlight />
       </div>
 
       {/* ================================================================ */}
@@ -1154,6 +1118,59 @@ const Portfolio = () => {
           backdrop-filter: none;
         }
 
+        .training-heatmap {
+          display: grid;
+          grid-auto-flow: column;
+          grid-template-rows: repeat(7, minmax(0, 1fr));
+          grid-auto-columns: minmax(8px, 1fr);
+          gap: 4px;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .training-cell {
+          aspect-ratio: 1;
+          min-width: 0;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.035);
+          border: 1px solid rgba(255, 255, 255, 0.025);
+          cursor: crosshair;
+          transition: transform 180ms var(--motion-ease-gentle), filter 220ms var(--motion-ease-gentle), background-color 220ms var(--motion-ease-gentle);
+        }
+
+        .training-cell-1 { background: rgba(255, 115, 85, 0.24); border-color: rgba(255, 115, 85, 0.12); }
+        .training-cell-2 { background: rgba(255, 130, 70, 0.42); border-color: rgba(255, 130, 70, 0.16); }
+        .training-cell-3 { background: rgba(245, 105, 55, 0.64); border-color: rgba(245, 105, 55, 0.20); }
+        .training-cell-4 { background: rgba(255, 165, 105, 0.88); border-color: rgba(255, 165, 105, 0.28); }
+
+        .training-cell:hover,
+        .training-cell:focus-visible {
+          transform: scale(1.32);
+          filter: drop-shadow(0 0 5px rgba(255, 145, 90, 0.42));
+          outline: none;
+        }
+
+        .training-activity-tooltip {
+          position: fixed;
+          z-index: 80;
+          width: max-content;
+          max-width: min(520px, calc(100vw - 24px));
+          padding: 8px 11px;
+          border: 1px solid hsl(var(--github-tooltip-border));
+          border-radius: 6px;
+          background: hsl(var(--github-tooltip-background));
+          color: hsl(var(--github-tooltip-foreground));
+          box-shadow: 0 8px 24px hsl(var(--github-tooltip-shadow));
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.4;
+          pointer-events: none;
+          transform: translate(-50%, -100%);
+          animation: github-tooltip-in 220ms var(--motion-ease-enter) both;
+        }
+
         :root[data-theme="minimal"] .training-shell {
           background: rgba(255, 255, 255, 0.92) !important;
           border-color: rgba(0, 0, 0, 0.12) !important;
@@ -1165,9 +1182,11 @@ const Portfolio = () => {
           background-color: rgba(0, 0, 0, 0.035) !important;
         }
 
-        :root[data-theme="minimal"] .training-shell .bg-white\/45 {
-          background-color: rgba(0, 0, 0, 0.62) !important;
-        }
+        :root[data-theme="minimal"] .training-cell { background: rgba(0, 0, 0, 0.045); border-color: rgba(0, 0, 0, 0.035); }
+        :root[data-theme="minimal"] .training-cell-1 { background: rgba(135, 45, 20, 0.20); }
+        :root[data-theme="minimal"] .training-cell-2 { background: rgba(145, 55, 20, 0.34); }
+        :root[data-theme="minimal"] .training-cell-3 { background: rgba(150, 60, 20, 0.52); }
+        :root[data-theme="minimal"] .training-cell-4 { background: rgba(165, 75, 25, 0.72); }
 
         @media (prefers-reduced-motion: reduce) {
           .github-contribution-cell {
