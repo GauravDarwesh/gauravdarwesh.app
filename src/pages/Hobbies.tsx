@@ -1317,12 +1317,12 @@ const Portfolio = () => {
         @keyframes training-tooltip-mobile-in {
           from {
             opacity: 0;
-            transform: translateY(calc(-100% + 3px)) scale(0.97);
+            transform: translate(-50%, calc(-100% + 3px)) scale(0.97);
           }
 
           to {
             opacity: 1;
-            transform: translateY(-100%) scale(1);
+            transform: translate(-50%, -100%) scale(1);
           }
         }
 
@@ -1340,19 +1340,6 @@ const Portfolio = () => {
           }
         }
 
-        @media (max-width: 640px) {
-          @keyframes training-tooltip-mobile-in {
-            from {
-              opacity: 0;
-              transform: translate(-50%, calc(-100% + 3px)) scale(0.97);
-            }
-
-            to {
-              opacity: 1;
-              transform: translate(-50%, -100%) scale(1);
-            }
-          }
-        }
 
         @media (prefers-reduced-motion: reduce) {
           .github-contribution-cell {
