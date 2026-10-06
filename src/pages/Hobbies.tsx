@@ -1317,28 +1317,29 @@ const Portfolio = () => {
         @keyframes training-tooltip-mobile-in {
           from {
             opacity: 0;
-            transform: translateY(calc(-100% + 3px)) scale(0.97);
+            transform: translate(-50%, calc(-100% + 3px)) scale(0.97);
           }
 
           to {
             opacity: 1;
-            transform: translateY(-100%) scale(1);
+            transform: translate(-50%, -100%) scale(1);
           }
         }
 
         @media (max-width: 640px) {
           .training-activity-tooltip {
-            left: 12px !important;
-            right: 12px !important;
-            width: auto;
-            max-width: none;
+            left: 50% !important;
+            right: auto !important;
+            width: max-content;
+            max-width: calc(100vw - 24px);
             box-sizing: border-box;
             white-space: normal;
             overflow-wrap: anywhere;
-            transform: translateY(-100%);
+            transform: translate(-50%, -100%);
             animation: training-tooltip-mobile-in 220ms var(--motion-ease-enter) both;
           }
         }
+
 
         @media (prefers-reduced-motion: reduce) {
           .github-contribution-cell {
