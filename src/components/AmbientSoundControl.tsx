@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import ambientSound from "@/assets/gdx-warm-ambient-seamless.wav.asset.json";
-import minimalPianoSound from "@/assets/gdx-minimal-piano-seamless.wav.asset.json";
+import ambientSound from "@/assets/gdx-warm-ambient.mp3.asset.json";
+import minimalPianoSound from "@/assets/gdx-minimal-piano-seamless.mp3.asset.json";
 import { useSiteTheme } from "@/components/SiteThemeProvider";
 
 const AMBIENT_VOLUME = 0.2;
@@ -50,7 +50,7 @@ const AmbientSoundControl = () => {
 
     loadingRef.current = Promise.all(
       [ambientSound.url, minimalPianoSound.url].map(async (url) => {
-        const response = await fetch(url);
+        const response = await fetch(url, { cache: "force-cache" });
         if (!response.ok) throw new Error(`Unable to load soundtrack: ${response.status}`);
         return context.decodeAudioData(await response.arrayBuffer());
       }),
@@ -115,6 +115,9 @@ const AmbientSoundControl = () => {
     resumePlayback();
 
     const handlePageReady = () => resumePlayback();
+    const handleContextState = () => {
+      if (context.state === "interrupted") resumePlayback();
+    };
 
     const handleVisibility = () => {
       if (document.hidden) {
@@ -128,6 +131,7 @@ const AmbientSoundControl = () => {
     document.addEventListener("touchstart", resumePlayback, { capture: true, passive: true });
     document.addEventListener("keydown", resumePlayback, { capture: true });
     document.addEventListener("visibilitychange", handleVisibility);
+    context.addEventListener("statechange", handleContextState);
     window.addEventListener("load", handlePageReady);
     window.addEventListener("pageshow", handlePageReady);
 
@@ -137,6 +141,7 @@ const AmbientSoundControl = () => {
       document.removeEventListener("touchstart", resumePlayback, { capture: true });
       document.removeEventListener("keydown", resumePlayback, { capture: true });
       document.removeEventListener("visibilitychange", handleVisibility);
+      context.removeEventListener("statechange", handleContextState);
       window.removeEventListener("load", handlePageReady);
       window.removeEventListener("pageshow", handlePageReady);
       graphRef.current = null;
