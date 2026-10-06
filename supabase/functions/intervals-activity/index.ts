@@ -26,6 +26,26 @@ type PublicActivity = {
   movingMinutes: number;
 };
 
+const datePartsInIndia = (date: Date) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const get = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+  };
+};
+
+const formatYmd = (date: Date) => date.toISOString().slice(0, 10);
+
 const startOfYearUtc = (year: number) => new Date(Date.UTC(year, 0, 1));
 
 const endOfYearUtc = (year: number) => new Date(Date.UTC(year + 1, 0, 1));
