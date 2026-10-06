@@ -1313,6 +1313,19 @@ const Portfolio = () => {
           -webkit-backdrop-filter: none;
           backdrop-filter: none;
         }
+
+        @media (max-width: 640px) {
+          .training-activity-tooltip {
+            left: 12px !important;
+            right: 12px;
+            width: auto;
+            max-width: none;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            transform: translateY(-100%);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .github-contribution-cell {
             transition: none;
