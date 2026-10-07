@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const ANIM_MS = 3000;
@@ -115,11 +114,6 @@ const Index = () => {
       {/* Navigation Toggle */}
       <div className="relative z-20">
         <NavigationToggle />
-      </div>
-
-      {/* Search Bar */}
-      <div className="fixed top-6 inset-x-0 flex justify-center z-10">
-        <SearchBar />
       </div>
     </div>
   );
