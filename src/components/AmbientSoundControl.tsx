@@ -6,7 +6,6 @@ import { useSiteTheme } from "@/components/SiteThemeProvider";
 const AMBIENT_VOLUME = 0.2;
 const MINIMAL_VOLUME = 0.18;
 const FADE_STEP_MS = 50;
-const FADE_STEP = 0.05;
 
 type AudioPlayer = {
   element: HTMLAudioElement;
@@ -17,12 +16,10 @@ const AmbientSoundControl = () => {
   const { isMinimal } = useSiteTheme();
   const isMinimalRef = useRef(isMinimal);
   const playerRef = useRef<AudioPlayer | null>(null);
-  const preferredVolumeRef = useRef(isMinimal ? MINIMAL_VOLUME : AMBIENT_VOLUME);
   const mountedRef = useRef(true);
   const sourceSwapInProgressRef = useRef(false);
 
   isMinimalRef.current = isMinimal;
-  preferredVolumeRef.current = isMinimal ? MINIMAL_VOLUME : AMBIENT_VOLUME;
 
   const createPlayer = useCallback((src: string, type: AudioPlayer["source"]) => {
     const audio = new Audio(src);
@@ -179,12 +176,6 @@ const AmbientSoundControl = () => {
     // Desktop browsers may allow audible autoplay. Mobile browsers will reject
     // this call until the first user activation, which is expected.
     void player.element.play().catch(() => undefined);
-
-    if (initialMinimal) {
-      preferredVolumeRef.current = MINIMAL_VOLUME;
-    } else {
-      preferredVolumeRef.current = AMBIENT_VOLUME;
-    }
 
     return () => {
       mountedRef.current = false;
