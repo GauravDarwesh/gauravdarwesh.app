@@ -161,7 +161,7 @@ const GDxAssistant = () => {
       if (!clean) return;
 
       const token = ttsTokenRef.current;
-    ttsQueueRef.current = ttsQueueRef.current.then(async () => {
+      ttsQueueRef.current = ttsQueueRef.current.then(async () => {
         if (!voiceSessionRef.current || token !== ttsTokenRef.current) return;
 
         ttsBusyRef.current = true;
