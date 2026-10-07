@@ -1,5 +1,4 @@
 import { Helmet } from "react-helmet-async";
-import SearchBar from "@/components/SearchBar";
 import NavigationToggle from "@/components/NavigationToggle";
 
 const Others = () => {
@@ -18,11 +17,6 @@ const Others = () => {
 
       {/* Navigation Toggle */}
       <NavigationToggle />
-
-      {/* Search Bar */}
-      <div className="relative z-10">
-        <SearchBar />
-      </div>
     </div>
   );
 };
