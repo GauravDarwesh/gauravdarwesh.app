@@ -264,12 +264,15 @@ const GDxAssistant = () => {
       const clean = text.trim();
       if (!clean || isStreaming) return;
 
+      const generation = voiceGenerationRef.current;
+
       setError("");
       setResponse("");
       setIsStreaming(true);
-      setOrbState(speakResponse ? "thinking" : "thinking");
-
+      setOrbState("thinking");
+      ttsTokenRef.current += 1;
       ttsQueueRef.current = Promise.resolve();
+      playbackTimeRef.current = 0;
 
       const localAction = inferLocalAction(clean);
       if (localAction) applyAction(localAction);
@@ -278,11 +281,8 @@ const GDxAssistant = () => {
 
       try {
         const result = await streamChatMessage(clean, {
-          onStart: () => {
-            setIsStreaming(true);
-          },
           onAction: (action) => {
-            setPendingAction(action);
+            pendingActionRef.current = action;
             applyAction(action);
           },
           onToken: (delta, accumulated) => {
@@ -309,8 +309,7 @@ const GDxAssistant = () => {
         setError(message);
       } finally {
         setIsStreaming(false);
-        if (speakResponse && voiceSessionRef.current) {
-          const generation = voiceGenerationRef.current;
+        if (speakResponse && voiceSessionRef.current && generation === voiceGenerationRef.current) {
           const resumeWhenQuiet = () => {
             if (!voiceSessionRef.current || generation !== voiceGenerationRef.current) return;
             if (ttsBusyRef.current) {
@@ -320,7 +319,7 @@ const GDxAssistant = () => {
             setOrbState("listening");
             startListening();
           };
-          window.setTimeout(resumeWhenQuiet, 80);
+          window.setTimeout(resumeWhenQuiet, 100);
         } else {
           setOrbState("idle");
         }
