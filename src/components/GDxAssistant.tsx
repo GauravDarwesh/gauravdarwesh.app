@@ -120,6 +120,8 @@ const GDxAssistant = () => {
   const voiceBufferRef = useRef("");
   const ttsQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingRouteRef = useRef<SiteAction | null>(null);
+  const ttsBusyRef = useRef(false);
+  const voiceGenerationRef = useRef(0);
 
   const reducedMotion = useMemo(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -161,6 +163,7 @@ const GDxAssistant = () => {
       ttsQueueRef.current = ttsQueueRef.current.then(async () => {
         if (!voiceSessionRef.current || token !== ttsTokenRef.current) return;
 
+        ttsBusyRef.current = true;
         try {
           const response = await fetch(TTS_ENDPOINT, {
             method: "POST",
@@ -207,6 +210,8 @@ const GDxAssistant = () => {
           });
         } catch {
           setTtsUnavailable(true);
+        } finally {
+          ttsBusyRef.current = false;
         }
       });
     },
@@ -242,6 +247,7 @@ const GDxAssistant = () => {
 
   const stopListening = useCallback(() => {
     voiceSessionRef.current = false;
+    voiceGenerationRef.current += 1;
     try {
       recognitionRef.current?.stop?.();
     } catch {
@@ -304,17 +310,17 @@ const GDxAssistant = () => {
       } finally {
         setIsStreaming(false);
         if (speakResponse && voiceSessionRef.current) {
-          const check = window.setInterval(() => {
-            if (!voiceSessionRef.current) {
-              window.clearInterval(check);
+          const generation = voiceGenerationRef.current;
+          const resumeWhenQuiet = () => {
+            if (!voiceSessionRef.current || generation !== voiceGenerationRef.current) return;
+            if (ttsBusyRef.current) {
+              window.setTimeout(resumeWhenQuiet, 80);
               return;
             }
-            if (ttsQueueRef.current && !isStreaming) {
-              window.clearInterval(check);
-              setOrbState("listening");
-              startListening();
-            }
-          }, 120);
+            setOrbState("listening");
+            startListening();
+          };
+          window.setTimeout(resumeWhenQuiet, 80);
         } else {
           setOrbState("idle");
         }
@@ -341,6 +347,7 @@ const GDxAssistant = () => {
     }
 
     voiceSessionRef.current = true;
+    voiceGenerationRef.current += 1;
     transcriptRef.current = "";
     setError("");
     setOrbState("listening");
