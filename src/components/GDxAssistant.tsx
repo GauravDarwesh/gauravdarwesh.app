@@ -6,7 +6,6 @@ import { SiteAction, streamChatMessage } from "@/lib/api";
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/$/, "");
 const SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "");
 const TTS_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-tts`;
-const TRANSCRIBE_ENDPOINT = `${SUPABASE_URL}/functions/v1/gdx-transcribe`;
 
 type OrbState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -109,7 +108,7 @@ const GDxAssistant = () => {
   const [response, setResponse] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [orbState, setOrbState] = useState<OrbState>("idle");
-  const [pendingAction, setPendingAction] = useState<SiteAction | null>(null);
+  const pendingActionRef = useRef<SiteAction | null>(null);
   const [error, setError] = useState("");
   const [ttsUnavailable, setTtsUnavailable] = useState(false);
 
@@ -446,9 +445,9 @@ const GDxAssistant = () => {
             {error ? error : response}
             {isStreaming && <span className="inline-block ml-1 align-baseline h-4 w-1 rounded-full bg-current animate-pulse" />}
           </div>
-          {pendingAction?.label && (
+          {pendingActionRef.current?.label && (
             <div className="mt-4 text-xs uppercase tracking-[0.18em] text-white/45">
-              Guiding you to {pendingAction.label}
+              Guiding you to {pendingActionRef.current.label}
             </div>
           )}
           {ttsUnavailable && !reducedMotion && (
