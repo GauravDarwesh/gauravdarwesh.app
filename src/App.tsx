@@ -15,6 +15,7 @@ import SessionTest from "./pages/SessionTest";
 import NotFound from "./pages/NotFound";
 
 import { SiteThemeProvider } from "@/components/SiteThemeProvider";
+import GDxAssistant from "@/components/GDxAssistant";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             The background remains mounted independently.
         ========================================================= */}
         <BrowserRouter>
+          <GDxAssistant />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/hobbies" element={<Hobbies />} />
