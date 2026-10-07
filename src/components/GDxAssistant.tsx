@@ -91,8 +91,11 @@ const Orb = ({ state, onClick }: { state: OrbState; onClick: () => void }) => {
       <span className="gdx-orb-wave gdx-orb-wave-1 absolute inset-[6px] rounded-full" />
       <span className="gdx-orb-wave gdx-orb-wave-2 absolute inset-[3px] rounded-full" />
       <span className="gdx-orb-wave gdx-orb-wave-3 absolute inset-0 rounded-full" />
+      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-medium tracking-[0.16em] uppercase text-white/60 pointer-events-none">
+        {state === "listening" ? "listen" : state === "speaking" ? "talk" : state === "thinking" ? "think" : "gdx"}
+      </span>
       {state === "thinking" && (
-        <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-white/90" strokeWidth={1.6} />
+        <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-white/90 opacity-35" strokeWidth={1.6} />
       )}
     </button>
   );
@@ -117,7 +120,6 @@ const GDxAssistant = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const playbackTimeRef = useRef(0);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const voiceBufferRef = useRef("");
   const ttsQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingRouteRef = useRef<SiteAction | null>(null);
   const ttsBusyRef = useRef(false);
@@ -160,7 +162,7 @@ const GDxAssistant = () => {
       if (!clean) return;
 
       const token = ttsTokenRef.current;
-      ttsQueueRef.current = ttsQueueRef.current.then(async () => {
+    ttsQueueRef.current = ttsQueueRef.current.then(async () => {
         if (!voiceSessionRef.current || token !== ttsTokenRef.current) return;
 
         ttsBusyRef.current = true;
@@ -268,7 +270,6 @@ const GDxAssistant = () => {
       setIsStreaming(true);
       setOrbState(speakResponse ? "thinking" : "thinking");
 
-      voiceBufferRef.current = "";
       ttsQueueRef.current = Promise.resolve();
 
       const localAction = inferLocalAction(clean);
