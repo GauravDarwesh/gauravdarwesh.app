@@ -20,6 +20,14 @@ export interface StreamChatHandlers {
   onStart?: () => void;
   onToken?: (chunk: string, accumulated: string) => void;
   onVisuals?: (visuals: VisualItem[]) => void;
+  onAction?: (action: SiteAction) => void;
+}
+
+export interface SiteAction {
+  type: "navigate";
+  path: "/" | "/hobbies" | "/blog" | "/visuals" | "/others";
+  section?: string;
+  label?: string;
 }
 
 function normalizeVisuals(visuals: any): VisualItem[] {
@@ -191,6 +199,11 @@ export async function streamChatMessage(message: string, handlers: StreamChatHan
           ? payload.error
           : String(payload?.error?.message || payload?.message || "The AI provider returned an error."),
       );
+    }
+
+    if (payload?.type === "action" && payload?.action) {
+      handlers.onAction?.(payload.action as SiteAction);
+      return;
     }
 
     if (payload?.type === "visuals") {
