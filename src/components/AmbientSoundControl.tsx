@@ -5,166 +5,216 @@ import { useSiteTheme } from "@/components/SiteThemeProvider";
 
 const AMBIENT_VOLUME = 0.2;
 const MINIMAL_VOLUME = 0.18;
-const FADE_IN_SECONDS = 1.1;
-const THEME_CROSSFADE_SECONDS = 1.4;
+const FADE_STEP_MS = 50;
+const FADE_STEP = 0.05;
 
-type AudioGraph = {
-  context: AudioContext;
-  ambientGain: GainNode;
-  minimalGain: GainNode;
-  sourcesStarted: boolean;
+type AudioPlayer = {
+  element: HTMLAudioElement;
+  source: "ambient" | "minimal";
 };
 
 const AmbientSoundControl = () => {
   const { isMinimal } = useSiteTheme();
   const isMinimalRef = useRef(isMinimal);
-  const graphRef = useRef<AudioGraph | null>(null);
-  const buffersRef = useRef<AudioBuffer[] | null>(null);
-  const loadingRef = useRef<Promise<AudioBuffer[]> | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
+  const preferredVolumeRef = useRef(isMinimal ? MINIMAL_VOLUME : AMBIENT_VOLUME);
   const mountedRef = useRef(true);
+  const sourceSwapInProgressRef = useRef(false);
 
   isMinimalRef.current = isMinimal;
+  preferredVolumeRef.current = isMinimal ? MINIMAL_VOLUME : AMBIENT_VOLUME;
 
-  const setThemeMix = useCallback((minimal: boolean, durationSeconds: number) => {
-    const graph = graphRef.current;
-    if (!graph) return;
-
-    const now = graph.context.currentTime;
-    const ambientTarget = minimal ? 0 : AMBIENT_VOLUME;
-    const minimalTarget = minimal ? MINIMAL_VOLUME : 0;
-
-    [
-      [graph.ambientGain.gain, ambientTarget],
-      [graph.minimalGain.gain, minimalTarget],
-    ].forEach(([parameter, target]) => {
-      const gain = parameter as AudioParam;
-      gain.cancelScheduledValues(now);
-      gain.setValueAtTime(gain.value, now);
-      gain.linearRampToValueAtTime(target as number, now + durationSeconds);
-    });
+  const createPlayer = useCallback((src: string, type: AudioPlayer["source"]) => {
+    const audio = new Audio(src);
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.playsInline = true;
+    audio.volume = 0;
+    audio.setAttribute("aria-hidden", "true");
+    audio.style.position = "fixed";
+    audio.style.width = "1px";
+    audio.style.height = "1px";
+    audio.style.opacity = "0";
+    audio.style.pointerEvents = "none";
+    audio.style.left = "-9999px";
+    document.body.appendChild(audio);
+    return { element: audio, source: type } satisfies AudioPlayer;
   }, []);
 
-  const loadBuffers = useCallback((context: AudioContext) => {
-    if (buffersRef.current) return Promise.resolve(buffersRef.current);
-    if (loadingRef.current) return loadingRef.current;
-
-    loadingRef.current = Promise.all(
-      [ambientSound.url, minimalPianoSound.url].map(async (url) => {
-        const response = await fetch(url, { cache: "force-cache" });
-        if (!response.ok) throw new Error(`Unable to load soundtrack: ${response.status}`);
-        return context.decodeAudioData(await response.arrayBuffer());
-      }),
-    );
-
-    loadingRef.current.then((buffers) => {
-      buffersRef.current = buffers;
-    }).catch(() => {
-      loadingRef.current = null;
-    });
-
-    return loadingRef.current;
-  }, []);
-
-  const startSources = useCallback(async () => {
-    const graph = graphRef.current;
-    if (!graph || graph.sourcesStarted) return;
-
-    const buffers = await loadBuffers(graph.context);
-    if (!mountedRef.current || graphRef.current !== graph || graph.sourcesStarted) return;
-
-    const ambientSource = graph.context.createBufferSource();
-    const minimalSource = graph.context.createBufferSource();
-    ambientSource.buffer = buffers[0];
-    minimalSource.buffer = buffers[1];
-    ambientSource.loop = true;
-    minimalSource.loop = true;
-    ambientSource.connect(graph.ambientGain);
-    minimalSource.connect(graph.minimalGain);
-    graph.sourcesStarted = true;
-    ambientSource.start();
-    minimalSource.start();
-    setThemeMix(isMinimalRef.current, FADE_IN_SECONDS);
-  }, [loadBuffers, setThemeMix]);
-
-  const resumePlayback = useCallback(() => {
-    const graph = graphRef.current;
-    if (!graph || document.hidden) return;
-
-    // On iOS, the context must be resumed within a user gesture.
-    if (graph.context.state !== "running") {
-      void graph.context.resume().then(() => {
-        if (mountedRef.current) void startSources();
-      }).catch(() => undefined);
-    } else {
-      void startSources().catch(() => undefined);
+  const fadeTo = useCallback((audio: HTMLAudioElement, target: number, durationMs: number) => {
+    const start = audio.volume;
+    const delta = target - start;
+    if (Math.abs(delta) < 0.001 || durationMs <= 0) {
+      audio.volume = target;
+      return Promise.resolve();
     }
-  }, [startSources]);
+
+    return new Promise<void>((resolve) => {
+      const steps = Math.max(1, Math.round(durationMs / FADE_STEP_MS));
+      let step = 0;
+
+      const tick = () => {
+        step += 1;
+        audio.volume = Math.min(1, Math.max(0, start + delta * (step / steps)));
+
+        if (step >= steps || Math.abs(audio.volume - target) < 0.001) {
+          audio.volume = target;
+          resolve();
+          return;
+        }
+
+        window.setTimeout(tick, FADE_STEP_MS);
+      };
+
+      tick();
+    });
+  }, []);
+
+  const playCurrent = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || document.hidden) return;
+
+    // Keep play() directly inside the original user-input call path.
+    void player.element.play().catch(() => undefined);
+  }, []);
+
+  const ensurePlaying = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || document.hidden) return;
+
+    if (player.element.paused) {
+      void player.element.play().catch(() => undefined);
+    }
+  }, []);
+
+  const switchTrack = useCallback(
+    async (minimal: boolean) => {
+      const current = playerRef.current;
+      if (!current || sourceSwapInProgressRef.current) return;
+
+      const targetSource = minimal ? "minimal" : "ambient";
+      if (current.source === targetSource) {
+        ensurePlaying();
+        await fadeTo(current.element, minimal ? MINIMAL_VOLUME : AMBIENT_VOLUME, 1400);
+        return;
+      }
+
+      sourceSwapInProgressRef.current = true;
+
+      try {
+        const targetUrl = minimal ? minimalPianoSound.url : ambientSound.url;
+        const targetVolume = minimal ? MINIMAL_VOLUME : AMBIENT_VOLUME;
+
+        await fadeTo(current.element, 0, 500);
+        current.element.pause();
+        current.element.currentTime = 0;
+        current.element.src = targetUrl;
+        current.element.load();
+
+        // The same HTMLAudioElement keeps the mobile browser's authorization
+        // after the first successful user-initiated play.
+        const playPromise = current.element.play();
+        await playPromise.catch(() => undefined);
+
+        if (mountedRef.current) {
+          await fadeTo(current.element, targetVolume, 900);
+          current.source = targetSource;
+        }
+      } finally {
+        sourceSwapInProgressRef.current = false;
+      }
+    },
+    [ensurePlaying, fadeTo],
+  );
 
   useEffect(() => {
-    const AudioContextConstructor = window.AudioContext;
-    if (!AudioContextConstructor) return;
-
     mountedRef.current = true;
-    const context = new AudioContextConstructor();
-    const ambientGain = context.createGain();
-    const minimalGain = context.createGain();
-    ambientGain.gain.value = 0;
-    minimalGain.gain.value = 0;
-    ambientGain.connect(context.destination);
-    minimalGain.connect(context.destination);
-    graphRef.current = { context, ambientGain, minimalGain, sourcesStarted: false };
 
-    const handleStateChange = () => {
-      if ((context.state === "suspended" || (context.state as any) === "interrupted") && !document.hidden) {
-        void context.resume().catch(() => undefined);
-      }
+    const initialMinimal = isMinimalRef.current;
+    const player = createPlayer(
+      initialMinimal ? minimalPianoSound.url : ambientSound.url,
+      initialMinimal ? "minimal" : "ambient",
+    );
+
+    player.element.volume = 0;
+    playerRef.current = player;
+
+    const handleUserActivation = () => {
+      playCurrent();
+      ensurePlaying();
     };
-    context.addEventListener("statechange", handleStateChange);
-
-    // Decode and schedule both loops immediately, even while a browser keeps the
-    // context suspended. This lets autoplay-capable browsers begin without waiting
-    // for a click and leaves only the context resume for restricted mobile browsers.
-    resumePlayback();
-
-    const handlePageReady = () => resumePlayback();
 
     const handleVisibility = () => {
       if (document.hidden) {
-        void context.suspend();
-      } else {
-        resumePlayback();
+        player.element.pause();
+        return;
       }
+
+      ensurePlaying();
     };
 
-    document.addEventListener("pointerdown", resumePlayback, { capture: true, passive: true });
-    document.addEventListener("touchstart", resumePlayback, { capture: true, passive: true });
-    document.addEventListener("click", resumePlayback, { capture: true, passive: true });
-    document.addEventListener("keydown", resumePlayback, { capture: true });
+    const handlePageReady = () => {
+      ensurePlaying();
+    };
+
+    document.addEventListener("pointerup", handleUserActivation, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("touchend", handleUserActivation, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("click", handleUserActivation, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("keydown", handleUserActivation, {
+      capture: true,
+    });
     document.addEventListener("visibilitychange", handleVisibility);
-    
-    window.addEventListener("load", handlePageReady);
     window.addEventListener("pageshow", handlePageReady);
+    window.addEventListener("load", handlePageReady);
+
+    // Desktop browsers may allow audible autoplay. Mobile browsers will reject
+    // this call until the first user activation, which is expected.
+    void player.element.play().catch(() => undefined);
+
+    if (initialMinimal) {
+      preferredVolumeRef.current = MINIMAL_VOLUME;
+    } else {
+      preferredVolumeRef.current = AMBIENT_VOLUME;
+    }
 
     return () => {
       mountedRef.current = false;
-      document.removeEventListener("pointerdown", resumePlayback, { capture: true });
-      document.removeEventListener("touchstart", resumePlayback, { capture: true });
-      document.removeEventListener("click", resumePlayback, { capture: true });
-      document.removeEventListener("keydown", resumePlayback, { capture: true });
+      document.removeEventListener("pointerup", handleUserActivation, {
+        capture: true,
+      });
+      document.removeEventListener("touchend", handleUserActivation, {
+        capture: true,
+      });
+      document.removeEventListener("click", handleUserActivation, {
+        capture: true,
+      });
+      document.removeEventListener("keydown", handleUserActivation, {
+        capture: true,
+      });
       document.removeEventListener("visibilitychange", handleVisibility);
-      
-      window.removeEventListener("load", handlePageReady);
       window.removeEventListener("pageshow", handlePageReady);
-      graphRef.current = null;
-      context.removeEventListener("statechange", handleStateChange);
-      void context.close();
+      window.removeEventListener("load", handlePageReady);
+
+      player.element.pause();
+      player.element.removeAttribute("src");
+      player.element.load();
+      player.element.remove();
+      playerRef.current = null;
     };
-  }, [resumePlayback]);
+  }, [createPlayer, ensurePlaying, playCurrent]);
 
   useEffect(() => {
-    resumePlayback();
-    setThemeMix(isMinimal, THEME_CROSSFADE_SECONDS);
-  }, [isMinimal, resumePlayback, setThemeMix]);
+    void switchTrack(isMinimal);
+  }, [isMinimal, switchTrack]);
 
   return null;
 };
