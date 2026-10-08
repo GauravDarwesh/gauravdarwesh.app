@@ -125,7 +125,6 @@ graph TD
 
 - Supabase Edge Functions
 - Supabase Storage
-- GitHub activity data
 - Notion content
 
 **UI / interaction**
@@ -135,7 +134,7 @@ graph TD
 - Theme switching
 - Ambient audio
 - Interactive search
-- Responsive activity and media views
+- Responsive media and content views
 
 ---
 
@@ -239,7 +238,7 @@ The site keeps its visual identity opinionated, lets motion support navigation i
 
 - src/App.tsx — application shell and routing
 - src/components/SearchBar.tsx — GDx interaction
-- src/pages/Hobbies.tsx — experience and activity
+- src/pages/Hobbies.tsx — experience, skills, and training
 - src/pages/Blog.tsx — writing archive
 - src/pages/Visuals.tsx — visual collections
 - src/lib/api.ts — backend communication
