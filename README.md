@@ -41,7 +41,7 @@ This repository is the source code for **[gauravdarwesh.app](https://gauravdarwe
 | --- | --- |
 | **GDx** | An AI-style search interface for exploring the site and connected knowledge |
 | **Experience** | Resume-style experience, skills, platforms, certifications, and extracurriculars |
-| **Activity** | GitHub contribution activity and training information |
+| **Growth** | Training information and ongoing learning |
 | **Writing** | A curated writing archive connected to Notion |
 | **Visuals** | Photography and visual collections |
 | **Themes** | Multiple site moods with persistent visual treatment and ambient audio |
@@ -72,7 +72,6 @@ flowchart LR
     UI --> VIS[Visuals]
 
     HOME --> GDx[GDx Search]
-    EXP --> ACT[GitHub Activity]
     EXP --> TRAIN[Training Data]
 
     GDx --> EDGE[Supabase Edge Functions]
@@ -83,7 +82,7 @@ flowchart LR
     classDef primary fill:#111827,stroke:#fb923c,color:#fff,stroke-width:2px;
     classDef secondary fill:#1f2937,stroke:#94a3b8,color:#fff;
     class V,UI,GDx primary;
-    class HOME,EXP,BLOG,VIS,EDGE,STORAGE,NOTION,ACT,TRAIN secondary;
+    class HOME,EXP,BLOG,VIS,EDGE,STORAGE,NOTION,TRAIN secondary;
 ```
 
 ### Page map
@@ -98,8 +97,7 @@ graph TD
     B --> B1["GDx / Search"]
     C --> C1["Experience"]
     C --> C2["Skills"]
-    C --> C3["GitHub Activity"]
-    C --> C4["Training"]
+    C --> C3["Training"]
     D --> D1["Notion Articles"]
     E --> E1["Photo Collections"]
 
@@ -233,7 +231,7 @@ The site keeps its visual identity opinionated, lets motion support navigation i
 ### Main routes
 
 - / — home / GDx search experience
-- /hobbies — experience, skills, activity, training
+- /hobbies — experience, skills, training
 - /blog — writing archive
 - /visuals — visual collections
 
@@ -275,16 +273,16 @@ Backend implementation, database migrations, and deployment secrets are maintain
 
 ---
 
+## © Copyright
+
 <div align="center">
 
-  <sub>© 2026 Gaurav Darwesh. All rights reserved.</sub>
+**© 2026 Gaurav Darwesh. All rights reserved.**
 
-  <br />
+This repository and the original work contained within it — including source code, design, written content, graphics, animations, media, branding, and other original assets — are the intellectual property of **Gaurav Darwesh**, unless otherwise stated.
 
-  <sub>
-    Source code is public for reference and portfolio purposes. Unless otherwise stated,
-    the original code, content, design, media, and assets in this repository may not be
-    reproduced, redistributed, or reused commercially without permission.
-  </sub>
+The repository is publicly available for **personal, educational, and portfolio reference**. No permission is granted to copy, redistribute, republish, modify, sell, sublicense, or commercially reuse the original work or any substantial portion of it without prior written permission.
+
+Third-party libraries, frameworks, fonts, services, and other materials remain subject to their respective licenses and terms.
 
 </div>
