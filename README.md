@@ -146,16 +146,23 @@ graph TD
 <p align="center">
   <a href="https://github.com/GauravDarwesh">
     <img
-      src="https://github-readme-activity-graph.vercel.app/graph?username=GauravDarwesh&hide_border=true&radius=10&area=true"
-      alt="Gaurav Darwesh GitHub activity graph"
+      src="https://github.com/users/GauravDarwesh/contributions"
+      alt="Gaurav Darwesh GitHub contribution calendar"
       width="95%"
     />
   </a>
 </p>
 
 <p align="center">
+  <img
+    src="https://github-readme-stats.vercel.app/api?username=GauravDarwesh&show_icons=true&hide_border=true&theme=transparent&rank_icon=github"
+    alt="Gaurav Darwesh GitHub statistics"
+  />
+</p>
+
+<p align="center">
   <sub>
-    Live visualization of GitHub activity. Your GitHub profile remains the canonical source for contribution history.
+    Contribution activity is served directly from GitHub above; the statistics card is an additional visual summary.
   </sub>
 </p>
 
